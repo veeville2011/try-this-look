@@ -4,15 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon, Camera } from "lucide-react";
 
 interface PhotoUploadProps {
-  onPhotoUpload: (dataURL: string) => void;
+  onPhotoUpload: (dataURL: string, isDemoPhoto?: boolean, demoPhotoUrl?: string) => void;
 }
 
+// Fixed IDs for demo pictures - these will be sent as personKey to the fashion API
 const DEMO_PHOTOS = [
-  "/assets/demo_pics/Audrey-Fleurot.jpg",
-  "/assets/demo_pics/french_man.webp",
-  "/assets/demo_pics/frwm2.webp",
-  "/assets/demo_pics/frwm3.jpg",
-];
+  { url: "/assets/demo_pics/Audrey-Fleurot.jpg", id: "demo_person_1" },
+  { url: "/assets/demo_pics/french_man.webp", id: "demo_person_2" },
+  { url: "/assets/demo_pics/frwm2.webp", id: "demo_person_3" },
+  { url: "/assets/demo_pics/frwm3.jpg", id: "demo_person_4" },
+] as const;
+
+// Map demo photo URLs to their fixed IDs
+export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
+  DEMO_PHOTOS.map((photo) => [photo.url, photo.id])
+);
 
 export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
@@ -25,7 +31,7 @@ export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
       reader.onloadend = () => {
         const dataURL = reader.result as string;
         setPreview(dataURL);
-        onPhotoUpload(dataURL);
+        onPhotoUpload(dataURL, false, undefined);
       };
       reader.readAsDataURL(file);
     }
@@ -39,7 +45,7 @@ export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
       reader.onloadend = () => {
         const dataURL = reader.result as string;
         setPreview(dataURL);
-        onPhotoUpload(dataURL);
+        onPhotoUpload(dataURL, true, url);
       };
       reader.readAsDataURL(blob);
     } catch (error) {
@@ -100,22 +106,22 @@ export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {DEMO_PHOTOS.map((photo, index) => (
             <Card
-              key={index}
+              key={photo.id}
               className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              onClick={() => handleDemoPhotoSelect(photo)}
+              onClick={() => handleDemoPhotoSelect(photo.url)}
               role="button"
               tabIndex={0}
               aria-label={`Sélectionner la photo de démonstration ${index + 1}`}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  handleDemoPhotoSelect(photo);
+                  handleDemoPhotoSelect(photo.url);
                 }
               }}
             >
               <div className="w-full bg-muted/30 flex items-center justify-center overflow-hidden">
                 <img
-                  src={photo}
+                  src={photo.url}
                   alt={`Photo de démonstration ${index + 1} pour l'essayage virtuel`}
                   className="w-full h-auto object-contain"
                   loading="lazy"

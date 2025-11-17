@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import PhotoUpload from "./PhotoUpload";
+import PhotoUpload, { DEMO_PHOTO_ID_MAP } from "./PhotoUpload";
 import ClothingSelection from "./ClothingSelection";
 import ResultDisplay from "./ResultDisplay";
 import {
@@ -48,6 +48,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [selectedClothing, setSelectedClothing] = useState<string | null>(null);
   const [selectedClothingKey, setSelectedClothingKey] = useState<
     string | number | null
+  >(null);
+  const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<
+    string | null
   >(null);
   const [availableImages, setAvailableImages] = useState<string[]>([]);
   const [availableImagesWithIds, setAvailableImagesWithIds] = useState<
@@ -283,9 +286,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     return () => window.removeEventListener("message", handleMessage);
   }, []); // Empty dependency array - listener should persist
 
-  const handlePhotoUpload = (dataURL: string) => {
+  const handlePhotoUpload = (
+    dataURL: string,
+    isDemoPhoto?: boolean,
+    demoPhotoUrl?: string
+  ) => {
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
+    // Track if a demo photo was selected and its URL
+    if (isDemoPhoto && demoPhotoUrl) {
+      setSelectedDemoPhotoUrl(demoPhotoUrl);
+    } else {
+      setSelectedDemoPhotoUrl(null);
+    }
     setStatusVariant("info");
     setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
   };
@@ -341,12 +354,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         ? String(selectedClothingKey)
         : undefined;
 
+      // Get personKey from selected demo photo ID (if demo photo was used)
+      const personKey = selectedDemoPhotoUrl
+        ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined
+        : undefined;
+
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
         storeName,
         clothingKey,
-        undefined // personKey - can be set later when we have person ID
+        personKey // personKey - fixed ID for demo pictures, undefined for uploaded photos
       );
 
       setProgress(100);
@@ -551,6 +569,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   const handleClearUploadedImage = () => {
     setUploadedImage(null);
+    setSelectedDemoPhotoUrl(null);
     try {
       storage.clearUploadedImage();
     } catch {}
@@ -564,6 +583,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setUploadedImage(null);
     setSelectedClothing(null);
     setSelectedClothingKey(null);
+    setSelectedDemoPhotoUrl(null);
     setGeneratedImage(null);
     setError(null);
     setProgress(0);
