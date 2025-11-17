@@ -9,6 +9,8 @@ interface ClothingSelectionProps {
   selectedImage: string | null;
   onSelect: (imageUrl: string) => void;
   onRefreshImages?: () => void;
+  availableImagesWithIds?: Map<string, string | number>;
+  generatedClothingKeys?: Set<string>;
 }
 
 export default function ClothingSelection({
@@ -17,9 +19,18 @@ export default function ClothingSelection({
   selectedImage,
   onSelect,
   onRefreshImages,
+  availableImagesWithIds = new Map(),
+  generatedClothingKeys = new Set(),
 }: ClothingSelectionProps) {
   const [validImages, setValidImages] = useState<string[]>([]);
   const [validRecommendedImages, setValidRecommendedImages] = useState<string[]>([]);
+
+  // Check if an image has been generated before
+  const isGenerated = (imageUrl: string): boolean => {
+    const clothingKey = availableImagesWithIds.get(imageUrl);
+    if (!clothingKey) return false;
+    return generatedClothingKeys.has(String(clothingKey));
+  };
 
   // Initialize with provided images; only remove on actual load error
   useEffect(() => {
@@ -67,7 +78,7 @@ export default function ClothingSelection({
                   onClick={() => onSelect(image)}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Sélectionner le vêtement ${index + 1}${selectedImage === image ? " - Sélectionné" : ""}`}
+                  aria-label={`Sélectionner le vêtement ${index + 1}${selectedImage === image ? " - Sélectionné" : ""}${isGenerated(image) ? " - Déjà généré" : ""}`}
                   aria-pressed={selectedImage === image}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -86,6 +97,12 @@ export default function ClothingSelection({
                         setValidImages((prev) => prev.filter((u) => u !== image));
                       }}
                     />
+                    {/* Single tick indicator (WhatsApp style) for generated items */}
+                    {isGenerated(image) && (
+                      <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full p-1 shadow-md">
+                        <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" aria-hidden="true" />
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -112,7 +129,7 @@ export default function ClothingSelection({
                         onClick={() => onSelect(image)}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? " - Sélectionné" : ""}`}
+                        aria-label={`Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? " - Sélectionné" : ""}${isGenerated(image) ? " - Déjà généré" : ""}`}
                         aria-pressed={selectedImage === image}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -131,6 +148,12 @@ export default function ClothingSelection({
                               setValidRecommendedImages((prev) => prev.filter((u) => u !== image));
                             }}
                           />
+                          {/* Single tick indicator (WhatsApp style) for generated items */}
+                          {isGenerated(image) && (
+                            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-background/90 backdrop-blur-sm rounded-full p-0.5 sm:p-1 shadow-md">
+                              <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" aria-hidden="true" />
+                            </div>
+                          )}
                         </div>
                       </Card>
                     ))}
@@ -158,12 +181,19 @@ export default function ClothingSelection({
                 <span>Effacer</span>
               </Button>
             </div>
-            <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
+            <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm relative">
               <img
                 src={selectedImage}
                 alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
                 className="h-full w-auto object-contain"
               />
+              {/* Single tick indicator (WhatsApp style) for generated items */}
+              {isGenerated(selectedImage) && (
+                <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full p-1.5 shadow-md">
+                  <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span className="sr-only">Cet article a déjà été généré</span>
+                </div>
+              )}
             </div>
           </Card>
         </div>

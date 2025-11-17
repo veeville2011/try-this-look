@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PhotoUpload from "./PhotoUpload";
@@ -22,6 +22,7 @@ import { TryOnResponse, ProductImage } from "@/types/tryon";
 import { Sparkles, X, RotateCcw, XCircle, Video } from "lucide-react";
 import StatusBar from "./StatusBar";
 import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
+import { useImageGenerations } from "@/hooks/useImageGenerations";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -29,6 +30,18 @@ interface TryOnWidgetProps {
 }
 
 export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
+  // Redux state for image generations
+  const { fetchGenerations, records } = useImageGenerations();
+
+  // Memoize the set of generated clothing keys to avoid recreating on every render
+  const generatedClothingKeys = useMemo(() => {
+    return new Set(
+      records
+        .filter((record) => record.clothingKey && record.status === "completed")
+        .map((record) => String(record.clothingKey))
+    );
+  }, [records]);
+
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -57,6 +70,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
+
+  // Fetch image generations on component load
+  useEffect(() => {
+    fetchGenerations({
+      page: 1,
+      limit: 1000,
+      orderBy: "createdAt",
+      orderDirection: "DESC",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only fetch once on mount
 
   // Expose store info globally for access
   useEffect(() => {
@@ -787,6 +811,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 selectedImage={selectedClothing}
                 onSelect={handleClothingSelect}
                 onRefreshImages={handleRefreshImages}
+                availableImagesWithIds={availableImagesWithIds}
+                generatedClothingKeys={generatedClothingKeys}
               />
             </Card>
           </section>
