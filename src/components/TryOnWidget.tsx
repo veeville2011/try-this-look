@@ -13,8 +13,12 @@ import {
   type StoreInfo,
 } from "@/utils/shopifyIntegration";
 import { storage } from "@/utils/storage";
-import { generateTryOn, dataURLToBlob, getHealthStatus } from "@/services/tryonApi";
-import { TryOnResponse } from "@/types/tryon";
+import {
+  generateTryOn,
+  dataURLToBlob,
+  getHealthStatus,
+} from "@/services/tryonApi";
+import { TryOnResponse, ProductImage } from "@/types/tryon";
 import { Sparkles, X, RotateCcw, XCircle, Video } from "lucide-react";
 import StatusBar from "./StatusBar";
 import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
@@ -29,7 +33,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedClothing, setSelectedClothing] = useState<string | null>(null);
+  const [selectedClothingKey, setSelectedClothingKey] = useState<
+    string | number | null
+  >(null);
   const [availableImages, setAvailableImages] = useState<string[]>([]);
+  const [availableImagesWithIds, setAvailableImagesWithIds] = useState<
+    Map<string, string | number>
+  >(new Map());
   const [recommendedImages, setRecommendedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
@@ -67,6 +77,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (savedClothing) {
       setSelectedClothing(savedClothing);
       setStatusMessage("Prêt à générer. Cliquez sur Générer Image.");
+      // Note: clothingKey will be restored when images are loaded (see useEffect below)
     }
     if (savedResult) {
       setGeneratedImage(savedResult);
@@ -197,13 +208,36 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         if (parentImages.length > 0) {
           // Always prioritize and use parent images - they come from the actual Shopify product page
           // These are extracted using Shopify Liquid objects (product.media/product.images)
-          setAvailableImages(parentImages);
+          // Handle both formats: string arrays (backward compatible) and object arrays (new format)
+          const imageUrls: string[] = [];
+          const imageIdMap = new Map<string, string | number>();
+
+          parentImages.forEach((img: string | ProductImage) => {
+            if (typeof img === "string") {
+              // Backward compatible: plain string URL
+              imageUrls.push(img);
+            } else if (img && typeof img === "object" && "url" in img) {
+              // New format: object with id and url
+              imageUrls.push(img.url);
+              if (img.id !== undefined) {
+                imageIdMap.set(img.url, img.id);
+              }
+            }
+          });
+
+          setAvailableImages(imageUrls);
+          setAvailableImagesWithIds(imageIdMap);
           imagesLoadedRef.current = true;
         }
 
-        // Set recommended images if available
+        // Set recommended images if available (recommended images are still strings for now)
         if (parentRecommendedImages.length > 0) {
-          setRecommendedImages(parentRecommendedImages);
+          const recommendedUrls = parentRecommendedImages
+            .map((img: string | ProductImage) =>
+              typeof img === "string" ? img : img?.url || ""
+            )
+            .filter(Boolean);
+          setRecommendedImages(recommendedUrls);
         }
       }
 
@@ -235,8 +269,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const handleClothingSelect = (imageUrl: string) => {
     setSelectedClothing(imageUrl);
     storage.saveClothingUrl(imageUrl);
-    setStatusVariant("info");
-    setStatusMessage("Prêt à générer. Cliquez sur Générer.");
+
+    // Get the clothing ID if available (clear if imageUrl is empty)
+    if (imageUrl) {
+      const clothingId = availableImagesWithIds.get(imageUrl) || null;
+      setSelectedClothingKey(clothingId);
+      setStatusVariant("info");
+      setStatusMessage("Prêt à générer. Cliquez sur Générer.");
+    } else {
+      setSelectedClothingKey(null);
+      setStatusVariant("info");
+      setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
+    }
   };
 
   const handleGenerate = async () => {
@@ -268,10 +312,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Get store name from storeInfo
       const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
 
+      // Get clothingKey from selected clothing ID
+      const clothingKey = selectedClothingKey
+        ? String(selectedClothingKey)
+        : undefined;
+
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
-        storeName
+        storeName,
+        clothingKey,
+        undefined // personKey - can be set later when we have person ID
       );
 
       setProgress(100);
@@ -342,7 +393,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
         for (const imageUrl of additionalImages) {
           try {
-            const file = await dataURLToFile(imageUrl, `product-${Date.now()}.jpg`);
+            const file = await dataURLToFile(
+              imageUrl,
+              `product-${Date.now()}.jpg`
+            );
             productImages.push(file);
           } catch (err) {
             // Skip images that fail to convert
@@ -398,6 +452,27 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     // If NOT in iframe (standalone mode), extract from current page
     let imagesFound = false;
 
+    // Helper function to normalize images and extract IDs
+    const normalizeImages = (
+      images: (string | ProductImage)[]
+    ): { urls: string[]; idMap: Map<string, string | number> } => {
+      const urls: string[] = [];
+      const idMap = new Map<string, string | number>();
+
+      images.forEach((img) => {
+        if (typeof img === "string") {
+          urls.push(img);
+        } else if (img && typeof img === "object" && "url" in img) {
+          urls.push(img.url);
+          if (img.id !== undefined) {
+            idMap.set(img.url, img.id);
+          }
+        }
+      });
+
+      return { urls, idMap };
+    };
+
     // Priority 1: Get product images from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const productParam = urlParams.get("product");
@@ -409,7 +484,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           Array.isArray(productData.images) &&
           productData.images.length > 0
         ) {
-          setAvailableImages(productData.images);
+          const { urls, idMap } = normalizeImages(productData.images);
+          setAvailableImages(urls);
+          setAvailableImagesWithIds(idMap);
           imagesFound = true;
         }
       } catch (error) {
@@ -429,7 +506,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         Array.isArray(productData.images) &&
         productData.images.length > 0
       ) {
-        setAvailableImages(productData.images);
+        const { urls, idMap } = normalizeImages(productData.images);
+        setAvailableImages(urls);
+        setAvailableImagesWithIds(idMap);
         imagesFound = true;
       }
     }
@@ -438,7 +517,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (!imagesFound) {
       const images = extractProductImages();
       if (images.length > 0) {
+        // extractProductImages returns string array, so no IDs available
         setAvailableImages(images);
+        setAvailableImagesWithIds(new Map());
         imagesFound = true;
       }
     }
@@ -458,6 +539,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setCurrentStep(1);
     setUploadedImage(null);
     setSelectedClothing(null);
+    setSelectedClothingKey(null);
     setGeneratedImage(null);
     setError(null);
     setProgress(0);
@@ -467,6 +549,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       "Téléchargez votre photo puis choisissez un article à essayer"
     );
   };
+
+  // Restore clothingKey when images are loaded (for saved state)
+  useEffect(() => {
+    if (
+      selectedClothing &&
+      availableImagesWithIds.size > 0 &&
+      !selectedClothingKey
+    ) {
+      const clothingId = availableImagesWithIds.get(selectedClothing);
+      if (clothingId) {
+        setSelectedClothingKey(clothingId);
+      }
+    }
+  }, [selectedClothing, availableImagesWithIds, selectedClothingKey]);
 
   useEffect(() => {
     // Check for inflight generation after state updates are applied
@@ -544,8 +640,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               className="inline-flex items-center tracking-wide leading-none whitespace-nowrap text-2xl sm:text-3xl md:text-4xl font-bold"
               aria-label="NULOOK - Essayage Virtuel Alimenté par IA"
             >
-              <span style={{ color: "#ce0003" }} aria-hidden="true">NU</span>
-              <span style={{ color: "#564646" }} aria-hidden="true">LOOK</span>
+              <span style={{ color: "#ce0003" }} aria-hidden="true">
+                NU
+              </span>
+              <span style={{ color: "#564646" }} aria-hidden="true">
+                LOOK
+              </span>
             </h1>
             <p className="mt-0.5 sm:mt-1 text-left leading-tight tracking-tight whitespace-nowrap text-[10px] sm:text-xs md:text-sm text-[#3D3232] font-medium">
               Essayage Virtuel Alimenté par IA
@@ -560,7 +660,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 className="group text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 text-xs sm:text-sm px-3 sm:px-4 h-[44px] sm:h-9 md:h-10 whitespace-nowrap shadow-sm hover:shadow-md gap-2 flex items-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label="Réinitialiser l'application"
               >
-                <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:rotate-[-120deg] duration-500" aria-hidden="true" />
+                <RotateCcw
+                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                  aria-hidden="true"
+                />
                 <span>Réinitialiser</span>
               </Button>
             )}
@@ -572,7 +675,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               aria-label="Fermer l'application"
               title="Fermer"
             >
-              <X className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:rotate-90 duration-300" aria-hidden="true" />
+              <X
+                className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:rotate-90 duration-300"
+                aria-hidden="true"
+              />
             </Button>
           </div>
         </div>
@@ -613,39 +719,42 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </div>
               </div>
 
-            {!uploadedImage && (
-              <PhotoUpload onPhotoUpload={handlePhotoUpload} />
-            )}
+              {!uploadedImage && (
+                <PhotoUpload onPhotoUpload={handlePhotoUpload} />
+              )}
 
-            {uploadedImage && (
-              <div className="space-y-3 sm:space-y-4">
-                <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
-                  <div className="flex items-center justify-between mb-2 gap-2">
-                    <h3 className="font-semibold text-sm sm:text-base">
-                      Votre Photo
-                    </h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearUploadedImage}
-                      className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                      aria-label="Effacer la photo téléchargée"
-                      aria-describedby="upload-heading"
-                    >
-                      <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200" aria-hidden="true" />
-                      <span>Effacer</span>
-                    </Button>
-                  </div>
-                  <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
-                    <img
-                      src={uploadedImage}
-                      alt="Photo téléchargée pour l'essayage virtuel"
-                      className="h-full w-auto object-contain"
-                    />
+              {uploadedImage && (
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <h3 className="font-semibold text-sm sm:text-base">
+                        Votre Photo
+                      </h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearUploadedImage}
+                        className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-label="Effacer la photo téléchargée"
+                        aria-describedby="upload-heading"
+                      >
+                        <XCircle
+                          className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
+                          aria-hidden="true"
+                        />
+                        <span>Effacer</span>
+                      </Button>
+                    </div>
+                    <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
+                      <img
+                        src={uploadedImage}
+                        alt="Photo téléchargée pour l'essayage virtuel"
+                        className="h-full w-auto object-contain"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             </Card>
           </section>
 
@@ -688,12 +797,24 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           <div className="pt-1 sm:pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <Button
               onClick={handleGenerate}
-              disabled={!selectedClothing || !uploadedImage || isGenerating || isGeneratingVideo}
+              disabled={
+                !selectedClothing ||
+                !uploadedImage ||
+                isGenerating ||
+                isGeneratingVideo
+              }
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Générer l'essayage virtuel"
-              aria-describedby={!selectedClothing || !uploadedImage ? "generate-help" : undefined}
+              aria-describedby={
+                !selectedClothing || !uploadedImage
+                  ? "generate-help"
+                  : undefined
+              }
             >
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
+              <Sparkles
+                className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                aria-hidden="true"
+              />
               Générer Image
             </Button>
             <Button
@@ -702,19 +823,26 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               variant="outline"
               className="group w-full border-2 border-primary text-primary hover:border-primary-dark hover:text-primary-dark hover:bg-primary/5 active:bg-primary/10 h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Générer une vidéo publicitaire"
-              aria-describedby={!selectedClothing ? "generate-video-help" : undefined}
+              aria-describedby={
+                !selectedClothing ? "generate-video-help" : undefined
+              }
             >
-              <Video className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
+              <Video
+                className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform duration-200 group-hover:scale-110"
+                aria-hidden="true"
+              />
               Générer Vidéo
             </Button>
             {(!selectedClothing || !uploadedImage) && (
               <p id="generate-help" className="sr-only">
-                Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel
+                Veuillez télécharger une photo et sélectionner un vêtement pour
+                générer l'essayage virtuel
               </p>
             )}
             {!selectedClothing && (
               <p id="generate-video-help" className="sr-only">
-                Veuillez sélectionner un vêtement pour générer une vidéo publicitaire
+                Veuillez sélectionner un vêtement pour générer une vidéo
+                publicitaire
               </p>
             )}
           </div>
@@ -743,7 +871,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {error && (
           <div role="alert" aria-live="assertive">
             <Card className="p-6 bg-error/10 border-error">
-              <p className="text-error font-medium" id="error-message">{error}</p>
+              <p className="text-error font-medium" id="error-message">
+                {error}
+              </p>
               <Button
                 variant="secondary"
                 onClick={handleReset}
@@ -751,7 +881,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 aria-label="Réessayer après une erreur"
                 aria-describedby="error-message"
               >
-                <RotateCcw className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500" aria-hidden="true" />
+                <RotateCcw
+                  className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                  aria-hidden="true"
+                />
                 <span>Réessayer</span>
               </Button>
             </Card>

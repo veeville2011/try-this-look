@@ -38,7 +38,10 @@
           {% unless image_url_full contains '://' %}
             {% assign image_url_full = 'https:' | append: image_url_full %}
           {% endunless %}
-          "{{ image_url_full }}"{% unless forloop.last %},{% endunless %}
+          {
+            id: {{ media_item.id }},
+            url: "{{ image_url_full }}"
+          }{% unless forloop.last %},{% endunless %}
         {% endfor %}
       {% else %}
         {% comment %} Fallback: use product.images (legacy themes) {% endcomment %}
@@ -48,7 +51,10 @@
           {% unless image_url_full contains '://' %}
             {% assign image_url_full = 'https:' | append: image_url_full %}
           {% endunless %}
-          "{{ image_url_full }}"{% unless forloop.last %},{% endunless %}
+          {
+            id: {{ image.id }},
+            url: "{{ image_url_full }}"
+          }{% unless forloop.last %},{% endunless %}
         {% endfor %}
       {% endif %}
     ],
@@ -581,10 +587,17 @@
       
       // Priority 1: Use NUSENSE_PRODUCT_DATA (most reliable - from Liquid)
       // This is populated by the Liquid template with product.media/product.images
+      // Now supports both string arrays (backward compatible) and object arrays (new format with IDs)
       {% if product %}
       if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.images && Array.isArray(window.NUSENSE_PRODUCT_DATA.images)) {
+        // Filter valid images (strings or objects with url property)
         images = window.NUSENSE_PRODUCT_DATA.images.filter(function(img) {
-          return img && typeof img === 'string' && img.trim().length > 0;
+          if (typeof img === 'string') {
+            return img && img.trim().length > 0;
+          } else if (img && typeof img === 'object' && img.url) {
+            return img.url && typeof img.url === 'string' && img.url.trim().length > 0;
+          }
+          return false;
         });
         if (images.length > 0) {
           return images;

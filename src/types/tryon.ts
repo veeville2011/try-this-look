@@ -1,3 +1,8 @@
+export interface ProductImage {
+  id?: number | string;
+  url: string;
+}
+
 export interface ProductInfo {
   id: string;
   name: string;

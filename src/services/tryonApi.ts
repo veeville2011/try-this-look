@@ -6,7 +6,9 @@ const HEALTH_ENDPOINT = "https://try-on-server-v1.onrender.com/api/health";
 export async function generateTryOn(
   personImage: File | Blob,
   clothingImage: Blob,
-  storeName?: string | null
+  storeName?: string | null,
+  clothingKey?: string | null,
+  personKey?: string | null
 ): Promise<TryOnResponse> {
   try {
     const formData = new FormData();
@@ -15,6 +17,14 @@ export async function generateTryOn(
 
     if (storeName) {
       formData.append("storeName", storeName);
+    }
+
+    if (clothingKey) {
+      formData.append("clothingKey", clothingKey);
+    }
+
+    if (personKey) {
+      formData.append("personKey", personKey);
     }
 
     const response = await fetch(API_ENDPOINT, {

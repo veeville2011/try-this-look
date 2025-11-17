@@ -223,7 +223,10 @@ const verifyAppProxySignature = (req, res, next) => {
 
     // Use crypto.timingSafeEqual for constant-time comparison to prevent timing attacks
     if (
-      !crypto.timingSafeEqual(providedSignatureBuffer, calculatedSignatureBuffer)
+      !crypto.timingSafeEqual(
+        providedSignatureBuffer,
+        calculatedSignatureBuffer
+      )
     ) {
       return res.status(401).json({
         error: "Unauthorized",
@@ -344,7 +347,7 @@ app.get("/auth", async (req, res) => {
 app.get("/auth/callback", async (req, res) => {
   try {
     logger.info("[OAUTH] OAuth callback received");
-    
+
     const callbackResponse = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
@@ -354,10 +357,15 @@ app.get("/auth/callback", async (req, res) => {
     const apiKey = process.env.VITE_SHOPIFY_API_KEY;
 
     if (!shop || !apiKey) {
-      logger.error("[OAUTH] OAuth callback failed - missing shop or API key", null, req, {
-        shop: shop || "unknown",
-        hasApiKey: !!apiKey,
-      });
+      logger.error(
+        "[OAUTH] OAuth callback failed - missing shop or API key",
+        null,
+        req,
+        {
+          shop: shop || "unknown",
+          hasApiKey: !!apiKey,
+        }
+      );
       return res.status(500).json({
         error: "Authentication failed",
         message: "Missing shop or API key information",
@@ -373,7 +381,7 @@ app.get("/auth/callback", async (req, res) => {
     res.redirect(redirectUrl);
   } catch (error) {
     logger.error("[OAUTH] OAuth callback failed", error, req);
-    
+
     if (!res.headersSent) {
       res.status(500).json({
         error: "OAuth callback failed",
@@ -418,10 +426,13 @@ app.post(
       // - Revoke access tokens (handled by Shopify API library)
 
       // Log successful processing
-      logger.info(`[WEBHOOK] app/uninstalled processed successfully for shop: ${shop}`, {
-        shop,
-        webhookTopic: req.webhookTopic,
-      });
+      logger.info(
+        `[WEBHOOK] app/uninstalled processed successfully for shop: ${shop}`,
+        {
+          shop,
+          webhookTopic: req.webhookTopic,
+        }
+      );
 
       res.status(200).json({ received: true });
     } catch (error) {
@@ -430,10 +441,10 @@ app.post(
         shop: req.webhookShop || req.webhookData?.shop_domain,
         webhookTopic: req.webhookTopic,
       });
-      
+
       // Return 200 to acknowledge receipt (Shopify requirement)
       // But log the error for investigation
-      res.status(200).json({ 
+      res.status(200).json({
         received: true,
         error: "Webhook processed but encountered an error",
       });
@@ -455,11 +466,14 @@ app.post(
       const customerId = customer?.id || customer;
 
       // Log webhook received for audit purposes
-      logger.info(`[WEBHOOK] customers/data_request received for shop: ${shop}, customer: ${customerId}`, {
-        shop,
-        customerId,
-        webhookTopic: req.webhookTopic,
-      });
+      logger.info(
+        `[WEBHOOK] customers/data_request received for shop: ${shop}, customer: ${customerId}`,
+        {
+          shop,
+          customerId,
+          webhookTopic: req.webhookTopic,
+        }
+      );
 
       // Handle GDPR data request
       // Must provide customer data within 30 days
@@ -489,26 +503,35 @@ app.post(
       // - Log data export for audit purposes
 
       // Log successful processing
-      logger.info(`[WEBHOOK] customers/data_request processed successfully for shop: ${shop}, customer: ${customerId}`, {
-        shop,
-        customerId,
-        webhookTopic: req.webhookTopic,
-      });
+      logger.info(
+        `[WEBHOOK] customers/data_request processed successfully for shop: ${shop}, customer: ${customerId}`,
+        {
+          shop,
+          customerId,
+          webhookTopic: req.webhookTopic,
+        }
+      );
 
       // Return 200 to acknowledge receipt
       // Note: Actual data export (if needed) should be handled asynchronously
       res.status(200).json({ received: true });
     } catch (error) {
       // Log error for debugging
-      logger.error(`[WEBHOOK ERROR] customers/data_request failed`, error, req, {
-        shop: req.webhookShop || req.webhookData?.shop_domain,
-        customerId: req.webhookData?.customer?.id || req.webhookData?.customer,
-        webhookTopic: req.webhookTopic,
-      });
-      
+      logger.error(
+        `[WEBHOOK ERROR] customers/data_request failed`,
+        error,
+        req,
+        {
+          shop: req.webhookShop || req.webhookData?.shop_domain,
+          customerId:
+            req.webhookData?.customer?.id || req.webhookData?.customer,
+          webhookTopic: req.webhookTopic,
+        }
+      );
+
       // Return 200 to acknowledge receipt (Shopify requirement)
       // But log the error for investigation
-      res.status(200).json({ 
+      res.status(200).json({
         received: true,
         error: "Webhook processed but encountered an error",
       });
@@ -530,11 +553,14 @@ app.post(
       const customerId = customer?.id || customer;
 
       // Log webhook received for audit purposes
-      logger.info(`[WEBHOOK] customers/redact received for shop: ${shop}, customer: ${customerId}`, {
-        shop,
-        customerId,
-        webhookTopic: req.webhookTopic,
-      });
+      logger.info(
+        `[WEBHOOK] customers/redact received for shop: ${shop}, customer: ${customerId}`,
+        {
+          shop,
+          customerId,
+          webhookTopic: req.webhookTopic,
+        }
+      );
 
       // Handle GDPR customer data deletion
       // Must delete all customer data within 10 days
@@ -566,11 +592,14 @@ app.post(
       // - Verify data deletion was successful
 
       // Log successful processing
-      logger.info(`[WEBHOOK] customers/redact processed successfully for shop: ${shop}, customer: ${customerId}`, {
-        shop,
-        customerId,
-        webhookTopic: req.webhookTopic,
-      });
+      logger.info(
+        `[WEBHOOK] customers/redact processed successfully for shop: ${shop}, customer: ${customerId}`,
+        {
+          shop,
+          customerId,
+          webhookTopic: req.webhookTopic,
+        }
+      );
 
       // Return 200 to acknowledge receipt
       // Note: Actual data deletion (if needed) should be handled asynchronously
@@ -582,10 +611,10 @@ app.post(
         customerId: req.webhookData?.customer?.id || req.webhookData?.customer,
         webhookTopic: req.webhookTopic,
       });
-      
+
       // Return 200 to acknowledge receipt (Shopify requirement)
       // But log the error for investigation
-      res.status(200).json({ 
+      res.status(200).json({
         received: true,
         error: "Webhook processed but encountered an error",
       });
@@ -636,10 +665,13 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
     // - Verify data deletion was successful
 
     // Log successful processing
-    logger.info(`[WEBHOOK] shop/redact processed successfully for shop: ${shop}`, {
-      shop,
-      webhookTopic: req.webhookTopic,
-    });
+    logger.info(
+      `[WEBHOOK] shop/redact processed successfully for shop: ${shop}`,
+      {
+        shop,
+        webhookTopic: req.webhookTopic,
+      }
+    );
 
     // Return 200 to acknowledge receipt
     // Note: Actual data deletion (if needed) should be handled asynchronously
@@ -650,10 +682,10 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
       shop: req.webhookShop || req.webhookData?.shop_domain,
       webhookTopic: req.webhookTopic,
     });
-    
+
     // Return 200 to acknowledge receipt (Shopify requirement)
     // But log the error for investigation
-    res.status(200).json({ 
+    res.status(200).json({
       received: true,
       error: "Webhook processed but encountered an error",
     });
@@ -737,7 +769,9 @@ app.post("/api/billing/subscribe", async (req, res) => {
     }
 
     // Default return URL if not provided
-    const defaultReturnUrl = `${process.env.VITE_SHOPIFY_APP_URL || appUrl}/auth/callback?shop=${shopDomain}`;
+    const defaultReturnUrl = `${
+      process.env.VITE_SHOPIFY_APP_URL || appUrl
+    }/auth/callback?shop=${shopDomain}`;
     const finalReturnUrl = returnUrl || defaultReturnUrl;
 
     const result = await billing.createSubscription(
@@ -781,12 +815,15 @@ app.get("/api/billing/plans", (req, res) => {
 // API Routes
 app.post("/api/tryon/generate", async (req, res) => {
   try {
-    const { personImage, clothingImage, storeName } = req.body;
+    const { personImage, clothingImage, storeName, clothingKey, personKey } =
+      req.body;
 
     logger.info("[API] Try-on generation request received", {
       storeName,
       hasPersonImage: !!personImage,
       hasClothingImage: !!clothingImage,
+      hasClothingKey: !!clothingKey,
+      hasPersonKey: !!personKey,
     });
 
     if (!personImage || !clothingImage) {
@@ -809,6 +846,16 @@ app.post("/api/tryon/generate", async (req, res) => {
     // Add storeName if provided
     if (storeName) {
       formData.append("storeName", storeName);
+    }
+
+    // Add clothingKey if provided
+    if (clothingKey) {
+      formData.append("clothingKey", clothingKey);
+    }
+
+    // Add personKey if provided
+    if (personKey) {
+      formData.append("personKey", personKey);
     }
 
     const startTime = Date.now();
@@ -842,13 +889,13 @@ app.post("/api/tryon/generate", async (req, res) => {
 
     const data = await response.json();
     const duration = Date.now() - startTime;
-    
+
     logger.info("[API] Try-on generation completed successfully", {
       storeName,
       duration: `${duration}ms`,
       hasResult: !!data,
     });
-    
+
     res.json(data);
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -856,7 +903,7 @@ app.post("/api/tryon/generate", async (req, res) => {
       storeName,
       duration: `${duration}ms`,
     });
-    
+
     res.status(500).json({
       error: "Failed to generate try-on image",
       message: error.message,
@@ -871,7 +918,7 @@ app.get("/api/products/:productId", async (req, res) => {
     logger.info("[API] Product data request received", {
       productId,
     });
-    
+
     // Public request - return basic product info from query
     // Widget will get product data from page context
     res.json({
@@ -882,7 +929,7 @@ app.get("/api/products/:productId", async (req, res) => {
     logger.error("[API] Product data request failed", error, req, {
       productId: req.params.productId,
     });
-    
+
     res
       .status(500)
       .json({ error: "Failed to fetch product", message: error.message });
@@ -933,7 +980,7 @@ app.get("/apps/apps/a/*", verifyAppProxySignature, (req, res) => {
         message: "Invalid shop domain format",
       });
     }
-    
+
     logger.info("[APP PROXY] App proxy request processed", {
       shop: req.proxyShop,
       proxyPath,
@@ -955,11 +1002,12 @@ app.get("/apps/apps/a/*", verifyAppProxySignature, (req, res) => {
       proxyPath: req.path.replace("/apps/apps/a", ""),
       shop: req.proxyShop,
     });
-    
+
     if (!res.headersSent) {
       res.status(500).json({
         error: "Internal server error",
-        message: error.message || "An error occurred processing the app proxy request",
+        message:
+          error.message || "An error occurred processing the app proxy request",
       });
     }
   }
@@ -979,7 +1027,7 @@ app.use((err, req, res, next) => {
   logger.error("Unhandled error in request", err, req, {
     status: err.status || 500,
   });
-  
+
   if (!res.headersSent) {
     res.status(err.status || 500).json({
       error: err.message || "Internal server error",
