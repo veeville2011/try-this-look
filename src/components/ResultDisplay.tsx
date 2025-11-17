@@ -9,11 +9,13 @@ import {
   Download,
   Loader2,
   Image as ImageIcon,
+  Video,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface ResultDisplayProps {
   generatedImage?: string | null;
+  generatedVideo?: string | null;
   personImage?: string | null;
   clothingImage?: string | null;
   isGenerating?: boolean;
@@ -29,6 +31,7 @@ interface ProductData {
 
 export default function ResultDisplay({
   generatedImage,
+  generatedVideo,
   personImage,
   clothingImage,
   isGenerating = false,
@@ -249,7 +252,8 @@ export default function ResultDisplay({
   };
 
   const handleDownload = async () => {
-    if (isDownloadLoading || !generatedImage) return;
+    const downloadUrl = generatedVideo || generatedImage;
+    if (isDownloadLoading || !downloadUrl) return;
 
     setIsDownloadLoading(true);
 
@@ -257,18 +261,18 @@ export default function ResultDisplay({
       // Convert data URL or blob URL to blob for proper download
       let blob: Blob | null = null;
 
-      if (generatedImage.startsWith("data:")) {
+      if (downloadUrl.startsWith("data:")) {
         // Data URL - convert to blob
-        const response = await fetch(generatedImage);
+        const response = await fetch(downloadUrl);
         blob = await response.blob();
-      } else if (generatedImage.startsWith("blob:")) {
+      } else if (downloadUrl.startsWith("blob:")) {
         // Blob URL - fetch it
-        const response = await fetch(generatedImage);
+        const response = await fetch(downloadUrl);
         blob = await response.blob();
       } else {
         // Regular URL - try to fetch with CORS handling
         try {
-          const response = await fetch(generatedImage, {
+          const response = await fetch(downloadUrl, {
             mode: "cors",
             credentials: "omit",
           });
@@ -277,7 +281,19 @@ export default function ResultDisplay({
           }
           blob = await response.blob();
         } catch (fetchError) {
-          // CORS error - create canvas and convert to blob
+          // For video URLs, try direct download
+          if (generatedVideo) {
+            // Fallback: try to open in new tab
+            window.open(downloadUrl, "_blank");
+            setIsDownloadLoading(false);
+            toast.info("Ouverture dans un nouvel onglet", {
+              description:
+                "La vidéo s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+            });
+            return;
+          }
+
+          // For images, try canvas approach
           const img = new Image();
           img.crossOrigin = "anonymous";
 
@@ -305,20 +321,24 @@ export default function ResultDisplay({
               }
             };
             img.onerror = () => reject(new Error("Failed to load image"));
-            img.src = generatedImage;
+            img.src = downloadUrl;
           });
         }
       }
 
       if (!blob) {
-        throw new Error("Failed to create blob from image");
+        throw new Error("Failed to create blob");
       }
 
       // Create download link
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `essayage-virtuel-${Date.now()}.png`;
+      const extension = generatedVideo ? "mp4" : "png";
+      const filename = generatedVideo
+        ? `video-publicitaire-${Date.now()}.${extension}`
+        : `essayage-virtuel-${Date.now()}.${extension}`;
+      link.download = filename;
       link.style.display = "none";
 
       document.body.appendChild(link);
@@ -332,22 +352,26 @@ export default function ResultDisplay({
 
       setIsDownloadLoading(false);
       toast.success("Téléchargement réussi", {
-        description: "L'image a été téléchargée avec succès.",
+        description: generatedVideo
+          ? "La vidéo a été téléchargée avec succès."
+          : "L'image a été téléchargée avec succès.",
       });
     } catch (error) {
       setIsDownloadLoading(false);
 
       // Fallback: try to open in new tab
       try {
-        window.open(generatedImage, "_blank");
+        window.open(downloadUrl, "_blank");
         toast.info("Ouverture dans un nouvel onglet", {
-          description:
-            "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+          description: generatedVideo
+            ? "La vidéo s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là."
+            : "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
         });
       } catch (openError) {
         toast.error("Erreur de téléchargement", {
-          description:
-            "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
+          description: generatedVideo
+            ? "Impossible de télécharger la vidéo. Veuillez réessayer."
+            : "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
         });
       }
     }
@@ -365,21 +389,27 @@ export default function ResultDisplay({
       <Card className="p-3 sm:p-4 md:p-5 border-border bg-card ring-2 ring-primary/20 shadow-lg">
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm">
-            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+            {generatedVideo ? (
+              <Video className="w-4 h-4 sm:w-5 sm:h-5" />
+            ) : (
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-base sm:text-lg font-semibold">
-              Résultat Généré
+              {generatedVideo ? "Vidéo Générée" : "Résultat Généré"}
             </h2>
             <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Essayage virtuel avec IA
+              {generatedVideo
+                ? "Vidéo publicitaire avec IA"
+                : "Essayage virtuel avec IA"}
             </p>
           </div>
         </div>
 
         {/* Split layout: 50% image, 50% action buttons */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 md:gap-8">
-          {/* Left side: Generated image, loading skeleton, or placeholder */}
+          {/* Left side: Generated image/video, loading skeleton, or placeholder */}
           <div className="relative aspect-[3/4] rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300">
             {isGenerating ? (
               // Loading state - skeleton with shimmer and loading indicator
@@ -401,12 +431,26 @@ export default function ResultDisplay({
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                   <div className="relative">
                     <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
-                      <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
+                      {generatedVideo ? (
+                        <Video className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
+                      ) : (
+                        <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
+                      )}
                     </div>
                     <div className="absolute inset-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 animate-ping opacity-75" />
                   </div>
                 </div>
               </div>
+            ) : generatedVideo ? (
+              // Generated video available - show video player
+              <video
+                src={generatedVideo}
+                controls
+                className="h-full w-full object-contain"
+                aria-label="Vidéo publicitaire générée par intelligence artificielle"
+              >
+                Votre navigateur ne supporte pas la lecture de vidéos.
+              </video>
             ) : generatedImage ? (
               // Generated image available - show it
               <img
@@ -416,7 +460,7 @@ export default function ResultDisplay({
                 loading="lazy"
               />
             ) : (
-              // No image and not loading - show static placeholder
+              // No image/video and not loading - show static placeholder
               <div className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 text-muted-foreground" role="status" aria-live="polite">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center" aria-hidden="true">
                   <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
@@ -439,7 +483,8 @@ export default function ResultDisplay({
                 isAddToCartLoading ||
                 isDownloadLoading ||
                 isGenerating ||
-                !generatedImage
+                (!generatedImage && !generatedVideo) ||
+                !!generatedVideo
               }
               variant="outline"
               size="sm"
@@ -466,7 +511,8 @@ export default function ResultDisplay({
                 isAddToCartLoading ||
                 isDownloadLoading ||
                 isGenerating ||
-                !generatedImage
+                (!generatedImage && !generatedVideo) ||
+                !!generatedVideo
               }
               variant="outline"
               size="sm"
@@ -493,12 +539,12 @@ export default function ResultDisplay({
                 isAddToCartLoading ||
                 isDownloadLoading ||
                 isGenerating ||
-                !generatedImage
+                (!generatedImage && !generatedVideo)
               }
               variant="outline"
               size="sm"
               className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-blue-500/80 bg-white hover:bg-blue-50 hover:border-blue-600 text-blue-600 hover:text-blue-700 active:bg-blue-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label="Télécharger"
+              aria-label={generatedVideo ? "Télécharger la vidéo" : "Télécharger"}
               aria-busy={isDownloadLoading}
             >
               {isDownloadLoading ? (
@@ -507,7 +553,11 @@ export default function ResultDisplay({
                 <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
               )}
               <span className="leading-tight whitespace-nowrap">
-                {isDownloadLoading ? "Téléchargement..." : "Télécharger"}
+                {isDownloadLoading
+                  ? "Téléchargement..."
+                  : generatedVideo
+                  ? "Télécharger Vidéo"
+                  : "Télécharger"}
               </span>
             </Button>
           </div>

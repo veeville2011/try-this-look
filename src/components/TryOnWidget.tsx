@@ -15,8 +15,9 @@ import {
 import { storage } from "@/utils/storage";
 import { generateTryOn, dataURLToBlob, getHealthStatus } from "@/services/tryonApi";
 import { TryOnResponse } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, XCircle } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, Video } from "lucide-react";
 import StatusBar from "./StatusBar";
+import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -31,9 +32,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [availableImages, setAvailableImages] = useState<string[]>([]);
   const [recommendedImages, setRecommendedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [videoProgress, setVideoProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(
     "Téléchargez votre photo puis choisissez un article à essayer"
@@ -62,7 +66,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     if (savedClothing) {
       setSelectedClothing(savedClothing);
-      setStatusMessage("Prêt à générer. Cliquez sur Générer.");
+      setStatusMessage("Prêt à générer. Cliquez sur Générer Image.");
     }
     if (savedResult) {
       setGeneratedImage(savedResult);
@@ -296,6 +300,85 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       try {
         localStorage.removeItem(INFLIGHT_KEY);
       } catch {}
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    if (!selectedClothing) {
+      setStatusVariant("error");
+      setStatusMessage(
+        "La génération de vidéo nécessite au moins un article sélectionné."
+      );
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+    setError(null);
+    setVideoProgress(0);
+    setStatusVariant("info");
+    setStatusMessage(
+      "Génération de la vidéo en cours. Cela peut prendre 1 à 5 minutes…"
+    );
+
+    try {
+      // Convert selected clothing image to File
+      const clothingFile = await dataURLToFile(
+        selectedClothing,
+        "product-image.jpg"
+      );
+
+      // Get store name and user info from storeInfo
+      const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
+
+      // Prepare product images array (can include multiple images from availableImages)
+      const productImages: File[] = [clothingFile];
+
+      // Optionally add more product images if available
+      if (availableImages.length > 1) {
+        // Limit to 10 images total as per API documentation
+        const additionalImages = availableImages
+          .slice(0, 9)
+          .filter((url) => url !== selectedClothing);
+
+        for (const imageUrl of additionalImages) {
+          try {
+            const file = await dataURLToFile(imageUrl, `product-${Date.now()}.jpg`);
+            productImages.push(file);
+          } catch (err) {
+            // Skip images that fail to convert
+          }
+        }
+      }
+
+      setVideoProgress(30);
+
+      const result = await generateVideoAd(productImages, {
+        storeName: storeName || undefined,
+      });
+
+      setVideoProgress(90);
+
+      if (result.status === "success" && result.image) {
+        setGeneratedVideo(result.image);
+        setVideoProgress(100);
+        setStatusVariant("info");
+        setStatusMessage("Vidéo générée avec succès !");
+      } else {
+        throw new Error(
+          result.error_message?.message || "Erreur de génération de vidéo"
+        );
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Une erreur inattendue s'est produite lors de la génération de la vidéo";
+      setError(errorMessage);
+      setStatusVariant("error");
+      setStatusMessage(errorMessage);
+    } finally {
+      setIsGeneratingVideo(false);
+      setVideoProgress(0);
     }
   };
 
@@ -600,22 +683,38 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           </section>
         </div>
 
-        {/* Generate button - show when not generating */}
-        {!isGenerating && (
-          <div className="pt-1 sm:pt-2">
+        {/* Generate buttons - show when not generating */}
+        {!isGenerating && !isGeneratingVideo && (
+          <div className="pt-1 sm:pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <Button
               onClick={handleGenerate}
-              disabled={!selectedClothing || !uploadedImage || isGenerating}
+              disabled={!selectedClothing || !uploadedImage || isGenerating || isGeneratingVideo}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Générer l'essayage virtuel"
               aria-describedby={!selectedClothing || !uploadedImage ? "generate-help" : undefined}
             >
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
-              Générer
+              Générer Image
+            </Button>
+            <Button
+              onClick={handleGenerateVideo}
+              disabled={!selectedClothing || isGenerating || isGeneratingVideo}
+              variant="outline"
+              className="group w-full border-2 border-primary text-primary hover:border-primary-dark hover:text-primary-dark hover:bg-primary/5 active:bg-primary/10 h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Générer une vidéo publicitaire"
+              aria-describedby={!selectedClothing ? "generate-video-help" : undefined}
+            >
+              <Video className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
+              Générer Vidéo
             </Button>
             {(!selectedClothing || !uploadedImage) && (
               <p id="generate-help" className="sr-only">
                 Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel
+              </p>
+            )}
+            {!selectedClothing && (
+              <p id="generate-video-help" className="sr-only">
+                Veuillez sélectionner un vêtement pour générer une vidéo publicitaire
               </p>
             )}
           </div>
@@ -635,8 +734,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             generatedImage={generatedImage}
             personImage={uploadedImage}
             clothingImage={selectedClothing}
-            isGenerating={isGenerating}
-            progress={progress}
+            isGenerating={isGenerating || isGeneratingVideo}
+            progress={isGenerating ? progress : videoProgress}
+            generatedVideo={generatedVideo}
           />
         </section>
 
