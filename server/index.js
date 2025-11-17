@@ -593,6 +593,63 @@ app.post(
   }
 );
 
+// App subscriptions update webhook - for billing status changes
+// Reference: https://shopify.dev/docs/apps/launch/billing/subscription-billing
+app.post(
+  "/webhooks/app/subscriptions/update",
+  verifyWebhookSignature,
+  async (req, res) => {
+    try {
+      const { app_subscription } = req.webhookData;
+      const shop = req.webhookShop;
+
+      logger.info("[WEBHOOK] app/subscriptions/update received", {
+        shop,
+        subscriptionId: app_subscription?.id,
+        status: app_subscription?.status,
+        webhookTopic: req.webhookTopic,
+      });
+
+      // Handle subscription status changes:
+      // The webhook payload contains the updated AppSubscription object
+      // Common status values (AppSubscriptionStatus enum):
+      // - ACTIVE: Subscription is active and billing
+      // - PENDING: Waiting for merchant approval
+      // - DECLINED: Merchant declined the charge
+      // - EXPIRED: Subscription has expired
+      // - CANCELLED: Subscription was cancelled
+      // - FROZEN: Store billing account is frozen
+      
+      // The webhook also fires when:
+      // - Subscription status changes (approval, cancellation, etc.)
+      // - Capped amount is changed (for usage-based subscriptions)
+      // - Subscription is created, updated, or cancelled
+
+      // Update your database/cache with new subscription status
+      // Send notifications if needed
+      // Handle feature access based on status
+
+      logger.info("[WEBHOOK] app/subscriptions/update processed successfully", {
+        shop,
+        subscriptionId: app_subscription?.id,
+        status: app_subscription?.status,
+      });
+
+      res.status(200).json({ received: true });
+    } catch (error) {
+      logger.error("[WEBHOOK ERROR] app/subscriptions/update failed", error, req, {
+        shop: req.webhookShop,
+        webhookTopic: req.webhookTopic,
+      });
+      
+      res.status(200).json({ 
+        received: true,
+        error: "Webhook processed but encountered an error",
+      });
+    }
+  }
+);
+
 // Shop redact webhook - mandatory for GDPR compliance
 // Reference: https://shopify.dev/docs/apps/build/compliance/privacy-law-compliance
 // Must delete all shop data within 10 days of receiving this webhook
@@ -745,7 +802,8 @@ app.post("/api/billing/subscribe", async (req, res) => {
       session,
       planHandle,
       finalReturnUrl,
-      trialDays || 0
+      trialDays || 0,
+      "STANDARD" // Default replacement behavior
     );
 
     logger.info("[BILLING] Subscription creation initiated", {
@@ -773,6 +831,94 @@ app.get("/api/billing/plans", (req, res) => {
     logger.error("[BILLING] Failed to get plans", error, req);
     res.status(500).json({
       error: "Failed to get plans",
+      message: error.message,
+    });
+  }
+});
+
+// Cancel subscription
+app.post("/api/billing/cancel", async (req, res) => {
+  try {
+    const { shop, prorate } = req.body;
+
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+      });
+    }
+
+    const shopDomain = shop.includes(".myshopify.com")
+      ? shop
+      : `${shop}.myshopify.com`;
+
+    const sessionId = shopify.session.getOfflineId(shopDomain);
+    const session = await shopify.session.getSessionById(sessionId);
+
+    if (!session) {
+      return res.status(401).json({
+        error: "Session not found",
+        message: "Please install the app first",
+      });
+    }
+
+    const result = await billing.cancelSubscription(
+      shopify,
+      session,
+      prorate || false
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error("[BILLING] Failed to cancel subscription", error, req);
+    res.status(500).json({
+      error: "Failed to cancel subscription",
+      message: error.message,
+    });
+  }
+});
+
+// Change plan
+app.post("/api/billing/change-plan", async (req, res) => {
+  try {
+    const { shop, planHandle, returnUrl, replacementBehavior } = req.body;
+
+    if (!shop || !planHandle) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+        message: "shop and planHandle are required",
+      });
+    }
+
+    const shopDomain = shop.includes(".myshopify.com")
+      ? shop
+      : `${shop}.myshopify.com`;
+
+    const sessionId = shopify.session.getOfflineId(shopDomain);
+    const session = await shopify.session.getSessionById(sessionId);
+
+    if (!session) {
+      return res.status(401).json({
+        error: "Session not found",
+        message: "Please install the app first",
+      });
+    }
+
+    const defaultReturnUrl = `${process.env.VITE_SHOPIFY_APP_URL || appUrl}/auth/callback?shop=${shopDomain}`;
+    const finalReturnUrl = returnUrl || defaultReturnUrl;
+
+    const result = await billing.changePlan(
+      shopify,
+      session,
+      planHandle,
+      finalReturnUrl,
+      replacementBehavior || "STANDARD"
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error("[BILLING] Failed to change plan", error, req);
+    res.status(500).json({
+      error: "Failed to change plan",
       message: error.message,
     });
   }
