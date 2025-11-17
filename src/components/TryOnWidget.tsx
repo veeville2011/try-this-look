@@ -349,22 +349,25 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Get store name from storeInfo
       const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
 
-      // Get clothingKey from selected clothing ID
+      // Get clothingKey from selected clothing ID (non-mandatory field)
       const clothingKey = selectedClothingKey
         ? String(selectedClothingKey)
         : undefined;
 
-      // Get personKey from selected demo photo ID (if demo photo was used)
+      // Get personKey from selected demo photo ID (non-mandatory field, only for demo pictures)
       const personKey = selectedDemoPhotoUrl
         ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined
         : undefined;
 
+      // Both clothingKey and personKey are sent to the API when available
+      // - clothingKey: sent when product image has an ID
+      // - personKey: sent when a demo picture is used (fixed IDs: demo_person_1, demo_person_2, etc.)
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
         storeName,
-        clothingKey,
-        personKey // personKey - fixed ID for demo pictures, undefined for uploaded photos
+        clothingKey, // Non-mandatory: sent when product image has ID
+        personKey // Non-mandatory: sent when demo picture is used
       );
 
       setProgress(100);

@@ -19,10 +19,12 @@ export async function generateTryOn(
       formData.append("storeName", storeName);
     }
 
+    // Send clothingKey if available (non-mandatory field)
     if (clothingKey) {
       formData.append("clothingKey", clothingKey);
     }
 
+    // Send personKey if available (non-mandatory field, for demo pictures)
     if (personKey) {
       formData.append("personKey", personKey);
     }
