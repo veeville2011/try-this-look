@@ -822,21 +822,38 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         (() => {
                           const personKey =
                             DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl);
-                          return (
+                          const isPersonGenerated =
                             personKey &&
-                            generatedPersonKeys.has(String(personKey))
+                            generatedPersonKeys.has(String(personKey));
+
+                          // Check if both person and clothing keys are generated
+                          const clothingKey = selectedClothing
+                            ? availableImagesWithIds.get(selectedClothing)
+                            : null;
+                          const isClothingGenerated =
+                            clothingKey &&
+                            generatedClothingKeys.has(String(clothingKey));
+                          const areBothGenerated =
+                            isPersonGenerated && isClothingGenerated;
+
+                          return (
+                            isPersonGenerated && (
+                              <div className="absolute top-2 right-2">
+                                <CheckCircle
+                                  className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
+                                    areBothGenerated
+                                      ? "text-green-500"
+                                      : "text-primary"
+                                  }`}
+                                  aria-hidden="true"
+                                />
+                                <span className="sr-only">
+                                  Cette photo a déjà été générée
+                                </span>
+                              </div>
+                            )
                           );
-                        })() && (
-                          <div className="absolute top-2 right-2">
-                            <CheckCircle
-                              className="h-5 w-5 sm:h-6 sm:w-6 text-primary fill-background"
-                              aria-hidden="true"
-                            />
-                            <span className="sr-only">
-                              Cette photo a déjà été générée
-                            </span>
-                          </div>
-                        )}
+                        })()}
                     </div>
                   </div>
                 </div>
@@ -875,6 +892,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 onRefreshImages={handleRefreshImages}
                 availableImagesWithIds={availableImagesWithIds}
                 generatedClothingKeys={generatedClothingKeys}
+                generatedPersonKeys={generatedPersonKeys}
+                selectedDemoPhotoUrl={selectedDemoPhotoUrl}
+                demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
               />
             </Card>
           </section>

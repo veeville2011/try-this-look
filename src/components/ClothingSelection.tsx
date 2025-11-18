@@ -11,6 +11,9 @@ interface ClothingSelectionProps {
   onRefreshImages?: () => void;
   availableImagesWithIds?: Map<string, string | number>;
   generatedClothingKeys?: Set<string>;
+  generatedPersonKeys?: Set<string>;
+  selectedDemoPhotoUrl?: string | null;
+  demoPhotoIdMap?: Map<string, string>;
 }
 
 export default function ClothingSelection({
@@ -21,6 +24,9 @@ export default function ClothingSelection({
   onRefreshImages,
   availableImagesWithIds = new Map(),
   generatedClothingKeys = new Set(),
+  generatedPersonKeys = new Set(),
+  selectedDemoPhotoUrl = null,
+  demoPhotoIdMap = new Map(),
 }: ClothingSelectionProps) {
   const [validImages, setValidImages] = useState<string[]>([]);
   const [validRecommendedImages, setValidRecommendedImages] = useState<string[]>([]);
@@ -30,6 +36,16 @@ export default function ClothingSelection({
     const clothingKey = availableImagesWithIds.get(imageUrl);
     if (!clothingKey) return false;
     return generatedClothingKeys.has(String(clothingKey));
+  };
+
+  // Check if both person and clothing keys are generated
+  const areBothKeysGenerated = (imageUrl: string): boolean => {
+    const clothingKey = availableImagesWithIds.get(imageUrl);
+    const personKey = selectedDemoPhotoUrl ? demoPhotoIdMap.get(selectedDemoPhotoUrl) : null;
+    
+    if (!clothingKey || !personKey) return false;
+    
+    return generatedClothingKeys.has(String(clothingKey)) && generatedPersonKeys.has(String(personKey));
   };
 
   // Initialize with provided images; only remove on actual load error
@@ -100,7 +116,10 @@ export default function ClothingSelection({
                     {/* Single tick indicator with outlined circle for generated items */}
                     {isGenerated(image) && (
                       <div className="absolute top-2 right-2">
-                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary fill-background" aria-hidden="true" />
+                        <CheckCircle 
+                          className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
+                          aria-hidden="true" 
+                        />
                       </div>
                     )}
                   </div>
@@ -151,7 +170,10 @@ export default function ClothingSelection({
                           {/* Single tick indicator with outlined circle for generated items */}
                           {isGenerated(image) && (
                             <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-                              <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary fill-background" aria-hidden="true" />
+                              <CheckCircle 
+                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
+                                aria-hidden="true" 
+                              />
                             </div>
                           )}
                         </div>
@@ -190,7 +212,10 @@ export default function ClothingSelection({
               {/* Single tick indicator with outlined circle for generated items */}
               {isGenerated(selectedImage) && (
                 <div className="absolute top-2 right-2">
-                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary fill-background" aria-hidden="true" />
+                  <CheckCircle 
+                    className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${areBothKeysGenerated(selectedImage) ? 'text-green-500' : 'text-primary'}`} 
+                    aria-hidden="true" 
+                  />
                   <span className="sr-only">Cet article a déjà été généré</span>
                 </div>
               )}
