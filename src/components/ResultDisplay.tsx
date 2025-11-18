@@ -414,12 +414,20 @@ export default function ResultDisplay({
             : 'lg:grid-cols-2'          // 50% image, 50% buttons
         }`}>
           {/* Left side: Generated image/video, loading skeleton, or placeholder */}
-          <div className="relative aspect-[3/4] rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className={`relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 ${
+            generatedVideo 
+              ? 'w-full' // Video: fit to content, no fixed aspect ratio
+              : 'aspect-[3/4]' // Image: maintain 3:4 aspect ratio
+          }`}>
             {isGenerating ? (
               // Loading state - skeleton with shimmer and loading indicator
-              <div className="w-full h-full relative overflow-hidden">
+              <div className={`w-full relative overflow-hidden ${
+                generatedVideo ? 'min-h-[400px] sm:min-h-[500px] md:min-h-[600px]' : 'h-full'
+              }`}>
                 {/* Skeleton placeholder with shimmer effect */}
-                <Skeleton className="w-full h-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40" />
+                <Skeleton className={`w-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 ${
+                  generatedVideo ? 'min-h-[400px] sm:min-h-[500px] md:min-h-[600px]' : 'h-full'
+                }`} />
                 {/* Shimmer overlay animation */}
                 <div
                   className="absolute inset-0 pointer-events-none"
@@ -450,7 +458,7 @@ export default function ResultDisplay({
               <video
                 src={generatedVideo}
                 controls
-                className="h-full w-full object-contain"
+                className="w-full max-h-[80vh] object-contain"
                 aria-label="Vidéo publicitaire générée par intelligence artificielle"
               >
                 Votre navigateur ne supporte pas la lecture de vidéos.
