@@ -58,6 +58,23 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     );
   }, [records]);
 
+  // Memoize the set of person-clothing key combinations that exist together in the same record
+  const generatedKeyCombinations = useMemo(() => {
+    return new Set(
+      records
+        .filter(
+          (record) =>
+            record.personKey &&
+            record.clothingKey &&
+            record.status === "completed"
+        )
+        .map(
+          (record) =>
+            `${String(record.personKey)}-${String(record.clothingKey)}`
+        )
+    );
+  }, [records]);
+
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -826,15 +843,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             personKey &&
                             generatedPersonKeys.has(String(personKey));
 
-                          // Check if both person and clothing keys are generated
+                          // Check if both person and clothing keys exist in the same record
                           const clothingKey = selectedClothing
                             ? availableImagesWithIds.get(selectedClothing)
                             : null;
-                          const isClothingGenerated =
-                            clothingKey &&
-                            generatedClothingKeys.has(String(clothingKey));
                           const areBothGenerated =
-                            isPersonGenerated && isClothingGenerated;
+                            personKey &&
+                            clothingKey &&
+                            generatedKeyCombinations.has(
+                              `${String(personKey)}-${String(clothingKey)}`
+                            );
 
                           return (
                             isPersonGenerated && (
@@ -892,7 +910,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 onRefreshImages={handleRefreshImages}
                 availableImagesWithIds={availableImagesWithIds}
                 generatedClothingKeys={generatedClothingKeys}
-                generatedPersonKeys={generatedPersonKeys}
+                generatedKeyCombinations={generatedKeyCombinations}
                 selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                 demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
               />

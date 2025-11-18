@@ -11,7 +11,7 @@ interface ClothingSelectionProps {
   onRefreshImages?: () => void;
   availableImagesWithIds?: Map<string, string | number>;
   generatedClothingKeys?: Set<string>;
-  generatedPersonKeys?: Set<string>;
+  generatedKeyCombinations?: Set<string>;
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
 }
@@ -24,7 +24,7 @@ export default function ClothingSelection({
   onRefreshImages,
   availableImagesWithIds = new Map(),
   generatedClothingKeys = new Set(),
-  generatedPersonKeys = new Set(),
+  generatedKeyCombinations = new Set(),
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
 }: ClothingSelectionProps) {
@@ -38,14 +38,15 @@ export default function ClothingSelection({
     return generatedClothingKeys.has(String(clothingKey));
   };
 
-  // Check if both person and clothing keys are generated
+  // Check if both person and clothing keys exist in the same generation record
   const areBothKeysGenerated = (imageUrl: string): boolean => {
     const clothingKey = availableImagesWithIds.get(imageUrl);
     const personKey = selectedDemoPhotoUrl ? demoPhotoIdMap.get(selectedDemoPhotoUrl) : null;
     
     if (!clothingKey || !personKey) return false;
     
-    return generatedClothingKeys.has(String(clothingKey)) && generatedPersonKeys.has(String(personKey));
+    // Check if this specific combination exists in the same record
+    return generatedKeyCombinations.has(`${String(personKey)}-${String(clothingKey)}`);
   };
 
   // Initialize with provided images; only remove on actual load error
