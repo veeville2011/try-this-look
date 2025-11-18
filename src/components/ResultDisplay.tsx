@@ -453,12 +453,12 @@ export default function ResultDisplay({
             {/* Split layout: 50% image / 50% buttons */}
             <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 lg:grid-cols-2">
               {/* Left side: Generated image, loading skeleton, or placeholder */}
-              <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 aspect-[3/4]">
+              <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 w-full">
                 {isGenerating && activeTab === "image" ? (
                   // Loading state - skeleton with shimmer and loading indicator
-                  <div className="w-full relative overflow-hidden h-full">
+                  <div className="w-full relative overflow-hidden min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
                     {/* Skeleton placeholder with shimmer effect */}
-                    <Skeleton className="w-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 h-full" />
+                    <Skeleton className="w-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 min-h-[400px] sm:min-h-[500px] md:min-h-[600px]" />
                     {/* Shimmer overlay animation */}
                     <div
                       className="absolute inset-0 pointer-events-none"
@@ -485,13 +485,13 @@ export default function ResultDisplay({
                   <img
                     src={generatedImage}
                     alt="Résultat de l'essayage virtuel généré par intelligence artificielle"
-                    className="h-full w-auto object-contain"
+                    className="w-full max-h-[80vh] object-contain"
                     loading="lazy"
                   />
                 ) : (
                   // No image and not loading - show static placeholder
                   <div
-                    className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 text-muted-foreground"
+                    className="w-full min-h-[400px] sm:min-h-[500px] md:min-h-[600px] flex flex-col items-center justify-center gap-3 sm:gap-4 text-muted-foreground"
                     role="status"
                     aria-live="polite"
                   >
