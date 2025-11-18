@@ -411,6 +411,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage("Résultat prêt. Vous pouvez acheter ou télécharger.");
+
+        // Fetch all generations to update Redux state with the new generation
+        fetchGenerations({
+          page: 1,
+          limit: 1000,
+          orderBy: "createdAt",
+          orderDirection: "DESC",
+        });
       } else {
         throw new Error(
           result.error_message?.message || "Erreur de génération"
