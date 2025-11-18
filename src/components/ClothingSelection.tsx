@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Video } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface ClothingSelectionProps {
@@ -11,6 +11,7 @@ interface ClothingSelectionProps {
   onRefreshImages?: () => void;
   availableImagesWithIds?: Map<string, string | number>;
   generatedClothingKeys?: Set<string>;
+  generatedVideoClothingKeys?: Set<string>;
   generatedKeyCombinations?: Set<string>;
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
@@ -24,6 +25,7 @@ export default function ClothingSelection({
   onRefreshImages,
   availableImagesWithIds = new Map(),
   generatedClothingKeys = new Set(),
+  generatedVideoClothingKeys = new Set(),
   generatedKeyCombinations = new Set(),
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
@@ -31,11 +33,18 @@ export default function ClothingSelection({
   const [validImages, setValidImages] = useState<string[]>([]);
   const [validRecommendedImages, setValidRecommendedImages] = useState<string[]>([]);
 
-  // Check if an image has been generated before
+  // Check if an image has been generated before (image generation)
   const isGenerated = (imageUrl: string): boolean => {
     const clothingKey = availableImagesWithIds.get(imageUrl);
     if (!clothingKey) return false;
     return generatedClothingKeys.has(String(clothingKey));
+  };
+
+  // Check if a video has been generated for this clothing item
+  const hasVideoGeneration = (imageUrl: string): boolean => {
+    const clothingKey = availableImagesWithIds.get(imageUrl);
+    if (!clothingKey) return false;
+    return generatedVideoClothingKeys.has(String(clothingKey));
   };
 
   // Check if both person and clothing keys exist in the same generation record
@@ -118,13 +127,25 @@ export default function ClothingSelection({
                         setValidImages((prev) => prev.filter((u) => u !== image));
                       }}
                     />
-                    {/* Single tick indicator with outlined circle for generated items */}
-                    {isGenerated(image) && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle 
-                          className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
-                          aria-hidden="true" 
-                        />
+                    {/* Indicators for generated items */}
+                    {(isGenerated(image) || hasVideoGeneration(image)) && (
+                      <div className="absolute top-2 right-2 flex flex-col gap-1">
+                        {/* Image generation tick */}
+                        {isGenerated(image) && (
+                          <CheckCircle 
+                            className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
+                            aria-hidden="true" 
+                          />
+                        )}
+                        {/* Video generation tick */}
+                        {hasVideoGeneration(image) && (
+                          <div className="bg-purple-500 rounded-full p-0.5">
+                            <Video 
+                              className="h-3 w-3 sm:h-4 sm:w-4 text-white" 
+                              aria-hidden="true" 
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -172,13 +193,25 @@ export default function ClothingSelection({
                               setValidRecommendedImages((prev) => prev.filter((u) => u !== image));
                             }}
                           />
-                          {/* Single tick indicator with outlined circle for generated items */}
-                          {isGenerated(image) && (
-                            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-                              <CheckCircle 
-                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
-                                aria-hidden="true" 
-                              />
+                          {/* Indicators for generated items */}
+                          {(isGenerated(image) || hasVideoGeneration(image)) && (
+                            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex flex-col gap-1">
+                              {/* Image generation tick */}
+                              {isGenerated(image) && (
+                                <CheckCircle 
+                                  className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
+                                  aria-hidden="true" 
+                                />
+                              )}
+                              {/* Video generation tick */}
+                              {hasVideoGeneration(image) && (
+                                <div className="bg-purple-500 rounded-full p-0.5">
+                                  <Video 
+                                    className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" 
+                                    aria-hidden="true" 
+                                  />
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -214,14 +247,29 @@ export default function ClothingSelection({
                 alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
                 className="h-full w-auto object-contain"
               />
-              {/* Single tick indicator with outlined circle for generated items */}
-              {isGenerated(selectedImage) && (
-                <div className="absolute top-2 right-2">
-                  <CheckCircle 
-                    className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${areBothKeysGenerated(selectedImage) ? 'text-green-500' : 'text-primary'}`} 
-                    aria-hidden="true" 
-                  />
-                  <span className="sr-only">Cet article a déjà été généré</span>
+              {/* Indicators for generated items */}
+              {(isGenerated(selectedImage) || hasVideoGeneration(selectedImage)) && (
+                <div className="absolute top-2 right-2 flex flex-col gap-1.5">
+                  {/* Image generation tick */}
+                  {isGenerated(selectedImage) && (
+                    <CheckCircle 
+                      className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${areBothKeysGenerated(selectedImage) ? 'text-green-500' : 'text-primary'}`} 
+                      aria-hidden="true" 
+                    />
+                  )}
+                  {/* Video generation tick */}
+                  {hasVideoGeneration(selectedImage) && (
+                    <div className="bg-purple-500 rounded-full p-1">
+                      <Video 
+                        className="h-4 w-4 sm:h-5 sm:w-5 text-white" 
+                        aria-hidden="true" 
+                      />
+                    </div>
+                  )}
+                  <span className="sr-only">
+                    {isGenerated(selectedImage) && "Image générée. "}
+                    {hasVideoGeneration(selectedImage) && "Vidéo générée."}
+                  </span>
                 </div>
               )}
             </div>

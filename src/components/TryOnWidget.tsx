@@ -941,6 +941,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 onRefreshImages={handleRefreshImages}
                 availableImagesWithIds={availableImagesWithIds}
                 generatedClothingKeys={generatedClothingKeys}
+                generatedVideoClothingKeys={generatedVideoClothingKeys}
                 generatedKeyCombinations={generatedKeyCombinations}
                 selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                 demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
