@@ -471,6 +471,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Get store name and user info from storeInfo
       const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
 
+      // Get clothingKey from selected clothing ID (non-mandatory field)
+      const clothingKey = selectedClothingKey
+        ? String(selectedClothingKey)
+        : undefined;
+
       // Prepare product images array with only 2 images: clothing and generated
       const productImages: File[] = [clothingFile, generatedFile];
 
@@ -478,6 +483,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       const result = await generateVideoAd(productImages, {
         storeName: storeName || undefined,
+        clothingKey: clothingKey,
       });
 
       setVideoProgress(90);

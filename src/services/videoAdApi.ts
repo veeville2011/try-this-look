@@ -31,6 +31,7 @@ export async function generateVideoAd(
     name?: string;
     email?: string;
     storeName?: string;
+    clothingKey?: string;
   }
 ): Promise<VideoAdResponse> {
   try {
@@ -81,6 +82,7 @@ export async function generateVideoAd(
     if (metadata?.name) formData.append('name', metadata.name);
     if (metadata?.email) formData.append('email', metadata.email);
     if (metadata?.storeName) formData.append('storeName', metadata.storeName);
+    if (metadata?.clothingKey) formData.append('clothingKey', metadata.clothingKey);
 
     const response = await fetch(VIDEO_API_ENDPOINT, {
       method: 'POST',
