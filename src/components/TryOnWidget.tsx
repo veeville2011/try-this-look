@@ -953,12 +953,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </Button>
             <Button
               onClick={handleGenerateVideo}
-              disabled={!selectedClothing || isGenerating || isGeneratingVideo}
+              disabled={
+                !selectedClothing ||
+                !generatedImage ||
+                isGenerating ||
+                isGeneratingVideo
+              }
               variant="outline"
               className="group w-full border-2 border-primary text-primary hover:border-primary-dark hover:text-primary-dark hover:bg-primary/5 active:bg-primary/10 h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Générer une vidéo publicitaire"
               aria-describedby={
-                !selectedClothing ? "generate-video-help" : undefined
+                !selectedClothing || !generatedImage
+                  ? "generate-video-help"
+                  : undefined
               }
             >
               <Video
@@ -973,9 +980,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 générer l'essayage virtuel
               </p>
             )}
-            {!selectedClothing && (
+            {(!selectedClothing || !generatedImage) && (
               <p id="generate-video-help" className="sr-only">
-                Veuillez sélectionner un vêtement pour générer une vidéo
+                Veuillez générer une image d'abord avant de créer une vidéo
                 publicitaire
               </p>
             )}
