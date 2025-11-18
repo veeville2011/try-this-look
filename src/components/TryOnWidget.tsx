@@ -30,6 +30,7 @@ import {
 import StatusBar from "./StatusBar";
 import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
+import { useVideoGenerations } from "@/hooks/useVideoGenerations";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -39,6 +40,10 @@ interface TryOnWidgetProps {
 export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Redux state for image generations
   const { fetchGenerations, records } = useImageGenerations();
+
+  // Redux state for video generations
+  const { fetchGenerations: fetchVideoGenerations, records: videoRecords } =
+    useVideoGenerations();
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -74,6 +79,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         )
     );
   }, [records]);
+
+  // Memoize the set of generated video clothing keys to avoid recreating on every render
+  const generatedVideoClothingKeys = useMemo(() => {
+    return new Set(
+      videoRecords
+        .filter((record) => record.clothingKey && record.status === "completed")
+        .map((record) => String(record.clothingKey))
+    );
+  }, [videoRecords]);
 
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
   const [currentStep, setCurrentStep] = useState(1);
@@ -113,6 +127,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       page: 1,
       limit: 1000,
       orderBy: "createdAt",
+      orderDirection: "DESC",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only fetch once on mount
+
+  // Fetch video generations on component load
+  useEffect(() => {
+    fetchVideoGenerations({
+      page: 1,
+      limit: 1000,
+      orderBy: "created_at",
       orderDirection: "DESC",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -493,6 +518,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setVideoProgress(100);
         setStatusVariant("info");
         setStatusMessage("Vidéo générée avec succès !");
+
+        // Fetch all video generations to update Redux state with the new generation
+        fetchVideoGenerations({
+          page: 1,
+          limit: 1000,
+          orderBy: "created_at",
+          orderDirection: "DESC",
+        });
       } else {
         throw new Error(
           result.error_message?.message || "Erreur de génération de vidéo"
