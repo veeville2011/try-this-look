@@ -21,6 +21,7 @@ interface ResultDisplayProps {
   clothingImage?: string | null;
   isGenerating?: boolean;
   progress?: number;
+  generationType?: "image" | "video" | null;
 }
 
 interface ProductData {
@@ -37,9 +38,11 @@ export default function ResultDisplay({
   clothingImage,
   isGenerating = false,
   progress = 0,
+  generationType = null,
 }: ResultDisplayProps) {
-  // Determine default tab based on what's currently generated
-  const defaultTab = generatedVideo ? "video" : "image";
+  // Determine default tab based on what's currently generated or being generated
+  const defaultTab =
+    generatedVideo || generationType === "video" ? "video" : "image";
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
@@ -48,14 +51,20 @@ export default function ResultDisplay({
   const buyNowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const addToCartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Update active tab when generation type changes
+  // Immediately switch to the respective tab when generation starts or completes
   useEffect(() => {
-    if (generatedVideo) {
-      setActiveTab("video");
-    } else if (generatedImage) {
-      setActiveTab("image");
+    if (isGenerating && generationType) {
+      // Switch to the tab being generated
+      setActiveTab(generationType);
+    } else if (!isGenerating) {
+      // After generation completes, switch to the tab with results
+      if (generatedVideo) {
+        setActiveTab("video");
+      } else if (generatedImage) {
+        setActiveTab("image");
+      }
     }
-  }, [generatedVideo, generatedImage]);
+  }, [isGenerating, generationType, generatedVideo, generatedImage]);
 
   // Get product data if available (from Shopify parent window)
   const getProductData = (): ProductData | null => {
@@ -401,13 +410,25 @@ export default function ResultDisplay({
   return (
     <div className="space-y-4 sm:space-y-5 md:space-y-6">
       <Card className="p-3 sm:p-4 md:p-5 border-border bg-card ring-2 ring-primary/20 shadow-lg">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={isGenerating ? undefined : setActiveTab}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-5">
-            <TabsTrigger value="image" className="flex items-center gap-2">
+            <TabsTrigger
+              value="image"
+              className="flex items-center gap-2"
+              disabled={isGenerating}
+            >
               <ImageIcon className="w-4 h-4" />
               <span>Génération d'images</span>
             </TabsTrigger>
-            <TabsTrigger value="video" className="flex items-center gap-2">
+            <TabsTrigger
+              value="video"
+              className="flex items-center gap-2"
+              disabled={isGenerating}
+            >
               <Video className="w-4 h-4" />
               <span>Génération de vidéo</span>
             </TabsTrigger>
@@ -433,7 +454,7 @@ export default function ResultDisplay({
             <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 lg:grid-cols-2">
               {/* Left side: Generated image, loading skeleton, or placeholder */}
               <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 aspect-[3/4]">
-                {isGenerating && !generatedVideo ? (
+                {isGenerating && activeTab === "image" ? (
                   // Loading state - skeleton with shimmer and loading indicator
                   <div className="w-full relative overflow-hidden h-full">
                     {/* Skeleton placeholder with shimmer effect */}
@@ -497,7 +518,7 @@ export default function ResultDisplay({
                     isBuyNowLoading ||
                     isAddToCartLoading ||
                     isDownloadLoading ||
-                    (isGenerating && !generatedVideo) ||
+                    (isGenerating && activeTab === "image") ||
                     !generatedImage
                   }
                   variant="outline"
@@ -530,7 +551,7 @@ export default function ResultDisplay({
                     isBuyNowLoading ||
                     isAddToCartLoading ||
                     isDownloadLoading ||
-                    (isGenerating && !generatedVideo) ||
+                    (isGenerating && activeTab === "image") ||
                     !generatedImage
                   }
                   variant="outline"
@@ -563,7 +584,7 @@ export default function ResultDisplay({
                     isBuyNowLoading ||
                     isAddToCartLoading ||
                     isDownloadLoading ||
-                    (isGenerating && !generatedVideo) ||
+                    (isGenerating && activeTab === "image") ||
                     !generatedImage
                   }
                   variant="outline"
@@ -607,11 +628,11 @@ export default function ResultDisplay({
               </div>
             </div>
 
-            {/* Split layout: 75% video / 25% buttons */}
-            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 lg:grid-cols-[3fr_1fr]">
+            {/* Split layout: 50% video / 50% buttons */}
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 lg:grid-cols-2">
               {/* Left side: Generated video, loading skeleton, or placeholder */}
               <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 w-full">
-                {isGenerating && generatedVideo === null ? (
+                {isGenerating && activeTab === "video" ? (
                   // Loading state - skeleton with shimmer and loading indicator
                   <div className="w-full relative overflow-hidden min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
                     {/* Skeleton placeholder with shimmer effect */}
@@ -667,15 +688,83 @@ export default function ResultDisplay({
                 )}
               </div>
 
-              {/* Right side: Action buttons - Single column for video */}
-              <div className="grid gap-1.5 sm:gap-2 auto-rows-min grid-cols-1">
+              {/* Right side: Action buttons - 1 column mobile / 2 columns desktop for video */}
+              <div className="grid gap-1.5 sm:gap-2 auto-rows-min grid-cols-1 sm:grid-cols-2">
+                {/* Buy Now - Red border */}
+                <Button
+                  onClick={handleBuyNow}
+                  onKeyDown={(e) => handleKeyDown(e, handleBuyNow)}
+                  disabled={
+                    isBuyNowLoading ||
+                    isAddToCartLoading ||
+                    isDownloadLoading ||
+                    (isGenerating && activeTab === "video") ||
+                    !generatedVideo
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-red-500/80 bg-white hover:bg-red-50 hover:border-red-600 text-red-600 hover:text-red-700 active:bg-red-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  aria-label="Acheter Maintenant"
+                  aria-busy={isBuyNowLoading}
+                >
+                  {isBuyNowLoading ? (
+                    <Loader2
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <CreditCard
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="leading-tight whitespace-nowrap">
+                    {isBuyNowLoading ? "Traitement..." : "Acheter Maintenant"}
+                  </span>
+                </Button>
+
+                {/* Add to Cart - Green border */}
+                <Button
+                  onClick={handleAddToCart}
+                  onKeyDown={(e) => handleKeyDown(e, handleAddToCart)}
+                  disabled={
+                    isBuyNowLoading ||
+                    isAddToCartLoading ||
+                    isDownloadLoading ||
+                    (isGenerating && activeTab === "video") ||
+                    !generatedVideo
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-green-500/80 bg-white hover:bg-green-50 hover:border-green-600 text-green-600 hover:text-green-700 active:bg-green-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-green-500/10 focus-visible:ring-2 focus-visible:ring-green-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  aria-label="Ajouter au Panier"
+                  aria-busy={isAddToCartLoading}
+                >
+                  {isAddToCartLoading ? (
+                    <Loader2
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ShoppingCart
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="leading-tight whitespace-nowrap">
+                    {isAddToCartLoading ? "Ajout..." : "Ajouter au Panier"}
+                  </span>
+                </Button>
+
                 {/* Download - Blue border */}
                 <Button
                   onClick={handleDownload}
                   onKeyDown={(e) => handleKeyDown(e, handleDownload)}
                   disabled={
+                    isBuyNowLoading ||
+                    isAddToCartLoading ||
                     isDownloadLoading ||
-                    (isGenerating && generatedImage === null) ||
+                    (isGenerating && activeTab === "video") ||
                     !generatedVideo
                   }
                   variant="outline"

@@ -1096,6 +1096,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             isGenerating={isGenerating || isGeneratingVideo}
             progress={isGenerating ? progress : videoProgress}
             generatedVideo={generatedVideo}
+            generationType={
+              isGeneratingVideo ? "video" : isGenerating ? "image" : null
+            }
           />
         </section>
 
