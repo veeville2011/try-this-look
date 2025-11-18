@@ -32,19 +32,34 @@ export default function ClothingSelection({
 }: ClothingSelectionProps) {
   const [validImages, setValidImages] = useState<string[]>([]);
   const [validRecommendedImages, setValidRecommendedImages] = useState<string[]>([]);
-
+  
   // Check if an image has been generated before (image generation)
   const isGenerated = (imageUrl: string): boolean => {
     const clothingKey = availableImagesWithIds.get(imageUrl);
     if (!clothingKey) return false;
-    return generatedClothingKeys.has(String(clothingKey));
+    const normalizedKey = String(clothingKey).trim();
+    return generatedClothingKeys.has(normalizedKey);
   };
 
-  // Check if a video has been generated for this clothing item
-  const hasVideoGeneration = (imageUrl: string): boolean => {
-    const clothingKey = availableImagesWithIds.get(imageUrl);
+  // Check if a video has been generated for the SELECTED clothing item ONLY
+  const hasVideoGeneration = (): boolean => {
+    // Only check if there's a selected image
+    if (!selectedImage) return false;
+    
+    const clothingKey = availableImagesWithIds.get(selectedImage);
     if (!clothingKey) return false;
-    return generatedVideoClothingKeys.has(String(clothingKey));
+    
+    const normalizedKey = String(clothingKey).trim();
+    const hasVideo = generatedVideoClothingKeys.has(normalizedKey);
+    
+    // Debug log only when checking selected image
+    if (generatedVideoClothingKeys.size > 0) {
+      console.log('[ClothingSelection] Checking selected clothing for video generation:');
+      console.log('  - Selected clothing key:', normalizedKey);
+      console.log('  - Has video generation:', hasVideo);
+    }
+    
+    return hasVideo;
   };
 
   // Check if both person and clothing keys exist in the same generation record
@@ -128,24 +143,13 @@ export default function ClothingSelection({
                       }}
                     />
                     {/* Indicators for generated items */}
-                    {(isGenerated(image) || hasVideoGeneration(image)) && (
+                    {isGenerated(image) && (
                       <div className="absolute top-2 right-2 flex flex-col gap-1">
                         {/* Image generation tick */}
-                        {isGenerated(image) && (
-                          <CheckCircle 
-                            className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
-                            aria-hidden="true" 
-                          />
-                        )}
-                        {/* Video generation tick */}
-                        {hasVideoGeneration(image) && (
-                          <div className="bg-purple-500 rounded-full p-0.5">
-                            <Video 
-                              className="h-3 w-3 sm:h-4 sm:w-4 text-white" 
-                              aria-hidden="true" 
-                            />
-                          </div>
-                        )}
+                        <CheckCircle 
+                          className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
+                          aria-hidden="true" 
+                        />
                       </div>
                     )}
                   </div>
@@ -194,24 +198,13 @@ export default function ClothingSelection({
                             }}
                           />
                           {/* Indicators for generated items */}
-                          {(isGenerated(image) || hasVideoGeneration(image)) && (
+                          {isGenerated(image) && (
                             <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex flex-col gap-1">
                               {/* Image generation tick */}
-                              {isGenerated(image) && (
-                                <CheckCircle 
-                                  className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
-                                  aria-hidden="true" 
-                                />
-                              )}
-                              {/* Video generation tick */}
-                              {hasVideoGeneration(image) && (
-                                <div className="bg-purple-500 rounded-full p-0.5">
-                                  <Video 
-                                    className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" 
-                                    aria-hidden="true" 
-                                  />
-                                </div>
-                              )}
+                              <CheckCircle 
+                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
+                                aria-hidden="true" 
+                              />
                             </div>
                           )}
                         </div>
@@ -248,7 +241,7 @@ export default function ClothingSelection({
                 className="h-full w-auto object-contain"
               />
               {/* Indicators for generated items */}
-              {(isGenerated(selectedImage) || hasVideoGeneration(selectedImage)) && (
+              {(isGenerated(selectedImage) || hasVideoGeneration()) && (
                 <div className="absolute top-2 right-2 flex flex-col gap-1.5">
                   {/* Image generation tick */}
                   {isGenerated(selectedImage) && (
@@ -258,7 +251,7 @@ export default function ClothingSelection({
                     />
                   )}
                   {/* Video generation tick */}
-                  {hasVideoGeneration(selectedImage) && (
+                  {hasVideoGeneration() && (
                     <div className="bg-purple-500 rounded-full p-1">
                       <Video 
                         className="h-4 w-4 sm:h-5 sm:w-5 text-white" 
@@ -268,7 +261,7 @@ export default function ClothingSelection({
                   )}
                   <span className="sr-only">
                     {isGenerated(selectedImage) && "Image générée. "}
-                    {hasVideoGeneration(selectedImage) && "Vidéo générée."}
+                    {hasVideoGeneration() && "Vidéo générée."}
                   </span>
                 </div>
               )}

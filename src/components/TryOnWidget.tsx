@@ -49,8 +49,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const generatedClothingKeys = useMemo(() => {
     return new Set(
       records
-        .filter((record) => record.clothingKey && record.status === "completed")
-        .map((record) => String(record.clothingKey))
+        .filter((record) => {
+          const hasClothingKey =
+            record.clothingKey && String(record.clothingKey).trim() !== "";
+          const isCompleted = record.status === "completed";
+          return hasClothingKey && isCompleted;
+        })
+        .map((record) => String(record.clothingKey).trim())
     );
   }, [records]);
 
@@ -58,8 +63,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const generatedPersonKeys = useMemo(() => {
     return new Set(
       records
-        .filter((record) => record.personKey && record.status === "completed")
-        .map((record) => String(record.personKey))
+        .filter((record) => {
+          const hasPersonKey =
+            record.personKey && String(record.personKey).trim() !== "";
+          const isCompleted = record.status === "completed";
+          return hasPersonKey && isCompleted;
+        })
+        .map((record) => String(record.personKey).trim())
     );
   }, [records]);
 
@@ -67,26 +77,46 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const generatedKeyCombinations = useMemo(() => {
     return new Set(
       records
-        .filter(
-          (record) =>
-            record.personKey &&
-            record.clothingKey &&
-            record.status === "completed"
-        )
+        .filter((record) => {
+          const hasPersonKey =
+            record.personKey && String(record.personKey).trim() !== "";
+          const hasClothingKey =
+            record.clothingKey && String(record.clothingKey).trim() !== "";
+          const isCompleted = record.status === "completed";
+          return hasPersonKey && hasClothingKey && isCompleted;
+        })
         .map(
           (record) =>
-            `${String(record.personKey)}-${String(record.clothingKey)}`
+            `${String(record.personKey).trim()}-${String(
+              record.clothingKey
+            ).trim()}`
         )
     );
   }, [records]);
 
   // Memoize the set of generated video clothing keys to avoid recreating on every render
   const generatedVideoClothingKeys = useMemo(() => {
-    return new Set(
+    const videoKeys = new Set(
       videoRecords
-        .filter((record) => record.clothingKey && record.status === "completed")
-        .map((record) => String(record.clothingKey))
+        .filter((record) => {
+          // Ensure clothingKey exists and is not empty, and status is completed
+          const hasClothingKey =
+            record.clothingKey && String(record.clothingKey).trim() !== "";
+          const isCompleted = record.status === "completed";
+          return hasClothingKey && isCompleted;
+        })
+        .map((record) => String(record.clothingKey).trim())
     );
+
+    // Debug logging only when video keys exist
+    if (videoKeys.size > 0) {
+      console.log("[TryOnWidget] Video generation cache loaded:");
+      console.log("  - Total video records:", videoRecords.length);
+      console.log("  - Completed with clothingKey:", videoKeys.size);
+      console.log("  - Video clothing keys:", Array.from(videoKeys));
+    }
+
+    return videoKeys;
   }, [videoRecords]);
 
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
@@ -313,6 +343,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           setAvailableImages(imageUrls);
           setAvailableImagesWithIds(imageIdMap);
           imagesLoadedRef.current = true;
+
+          // Debug logging
+          if (imageIdMap.size > 0) {
+            console.log("[TryOnWidget] Product images loaded:", imageUrls.length, "images,", imageIdMap.size, "with IDs");
+          }
         }
 
         // Set recommended images if available (recommended images are still strings for now)
@@ -369,6 +404,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (imageUrl) {
       const clothingId = availableImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
+
       setStatusVariant("info");
       setStatusMessage("Prêt à générer. Cliquez sur Générer.");
     } else {

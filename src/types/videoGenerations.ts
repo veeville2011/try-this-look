@@ -6,16 +6,16 @@ export interface VideoGenerationRecord {
   generatedVideoUrl: string;
   generatedVideoKey: string;
   status: "completed" | "failed" | "processing";
-  errorMessage: string;
-  processingTime: string;
-  fileSize: string;
-  mimeType: string;
-  userAgent: string;
-  ipAddress: string;
-  name: string;
-  email: string;
-  storeName: string;
-  clothingKey: string;
+  errorMessage: string | null;
+  processingTime: string | null;
+  fileSize: string | null;
+  mimeType: string | null;
+  userAgent: string | null;
+  ipAddress: string | null;
+  name: string | null;
+  email: string | null;
+  storeName: string | null;
+  clothingKey: string | null;
   createdAt: string;
   updatedAt: string;
 }
