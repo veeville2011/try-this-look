@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sparkles,
   CreditCard,
@@ -37,11 +38,24 @@ export default function ResultDisplay({
   isGenerating = false,
   progress = 0,
 }: ResultDisplayProps) {
+  // Determine default tab based on what's currently generated
+  const defaultTab = generatedVideo ? "video" : "image";
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [isDownloadLoading, setIsDownloadLoading] = useState(false);
   const buyNowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const addToCartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update active tab when generation type changes
+  useEffect(() => {
+    if (generatedVideo) {
+      setActiveTab("video");
+    } else if (generatedImage) {
+      setActiveTab("image");
+    }
+  }, [generatedVideo, generatedImage]);
 
   // Get product data if available (from Shopify parent window)
   const getProductData = (): ProductData | null => {
@@ -387,197 +401,310 @@ export default function ResultDisplay({
   return (
     <div className="space-y-4 sm:space-y-5 md:space-y-6">
       <Card className="p-3 sm:p-4 md:p-5 border-border bg-card ring-2 ring-primary/20 shadow-lg">
-        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm">
-            {generatedVideo ? (
-              <Video className="w-4 h-4 sm:w-5 sm:h-5" />
-            ) : (
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base sm:text-lg font-semibold">
-              {generatedVideo ? "Vidéo Générée" : "Résultat Généré"}
-            </h2>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">
-              {generatedVideo
-                ? "Vidéo publicitaire avec IA"
-                : "Essayage virtuel avec IA"}
-            </p>
-          </div>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-5">
+            <TabsTrigger value="image" className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4" />
+              <span>Génération d'images</span>
+            </TabsTrigger>
+            <TabsTrigger value="video" className="flex items-center gap-2">
+              <Video className="w-4 h-4" />
+              <span>Génération de vidéo</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Split layout: 50% image / 50% buttons (image) OR 75% video / 25% buttons (video) */}
-        <div className={`grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 ${
-          generatedVideo 
-            ? 'lg:grid-cols-[3fr_1fr]' // 75% video, 25% buttons
-            : 'lg:grid-cols-2'          // 50% image, 50% buttons
-        }`}>
-          {/* Left side: Generated image/video, loading skeleton, or placeholder */}
-          <div className={`relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 ${
-            generatedVideo 
-              ? 'w-full' // Video: fit to content, no fixed aspect ratio
-              : 'aspect-[3/4]' // Image: maintain 3:4 aspect ratio
-          }`}>
-            {isGenerating ? (
-              // Loading state - skeleton with shimmer and loading indicator
-              <div className={`w-full relative overflow-hidden ${
-                generatedVideo ? 'min-h-[400px] sm:min-h-[500px] md:min-h-[600px]' : 'h-full'
-              }`}>
-                {/* Skeleton placeholder with shimmer effect */}
-                <Skeleton className={`w-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 ${
-                  generatedVideo ? 'min-h-[400px] sm:min-h-[500px] md:min-h-[600px]' : 'h-full'
-                }`} />
-                {/* Shimmer overlay animation */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)",
-                    width: "100%",
-                    height: "100%",
-                    animation: "shimmer 2s infinite",
-                  }}
-                />
-                {/* Loading indicator overlay - subtle icon only */}
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <div className="relative">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
-                      {generatedVideo ? (
-                        <Video className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
-                      ) : (
-                        <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
-                      )}
-                    </div>
-                    <div className="absolute inset-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 animate-ping opacity-75" />
-                  </div>
-                </div>
+          {/* Image Generation Tab */}
+          <TabsContent value="image" className="mt-0">
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-            ) : generatedVideo ? (
-              // Generated video available - show video player
-              <video
-                src={generatedVideo}
-                controls
-                className="w-full max-h-[80vh] object-contain"
-                aria-label="Vidéo publicitaire générée par intelligence artificielle"
-              >
-                Votre navigateur ne supporte pas la lecture de vidéos.
-              </video>
-            ) : generatedImage ? (
-              // Generated image available - show it
-              <img
-                src={generatedImage}
-                alt="Résultat de l'essayage virtuel généré par intelligence artificielle"
-                className="h-full w-auto object-contain"
-                loading="lazy"
-              />
-            ) : (
-              // No image/video and not loading - show static placeholder
-              <div className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 text-muted-foreground" role="status" aria-live="polite">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center" aria-hidden="true">
-                  <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
-                </div>
-                <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-                  Aucun résultat généré
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base sm:text-lg font-semibold">
+                  Résultat Généré
+                </h2>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  Essayage virtuel avec IA
                 </p>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Right side: Action buttons - Single column for video, 1 column mobile / 2 columns desktop for image */}
-          <div className={`grid gap-1.5 sm:gap-2 auto-rows-min ${
-            generatedVideo 
-              ? 'grid-cols-1' // Single column for video results
-              : 'grid-cols-1 sm:grid-cols-2' // 1 col mobile, 2 cols tablet/desktop for image results
-          }`}>
-            {/* Buy Now - Red border */}
-            <Button
-              onClick={handleBuyNow}
-              onKeyDown={(e) => handleKeyDown(e, handleBuyNow)}
-              disabled={
-                isBuyNowLoading ||
-                isAddToCartLoading ||
-                isDownloadLoading ||
-                isGenerating ||
-                (!generatedImage && !generatedVideo) ||
-                !!generatedVideo
-              }
-              variant="outline"
-              size="sm"
-              className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-red-500/80 bg-white hover:bg-red-50 hover:border-red-600 text-red-600 hover:text-red-700 active:bg-red-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label="Acheter Maintenant"
-              aria-busy={isBuyNowLoading}
-            >
-              {isBuyNowLoading ? (
-                <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
-              ) : (
-                <CreditCard className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
-              )}
-              <span className="leading-tight whitespace-nowrap">
-                {isBuyNowLoading ? "Traitement..." : "Acheter Maintenant"}
-              </span>
-            </Button>
+            {/* Split layout: 50% image / 50% buttons */}
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 lg:grid-cols-2">
+              {/* Left side: Generated image, loading skeleton, or placeholder */}
+              <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 aspect-[3/4]">
+                {isGenerating && !generatedVideo ? (
+                  // Loading state - skeleton with shimmer and loading indicator
+                  <div className="w-full relative overflow-hidden h-full">
+                    {/* Skeleton placeholder with shimmer effect */}
+                    <Skeleton className="w-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 h-full" />
+                    {/* Shimmer overlay animation */}
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)",
+                        width: "100%",
+                        height: "100%",
+                        animation: "shimmer 2s infinite",
+                      }}
+                    />
+                    {/* Loading indicator overlay - subtle icon only */}
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <div className="relative">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
+                          <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
+                        </div>
+                        <div className="absolute inset-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 animate-ping opacity-75" />
+                      </div>
+                    </div>
+                  </div>
+                ) : generatedImage ? (
+                  // Generated image available - show it
+                  <img
+                    src={generatedImage}
+                    alt="Résultat de l'essayage virtuel généré par intelligence artificielle"
+                    className="h-full w-auto object-contain"
+                    loading="lazy"
+                  />
+                ) : (
+                  // No image and not loading - show static placeholder
+                  <div
+                    className="w-full h-full flex flex-col items-center justify-center gap-3 sm:gap-4 text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
+                      Aucun résultat généré
+                    </p>
+                  </div>
+                )}
+              </div>
 
-            {/* Add to Cart - Green border */}
-            <Button
-              onClick={handleAddToCart}
-              onKeyDown={(e) => handleKeyDown(e, handleAddToCart)}
-              disabled={
-                isBuyNowLoading ||
-                isAddToCartLoading ||
-                isDownloadLoading ||
-                isGenerating ||
-                (!generatedImage && !generatedVideo) ||
-                !!generatedVideo
-              }
-              variant="outline"
-              size="sm"
-              className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-green-500/80 bg-white hover:bg-green-50 hover:border-green-600 text-green-600 hover:text-green-700 active:bg-green-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-green-500/10 focus-visible:ring-2 focus-visible:ring-green-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label="Ajouter au Panier"
-              aria-busy={isAddToCartLoading}
-            >
-              {isAddToCartLoading ? (
-                <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
-              ) : (
-                <ShoppingCart className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
-              )}
-              <span className="leading-tight whitespace-nowrap">
-                {isAddToCartLoading ? "Ajout..." : "Ajouter au Panier"}
-              </span>
-            </Button>
+              {/* Right side: Action buttons - 1 column mobile / 2 columns desktop for image */}
+              <div className="grid gap-1.5 sm:gap-2 auto-rows-min grid-cols-1 sm:grid-cols-2">
+                {/* Buy Now - Red border */}
+                <Button
+                  onClick={handleBuyNow}
+                  onKeyDown={(e) => handleKeyDown(e, handleBuyNow)}
+                  disabled={
+                    isBuyNowLoading ||
+                    isAddToCartLoading ||
+                    isDownloadLoading ||
+                    (isGenerating && !generatedVideo) ||
+                    !generatedImage
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-red-500/80 bg-white hover:bg-red-50 hover:border-red-600 text-red-600 hover:text-red-700 active:bg-red-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  aria-label="Acheter Maintenant"
+                  aria-busy={isBuyNowLoading}
+                >
+                  {isBuyNowLoading ? (
+                    <Loader2
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <CreditCard
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="leading-tight whitespace-nowrap">
+                    {isBuyNowLoading ? "Traitement..." : "Acheter Maintenant"}
+                  </span>
+                </Button>
 
-            {/* Download - Blue border */}
-            <Button
-              onClick={handleDownload}
-              onKeyDown={(e) => handleKeyDown(e, handleDownload)}
-              disabled={
-                isBuyNowLoading ||
-                isAddToCartLoading ||
-                isDownloadLoading ||
-                isGenerating ||
-                (!generatedImage && !generatedVideo)
-              }
-              variant="outline"
-              size="sm"
-              className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-blue-500/80 bg-white hover:bg-blue-50 hover:border-blue-600 text-blue-600 hover:text-blue-700 active:bg-blue-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label={generatedVideo ? "Télécharger la vidéo" : "Télécharger"}
-              aria-busy={isDownloadLoading}
-            >
-              {isDownloadLoading ? (
-                <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
-              ) : (
-                <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2" aria-hidden="true" />
-              )}
-              <span className="leading-tight whitespace-nowrap">
-                {isDownloadLoading
-                  ? "Téléchargement..."
-                  : generatedVideo
-                  ? "Télécharger Vidéo"
-                  : "Télécharger"}
-              </span>
-            </Button>
-          </div>
-        </div>
+                {/* Add to Cart - Green border */}
+                <Button
+                  onClick={handleAddToCart}
+                  onKeyDown={(e) => handleKeyDown(e, handleAddToCart)}
+                  disabled={
+                    isBuyNowLoading ||
+                    isAddToCartLoading ||
+                    isDownloadLoading ||
+                    (isGenerating && !generatedVideo) ||
+                    !generatedImage
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-green-500/80 bg-white hover:bg-green-50 hover:border-green-600 text-green-600 hover:text-green-700 active:bg-green-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-green-500/10 focus-visible:ring-2 focus-visible:ring-green-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  aria-label="Ajouter au Panier"
+                  aria-busy={isAddToCartLoading}
+                >
+                  {isAddToCartLoading ? (
+                    <Loader2
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ShoppingCart
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="leading-tight whitespace-nowrap">
+                    {isAddToCartLoading ? "Ajout..." : "Ajouter au Panier"}
+                  </span>
+                </Button>
+
+                {/* Download - Blue border */}
+                <Button
+                  onClick={handleDownload}
+                  onKeyDown={(e) => handleKeyDown(e, handleDownload)}
+                  disabled={
+                    isBuyNowLoading ||
+                    isAddToCartLoading ||
+                    isDownloadLoading ||
+                    (isGenerating && !generatedVideo) ||
+                    !generatedImage
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-blue-500/80 bg-white hover:bg-blue-50 hover:border-blue-600 text-blue-600 hover:text-blue-700 active:bg-blue-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  aria-label="Télécharger"
+                  aria-busy={isDownloadLoading}
+                >
+                  {isDownloadLoading ? (
+                    <Loader2
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Download
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="leading-tight whitespace-nowrap">
+                    {isDownloadLoading ? "Téléchargement..." : "Télécharger"}
+                  </span>
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Video Generation Tab */}
+          <TabsContent value="video" className="mt-0">
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm">
+                <Video className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base sm:text-lg font-semibold">
+                  Vidéo Générée
+                </h2>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  Vidéo publicitaire avec IA
+                </p>
+              </div>
+            </div>
+
+            {/* Split layout: 75% video / 25% buttons */}
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 lg:grid-cols-[3fr_1fr]">
+              {/* Left side: Generated video, loading skeleton, or placeholder */}
+              <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300 w-full">
+                {isGenerating && generatedVideo === null ? (
+                  // Loading state - skeleton with shimmer and loading indicator
+                  <div className="w-full relative overflow-hidden min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
+                    {/* Skeleton placeholder with shimmer effect */}
+                    <Skeleton className="w-full rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 min-h-[400px] sm:min-h-[500px] md:min-h-[600px]" />
+                    {/* Shimmer overlay animation */}
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)",
+                        width: "100%",
+                        height: "100%",
+                        animation: "shimmer 2s infinite",
+                      }}
+                    />
+                    {/* Loading indicator overlay - subtle icon only */}
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <div className="relative">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20">
+                          <Video className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
+                        </div>
+                        <div className="absolute inset-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/20 animate-ping opacity-75" />
+                      </div>
+                    </div>
+                  </div>
+                ) : generatedVideo ? (
+                  // Generated video available - show video player
+                  <video
+                    src={generatedVideo}
+                    controls
+                    className="w-full max-h-[80vh] object-contain"
+                    aria-label="Vidéo publicitaire générée par intelligence artificielle"
+                  >
+                    Votre navigateur ne supporte pas la lecture de vidéos.
+                  </video>
+                ) : (
+                  // No video and not loading - show static placeholder
+                  <div
+                    className="w-full min-h-[400px] sm:min-h-[500px] md:min-h-[600px] flex flex-col items-center justify-center gap-3 sm:gap-4 text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <Video className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
+                      Aucune vidéo générée
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right side: Action buttons - Single column for video */}
+              <div className="grid gap-1.5 sm:gap-2 auto-rows-min grid-cols-1">
+                {/* Download - Blue border */}
+                <Button
+                  onClick={handleDownload}
+                  onKeyDown={(e) => handleKeyDown(e, handleDownload)}
+                  disabled={
+                    isDownloadLoading ||
+                    (isGenerating && generatedImage === null) ||
+                    !generatedVideo
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-blue-500/80 bg-white hover:bg-blue-50 hover:border-blue-600 text-blue-600 hover:text-blue-700 active:bg-blue-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  aria-label="Télécharger la vidéo"
+                  aria-busy={isDownloadLoading}
+                >
+                  {isDownloadLoading ? (
+                    <Loader2
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Download
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="leading-tight whitespace-nowrap">
+                    {isDownloadLoading
+                      ? "Téléchargement..."
+                      : "Télécharger Vidéo"}
+                  </span>
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </Card>
     </div>
   );
