@@ -19,7 +19,7 @@ import {
   getHealthStatus,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, XCircle, Video } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, Video, Check } from "lucide-react";
 import StatusBar from "./StatusBar";
 import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
@@ -804,12 +804,32 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         <span>Effacer</span>
                       </Button>
                     </div>
-                    <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
+                    <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
                       <img
                         src={uploadedImage}
                         alt="Photo téléchargée pour l'essayage virtuel"
                         className="h-full w-auto object-contain"
                       />
+                      {/* Single tick indicator (WhatsApp style) for generated demo photos */}
+                      {selectedDemoPhotoUrl &&
+                        (() => {
+                          const personKey =
+                            DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl);
+                          return (
+                            personKey &&
+                            generatedPersonKeys.has(String(personKey))
+                          );
+                        })() && (
+                          <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full p-1.5 shadow-md">
+                            <Check
+                              className="h-4 w-4 text-primary"
+                              aria-hidden="true"
+                            />
+                            <span className="sr-only">
+                              Cette photo a déjà été générée
+                            </span>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
