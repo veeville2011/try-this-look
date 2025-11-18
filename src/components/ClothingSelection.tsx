@@ -39,7 +39,11 @@ export default function ClothingSelection({
   };
 
   // Check if both person and clothing keys exist in the same generation record
+  // Green color only shows when BOTH are selected AND they exist together
   const areBothKeysGenerated = (imageUrl: string): boolean => {
+    // Only check if this clothing item is currently selected
+    if (imageUrl !== selectedImage) return false;
+    
     const clothingKey = availableImagesWithIds.get(imageUrl);
     const personKey = selectedDemoPhotoUrl ? demoPhotoIdMap.get(selectedDemoPhotoUrl) : null;
     
