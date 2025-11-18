@@ -346,7 +346,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
           // Debug logging
           if (imageIdMap.size > 0) {
-            console.log("[TryOnWidget] Product images loaded:", imageUrls.length, "images,", imageIdMap.size, "with IDs");
+            console.log(
+              "[TryOnWidget] Product images loaded:",
+              imageUrls.length,
+              "images,",
+              imageIdMap.size,
+              "with IDs"
+            );
           }
         }
 
@@ -404,6 +410,30 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (imageUrl) {
       const clothingId = availableImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
+
+      // Check if this clothingKey exists in video generations Redux state
+      if (clothingId) {
+        const normalizedKey = String(clothingId).trim();
+
+        // Search for matching video generation records
+        const matchingVideoRecords = videoRecords.filter((record) => {
+          if (!record.clothingKey) return false;
+          const recordKey = String(record.clothingKey).trim();
+          return recordKey === normalizedKey;
+        });
+
+        // If matching records found, log them
+        if (matchingVideoRecords.length > 0) {
+          console.log(
+            "✅ Clothing key is present for the selected clothingKey:",
+            normalizedKey
+          );
+          console.log("📦 Complete video generation object(s):");
+          matchingVideoRecords.forEach((record, index) => {
+            console.log(`   [${index + 1}]`, record);
+          });
+        }
+      }
 
       setStatusVariant("info");
       setStatusMessage("Prêt à générer. Cliquez sur Générer.");
