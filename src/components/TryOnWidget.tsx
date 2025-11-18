@@ -441,11 +441,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   };
 
   const handleGenerateVideo = async () => {
-    if (!selectedClothing) {
+    if (!selectedClothing || !generatedImage) {
       setStatusVariant("error");
-      setStatusMessage(
-        "La génération de vidéo nécessite au moins un article sélectionné."
-      );
+      setStatusMessage("La génération de vidéo nécessite une image générée.");
       return;
     }
 
@@ -461,34 +459,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Convert selected clothing image to File
       const clothingFile = await dataURLToFile(
         selectedClothing,
-        "product-image.jpg"
+        "clothing-image.jpg"
+      );
+
+      // Convert generated image to File
+      const generatedFile = await dataURLToFile(
+        generatedImage,
+        "generated-image.jpg"
       );
 
       // Get store name and user info from storeInfo
       const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
 
-      // Prepare product images array (can include multiple images from availableImages)
-      const productImages: File[] = [clothingFile];
-
-      // Optionally add more product images if available
-      if (availableImages.length > 1) {
-        // Limit to 10 images total as per API documentation
-        const additionalImages = availableImages
-          .slice(0, 9)
-          .filter((url) => url !== selectedClothing);
-
-        for (const imageUrl of additionalImages) {
-          try {
-            const file = await dataURLToFile(
-              imageUrl,
-              `product-${Date.now()}.jpg`
-            );
-            productImages.push(file);
-          } catch (err) {
-            // Skip images that fail to convert
-          }
-        }
-      }
+      // Prepare product images array with only 2 images: clothing and generated
+      const productImages: File[] = [clothingFile, generatedFile];
 
       setVideoProgress(30);
 
