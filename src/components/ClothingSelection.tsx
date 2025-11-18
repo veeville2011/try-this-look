@@ -242,7 +242,7 @@ export default function ClothingSelection({
               />
               {/* Indicators for generated items */}
               {(isGenerated(selectedImage) || hasVideoGeneration()) && (
-                <div className="absolute top-2 right-2 flex flex-col gap-1.5">
+                <div className="absolute top-2 right-2 flex flex-row gap-1.5">
                   {/* Image generation tick */}
                   {isGenerated(selectedImage) && (
                     <CheckCircle 

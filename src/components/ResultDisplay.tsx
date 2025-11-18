@@ -407,8 +407,12 @@ export default function ResultDisplay({
           </div>
         </div>
 
-        {/* Split layout: 50% image, 50% action buttons */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 md:gap-8">
+        {/* Split layout: 50% image / 50% buttons (image) OR 75% video / 25% buttons (video) */}
+        <div className={`grid grid-cols-1 gap-5 sm:gap-6 md:gap-8 ${
+          generatedVideo 
+            ? 'lg:grid-cols-[3fr_1fr]' // 75% video, 25% buttons
+            : 'lg:grid-cols-2'          // 50% image, 50% buttons
+        }`}>
           {/* Left side: Generated image/video, loading skeleton, or placeholder */}
           <div className="relative aspect-[3/4] rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300">
             {isGenerating ? (
@@ -472,8 +476,12 @@ export default function ResultDisplay({
             )}
           </div>
 
-          {/* Right side: Action buttons - 4x1 grid on mobile, 2x2 grid on tablets/desktop, aligned to top */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 auto-rows-min">
+          {/* Right side: Action buttons - Single column for video, 1 column mobile / 2 columns desktop for image */}
+          <div className={`grid gap-1.5 sm:gap-2 auto-rows-min ${
+            generatedVideo 
+              ? 'grid-cols-1' // Single column for video results
+              : 'grid-cols-1 sm:grid-cols-2' // 1 col mobile, 2 cols tablet/desktop for image results
+          }`}>
             {/* Buy Now - Red border */}
             <Button
               onClick={handleBuyNow}
