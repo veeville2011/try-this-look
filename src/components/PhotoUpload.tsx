@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, Camera } from "lucide-react";
+import { Upload, Image as ImageIcon, Camera, Check } from "lucide-react";
 
 interface PhotoUploadProps {
   onPhotoUpload: (dataURL: string, isDemoPhoto?: boolean, demoPhotoUrl?: string) => void;
+  generatedPersonKeys?: Set<string>;
 }
 
 // Fixed IDs for demo pictures - these will be sent as personKey to the fashion API
@@ -20,9 +21,16 @@ export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
   DEMO_PHOTOS.map((photo) => [photo.url, photo.id])
 );
 
-export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
+export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new Set() }: PhotoUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if a demo photo has been generated before
+  const isGenerated = (photoUrl: string): boolean => {
+    const personKey = DEMO_PHOTO_ID_MAP.get(photoUrl);
+    if (!personKey) return false;
+    return generatedPersonKeys.has(String(personKey));
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,7 +119,7 @@ export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
               onClick={() => handleDemoPhotoSelect(photo.url)}
               role="button"
               tabIndex={0}
-              aria-label={`Sélectionner la photo de démonstration ${index + 1}`}
+              aria-label={`Sélectionner la photo de démonstration ${index + 1}${isGenerated(photo.url) ? " - Déjà généré" : ""}`}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -119,13 +127,19 @@ export default function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
                 }
               }}
             >
-              <div className="w-full bg-muted/30 flex items-center justify-center overflow-hidden">
+              <div className="relative w-full bg-muted/30 flex items-center justify-center overflow-hidden">
                 <img
                   src={photo.url}
                   alt={`Photo de démonstration ${index + 1} pour l'essayage virtuel`}
                   className="w-full h-auto object-contain"
                   loading="lazy"
                 />
+                {/* Single tick indicator (WhatsApp style) for generated items */}
+                {isGenerated(photo.url) && (
+                  <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full p-1 shadow-md">
+                    <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" aria-hidden="true" />
+                  </div>
+                )}
               </div>
             </Card>
           ))}

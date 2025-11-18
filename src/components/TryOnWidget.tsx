@@ -42,6 +42,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     );
   }, [records]);
 
+  // Memoize the set of generated person keys to avoid recreating on every render
+  const generatedPersonKeys = useMemo(() => {
+    return new Set(
+      records
+        .filter((record) => record.personKey && record.status === "completed")
+        .map((record) => String(record.personKey))
+    );
+  }, [records]);
+
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -767,7 +776,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
 
               {!uploadedImage && (
-                <PhotoUpload onPhotoUpload={handlePhotoUpload} />
+                <PhotoUpload
+                  onPhotoUpload={handlePhotoUpload}
+                  generatedPersonKeys={generatedPersonKeys}
+                />
               )}
 
               {uploadedImage && (
