@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, Camera, Check } from "lucide-react";
+import { Upload, Image as ImageIcon, Camera, CheckCircle } from "lucide-react";
 
 interface PhotoUploadProps {
   onPhotoUpload: (dataURL: string, isDemoPhoto?: boolean, demoPhotoUrl?: string) => void;
@@ -134,10 +134,10 @@ export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new S
                   className="w-full h-auto object-contain"
                   loading="lazy"
                 />
-                {/* Single tick indicator (WhatsApp style) for generated items */}
+                {/* Single tick indicator with outlined circle for generated items */}
                 {isGenerated(photo.url) && (
-                  <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full p-1 shadow-md">
-                    <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" aria-hidden="true" />
+                  <div className="absolute top-2 right-2">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary fill-background" aria-hidden="true" />
                   </div>
                 )}
               </div>

@@ -19,7 +19,14 @@ import {
   getHealthStatus,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, XCircle, Video, Check } from "lucide-react";
+import {
+  Sparkles,
+  X,
+  RotateCcw,
+  XCircle,
+  Video,
+  CheckCircle,
+} from "lucide-react";
 import StatusBar from "./StatusBar";
 import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
@@ -810,7 +817,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         alt="Photo téléchargée pour l'essayage virtuel"
                         className="h-full w-auto object-contain"
                       />
-                      {/* Single tick indicator (WhatsApp style) for generated demo photos */}
+                      {/* Single tick indicator with outlined circle for generated demo photos */}
                       {selectedDemoPhotoUrl &&
                         (() => {
                           const personKey =
@@ -820,9 +827,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             generatedPersonKeys.has(String(personKey))
                           );
                         })() && (
-                          <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-full p-1.5 shadow-md">
-                            <Check
-                              className="h-4 w-4 text-primary"
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle
+                              className="h-5 w-5 sm:h-6 sm:w-6 text-primary fill-background"
                               aria-hidden="true"
                             />
                             <span className="sr-only">
