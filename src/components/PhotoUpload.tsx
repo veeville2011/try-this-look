@@ -4,16 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon, Camera, CheckCircle } from "lucide-react";
 
 interface PhotoUploadProps {
-  onPhotoUpload: (dataURL: string, isDemoPhoto?: boolean, demoPhotoUrl?: string) => void;
+  onPhotoUpload: (
+    dataURL: string,
+    isDemoPhoto?: boolean,
+    demoPhotoUrl?: string
+  ) => void;
   generatedPersonKeys?: Set<string>;
 }
 
 // Fixed IDs for demo pictures - these will be sent as personKey to the fashion API
 const DEMO_PHOTOS = [
-  { url: "/assets/demo_pics/Audrey-Fleurot.jpg", id: "demo_person_1" },
-  { url: "/assets/demo_pics/french_man.jpg", id: "demo_person_2" },
-  { url: "/assets/demo_pics/frwm2.jpg", id: "demo_person_3" },
-  { url: "/assets/demo_pics/frwm3.jpg", id: "demo_person_4" },
+  { url: "/assets/demo_pics/p1.jpg", id: "demo_person_1" },
+  { url: "/assets/demo_pics/p2.jpg", id: "demo_person_2" },
+  { url: "/assets/demo_pics/p3.jpg", id: "demo_person_3" },
+  { url: "/assets/demo_pics/p4.jpg", id: "demo_person_4" },
 ] as const;
 
 // Map demo photo URLs to their fixed IDs
@@ -21,7 +25,10 @@ export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
   DEMO_PHOTOS.map((photo) => [photo.url, photo.id])
 );
 
-export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new Set() }: PhotoUploadProps) {
+export default function PhotoUpload({
+  onPhotoUpload,
+  generatedPersonKeys = new Set(),
+}: PhotoUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,7 +70,9 @@ export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new S
 
   return (
     <div className="space-y-4 sm:space-y-5 md:space-y-6">
-      <div className="sr-only">Téléchargez votre photo ou utilisez une photo de démonstration</div>
+      <div className="sr-only">
+        Téléchargez votre photo ou utilisez une photo de démonstration
+      </div>
 
       {/* Upload Area */}
       <Card className="p-4 sm:p-5 md:p-6 lg:p-8 border-2 border-dashed border-primary/30 bg-card hover:border-primary/50 hover:bg-accent/30 transition-all duration-200 cursor-pointer flex items-center group focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
@@ -81,11 +90,21 @@ export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new S
             }
           }}
         >
-          <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 rounded bg-primary/10 group-hover:bg-primary/15 flex items-center justify-center transition-colors duration-200" aria-hidden="true">
+          <div
+            className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 rounded bg-primary/10 group-hover:bg-primary/15 flex items-center justify-center transition-colors duration-200"
+            aria-hidden="true"
+          >
             <Camera className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-primary transition-transform duration-200 group-hover:scale-110" />
           </div>
-          <p className="text-sm sm:text-base md:text-lg font-semibold mb-1 sm:mb-2 px-2">Cliquez pour télécharger votre photo</p>
-          <p id="upload-instructions" className="text-[10px] sm:text-xs text-muted-foreground px-2">Formats acceptés : JPG, PNG (max 10 Mo)</p>
+          <p className="text-sm sm:text-base md:text-lg font-semibold mb-1 sm:mb-2 px-2">
+            Cliquez pour télécharger votre photo
+          </p>
+          <p
+            id="upload-instructions"
+            className="text-[10px] sm:text-xs text-muted-foreground px-2"
+          >
+            Formats acceptés : JPG, PNG (max 10 Mo)
+          </p>
         </div>
         <input
           ref={fileInputRef}
@@ -101,7 +120,9 @@ export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new S
       {/* Separator OU */}
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 my-1 sm:my-2">
         <div className="h-px flex-1 bg-border" />
-        <span className="px-3 sm:px-4 py-1 sm:py-2 rounded-md bg-card border border-border text-muted-foreground font-semibold text-xs sm:text-sm whitespace-nowrap">ou</span>
+        <span className="px-3 sm:px-4 py-1 sm:py-2 rounded-md bg-card border border-border text-muted-foreground font-semibold text-xs sm:text-sm whitespace-nowrap">
+          ou
+        </span>
         <div className="h-px flex-1 bg-border" />
       </div>
 
@@ -119,7 +140,9 @@ export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new S
               onClick={() => handleDemoPhotoSelect(photo.url)}
               role="button"
               tabIndex={0}
-              aria-label={`Sélectionner la photo de démonstration ${index + 1}${isGenerated(photo.url) ? " - Déjà généré" : ""}`}
+              aria-label={`Sélectionner la photo de démonstration ${index + 1}${
+                isGenerated(photo.url) ? " - Déjà généré" : ""
+              }`}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -130,14 +153,19 @@ export default function PhotoUpload({ onPhotoUpload, generatedPersonKeys = new S
               <div className="relative w-full bg-muted/30 flex items-center justify-center overflow-hidden">
                 <img
                   src={photo.url}
-                  alt={`Photo de démonstration ${index + 1} pour l'essayage virtuel`}
+                  alt={`Photo de démonstration ${
+                    index + 1
+                  } pour l'essayage virtuel`}
                   className="w-full h-auto object-contain"
                   loading="lazy"
                 />
                 {/* Single tick indicator with outlined circle for generated items */}
                 {isGenerated(photo.url) && (
                   <div className="absolute top-2 right-2">
-                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary fill-background" aria-hidden="true" />
+                    <CheckCircle
+                      className="h-4 w-4 sm:h-5 sm:w-5 text-primary fill-background"
+                      aria-hidden="true"
+                    />
                   </div>
                 )}
               </div>
