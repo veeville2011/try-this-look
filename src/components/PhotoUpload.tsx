@@ -10,7 +10,7 @@ interface PhotoUploadProps {
 
 // Fixed IDs for demo pictures - these will be sent as personKey to the fashion API
 const DEMO_PHOTOS = [
-  { url: "/assets/demo_pics/Audrey-Fleurot.png", id: "demo_person_1" },
+  { url: "/assets/demo_pics/Audrey-Fleurot.jpg", id: "demo_person_1" },
   { url: "/assets/demo_pics/french_man.jpg", id: "demo_person_2" },
   { url: "/assets/demo_pics/frwm2.jpg", id: "demo_person_3" },
   { url: "/assets/demo_pics/frwm3.jpg", id: "demo_person_4" },
