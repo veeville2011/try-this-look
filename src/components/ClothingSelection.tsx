@@ -76,25 +76,6 @@ export default function ClothingSelection({
     return hasVideo;
   };
 
-  // Check if both person and clothing keys exist in the same generation record
-  // Green color only shows when BOTH are selected AND they exist together
-  const areBothKeysGenerated = (imageUrl: string): boolean => {
-    // Only check if this clothing item is currently selected
-    if (imageUrl !== selectedImage) return false;
-
-    const clothingKey = availableImagesWithIds.get(imageUrl);
-    const personKey = selectedDemoPhotoUrl
-      ? demoPhotoIdMap.get(selectedDemoPhotoUrl)
-      : null;
-
-    if (!clothingKey || !personKey) return false;
-
-    // Check if this specific combination exists in the same record
-    return generatedKeyCombinations.has(
-      `${String(personKey)}-${String(clothingKey)}`
-    );
-  };
-
   // Initialize with provided images; only remove on actual load error
   useEffect(() => {
     const unique = Array.from(new Set(images.filter(Boolean)));
@@ -168,16 +149,11 @@ export default function ClothingSelection({
                         );
                       }}
                     />
-                    {/* Indicators: matching (from API) takes priority, then generated */}
-                    {(isMatching(image) || isGenerated(image)) && (
+                    {/* Indicators: show only when the API returned a matching clothing item */}
+                    {isMatching(image) && (
                       <div className="absolute top-2 right-2 flex flex-col gap-1">
-                        {/* Image generation tick */}
                         <CheckCircle
-                          className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${
-                            isMatching(image) || areBothKeysGenerated(image)
-                              ? "text-green-500"
-                              : "text-primary"
-                          }`}
+                          className="h-4 w-4 sm:h-5 sm:w-5 fill-background text-primary"
                           aria-hidden="true"
                         />
                       </div>
@@ -237,17 +213,11 @@ export default function ClothingSelection({
                               );
                             }}
                           />
-                          {/* Indicators: matching (from API) takes priority, then generated */}
-                          {(isMatching(image) || isGenerated(image)) && (
+                          {/* Indicators: show only when the API returned a matching clothing item */}
+                          {isMatching(image) && (
                             <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex flex-col gap-1">
-                              {/* Image generation tick */}
                               <CheckCircle
-                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${
-                                  isMatching(image) ||
-                                  areBothKeysGenerated(image)
-                                    ? "text-green-500"
-                                    : "text-primary"
-                                }`}
+                                className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background text-primary"
                                 aria-hidden="true"
                               />
                             </div>
@@ -290,21 +260,13 @@ export default function ClothingSelection({
                 alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
                 className="h-full w-auto object-contain"
               />
-              {/* Indicators: matching (from API) takes priority, then generated */}
-              {(isMatching(selectedImage) ||
-                isGenerated(selectedImage) ||
-                hasVideoGeneration()) && (
+              {/* Indicators: show tick only when API returned a matching clothing item */}
+              {(isMatching(selectedImage) || hasVideoGeneration()) && (
                 <div className="absolute top-2 right-2 flex flex-row gap-1.5">
                   {/* Image generation tick */}
-                  {(isMatching(selectedImage) ||
-                    isGenerated(selectedImage)) && (
+                  {isMatching(selectedImage) && (
                     <CheckCircle
-                      className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
-                        isMatching(selectedImage) ||
-                        areBothKeysGenerated(selectedImage)
-                          ? "text-green-500"
-                          : "text-primary"
-                      }`}
+                      className="h-5 w-5 sm:h-6 sm:w-6 fill-background text-primary"
                       aria-hidden="true"
                     />
                   )}

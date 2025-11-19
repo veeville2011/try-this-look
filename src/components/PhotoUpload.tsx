@@ -168,15 +168,11 @@ export default function PhotoUpload({
                   className="w-full h-auto object-contain"
                   loading="lazy"
                 />
-                {/* Tick indicators: matching (from API) takes priority, then generated */}
-                {(isMatching(photo.url) || isGenerated(photo.url)) && (
+                {/* Tick indicators: show only when the API returned a matching person */}
+                {isMatching(photo.url) && (
                   <div className="absolute top-2 right-2">
                     <CheckCircle
-                      className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${
-                        isMatching(photo.url)
-                          ? "text-green-500"
-                          : "text-primary"
-                      }`}
+                      className="h-4 w-4 sm:h-5 sm:w-5 fill-background text-primary"
                       aria-hidden="true"
                     />
                   </div>
