@@ -76,6 +76,27 @@ export default function ClothingSelection({
     return hasVideo;
   };
 
+  // Check if the selected person/clothing combination already exists in cache
+  const hasCachedCombination = (): boolean => {
+    if (!selectedImage || !selectedDemoPhotoUrl) return false;
+
+    const clothingKey = availableImagesWithIds.get(selectedImage);
+    const personKey = demoPhotoIdMap.get(selectedDemoPhotoUrl);
+
+    if (!clothingKey || !personKey) return false;
+
+    const normalizedClothingKey = String(clothingKey).trim();
+    const normalizedPersonKey = String(personKey).trim();
+
+    if (!normalizedClothingKey || !normalizedPersonKey) return false;
+
+    return generatedKeyCombinations.has(
+      `${normalizedPersonKey}-${normalizedClothingKey}`
+    );
+  };
+
+  const showCachedCombination = hasCachedCombination();
+
   // Initialize with provided images; only remove on actual load error
   useEffect(() => {
     const unique = Array.from(new Set(images.filter(Boolean)));
@@ -266,7 +287,9 @@ export default function ClothingSelection({
                   {/* Image generation tick */}
                   {isMatching(selectedImage) && (
                     <CheckCircle
-                      className="h-5 w-5 sm:h-6 sm:w-6 fill-background text-primary"
+                      className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
+                        showCachedCombination ? "text-green-500" : "text-primary"
+                      }`}
                       aria-hidden="true"
                     />
                   )}
