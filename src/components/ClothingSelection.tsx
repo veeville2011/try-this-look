@@ -15,6 +15,7 @@ interface ClothingSelectionProps {
   generatedKeyCombinations?: Set<string>;
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
+  matchingClothingKeys?: string[];
 }
 
 export default function ClothingSelection({
@@ -29,10 +30,13 @@ export default function ClothingSelection({
   generatedKeyCombinations = new Set(),
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
+  matchingClothingKeys = [],
 }: ClothingSelectionProps) {
   const [validImages, setValidImages] = useState<string[]>([]);
-  const [validRecommendedImages, setValidRecommendedImages] = useState<string[]>([]);
-  
+  const [validRecommendedImages, setValidRecommendedImages] = useState<
+    string[]
+  >([]);
+
   // Check if an image has been generated before (image generation)
   const isGenerated = (imageUrl: string): boolean => {
     const clothingKey = availableImagesWithIds.get(imageUrl);
@@ -41,24 +45,34 @@ export default function ClothingSelection({
     return generatedClothingKeys.has(normalizedKey);
   };
 
+  // Check if a clothing item matches the selected person (from key mappings API)
+  const isMatching = (imageUrl: string): boolean => {
+    const clothingKey = availableImagesWithIds.get(imageUrl);
+    if (!clothingKey || matchingClothingKeys.length === 0) return false;
+    const normalizedKey = String(clothingKey).trim();
+    return matchingClothingKeys.includes(normalizedKey);
+  };
+
   // Check if a video has been generated for the SELECTED clothing item ONLY
   const hasVideoGeneration = (): boolean => {
     // Only check if there's a selected image
     if (!selectedImage) return false;
-    
+
     const clothingKey = availableImagesWithIds.get(selectedImage);
     if (!clothingKey) return false;
-    
+
     const normalizedKey = String(clothingKey).trim();
     const hasVideo = generatedVideoClothingKeys.has(normalizedKey);
-    
+
     // Debug log only when checking selected image
     if (generatedVideoClothingKeys.size > 0) {
-      console.log('[ClothingSelection] Checking selected clothing for video generation:');
-      console.log('  - Selected clothing key:', normalizedKey);
-      console.log('  - Has video generation:', hasVideo);
+      console.log(
+        "[ClothingSelection] Checking selected clothing for video generation:"
+      );
+      console.log("  - Selected clothing key:", normalizedKey);
+      console.log("  - Has video generation:", hasVideo);
     }
-    
+
     return hasVideo;
   };
 
@@ -67,14 +81,18 @@ export default function ClothingSelection({
   const areBothKeysGenerated = (imageUrl: string): boolean => {
     // Only check if this clothing item is currently selected
     if (imageUrl !== selectedImage) return false;
-    
+
     const clothingKey = availableImagesWithIds.get(imageUrl);
-    const personKey = selectedDemoPhotoUrl ? demoPhotoIdMap.get(selectedDemoPhotoUrl) : null;
-    
+    const personKey = selectedDemoPhotoUrl
+      ? demoPhotoIdMap.get(selectedDemoPhotoUrl)
+      : null;
+
     if (!clothingKey || !personKey) return false;
-    
+
     // Check if this specific combination exists in the same record
-    return generatedKeyCombinations.has(`${String(personKey)}-${String(clothingKey)}`);
+    return generatedKeyCombinations.has(
+      `${String(personKey)}-${String(clothingKey)}`
+    );
   };
 
   // Initialize with provided images; only remove on actual load error
@@ -123,7 +141,9 @@ export default function ClothingSelection({
                   onClick={() => onSelect(image)}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Sélectionner le vêtement ${index + 1}${selectedImage === image ? " - Sélectionné" : ""}${isGenerated(image) ? " - Déjà généré" : ""}`}
+                  aria-label={`Sélectionner le vêtement ${index + 1}${
+                    selectedImage === image ? " - Sélectionné" : ""
+                  }${isGenerated(image) ? " - Déjà généré" : ""}`}
                   aria-pressed={selectedImage === image}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -135,20 +155,30 @@ export default function ClothingSelection({
                   <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden">
                     <img
                       src={image}
-                      alt={`Image du vêtement ${index + 1}${selectedImage === image ? " - Actuellement sélectionné" : ""}`}
+                      alt={`Image du vêtement ${index + 1}${
+                        selectedImage === image
+                          ? " - Actuellement sélectionné"
+                          : ""
+                      }`}
                       className="w-full h-auto object-contain"
                       loading="lazy"
                       onError={() => {
-                        setValidImages((prev) => prev.filter((u) => u !== image));
+                        setValidImages((prev) =>
+                          prev.filter((u) => u !== image)
+                        );
                       }}
                     />
-                    {/* Indicators for generated items */}
-                    {isGenerated(image) && (
+                    {/* Indicators: matching (from API) takes priority, then generated */}
+                    {(isMatching(image) || isGenerated(image)) && (
                       <div className="absolute top-2 right-2 flex flex-col gap-1">
                         {/* Image generation tick */}
-                        <CheckCircle 
-                          className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
-                          aria-hidden="true" 
+                        <CheckCircle
+                          className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${
+                            isMatching(image) || areBothKeysGenerated(image)
+                              ? "text-green-500"
+                              : "text-primary"
+                          }`}
+                          aria-hidden="true"
                         />
                       </div>
                     )}
@@ -178,7 +208,11 @@ export default function ClothingSelection({
                         onClick={() => onSelect(image)}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? " - Sélectionné" : ""}${isGenerated(image) ? " - Déjà généré" : ""}`}
+                        aria-label={`Sélectionner le produit recommandé ${
+                          index + 1
+                        }${selectedImage === image ? " - Sélectionné" : ""}${
+                          isGenerated(image) ? " - Déjà généré" : ""
+                        }`}
                         aria-pressed={selectedImage === image}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -190,20 +224,31 @@ export default function ClothingSelection({
                         <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
                           <img
                             src={image}
-                            alt={`Produit recommandé ${index + 1}${selectedImage === image ? " - Actuellement sélectionné" : ""}`}
+                            alt={`Produit recommandé ${index + 1}${
+                              selectedImage === image
+                                ? " - Actuellement sélectionné"
+                                : ""
+                            }`}
                             className="w-full h-full object-contain"
                             loading="lazy"
                             onError={() => {
-                              setValidRecommendedImages((prev) => prev.filter((u) => u !== image));
+                              setValidRecommendedImages((prev) =>
+                                prev.filter((u) => u !== image)
+                              );
                             }}
                           />
-                          {/* Indicators for generated items */}
-                          {isGenerated(image) && (
+                          {/* Indicators: matching (from API) takes priority, then generated */}
+                          {(isMatching(image) || isGenerated(image)) && (
                             <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex flex-col gap-1">
                               {/* Image generation tick */}
-                              <CheckCircle 
-                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${areBothKeysGenerated(image) ? 'text-green-500' : 'text-primary'}`} 
-                                aria-hidden="true" 
+                              <CheckCircle
+                                className={`h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background ${
+                                  isMatching(image) ||
+                                  areBothKeysGenerated(image)
+                                    ? "text-green-500"
+                                    : "text-primary"
+                                }`}
+                                aria-hidden="true"
                               />
                             </div>
                           )}
@@ -222,7 +267,9 @@ export default function ClothingSelection({
         <div role="status" aria-live="polite">
           <Card className="p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
-              <p className="font-semibold text-sm sm:text-base md:text-lg">Article Sélectionné</p>
+              <p className="font-semibold text-sm sm:text-base md:text-lg">
+                Article Sélectionné
+              </p>
               <Button
                 variant="outline"
                 size="sm"
@@ -230,7 +277,10 @@ export default function ClothingSelection({
                 className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label="Effacer la sélection du vêtement"
               >
-                <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200" aria-hidden="true" />
+                <XCircle
+                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
+                  aria-hidden="true"
+                />
                 <span>Effacer</span>
               </Button>
             </div>
@@ -240,22 +290,30 @@ export default function ClothingSelection({
                 alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
                 className="h-full w-auto object-contain"
               />
-              {/* Indicators for generated items */}
-              {(isGenerated(selectedImage) || hasVideoGeneration()) && (
+              {/* Indicators: matching (from API) takes priority, then generated */}
+              {(isMatching(selectedImage) ||
+                isGenerated(selectedImage) ||
+                hasVideoGeneration()) && (
                 <div className="absolute top-2 right-2 flex flex-row gap-1.5">
                   {/* Image generation tick */}
-                  {isGenerated(selectedImage) && (
-                    <CheckCircle 
-                      className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${areBothKeysGenerated(selectedImage) ? 'text-green-500' : 'text-primary'}`} 
-                      aria-hidden="true" 
+                  {(isMatching(selectedImage) ||
+                    isGenerated(selectedImage)) && (
+                    <CheckCircle
+                      className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
+                        isMatching(selectedImage) ||
+                        areBothKeysGenerated(selectedImage)
+                          ? "text-green-500"
+                          : "text-primary"
+                      }`}
+                      aria-hidden="true"
                     />
                   )}
                   {/* Video generation tick */}
                   {hasVideoGeneration() && (
                     <div className="bg-purple-500 rounded-full p-1">
-                      <Video 
-                        className="h-4 w-4 sm:h-5 sm:w-5 text-white" 
-                        aria-hidden="true" 
+                      <Video
+                        className="h-4 w-4 sm:h-5 sm:w-5 text-white"
+                        aria-hidden="true"
                       />
                     </div>
                   )}

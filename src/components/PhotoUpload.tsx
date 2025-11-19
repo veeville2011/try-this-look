@@ -10,6 +10,7 @@ interface PhotoUploadProps {
     demoPhotoUrl?: string
   ) => void;
   generatedPersonKeys?: Set<string>;
+  matchingPersonKeys?: string[];
 }
 
 // Fixed IDs for demo pictures - these will be sent as personKey to the fashion API
@@ -28,6 +29,7 @@ export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
 export default function PhotoUpload({
   onPhotoUpload,
   generatedPersonKeys = new Set(),
+  matchingPersonKeys = [],
 }: PhotoUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +39,13 @@ export default function PhotoUpload({
     const personKey = DEMO_PHOTO_ID_MAP.get(photoUrl);
     if (!personKey) return false;
     return generatedPersonKeys.has(String(personKey));
+  };
+
+  // Check if a demo photo matches the selected clothing (from key mappings API)
+  const isMatching = (photoUrl: string): boolean => {
+    const personKey = DEMO_PHOTO_ID_MAP.get(photoUrl);
+    if (!personKey || matchingPersonKeys.length === 0) return false;
+    return matchingPersonKeys.includes(String(personKey));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,11 +168,15 @@ export default function PhotoUpload({
                   className="w-full h-auto object-contain"
                   loading="lazy"
                 />
-                {/* Single tick indicator with outlined circle for generated items */}
-                {isGenerated(photo.url) && (
+                {/* Tick indicators: matching (from API) takes priority, then generated */}
+                {(isMatching(photo.url) || isGenerated(photo.url)) && (
                   <div className="absolute top-2 right-2">
                     <CheckCircle
-                      className="h-4 w-4 sm:h-5 sm:w-5 text-primary fill-background"
+                      className={`h-4 w-4 sm:h-5 sm:w-5 fill-background ${
+                        isMatching(photo.url)
+                          ? "text-green-500"
+                          : "text-primary"
+                      }`}
                       aria-hidden="true"
                     />
                   </div>

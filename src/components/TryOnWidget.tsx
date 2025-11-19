@@ -31,6 +31,7 @@ import StatusBar from "./StatusBar";
 import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useVideoGenerations } from "@/hooks/useVideoGenerations";
+import { useKeyMappings } from "@/hooks/useKeyMappings";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -44,6 +45,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Redux state for video generations
   const { fetchGenerations: fetchVideoGenerations, records: videoRecords } =
     useVideoGenerations();
+
+  // Redux state for key mappings
+  const {
+    setSelectedClothingKey: setReduxClothingKey,
+    setSelectedPersonKey: setReduxPersonKey,
+    resetSelections: resetKeyMappings,
+    clothingKeys,
+    personKeys,
+  } = useKeyMappings();
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -395,8 +405,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     // Track if a demo photo was selected and its URL
     if (isDemoPhoto && demoPhotoUrl) {
       setSelectedDemoPhotoUrl(demoPhotoUrl);
+      // Set personKey in Redux for key mappings
+      const personKey = DEMO_PHOTO_ID_MAP.get(demoPhotoUrl);
+      setReduxPersonKey(personKey || null);
     } else {
       setSelectedDemoPhotoUrl(null);
+      // Clear personKey in Redux when custom photo is uploaded
+      setReduxPersonKey(null);
     }
     setStatusVariant("info");
     setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
@@ -410,6 +425,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (imageUrl) {
       const clothingId = availableImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
+
+      // Set clothingKey in Redux for key mappings
+      const clothingKey = clothingId ? String(clothingId).trim() : null;
+      setReduxClothingKey(clothingKey);
 
       // Check if this clothingKey exists in video generations Redux state
       if (clothingId) {
@@ -439,6 +458,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setStatusMessage("Prêt à générer. Cliquez sur Générer.");
     } else {
       setSelectedClothingKey(null);
+      // Clear clothingKey in Redux
+      setReduxClothingKey(null);
       setStatusVariant("info");
       setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
     }
@@ -703,6 +724,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const handleClearUploadedImage = () => {
     setUploadedImage(null);
     setSelectedDemoPhotoUrl(null);
+    // Clear personKey in Redux
+    setReduxPersonKey(null);
     try {
       storage.clearUploadedImage();
     } catch {}
@@ -720,6 +743,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setGeneratedImage(null);
     setError(null);
     setProgress(0);
+    // Reset key mappings in Redux
+    resetKeyMappings();
     storage.clearSession();
     setStatusVariant("info");
     setStatusMessage(
@@ -900,6 +925,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <PhotoUpload
                   onPhotoUpload={handlePhotoUpload}
                   generatedPersonKeys={generatedPersonKeys}
+                  matchingPersonKeys={personKeys}
                 />
               )}
 
@@ -1011,6 +1037,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 generatedKeyCombinations={generatedKeyCombinations}
                 selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                 demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
+                matchingClothingKeys={clothingKeys}
               />
             </Card>
           </section>
