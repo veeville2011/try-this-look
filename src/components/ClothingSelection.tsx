@@ -53,7 +53,7 @@ export default function ClothingSelection({
     return matchingClothingKeys.includes(normalizedKey);
   };
 
-  // Check if a video has been generated for the SELECTED clothing item ONLY
+  // Check if a video has been generated for the selected clothing item
   const hasVideoGeneration = (): boolean => {
     // Only check if there's a selected image
     if (!selectedImage) return false;
@@ -62,18 +62,7 @@ export default function ClothingSelection({
     if (!clothingKey) return false;
 
     const normalizedKey = String(clothingKey).trim();
-    const hasVideo = generatedVideoClothingKeys.has(normalizedKey);
-
-    // Debug log only when checking selected image
-    if (generatedVideoClothingKeys.size > 0) {
-      console.log(
-        "[ClothingSelection] Checking selected clothing for video generation:"
-      );
-      console.log("  - Selected clothing key:", normalizedKey);
-      console.log("  - Has video generation:", hasVideo);
-    }
-
-    return hasVideo;
+    return generatedVideoClothingKeys.has(normalizedKey);
   };
 
   // Check if the selected person/clothing combination already exists in cache
@@ -281,14 +270,16 @@ export default function ClothingSelection({
                 alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
                 className="h-full w-auto object-contain"
               />
-              {/* Indicators: show tick only when API returned a matching clothing item */}
+              {/* Indicators: show tick when API returned matching clothing item or video generation exists */}
               {(isMatching(selectedImage) || hasVideoGeneration()) && (
                 <div className="absolute top-2 right-2 flex flex-row gap-1.5">
                   {/* Image generation tick */}
                   {isMatching(selectedImage) && (
                     <CheckCircle
                       className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
-                        showCachedCombination ? "text-green-500" : "text-primary"
+                        showCachedCombination
+                          ? "text-green-500"
+                          : "text-primary"
                       }`}
                       aria-hidden="true"
                     />
