@@ -169,7 +169,7 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
         // Redirect to Shopify's confirmation page
         window.location.href = data.confirmationUrl;
       } else {
-        toast.error("Failed to change plan", error);
+        toast.error("Failed to change plan");
       }
     } catch (error) {
       if (import.meta.env.DEV) {

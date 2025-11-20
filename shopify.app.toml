@@ -17,10 +17,6 @@ api_version = "2024-01"
   uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/subscriptions/update" ]
-  uri = "/webhooks/app/subscriptions/update"
-
-  [[webhooks.subscriptions]]
   uri = "/webhooks/customers/data_request"
   compliance_topics = [ "customers/data_request" ]
 
@@ -34,7 +30,8 @@ api_version = "2024-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,read_themes,write_products,write_themes,applications_billing"
+# Note: Billing API doesn't require a specific scope - it's automatically available to all apps
+scopes = "read_products,read_themes,write_products,write_themes"
 
 [auth]
 redirect_urls = [
