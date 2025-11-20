@@ -12,7 +12,7 @@ import * as logger from "./logger.js";
 export const PLAN_HANDLES = {
   FREE: "free",
   PRO: "pro",
-  PREMIUM: "premium",
+  PRO_ANNUAL: "pro_annual",
 };
 
 /**
@@ -27,22 +27,52 @@ export const PLANS = {
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
     description: "Free plan with basic features",
+    features: [
+      "10 try-ons per month",
+      "Standard processing",
+      "Basic widget",
+      "Community support",
+    ],
+    limits: {
+      monthlyTryOns: 10,
+      processingPriority: "standard",
+    },
   },
   [PLAN_HANDLES.PRO]: {
-    name: "Pro Plan",
+    name: "Pro Plan (Monthly)",
     handle: PLAN_HANDLES.PRO,
-    price: 29.99,
+    price: 20.0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
-    description: "Pro plan with advanced features",
+    description: "For serious e-commerce stores",
+    features: [
+      "Unlimited try-ons",
+      "Priority processing",
+      "Customizable widget",
+      "API access",
+      "Custom branding",
+      "Priority support",
+      "Advanced analytics",
+    ],
   },
-  [PLAN_HANDLES.PREMIUM]: {
-    name: "Premium Plan",
-    handle: PLAN_HANDLES.PREMIUM,
-    price: 99.99,
+  [PLAN_HANDLES.PRO_ANNUAL]: {
+    name: "Pro Plan (Annual)",
+    handle: PLAN_HANDLES.PRO_ANNUAL,
+    price: 180.0, // $15/month × 12 months
     currencyCode: "USD",
-    interval: "EVERY_30_DAYS",
-    description: "Premium plan with all features",
+    interval: "ANNUAL",
+    description: "For serious e-commerce stores - Save 25% with annual billing",
+    monthlyEquivalent: 15.0, // For display purposes
+    features: [
+      "Unlimited try-ons",
+      "Priority processing",
+      "Customizable widget",
+      "API access",
+      "Custom branding",
+      "Priority support",
+      "Advanced analytics",
+      "Save 25% compared to monthly billing",
+    ],
   },
 };
 
@@ -60,7 +90,8 @@ export const createSubscription = async (
   session,
   planHandle,
   returnUrl,
-  trialDays = 0
+  trialDays = 0,
+  replacementBehavior = "STANDARD"
 ) => {
   try {
     const plan = PLANS[planHandle];
@@ -88,12 +119,13 @@ export const createSubscription = async (
 
     // GraphQL mutation for creating subscription
     const mutation = `
-      mutation appSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int) {
+      mutation appSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int, $replacementBehavior: AppSubscriptionReplacementBehavior) {
         appSubscriptionCreate(
           name: $name
           lineItems: $lineItems
           returnUrl: $returnUrl
           trialDays: $trialDays
+          replacementBehavior: $replacementBehavior
         ) {
           appSubscription {
             id
@@ -127,6 +159,7 @@ export const createSubscription = async (
       ],
       returnUrl: returnUrl,
       ...(trialDays > 0 && { trialDays }),
+      replacementBehavior: replacementBehavior,
     };
 
     // Use shopify instance to make GraphQL request
@@ -265,10 +298,16 @@ export const checkSubscription = async (
     // Check if it's recurring pricing (not usage-based)
     if (pricingDetails?.price?.amount) {
       const subscriptionPrice = parseFloat(pricingDetails.price.amount);
-      // Match price to plan (use tolerance for floating point comparison)
+      const subscriptionInterval = pricingDetails.interval;
+
+      // Match price and interval to plan (use tolerance for floating point comparison)
       for (const [handle, plan] of Object.entries(PLANS)) {
         // Compare prices with small tolerance for floating point precision
-        if (Math.abs(plan.price - subscriptionPrice) < 0.01) {
+        // Also match interval to distinguish monthly vs annual
+        if (
+          Math.abs(plan.price - subscriptionPrice) < 0.01 &&
+          plan.interval === subscriptionInterval
+        ) {
           planHandle = handle;
           break;
         }
@@ -362,4 +401,129 @@ export const getAvailablePlans = () => {
  */
 export const getPlan = (planHandle) => {
   return PLANS[planHandle] || null;
+};
+
+/**
+ * Cancel an active subscription
+ * @param {Object} shopify - Shopify API instance
+ * @param {Object} session - Shopify session object
+ * @param {boolean} prorate - Whether to issue prorated credits
+ * @returns {Promise<Object>} Cancellation result
+ */
+export const cancelSubscription = async (shopify, session, prorate = false) => {
+  try {
+    // First, get current subscription
+    const subscriptionStatus = await checkSubscription(shopify, session);
+
+    if (!subscriptionStatus.hasActiveSubscription) {
+      throw new Error("No active subscription to cancel");
+    }
+
+    const subscriptionId = subscriptionStatus.subscription.id;
+
+    // GraphQL mutation for canceling subscription
+    const mutation = `
+      mutation appSubscriptionCancel($id: ID!, $prorate: Boolean!) {
+        appSubscriptionCancel(id: $id, prorate: $prorate) {
+          appSubscription {
+            id
+            status
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const client = new shopify.clients.Graphql({ session });
+    const response = await client.query({
+      data: {
+        query: mutation,
+        variables: {
+          id: subscriptionId,
+          prorate: prorate,
+        },
+      },
+    });
+
+    const responseData = response.body?.data || response.data;
+
+    if (responseData?.appSubscriptionCancel?.userErrors?.length > 0) {
+      const errors = responseData.appSubscriptionCancel.userErrors;
+      logger.error("[BILLING] Subscription cancellation errors", null, null, {
+        shop: session.shop,
+        errors,
+      });
+      throw new Error(
+        `Subscription cancellation failed: ${errors
+          .map((e) => e.message)
+          .join(", ")}`
+      );
+    }
+
+    logger.info("[BILLING] Subscription cancelled successfully", {
+      shop: session.shop,
+      subscriptionId,
+      prorate,
+    });
+
+    return {
+      success: true,
+      subscription: responseData?.appSubscriptionCancel?.appSubscription,
+    };
+  } catch (error) {
+    logger.error("[BILLING] Failed to cancel subscription", error, null, {
+      shop: session?.shop,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Change subscription plan (upgrade or downgrade)
+ * @param {Object} shopify - Shopify API instance
+ * @param {Object} session - Shopify session object
+ * @param {string} newPlanHandle - New plan handle
+ * @param {string} returnUrl - URL to redirect after approval
+ * @param {string} replacementBehavior - How to handle existing subscription
+ *   Valid values: "STANDARD" (default), "APPLY_IMMEDIATELY", "APPLY_ON_NEXT_BILLING_CYCLE"
+ * @returns {Promise<Object>} New subscription creation result
+ */
+export const changePlan = async (
+  shopify,
+  session,
+  newPlanHandle,
+  returnUrl,
+  replacementBehavior = "STANDARD"
+) => {
+  try {
+    // Check if merchant has active subscription
+    const currentStatus = await checkSubscription(shopify, session);
+
+    // Shopify automatically handles subscription replacement when creating a new one
+    // The replacementBehavior parameter controls when the new subscription takes effect:
+    // - STANDARD: Default behavior with automatic proration and deferral logic
+    // - APPLY_IMMEDIATELY: Cancel current subscription immediately and apply new one
+    // - APPLY_ON_NEXT_BILLING_CYCLE: Defer until current billing cycle ends
+
+    // Create new subscription with replacement behavior
+    const result = await createSubscription(
+      shopify,
+      session,
+      newPlanHandle,
+      returnUrl,
+      0, // No trial for plan changes
+      replacementBehavior
+    );
+
+    return result;
+  } catch (error) {
+    logger.error("[BILLING] Failed to change plan", error, null, {
+      shop: session?.shop,
+      newPlanHandle,
+    });
+    throw error;
+  }
 };

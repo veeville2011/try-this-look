@@ -7,6 +7,7 @@ import { store } from "@/store/store";
 import Index from "./pages/Index";
 import ProductDemo from "./pages/ProductDemo";
 import Widget from "./pages/Widget";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
