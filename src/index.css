@@ -273,3 +273,21 @@ All colors MUST be HSL.
   white-space: nowrap;
   border-width: 0;
 }
+
+/* Prevent single-word orphans - ensures minimum 2 words on wrapped lines */
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* Better text wrapping for French text */
+.no-orphans {
+  word-spacing: 0.05em;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -moz-hyphens: auto;
+  -ms-hyphens: auto;
+}
