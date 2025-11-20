@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -5,6 +6,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sparkles,
   CheckCircle2,
@@ -15,6 +26,7 @@ import {
   ArrowRight,
   Shield,
   Link2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,36 +36,183 @@ const Index = () => {
   const APP_EMBED_HANDLE = "nusense-tryon-embed";
   const APP_BLOCK_HANDLE = "nusense-tryon-button";
 
-  const handleDeepLink = (
+  // Dialog state
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [shopDomain, setShopDomain] = useState("");
+  const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState<{
+    type: "embed" | "block";
+    template: "product" | "index";
+  } | null>(null);
+
+  const handleDeepLinkClick = (
     type: "embed" | "block",
     template: "product" | "index" = "product"
   ) => {
-    const shopDomain = prompt(
-      "Enter your Shopify store name (e.g., your-store)"
-    );
-    if (!shopDomain || !shopDomain.trim()) return;
+    setPendingAction({ type, template });
+    setShopDomain("");
+    setError("");
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogSubmit = () => {
+    if (!shopDomain || !shopDomain.trim()) {
+      setError("Veuillez entrer le nom de votre boutique");
+      return;
+    }
 
     // Clean and format shop domain
     const cleanedDomain = shopDomain.trim().toLowerCase();
+
+    // Basic validation
+    if (cleanedDomain.length < 3) {
+      setError("Le nom de la boutique doit contenir au moins 3 caractères");
+      return;
+    }
+
+    // Remove invalid characters
+    const sanitizedDomain = cleanedDomain.replace(/[^a-z0-9-]/g, "");
+    if (sanitizedDomain !== cleanedDomain) {
+      setError(
+        "Le nom de la boutique ne peut contenir que des lettres, chiffres et tirets"
+      );
+      return;
+    }
+
     const myshopifyDomain = cleanedDomain.includes(".myshopify.com")
       ? cleanedDomain
       : `${cleanedDomain}.myshopify.com`;
 
+    if (!pendingAction) return;
+
     let deepLinkUrl = "";
-    if (type === "embed") {
+    if (pendingAction.type === "embed") {
       // App embed block deep link - template is optional for embed blocks
       // Using index template as default since embed blocks work globally
       deepLinkUrl = `https://${myshopifyDomain}/admin/themes/current/editor?context=apps&template=index&activateAppId=${API_KEY}/${APP_EMBED_HANDLE}`;
     } else {
       // App block deep link - template specifies which page to add block to
-      deepLinkUrl = `https://${myshopifyDomain}/admin/themes/current/editor?context=apps&template=${template}&addAppBlockId=${API_KEY}/${APP_BLOCK_HANDLE}`;
+      deepLinkUrl = `https://${myshopifyDomain}/admin/themes/current/editor?context=apps&template=${pendingAction.template}&addAppBlockId=${API_KEY}/${APP_BLOCK_HANDLE}`;
     }
 
+    setIsDialogOpen(false);
+    setShopDomain("");
+    setError("");
+    setPendingAction(null);
     window.open(deepLinkUrl, "_blank");
+  };
+
+  const handleDialogCancel = () => {
+    setIsDialogOpen(false);
+    setShopDomain("");
+    setError("");
+    setPendingAction(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleDialogSubmit();
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Custom Shop Domain Input Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] bg-card border-2 border-border">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Store className="w-6 h-6 text-primary" aria-hidden="true" />
+              Entrez votre boutique&nbsp;Shopify
+            </DialogTitle>
+            <DialogDescription className="text-base text-foreground/80 pt-2">
+              Pour accéder directement à l'éditeur de thème, nous avons besoin
+              du nom de votre boutique Shopify.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="shop-domain"
+                className="text-sm font-semibold text-foreground"
+              >
+                Nom de la boutique
+              </Label>
+              <Input
+                id="shop-domain"
+                type="text"
+                placeholder="votre-boutique"
+                value={shopDomain}
+                onChange={(e) => {
+                  setShopDomain(e.target.value);
+                  setError("");
+                }}
+                onKeyDown={handleKeyDown}
+                className={`text-base ${
+                  error
+                    ? "border-error focus-visible:ring-error"
+                    : "border-input focus-visible:ring-primary"
+                }`}
+                autoFocus
+                aria-label="Nom de la boutique Shopify"
+                aria-describedby={
+                  error ? "shop-domain-error" : "shop-domain-help"
+                }
+                aria-invalid={!!error}
+              />
+              {error ? (
+                <div
+                  id="shop-domain-error"
+                  className="flex items-center gap-2 text-sm text-error"
+                  role="alert"
+                >
+                  <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                  <span>{error}</span>
+                </div>
+              ) : (
+                <p id="shop-domain-help" className="text-sm text-foreground/70">
+                  Exemple&nbsp;: votre-boutique (sans .myshopify.com)
+                </p>
+              )}
+            </div>
+            <div className="bg-info/15 border-2 border-info/30 rounded-lg p-3">
+              <p className="text-sm text-foreground flex items-start gap-2">
+                <CheckCircle2
+                  className="w-4 h-4 text-info flex-shrink-0 mt-0.5"
+                  aria-hidden="true"
+                />
+                <span>
+                  Le format sera automatiquement ajusté en{" "}
+                  <span className="font-mono font-semibold">
+                    {shopDomain || "votre-boutique"}.myshopify.com
+                  </span>
+                </span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDialogCancel}
+              className="w-full sm:w-auto"
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDialogSubmit}
+              className="w-full sm:w-auto"
+              disabled={!shopDomain.trim()}
+            >
+              <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
+              Continuer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Main Content */}
       {/* Hero Section */}
       <header className="relative overflow-hidden bg-card border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 py-16 sm:py-20 md:py-24 relative">
@@ -72,7 +231,8 @@ const Index = () => {
               </h1>
             </div>
             <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium max-w-2xl mx-auto no-orphans">
-              Virtual try-on application for your&nbsp;Shopify&nbsp;store
+              Application d'essayage virtuel pour
+              votre&nbsp;boutique&nbsp;Shopify
             </p>
           </div>
         </div>
@@ -90,27 +250,27 @@ const Index = () => {
                     className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 text-primary flex-shrink-0"
                     aria-hidden="true"
                   />
-                  Step-by-Step Installation Guide
+                  Guide d'installation étape&nbsp;par&nbsp;étape
                 </CardTitle>
                 <CardDescription className="text-base sm:text-lg md:text-xl mt-4 sm:mt-5 text-foreground/80 no-orphans">
-                  Quick installation in&nbsp;a&nbsp;few&nbsp;minutes
+                  Installation rapide en&nbsp;quelques&nbsp;minutes
                 </CardDescription>
                 <div className="mt-6 sm:mt-8 bg-info/15 border-2 border-info/30 rounded-lg p-4 sm:p-5">
                   <p className="text-sm sm:text-base text-foreground leading-relaxed no-orphans">
                     <strong className="font-bold text-foreground">
                       📦
-                      Two&nbsp;types&nbsp;of&nbsp;blocks&nbsp;available&nbsp;:
+                      Deux&nbsp;types&nbsp;de&nbsp;blocs&nbsp;disponibles&nbsp;:
                     </strong>{" "}
-                    This guide covers the installation of{" "}
+                    Ce guide couvre l'installation des{" "}
                     <strong className="font-bold text-foreground">
-                      app&nbsp;embed&nbsp;blocks
+                      blocs&nbsp;d'intégration
                     </strong>{" "}
-                    (all themes) and{" "}
+                    (tous les thèmes) et des{" "}
                     <strong className="font-bold text-foreground">
-                      app&nbsp;blocks
+                      blocs&nbsp;d'application
                     </strong>{" "}
-                    (Online Store 2.0 themes only). You can use one or the
-                    other, or both depending on your theme.
+                    (thèmes Online Store 2.0 uniquement). Vous pouvez utiliser
+                    l'un ou l'autre, ou les deux selon votre thème.
                   </p>
                 </div>
               </CardHeader>
@@ -121,7 +281,7 @@ const Index = () => {
                     <div className="flex-shrink-0">
                       <div
                         className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                        aria-label="Step 1"
+                        aria-label="Étape 1"
                       >
                         1
                       </div>
@@ -134,24 +294,24 @@ const Index = () => {
                         />
                         <div className="flex-1">
                           <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                            Install&nbsp;NusenseTryOn
+                            Installez&nbsp;NusenseTryOn
                           </h3>
                           <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                            In your Shopify admin, navigate to{" "}
+                            Dans votre admin Shopify, accédez à{" "}
                             <strong className="font-bold text-foreground">
                               Apps
                             </strong>{" "}
-                            in the sidebar menu, then click on{" "}
+                            dans le menu latéral, puis cliquez sur{" "}
                             <strong className="font-bold text-foreground">
-                              App&nbsp;Store
+                              Boutique&nbsp;d'applications
                             </strong>
-                            . Search for{" "}
+                            . Recherchez{" "}
                             <strong className="font-bold text-foreground">
                               "NusenseTryOn"
                             </strong>{" "}
-                            and click{" "}
+                            et cliquez sur{" "}
                             <strong className="font-bold text-foreground">
-                              "Add&nbsp;app"
+                              "Ajouter&nbsp;l'application"
                             </strong>
                             .
                           </p>
@@ -160,9 +320,9 @@ const Index = () => {
                               <strong className="font-bold text-foreground">
                                 ℹ️ Note&nbsp;:
                               </strong>{" "}
-                              Authorize the requested permissions (read and
-                              modify products and themes) so the app can
-                              function correctly.
+                              Autorisez les permissions demandées (lecture et
+                              modification des produits et thèmes) pour que
+                              l'application puisse fonctionner correctement.
                             </p>
                           </div>
                         </div>
@@ -178,7 +338,7 @@ const Index = () => {
                     <div className="flex-shrink-0">
                       <div
                         className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                        aria-label="Step 2"
+                        aria-label="Étape 2"
                       >
                         2
                       </div>
@@ -191,14 +351,15 @@ const Index = () => {
                         />
                         <div className="flex-1">
                           <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                            Activate App&nbsp;Embed&nbsp;Block (All&nbsp;Themes)
+                            Activez le bloc&nbsp;d'intégration
+                            (Tous&nbsp;les&nbsp;thèmes)
                           </h3>
                           <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                            The app embed block works with{" "}
+                            Le bloc d'intégration fonctionne avec{" "}
                             <strong className="font-bold text-foreground">
-                              all&nbsp;Shopify&nbsp;themes
+                              tous&nbsp;les&nbsp;thèmes&nbsp;Shopify
                             </strong>
-                            , including vintage themes.
+                            , y compris les thèmes vintage.
                           </p>
                           <div className="space-y-4 mb-4 sm:mb-5">
                             <div className="bg-muted rounded-lg p-4 sm:p-5 border-2 border-border">
@@ -207,48 +368,48 @@ const Index = () => {
                               </p>
                               <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-foreground/90">
                                 <li className="no-orphans">
-                                  Go to{" "}
+                                  Accédez à{" "}
                                   <strong className="font-bold text-foreground">
-                                    Online&nbsp;Store
+                                    Boutique&nbsp;en&nbsp;ligne
                                   </strong>{" "}
                                   →{" "}
                                   <strong className="font-bold text-foreground">
-                                    Themes
+                                    Thèmes
                                   </strong>
                                 </li>
                                 <li className="no-orphans">
-                                  Click{" "}
+                                  Cliquez sur{" "}
                                   <strong className="font-bold text-foreground">
-                                    Customize
+                                    Personnaliser
                                   </strong>{" "}
-                                  on your active theme
+                                  sur votre thème actif
                                 </li>
                                 <li className="no-orphans">
-                                  In the left panel, open{" "}
+                                  Dans le panneau de gauche, ouvrez{" "}
                                   <strong className="font-bold text-foreground">
-                                    Theme&nbsp;settings
+                                    Paramètres&nbsp;du&nbsp;thème
                                   </strong>
                                 </li>
                                 <li className="no-orphans">
-                                  Scroll down to{" "}
+                                  Faites défiler jusqu'à{" "}
                                   <strong className="font-bold text-foreground">
-                                    App&nbsp;embeds
+                                    Intégrations&nbsp;d'applications
                                   </strong>
                                 </li>
                                 <li className="no-orphans">
-                                  Activate{" "}
+                                  Activez{" "}
                                   <strong className="font-bold text-foreground">
-                                    "NUSENSE&nbsp;Try-On&nbsp;Widget"
+                                    "Widget&nbsp;NUSENSE&nbsp;Try-On"
                                   </strong>
                                 </li>
                                 <li className="no-orphans">
-                                  Configure the settings according to your
-                                  preferences (header button, style, etc.)
+                                  Configurez les paramètres selon vos
+                                  préférences (bouton d'en-tête, style, etc.)
                                 </li>
                                 <li className="no-orphans">
-                                  Click{" "}
+                                  Cliquez sur{" "}
                                   <strong className="font-bold text-foreground">
-                                    Save
+                                    Enregistrer
                                   </strong>
                                 </li>
                               </ol>
@@ -261,11 +422,12 @@ const Index = () => {
                                 />
                                 <span className="no-orphans">
                                   <strong className="font-bold text-foreground">
-                                    Compatibility&nbsp;:
+                                    Compatibilité&nbsp;:
                                   </strong>{" "}
-                                  This block works on all pages of your store
-                                  (home, products, collections, etc.) and
-                                  displays automatically.
+                                  Ce bloc fonctionne sur toutes les pages de
+                                  votre boutique (accueil, produits,
+                                  collections, etc.) et s'affiche
+                                  automatiquement.
                                 </span>
                               </p>
                             </div>
@@ -273,16 +435,17 @@ const Index = () => {
                               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="flex-1">
                                   <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                    🚀 Quick&nbsp;Access&nbsp;:
+                                    🚀 Accès&nbsp;rapide&nbsp;:
                                   </p>
                                   <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                    Click the button below to access the theme
-                                    editor directly with this block activated.
+                                    Cliquez sur le bouton ci-dessous pour
+                                    accéder directement à l'éditeur de thème
+                                    avec ce bloc activé.
                                   </p>
                                 </div>
                                 <Button
                                   onClick={() =>
-                                    handleDeepLink("embed", "product")
+                                    handleDeepLinkClick("embed", "product")
                                   }
                                   className="w-full sm:w-auto whitespace-nowrap"
                                   size="sm"
@@ -291,7 +454,7 @@ const Index = () => {
                                     className="w-4 h-4 mr-2"
                                     aria-hidden="true"
                                   />
-                                  Activate&nbsp;Now
+                                  Activer&nbsp;maintenant
                                 </Button>
                               </div>
                             </div>
@@ -309,7 +472,7 @@ const Index = () => {
                     <div className="flex-shrink-0">
                       <div
                         className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                        aria-label="Step 3"
+                        aria-label="Étape 3"
                       >
                         3
                       </div>
@@ -322,16 +485,17 @@ const Index = () => {
                         />
                         <div className="flex-1">
                           <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                            Add App&nbsp;Block
-                            (Online&nbsp;Store&nbsp;2.0&nbsp;Themes)
+                            Ajoutez le bloc&nbsp;d'application
+                            (Thèmes&nbsp;Online&nbsp;Store&nbsp;2.0)
                           </h3>
                           <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                            If you're using an{" "}
+                            Si vous utilisez un{" "}
                             <strong className="font-bold text-foreground">
-                              Online&nbsp;Store&nbsp;2.0&nbsp;theme
+                              thème&nbsp;Online&nbsp;Store&nbsp;2.0
                             </strong>{" "}
-                            (Dawn, Debut, etc.), you can add a customizable app
-                            block to your product pages.
+                            (Dawn, Debut, etc.), vous pouvez ajouter un bloc
+                            d'application personnalisable sur vos pages
+                            produits.
                           </p>
                           <div className="space-y-4 mb-4 sm:mb-5">
                             <div className="bg-muted rounded-lg p-4 sm:p-5 border-2 border-border">
@@ -340,39 +504,40 @@ const Index = () => {
                               </p>
                               <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-foreground/90">
                                 <li className="no-orphans">
-                                  In the theme editor, open a{" "}
+                                  Dans l'éditeur de thème, ouvrez une{" "}
                                   <strong className="font-bold text-foreground">
-                                    product&nbsp;page
+                                    page&nbsp;produit
                                   </strong>
                                 </li>
                                 <li className="no-orphans">
-                                  Click{" "}
+                                  Cliquez sur{" "}
                                   <strong className="font-bold text-foreground">
-                                    Add&nbsp;block
+                                    Ajouter&nbsp;un&nbsp;bloc
                                   </strong>{" "}
-                                  in the desired section
+                                  dans la section souhaitée
                                 </li>
                                 <li className="no-orphans">
-                                  In the{" "}
+                                  Dans la catégorie{" "}
                                   <strong className="font-bold text-foreground">
-                                    Apps
-                                  </strong>{" "}
-                                  category, select{" "}
+                                    Applications
+                                  </strong>
+                                  , sélectionnez{" "}
                                   <strong className="font-bold text-foreground">
                                     "NUSENSE&nbsp;Try-On&nbsp;Button"
                                   </strong>
                                 </li>
                                 <li className="no-orphans">
-                                  Customize the button text, style, and other
-                                  settings
+                                  Personnalisez le texte du bouton, le style et
+                                  les autres paramètres
                                 </li>
                                 <li className="no-orphans">
-                                  Reorder the block by dragging if necessary
+                                  Réorganisez le bloc en le faisant glisser si
+                                  nécessaire
                                 </li>
                                 <li className="no-orphans">
-                                  Click{" "}
+                                  Cliquez sur{" "}
                                   <strong className="font-bold text-foreground">
-                                    Save
+                                    Enregistrer
                                   </strong>
                                 </li>
                               </ol>
@@ -387,10 +552,11 @@ const Index = () => {
                                   <strong className="font-bold text-foreground">
                                     Important&nbsp;:
                                   </strong>{" "}
-                                  App blocks are only available in Online Store
-                                  2.0 themes (themes with JSON templates). If
-                                  you're using a vintage theme, use only the app
-                                  embed block (step 2).
+                                  Les blocs d'application ne sont disponibles
+                                  que dans les thèmes Online Store 2.0 (thèmes
+                                  avec modèles JSON). Si vous utilisez un thème
+                                  vintage, utilisez uniquement le bloc
+                                  d'intégration (étape 2).
                                 </span>
                               </p>
                             </div>
@@ -398,17 +564,17 @@ const Index = () => {
                               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="flex-1">
                                   <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                    🚀 Quick&nbsp;Access&nbsp;:
+                                    🚀 Accès&nbsp;rapide&nbsp;:
                                   </p>
                                   <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                    Click the button below to access the theme
-                                    editor directly and add this block to a
-                                    product page.
+                                    Cliquez sur le bouton ci-dessous pour
+                                    accéder directement à l'éditeur de thème et
+                                    ajouter ce bloc sur une page produit.
                                   </p>
                                 </div>
                                 <Button
                                   onClick={() =>
-                                    handleDeepLink("block", "product")
+                                    handleDeepLinkClick("block", "product")
                                   }
                                   className="w-full sm:w-auto whitespace-nowrap"
                                   size="sm"
@@ -417,7 +583,7 @@ const Index = () => {
                                     className="w-4 h-4 mr-2"
                                     aria-hidden="true"
                                   />
-                                  Add&nbsp;Now
+                                  Ajouter&nbsp;maintenant
                                 </Button>
                               </div>
                             </div>
@@ -435,7 +601,7 @@ const Index = () => {
                     <div className="flex-shrink-0">
                       <div
                         className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                        aria-label="Step 4"
+                        aria-label="Étape 4"
                       >
                         4
                       </div>
@@ -448,12 +614,13 @@ const Index = () => {
                         />
                         <div className="flex-1">
                           <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                            Test Your&nbsp;Configuration
+                            Testez votre&nbsp;configuration
                           </h3>
                           <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                            Visit a product page on your store and verify that
-                            the virtual try-on button appears correctly. Click
-                            the button to test the functionality.
+                            Visitez une page produit de votre boutique et
+                            vérifiez que le bouton d'essayage virtuel apparaît
+                            correctement. Cliquez sur le bouton pour tester la
+                            fonctionnalité.
                           </p>
                           <div className="bg-success/25 border-2 border-success/50 rounded-lg p-4 sm:p-5">
                             <p className="text-sm sm:text-base text-foreground flex items-start gap-3 leading-relaxed">
@@ -463,11 +630,12 @@ const Index = () => {
                               />
                               <span className="no-orphans">
                                 <strong className="font-bold text-foreground">
-                                  Congratulations&nbsp;!
+                                  Félicitations&nbsp;!
                                 </strong>{" "}
-                                NusenseTryOn is now configured. Your customers
-                                can use the virtual try-on feature directly on
-                                your&nbsp;product&nbsp;pages.
+                                NusenseTryOn est maintenant configuré. Vos
+                                clients peuvent utiliser la fonctionnalité
+                                d'essayage virtuel directement sur vos
+                                pages&nbsp;produits.
                               </span>
                             </p>
                           </div>
@@ -496,7 +664,7 @@ const Index = () => {
           </div>
           <p className="text-sm sm:text-base md:text-lg text-foreground/80 no-orphans">
             © {new Date().getFullYear()} NusenseTryOn.
-            All&nbsp;rights&nbsp;reserved.
+            Tous&nbsp;droits&nbsp;réservés.
           </p>
         </div>
       </footer>
