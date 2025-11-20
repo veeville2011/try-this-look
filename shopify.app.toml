@@ -28,13 +28,9 @@ api_version = "2024-01"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-  [[webhooks.subscriptions]]
-  topics = [ "app/subscriptions/update" ]
-  uri = "/webhooks/app/subscriptions/update"
-
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,read_themes,write_products,write_themes,applications_billing"
+scopes = "read_products,read_themes,write_products,write_themes"
 
 [auth]
 redirect_urls = [
