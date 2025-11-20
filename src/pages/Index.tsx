@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -27,8 +27,23 @@ import {
   Shield,
   Link2,
   AlertCircle,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+
+interface Plan {
+  handle: string;
+  name: string;
+  price: number;
+  interval: string;
+  description: string;
+  features: string[];
+  monthlyEquivalent?: number;
+  isPopular?: boolean;
+}
 
 const Index = () => {
   // Deep linking configuration
@@ -44,6 +59,12 @@ const Index = () => {
     type: "embed" | "block";
     template: "product" | "index";
   } | null>(null);
+
+  // Pricing state
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [subscribing, setSubscribing] = useState<string | null>(null);
 
   const handleDeepLinkClick = (
     type: "embed" | "block",
@@ -112,6 +133,88 @@ const Index = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleDialogSubmit();
+    }
+  };
+
+  // Pricing functions
+  useEffect(() => {
+    fetchPlans();
+    fetchCurrentSubscription();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch("/api/billing/plans");
+      const data = await response.json();
+      // Mark Pro Annual as popular
+      const plansWithPopular = data.plans.map((plan: Plan) => ({
+        ...plan,
+        isPopular: plan.handle === "pro-annual",
+      }));
+      setPlans(plansWithPopular);
+    } catch (error) {
+      console.error("Failed to fetch plans:", error);
+      toast.error("Failed to load pricing plans");
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const fetchCurrentSubscription = async () => {
+    try {
+      const shop = new URLSearchParams(window.location.search).get("shop");
+      if (!shop) return;
+
+      const response = await fetch(`/api/billing/subscription?shop=${shop}`);
+      const data = await response.json();
+      if (data.hasActiveSubscription && !data.isFree) {
+        setCurrentPlan(data.plan.handle);
+      } else if (data.isFree) {
+        setCurrentPlan("free");
+      }
+    } catch (error) {
+      console.error("Failed to fetch subscription:", error);
+    }
+  };
+
+  const handleSelectPlan = async (planHandle: string) => {
+    try {
+      setSubscribing(planHandle);
+      const shop = new URLSearchParams(window.location.search).get("shop");
+      if (!shop) {
+        toast.error("Shop parameter is required");
+        return;
+      }
+
+      const response = await fetch("/api/billing/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shop,
+          planHandle,
+          returnUrl: window.location.href,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.confirmationUrl) {
+        // Redirect to Shopify's confirmation page
+        window.location.href = data.confirmationUrl;
+      } else if (data.isFree) {
+        // Free plan - no confirmation needed
+        toast.success("Free plan activated!");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        toast.error("Failed to create subscription");
+      }
+    } catch (error) {
+      console.error("Failed to subscribe:", error);
+      toast.error("Failed to subscribe. Please try again.");
+    } finally {
+      setSubscribing(null);
     }
   };
 
@@ -651,6 +754,113 @@ const Index = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
+              Choose Your Plan
+            </h2>
+            <p className="text-lg sm:text-xl text-muted-foreground">
+              Select the perfect plan for your store
+            </p>
+          </div>
+
+          {loadingPlans ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {plans.map((plan) => {
+                const isCurrentPlan = currentPlan === plan.handle;
+                const displayPrice = plan.monthlyEquivalent
+                  ? plan.monthlyEquivalent
+                  : plan.price;
+                const displayInterval =
+                  plan.interval === "ANNUAL"
+                    ? "month"
+                    : plan.interval === "EVERY_30_DAYS"
+                    ? "month"
+                    : "year";
+                const annualNote =
+                  plan.interval === "ANNUAL"
+                    ? `Billed $${plan.price}/year`
+                    : null;
+
+                return (
+                  <Card
+                    key={plan.handle}
+                    className={`relative ${
+                      plan.isPopular ? "border-primary shadow-lg scale-105" : ""
+                    }`}
+                  >
+                    {plan.isPopular && (
+                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        Most Popular
+                      </Badge>
+                    )}
+                    {isCurrentPlan && (
+                      <Badge className="absolute -top-3 right-4 bg-success">
+                        Current Plan
+                      </Badge>
+                    )}
+                    <CardHeader>
+                      <CardTitle>{plan.name}</CardTitle>
+                      <CardDescription>{plan.description}</CardDescription>
+                      <div className="mt-4">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold">
+                            ${displayPrice}
+                          </span>
+                          <span className="text-muted-foreground">
+                            /{displayInterval}
+                          </span>
+                        </div>
+                        {annualNote && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {annualNote}
+                          </p>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3 mb-6">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <Check className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
+                            <span className="text-sm">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        className="w-full"
+                        variant={plan.isPopular ? "default" : "outline"}
+                        onClick={() => handleSelectPlan(plan.handle)}
+                        disabled={isCurrentPlan || subscribing === plan.handle}
+                      >
+                        {subscribing === plan.handle ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : isCurrentPlan ? (
+                          "Current Plan"
+                        ) : plan.price === 0 ? (
+                          "Get Started"
+                        ) : (
+                          "Select Plan"
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

@@ -248,7 +248,7 @@ const SubscriptionManagement = () => {
                 {subscription.plan.handle === "pro" && (
                   <Button
                     variant="outline"
-                    onClick={() => handleChangePlan("pro_annual")}
+                    onClick={() => handleChangePlan("pro-annual")}
                     disabled={changingPlan}
                   >
                     {changingPlan ? (
@@ -261,7 +261,7 @@ const SubscriptionManagement = () => {
                     )}
                   </Button>
                 )}
-                {subscription.plan.handle === "pro_annual" && (
+                {subscription.plan.handle === "pro-annual" && (
                   <Button
                     variant="outline"
                     onClick={() => handleChangePlan("pro")}

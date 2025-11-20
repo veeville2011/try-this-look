@@ -12,7 +12,7 @@ import * as logger from "./logger.js";
 export const PLAN_HANDLES = {
   FREE: "free",
   PRO: "pro",
-  PRO_ANNUAL: "pro_annual",
+  PRO_ANNUAL: "pro-annual",
 };
 
 /**
@@ -21,58 +21,53 @@ export const PLAN_HANDLES = {
  */
 export const PLANS = {
   [PLAN_HANDLES.FREE]: {
-    name: "Free Plan",
+    name: "Plan Gratuit",
     handle: PLAN_HANDLES.FREE,
     price: 0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
-    description: "Free plan with basic features",
-    features: [
-      "10 try-ons per month",
-      "Standard processing",
-      "Basic widget",
-      "Community support",
-    ],
+    description: "Parfait pour tester notre technologie",
+    features: ["Essayage virtuel par IA", "Widget intégré facilement"],
     limits: {
       monthlyTryOns: 10,
       processingPriority: "standard",
     },
   },
   [PLAN_HANDLES.PRO]: {
-    name: "Pro Plan (Monthly)",
+    name: "Plan Pro (Mensuel)",
     handle: PLAN_HANDLES.PRO,
     price: 20.0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
-    description: "For serious e-commerce stores",
+    description: "Solution complète pour booster vos ventes",
     features: [
-      "Unlimited try-ons",
-      "Priority processing",
-      "Customizable widget",
-      "API access",
-      "Custom branding",
-      "Priority support",
-      "Advanced analytics",
+      "Essayages illimités",
+      "10 vidéos publicitaires/mois",
+      "Personnalisation complète du widget",
     ],
+    limits: {
+      monthlyVideoGenerations: 10,
+      processingPriority: "priority",
+    },
   },
   [PLAN_HANDLES.PRO_ANNUAL]: {
-    name: "Pro Plan (Annual)",
+    name: "Plan Pro (Annuel)",
     handle: PLAN_HANDLES.PRO_ANNUAL,
     price: 180.0, // $15/month × 12 months
     currencyCode: "USD",
     interval: "ANNUAL",
-    description: "For serious e-commerce stores - Save 25% with annual billing",
-    monthlyEquivalent: 15.0, // For display purposes
+    description: "Solution complète avec économie de 25%",
+    monthlyEquivalent: 15.0, // Pour l'affichage
     features: [
-      "Unlimited try-ons",
-      "Priority processing",
-      "Customizable widget",
-      "API access",
-      "Custom branding",
-      "Priority support",
-      "Advanced analytics",
-      "Save 25% compared to monthly billing",
+      "Essayages illimités",
+      "10 vidéos publicitaires/mois",
+      "Personnalisation complète du widget",
+      "Économisez 25%",
     ],
+    limits: {
+      monthlyVideoGenerations: 10,
+      processingPriority: "priority",
+    },
   },
 };
 

@@ -35,7 +35,7 @@ const Pricing = () => {
       // Mark Pro Annual as popular
       const plansWithPopular = data.plans.map((plan: Plan) => ({
         ...plan,
-        isPopular: plan.handle === "pro_annual",
+        isPopular: plan.handle === "pro-annual",
       }));
       setPlans(plansWithPopular);
     } catch (error) {
