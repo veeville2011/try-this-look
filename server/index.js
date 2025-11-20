@@ -63,7 +63,7 @@ const shopify = shopifyApi({
     .filter(Boolean),
   hostName: hostName,
   apiVersion: LATEST_API_VERSION,
-  isEmbeddedApp: false,
+  isEmbeddedApp: true,
   restResources,
 });
 
@@ -264,6 +264,68 @@ const verifyAppProxySignature = (req, res, next) => {
   }
 };
 
+// Middleware to verify App Bridge session token for embedded apps
+// This validates requests from the embedded app frontend
+const verifySessionToken = async (req, res, next) => {
+  try {
+    // Skip verification for webhooks, app proxy, and public routes
+    if (
+      req.path.startsWith("/webhooks/") ||
+      req.path.startsWith("/apps/apps/a/") ||
+      req.path.startsWith("/auth") ||
+      req.path === "/" ||
+      req.path.startsWith("/widget") ||
+      req.path.startsWith("/demo")
+    ) {
+      return next();
+    }
+
+    // Get session token from Authorization header (optional for now)
+    // App Bridge will send this for authenticated requests
+    const authHeader = req.get("Authorization");
+    
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const sessionToken = authHeader.replace("Bearer ", "");
+
+      // Verify session token using Shopify API
+      try {
+        const session = await shopify.session.decodeSessionToken(sessionToken);
+        // Attach session info to request
+        req.session = session;
+        req.shop = session.shop;
+        logger.info("[AUTH] Session token verified", { shop: session.shop, path: req.path });
+      } catch (error) {
+        logger.warn("[AUTH] Invalid session token", { path: req.path, error: error.message });
+        // Don't fail the request, but log the warning
+        // This allows backward compatibility while transitioning to embedded app
+      }
+    } else {
+      // No session token provided - try to get shop from query params or body
+      // This maintains backward compatibility
+      const shopParam = req.query.shop || req.body?.shop;
+      if (shopParam) {
+        req.shop = shopParam.includes(".myshopify.com")
+          ? shopParam
+          : `${shopParam}.myshopify.com`;
+      }
+    }
+    
+    next();
+  } catch (error) {
+    logger.error("[AUTH] Session token verification failed", error, req);
+    if (req.path.startsWith("/api/")) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session verification failed",
+      });
+    }
+    next();
+  }
+};
+
+// Apply session token verification middleware to API routes
+app.use(verifySessionToken);
+
 // Serve static files only in non-Vercel environment
 // In Vercel, static files are served directly by the platform
 // Check for Vercel environment
@@ -287,18 +349,29 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  // Standard CSP headers
+  // CSP headers for embedded Shopify apps
+  // Allow App Bridge and Shopify domains
   res.setHeader(
     "Content-Security-Policy",
     [
       "default-src 'self';",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval';",
-      "connect-src 'self' https://*.shopify.com https://*.myshopify.com;",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;",
-      "font-src 'self' https://fonts.gstatic.com;",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com;",
+      "connect-src 'self' https://*.shopify.com https://*.myshopify.com wss://*.shopify.com;",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
       "img-src 'self' data: https:;",
+      "frame-src https://*.shopify.com https://*.myshopify.com;",
+      "frame-ancestors https://admin.shopify.com https://*.myshopify.com;",
     ].join(" ")
   );
+  
+  // Required headers for embedded apps
+  // Note: X-Frame-Options should NOT be set to ALLOWALL for security
+  // Instead, we use frame-ancestors in CSP which is the modern approach
+  // X-Frame-Options is removed to allow iframe embedding (required for embedded apps)
+  res.removeHeader("X-Frame-Options");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  
   next();
 });
 
@@ -376,9 +449,19 @@ app.get("/auth/callback", async (req, res) => {
       shop,
     });
 
-    // Redirect to the app in Shopify admin
-    const redirectUrl = `https://${shop}/admin/apps/${apiKey}`;
-    res.redirect(redirectUrl);
+    // For embedded apps, redirect with host parameter
+    // Get host from query params (provided by Shopify during OAuth)
+    const host = req.query.host;
+    
+    if (host) {
+      // Embedded app redirect - include host parameter
+      const redirectUrl = `${process.env.VITE_SHOPIFY_APP_URL || appUrl}/?shop=${shop}&host=${encodeURIComponent(host)}`;
+      res.redirect(redirectUrl);
+    } else {
+      // Fallback for non-embedded or legacy redirect
+      const redirectUrl = `https://${shop}/admin/apps/${apiKey}`;
+      res.redirect(redirectUrl);
+    }
   } catch (error) {
     logger.error("[OAUTH] OAuth callback failed", error, req);
 
@@ -800,19 +883,39 @@ app.get("/api/billing/subscription", async (req, res) => {
 // Create subscription
 app.post("/api/billing/subscribe", async (req, res) => {
   try {
-    const { shop, planHandle, returnUrl, trialDays } = req.body;
+    const { planHandle, returnUrl, trialDays } = req.body;
 
-    if (!shop || !planHandle) {
+    if (!planHandle) {
       return res.status(400).json({
         error: "Missing required parameters",
-        message: "shop and planHandle are required",
+        message: "planHandle is required",
+      });
+    }
+
+    // Get shop from authenticated session (more secure than request body)
+    let shopDomain = req.shop || req.session?.shop;
+
+    // Fallback: try to get from query params or request body (for backward compatibility)
+    if (!shopDomain) {
+      const shopParam = req.query.shop || req.body.shop;
+      if (shopParam) {
+        shopDomain = shopParam.includes(".myshopify.com")
+          ? shopParam
+          : `${shopParam}.myshopify.com`;
+      }
+    }
+
+    if (!shopDomain) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Shop information not found. Please ensure you're authenticated.",
       });
     }
 
     // Normalize shop domain
-    const shopDomain = shop.includes(".myshopify.com")
-      ? shop
-      : `${shop}.myshopify.com`;
+    shopDomain = shopDomain.includes(".myshopify.com")
+      ? shopDomain
+      : `${shopDomain}.myshopify.com`;
 
     // Get session for the shop
     const sessionId = shopify.session.getOfflineId(shopDomain);

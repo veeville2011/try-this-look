@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from "react-redux";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { store } from "@/store/store";
+import { AppBridgeProvider } from "@/providers/AppBridgeProvider";
 import Index from "./pages/Index";
 import ProductDemo from "./pages/ProductDemo";
 import Widget from "./pages/Widget";
@@ -13,6 +14,7 @@ const queryClient = new QueryClient();
 
 /**
  * Main App Component
+ * App Bridge is only used on the "/" route for pricing implementation
  */
 const App = () => {
   return (
@@ -22,7 +24,15 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              {/* Only "/" route uses App Bridge for pricing */}
+              <Route
+                path="/"
+                element={
+                  <AppBridgeProvider>
+                    <Index />
+                  </AppBridgeProvider>
+                }
+              />
               <Route path="/demo" element={<ProductDemo />} />
               <Route path="/widget" element={<Widget />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

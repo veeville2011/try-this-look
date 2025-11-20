@@ -24,7 +24,7 @@ export const PLANS = {
     name: "Plan Gratuit",
     handle: PLAN_HANDLES.FREE,
     price: 0,
-    currencyCode: "USD",
+    currencyCode: "EUR",
     interval: "EVERY_30_DAYS",
     description: "Parfait pour tester notre technologie",
     features: ["Essayage virtuel par IA", "Widget intégré facilement"],
@@ -37,7 +37,7 @@ export const PLANS = {
     name: "Plan Pro (Mensuel)",
     handle: PLAN_HANDLES.PRO,
     price: 20.0,
-    currencyCode: "USD",
+    currencyCode: "EUR",
     interval: "EVERY_30_DAYS",
     description: "Solution complète pour booster vos ventes",
     features: [
@@ -53,8 +53,8 @@ export const PLANS = {
   [PLAN_HANDLES.PRO_ANNUAL]: {
     name: "Plan Pro (Annuel)",
     handle: PLAN_HANDLES.PRO_ANNUAL,
-    price: 180.0, // $15/month × 12 months
-    currencyCode: "USD",
+    price: 180.0, // 15 €/mois × 12 mois
+    currencyCode: "EUR",
     interval: "ANNUAL",
     description: "Solution complète avec économie de 25%",
     monthlyEquivalent: 15.0, // Pour l'affichage

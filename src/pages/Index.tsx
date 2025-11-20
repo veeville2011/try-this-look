@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
 import {
   Card,
   CardContent,
@@ -33,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import SubscriptionManagement from "@/components/SubscriptionManagement";
 
 interface Plan {
   handle: string;
@@ -50,6 +52,10 @@ const Index = () => {
   const API_KEY = "f8de7972ae23d3484581d87137829385"; // From shopify.app.toml client_id
   const APP_EMBED_HANDLE = "nusense-tryon-embed";
   const APP_BLOCK_HANDLE = "nusense-tryon-button";
+
+  // App Bridge hooks for embedded app
+  const shop = useShop();
+  const { token: sessionToken } = useSessionToken();
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -140,6 +146,20 @@ const Index = () => {
   useEffect(() => {
     fetchPlans();
     fetchCurrentSubscription();
+
+    // Check if returning from Shopify subscription confirmation
+    const urlParams = new URLSearchParams(window.location.search);
+    const subscriptionStatus = urlParams.get("subscription");
+
+    if (subscriptionStatus === "approved" || subscriptionStatus === "active") {
+      // Refresh subscription status after approval
+      setTimeout(() => {
+        fetchCurrentSubscription();
+        toast.success("Subscription activated successfully!");
+      }, 1000);
+    } else if (subscriptionStatus === "declined") {
+      toast.error("Subscription was declined. Please try again.");
+    }
   }, []);
 
   const fetchPlans = async () => {
@@ -153,7 +173,9 @@ const Index = () => {
       }));
       setPlans(plansWithPopular);
     } catch (error) {
-      console.error("Failed to fetch plans:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to fetch plans:", error);
+      }
       toast.error("Failed to load pricing plans");
     } finally {
       setLoadingPlans(false);
@@ -162,10 +184,23 @@ const Index = () => {
 
   const fetchCurrentSubscription = async () => {
     try {
-      const shop = new URLSearchParams(window.location.search).get("shop");
-      if (!shop) return;
+      // Get shop from App Bridge hook or URL params (fallback)
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) return;
 
-      const response = await fetch(`/api/billing/subscription?shop=${shop}`);
+      // Prepare headers with session token if available
+      const headers: HeadersInit = {};
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      }
+
+      const response = await fetch(
+        `/api/billing/subscription?shop=${shopDomain}`,
+        {
+          headers,
+        }
+      );
       const data = await response.json();
       if (data.hasActiveSubscription && !data.isFree) {
         setCurrentPlan(data.plan.handle);
@@ -173,24 +208,34 @@ const Index = () => {
         setCurrentPlan("free");
       }
     } catch (error) {
-      console.error("Failed to fetch subscription:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to fetch subscription:", error);
+      }
     }
   };
 
   const handleSelectPlan = async (planHandle: string) => {
     try {
       setSubscribing(planHandle);
-      const shop = new URLSearchParams(window.location.search).get("shop");
-      if (!shop) {
+
+      // Get shop from App Bridge hook or URL params (fallback)
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) {
         toast.error("Shop parameter is required");
         return;
       }
 
+      // Prepare headers with session token if available
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      }
+
       const response = await fetch("/api/billing/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
-          shop,
           planHandle,
           returnUrl: window.location.href,
         }),
@@ -211,7 +256,9 @@ const Index = () => {
         toast.error("Failed to create subscription");
       }
     } catch (error) {
-      console.error("Failed to subscribe:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to subscribe:", error);
+      }
       toast.error("Failed to subscribe. Please try again.");
     } finally {
       setSubscribing(null);
@@ -511,7 +558,8 @@ const Index = () => {
                                 </li>
                                 <li className="no-orphans">
                                   Configurez les paramètres selon vos
-                                  préférences (bouton d'en-tête, style, etc.)
+                                  préférences (bouton dans l'en-tête, style,
+                                  etc.)
                                 </li>
                                 <li className="no-orphans">
                                   Cliquez sur{" "}
@@ -757,6 +805,17 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Subscription Management Section - Only show if user has active subscription */}
+      {currentPlan && currentPlan !== "free" && (
+        <section className="py-12 sm:py-16 bg-background border-b border-border">
+          <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+            <SubscriptionManagement
+              onSubscriptionUpdate={fetchCurrentSubscription}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
@@ -782,13 +841,13 @@ const Index = () => {
                   : plan.price;
                 const displayInterval =
                   plan.interval === "ANNUAL"
-                    ? "month"
+                    ? "mois"
                     : plan.interval === "EVERY_30_DAYS"
-                    ? "month"
-                    : "year";
+                    ? "mois"
+                    : "an";
                 const annualNote =
                   plan.interval === "ANNUAL"
-                    ? `Billed $${plan.price}/year`
+                    ? `Facturé ${plan.price} €/an`
                     : null;
 
                 return (
@@ -800,7 +859,7 @@ const Index = () => {
                   >
                     {plan.isPopular && (
                       <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        Most Popular
+                        Le plus populaire
                       </Badge>
                     )}
                     {isCurrentPlan && (
@@ -814,7 +873,7 @@ const Index = () => {
                       <div className="mt-4">
                         <div className="flex items-baseline gap-1">
                           <span className="text-4xl font-bold">
-                            ${displayPrice}
+                            {displayPrice} €
                           </span>
                           <span className="text-muted-foreground">
                             /{displayInterval}
@@ -849,6 +908,16 @@ const Index = () => {
                           </>
                         ) : isCurrentPlan ? (
                           "Current Plan"
+                        ) : currentPlan &&
+                          currentPlan !== "free" &&
+                          currentPlan !== plan.handle ? (
+                          plan.price >
+                          (plans.find((p) => p.handle === currentPlan)?.price ||
+                            0) ? (
+                            "Upgrade"
+                          ) : (
+                            "Downgrade"
+                          )
                         ) : plan.price === 0 ? (
                           "Get Started"
                         ) : (

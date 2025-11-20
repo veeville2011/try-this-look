@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, Calendar, CreditCard, X } from "lucide-react";
 import { toast } from "sonner";
+import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
 
 interface SubscriptionStatus {
   hasActiveSubscription: boolean;
@@ -25,6 +26,7 @@ interface SubscriptionStatus {
     price: number;
     interval: string;
     features: string[];
+    monthlyEquivalent?: number;
   };
   subscription: {
     id: string;
@@ -33,7 +35,15 @@ interface SubscriptionStatus {
   } | null;
 }
 
-const SubscriptionManagement = () => {
+interface SubscriptionManagementProps {
+  onSubscriptionUpdate?: () => void;
+}
+
+const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagementProps) => {
+  // App Bridge hooks for embedded app
+  const shop = useShop();
+  const { token: sessionToken } = useSessionToken();
+
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -41,21 +51,37 @@ const SubscriptionManagement = () => {
 
   useEffect(() => {
     fetchSubscription();
-  }, []);
+  }, [shop, sessionToken]);
 
   const fetchSubscription = async () => {
     try {
-      const shop = new URLSearchParams(window.location.search).get("shop");
-      if (!shop) {
-        toast.error("Shop parameter is required");
+      // Get shop from App Bridge hook or URL params (fallback)
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) {
+        setLoading(false);
         return;
       }
 
-      const response = await fetch(`/api/billing/subscription?shop=${shop}`);
+      // Prepare headers with session token if available
+      const headers: HeadersInit = {};
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      }
+
+      const response = await fetch(`/api/billing/subscription?shop=${shopDomain}`, {
+        headers,
+      });
       const data = await response.json();
       setSubscription(data);
+      
+      // Notify parent component of subscription update
+      if (onSubscriptionUpdate) {
+        onSubscriptionUpdate();
+      }
     } catch (error) {
-      console.error("Failed to fetch subscription:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to fetch subscription:", error);
+      }
       toast.error("Failed to load subscription information");
     } finally {
       setLoading(false);
@@ -65,17 +91,25 @@ const SubscriptionManagement = () => {
   const handleCancel = async (prorate: boolean = false) => {
     try {
       setCancelling(true);
-      const shop = new URLSearchParams(window.location.search).get("shop");
-      if (!shop) {
+      
+      // Get shop from App Bridge hook or URL params (fallback)
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) {
         toast.error("Shop parameter is required");
         return;
       }
 
+      // Prepare headers with session token if available
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      }
+
       const response = await fetch("/api/billing/cancel", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
-          shop,
+          shop: shopDomain,
           prorate,
         }),
       });
@@ -86,12 +120,17 @@ const SubscriptionManagement = () => {
         toast.success("Subscription cancelled successfully");
         setTimeout(() => {
           fetchSubscription();
+          if (onSubscriptionUpdate) {
+            onSubscriptionUpdate();
+          }
         }, 1000);
       } else {
         toast.error("Failed to cancel subscription");
       }
     } catch (error) {
-      console.error("Failed to cancel subscription:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to cancel subscription:", error);
+      }
       toast.error("Failed to cancel subscription. Please try again.");
     } finally {
       setCancelling(false);
@@ -101,17 +140,24 @@ const SubscriptionManagement = () => {
   const handleChangePlan = async (newPlanHandle: string) => {
     try {
       setChangingPlan(true);
-      const shop = new URLSearchParams(window.location.search).get("shop");
-      if (!shop) {
+      
+      // Get shop from App Bridge hook or URL params (fallback)
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) {
         toast.error("Shop parameter is required");
         return;
       }
 
+      // Prepare headers with session token if available
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
+      }
+
       const response = await fetch("/api/billing/change-plan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
-          shop,
           planHandle: newPlanHandle,
           returnUrl: window.location.href,
         }),
@@ -123,10 +169,12 @@ const SubscriptionManagement = () => {
         // Redirect to Shopify's confirmation page
         window.location.href = data.confirmationUrl;
       } else {
-        toast.error("Failed to change plan");
+        toast.error("Failed to change plan", error);
       }
     } catch (error) {
-      console.error("Failed to change plan:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to change plan:", error);
+      }
       toast.error("Failed to change plan. Please try again.");
     } finally {
       setChangingPlan(false);
@@ -153,7 +201,7 @@ const SubscriptionManagement = () => {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString("fr-FR", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -212,12 +260,14 @@ const SubscriptionManagement = () => {
                   <div>
                     <p className="text-sm font-medium">Price</p>
                     <p className="text-sm text-muted-foreground">
-                      ${subscription.plan.price}
-                      {subscription.plan.interval === "EVERY_30_DAYS"
-                        ? "/month"
-                        : subscription.plan.interval === "ANNUAL"
-                        ? "/year"
-                        : ""}
+                      {subscription.plan.interval === "ANNUAL" && (subscription.plan as any).monthlyEquivalent
+                        ? `${(subscription.plan as any).monthlyEquivalent} €/mois`
+                        : `${subscription.plan.price} €${subscription.plan.interval === "EVERY_30_DAYS" ? "/mois" : subscription.plan.interval === "ANNUAL" ? "/an" : ""}`}
+                      {subscription.plan.interval === "ANNUAL" && (
+                        <span className="block text-xs text-muted-foreground mt-1">
+                          (Facturé {subscription.plan.price} €/an)
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -317,7 +367,7 @@ const SubscriptionManagement = () => {
 
             {subscription.isFree && (
               <Button
-                onClick={() => (window.location.href = "/pricing?shop=" + new URLSearchParams(window.location.search).get("shop"))}
+                onClick={() => (window.location.href = "/?shop=" + new URLSearchParams(window.location.search).get("shop"))}
               >
                 Upgrade to Pro
               </Button>
