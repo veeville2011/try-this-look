@@ -5,7 +5,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Sparkles,
   CheckCircle2,
@@ -13,7 +12,6 @@ import {
   ShoppingBag,
   Settings,
   Zap,
-  ExternalLink,
   ArrowRight,
   Shield,
 } from "lucide-react";
@@ -334,117 +332,6 @@ const Index = () => {
                   </div>
                 </div>
               </CardContent>
-            </Card>
-
-            {/* Quick Install Button */}
-            <Card className="p-6 sm:p-8 md:p-10 bg-primary/10 border-2 border-primary/30 shadow-lg">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-8">
-                <div className="flex-1 text-center sm:text-left">
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 text-foreground no-orphans">
-                    Installation&nbsp;directe
-                  </h3>
-                  <p className="text-base sm:text-lg text-foreground/90 leading-relaxed no-orphans">
-                    Vous avez déjà un compte&nbsp;Shopify&nbsp;? Installez
-                    directement depuis votre&nbsp;admin.
-                  </p>
-                </div>
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto min-w-[200px] text-base sm:text-lg px-6 sm:px-8 py-6 sm:py-7 focus-visible:ring-4 focus-visible:ring-primary/50"
-                  onClick={() => {
-                    const shop = prompt(
-                      "Entrez le nom de votre boutique (ex: votre-boutique)"
-                    );
-                    if (shop) {
-                      const shopDomain = shop.includes(".myshopify.com")
-                        ? shop
-                        : `${shop}.myshopify.com`;
-                      // Use the app's auth endpoint which handles OAuth flow
-                      const authUrl = `${
-                        window.location.origin
-                      }/auth?shop=${encodeURIComponent(shopDomain)}`;
-                      window.open(authUrl, "_blank");
-                    }
-                  }}
-                  aria-label="Installer NusenseTryOn maintenant"
-                >
-                  <ExternalLink
-                    className="w-5 h-5 sm:w-6 sm:h-6"
-                    aria-hidden="true"
-                  />
-                  Installer&nbsp;maintenant
-                </Button>
-              </div>
-            </Card>
-
-            {/* Additional Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-              <Card className="p-6 sm:p-8 border-l-4 border-l-info bg-card shadow-md">
-                <div className="flex items-start gap-4 sm:gap-5">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-info/20 rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-info/30">
-                    <Settings
-                      className="w-6 h-6 sm:w-7 sm:h-7 text-info"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg sm:text-xl mb-3 sm:mb-4 text-foreground no-orphans">
-                      Configuration du&nbsp;thème
-                    </h4>
-                    <p className="text-base sm:text-lg text-foreground/90 leading-relaxed no-orphans">
-                      L'extension de thème sera automatiquement ajoutée. Vous
-                      pouvez personnaliser l'apparence
-                      du&nbsp;widget&nbsp;depuis l'éditeur de
-                      thème&nbsp;Shopify.
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 sm:p-8 border-l-4 border-l-success bg-card shadow-md">
-                <div className="flex items-start gap-4 sm:gap-5">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-success/20 rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-success/30">
-                    <Shield
-                      className="w-6 h-6 sm:w-7 sm:h-7 text-success"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg sm:text-xl mb-3 sm:mb-4 text-foreground no-orphans">
-                      Sécurité et&nbsp;confidentialité
-                    </h4>
-                    <p className="text-base sm:text-lg text-foreground/90 leading-relaxed no-orphans">
-                      Toutes les données sont stockées localement dans le
-                      navigateur. Aucune information client n'est transmise à
-                      nos&nbsp;serveurs.
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Support Note */}
-            <Card className="p-6 sm:p-8 md:p-10 bg-info/15 border-2 border-info/30 shadow-md">
-              <div className="flex items-start gap-4 sm:gap-5 md:gap-6">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-info/25 rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-info/40">
-                  <Sparkles
-                    className="w-6 h-6 sm:w-7 sm:h-7 text-info"
-                    aria-hidden="true"
-                  />
-                </div>
-                <div>
-                  <h4 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                    Besoin&nbsp;d'aide&nbsp;?
-                  </h4>
-                  <p className="text-base sm:text-lg text-foreground/90 leading-relaxed no-orphans">
-                    Si vous rencontrez des difficultés lors
-                    de&nbsp;l'installation&nbsp;ou si vous avez des questions,
-                    n'hésitez pas à contacter notre équipe de support. Nous
-                    sommes là pour vous aider à configurer l'application dans
-                    votre&nbsp;boutique&nbsp;Shopify.
-                  </p>
-                </div>
-              </div>
             </Card>
           </div>
         </div>
