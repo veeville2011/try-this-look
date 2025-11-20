@@ -216,24 +216,33 @@ const Index = () => {
       {/* Hero Section */}
       <header className="relative overflow-hidden bg-card border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 py-16 sm:py-20 md:py-24 relative">
-          <div className="max-w-4xl mx-auto text-center space-y-6 sm:space-y-8">
-            <div className="flex items-center justify-center">
-              <h1
-                className="inline-flex items-center font-extrabold tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight"
-                aria-label="NusenseTryOn"
-              >
-                <span className="text-primary" style={{ color: "#ce0003" }}>
-                  Nusense
-                </span>
-                <span className="text-foreground" style={{ color: "#564646" }}>
-                  TryOn
-                </span>
-              </h1>
+          <div className="max-w-4xl mx-auto">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-full">
+                <div className="flex justify-center">
+                  <h1
+                    className="inline-flex items-center font-extrabold tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight"
+                    aria-label="NusenseTryOn"
+                  >
+                    <span className="text-primary" style={{ color: "#ce0003" }}>
+                      Nusense
+                    </span>
+                    <span
+                      className="text-foreground"
+                      style={{ color: "#564646" }}
+                    >
+                      TryOn
+                    </span>
+                  </h1>
+                </div>
+                <div className="flex justify-center">
+                  <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium no-orphans text-center">
+                    Application d'essayage virtuel pour
+                    votre&nbsp;boutique&nbsp;Shopify
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium max-w-2xl mx-auto no-orphans">
-              Application d'essayage virtuel pour
-              votre&nbsp;boutique&nbsp;Shopify
-            </p>
           </div>
         </div>
       </header>
