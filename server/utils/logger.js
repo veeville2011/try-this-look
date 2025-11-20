@@ -96,8 +96,9 @@ const safeStringify = (obj, space = null, maxDepth = 10) => {
 
 /**
  * Safely extract serializable data from an object, handling circular references
+ * Uses WeakSet to track visited objects and prevent infinite loops
  */
-const sanitizeObject = (obj, maxDepth = 5, currentDepth = 0) => {
+const sanitizeObject = (obj, maxDepth = 5, currentDepth = 0, seen = new WeakSet()) => {
   if (currentDepth >= maxDepth) {
     return "[Max Depth Reached]";
   }
@@ -111,9 +112,15 @@ const sanitizeObject = (obj, maxDepth = 5, currentDepth = 0) => {
     return obj;
   }
   
+  // Check for circular references using WeakSet
+  if (seen.has(obj)) {
+    return "[Circular Reference]";
+  }
+  seen.add(obj);
+  
   // Handle arrays
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item, maxDepth, currentDepth + 1));
+    return obj.map(item => sanitizeObject(item, maxDepth, currentDepth + 1, seen));
   }
   
   // Handle Date
@@ -144,14 +151,16 @@ const sanitizeObject = (obj, maxDepth = 5, currentDepth = 0) => {
   // Handle plain objects
   const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
-    // Skip known problematic properties
-    if (key === "socket" || key === "connection" || key === "parser" || key === "_httpMessage") {
+    // Skip known problematic properties that cause circular references
+    if (key === "socket" || key === "connection" || key === "parser" || 
+        key === "_httpMessage" || key === "client" || key === "server" ||
+        key === "req" || key === "res" || key === "next") {
       sanitized[key] = "[Skipped: Circular Reference Risk]";
       continue;
     }
     
     try {
-      sanitized[key] = sanitizeObject(value, maxDepth, currentDepth + 1);
+      sanitized[key] = sanitizeObject(value, maxDepth, currentDepth + 1, seen);
     } catch (e) {
       sanitized[key] = `[Error serializing: ${e.message}]`;
     }
@@ -215,20 +224,60 @@ const createTimer = (operationName) => {
 
 /**
  * Log error message
+ * Handles cases where req object might be passed as metadata
  */
 const error = (message, error = null, metadata = {}) => {
   if (currentLogLevel >= LOG_LEVELS.ERROR) {
+    let safeMetadata = {};
+    
+    // Always sanitize metadata to handle circular references
+    try {
+      // Check if metadata itself is a req object (Express request)
+      if (metadata && typeof metadata === "object") {
+        // If metadata has properties that suggest it's a req object, extract safe info
+        if (metadata.method !== undefined || metadata.path !== undefined || metadata.url !== undefined) {
+          // This is likely a req object, extract safe info
+          const requestInfo = extractRequestInfo(metadata);
+          safeMetadata = { request: requestInfo };
+        } else {
+          // Sanitize all metadata values to handle circular references
+          safeMetadata = sanitizeObject(metadata);
+        }
+      } else {
+        safeMetadata = metadata;
+      }
+    } catch (e) {
+      // If sanitization fails, create a minimal safe representation
+      safeMetadata = {
+        error: "Failed to sanitize metadata",
+        errorMessage: e.message,
+      };
+    }
+    
     const errorMetadata = {
-      ...metadata,
+      ...safeMetadata,
       ...(error && {
         error: {
           message: error.message,
-          stack: error.stack,
+          stack: error.stack?.substring(0, 1000), // Truncate stack
           name: error.name,
+          code: error.code,
         },
       }),
     };
-    console.error(formatLogMessage(LOG_LEVELS.ERROR, message, errorMetadata));
+    
+    // Use safeStringify directly instead of formatLogMessage to avoid double processing
+    try {
+      const timestamp = new Date().toISOString();
+      const levelName = LOG_LEVEL_NAMES[LOG_LEVELS.ERROR];
+      const metadataStr = Object.keys(errorMetadata).length > 0 
+        ? "\n" + safeStringify(errorMetadata, 2)
+        : "";
+      console.error(`[${timestamp}] [${levelName}] ${message}${metadataStr}`);
+    } catch (e) {
+      // Ultimate fallback - just log the message
+      console.error(`[${new Date().toISOString()}] [ERROR] ${message} [Metadata serialization failed: ${e.message}]`);
+    }
   }
 };
 
@@ -299,41 +348,77 @@ const logResponse = (req, res, metadata = {}) => {
 
 /**
  * Safely extract request information without circular references
+ * Uses only safe property access, never accesses nested objects that might be circular
  */
 const extractRequestInfo = (req) => {
   if (!req) return null;
   
   try {
-    // Safely extract body
+    // Safely extract body - use try-catch for each access
     let bodyInfo = undefined;
-    if (req.body) {
-      try {
+    try {
+      if (req.body !== undefined && req.body !== null) {
         if (typeof req.body === "string") {
           bodyInfo = req.body.substring(0, 500);
         } else if (typeof req.body === "object") {
+          // Use safeStringify which handles circular references
           const bodyStr = safeStringify(req.body);
           bodyInfo = bodyStr.length > 500 ? bodyStr.substring(0, 500) + "... [truncated]" : bodyStr;
         } else {
           bodyInfo = String(req.body).substring(0, 500);
         }
-      } catch (e) {
-        bodyInfo = "[Unable to serialize body]";
       }
+    } catch (e) {
+      bodyInfo = "[Unable to serialize body]";
+    }
+    
+    // Extract query safely
+    let queryInfo = undefined;
+    try {
+      if (req.query) {
+        queryInfo = sanitizeObject(req.query);
+      }
+    } catch (e) {
+      queryInfo = "[Unable to serialize query]";
+    }
+    
+    // Extract IP safely - avoid accessing nested objects
+    let ipInfo = undefined;
+    try {
+      ipInfo = req.ip;
+      if (!ipInfo && req.connection) {
+        ipInfo = req.connection.remoteAddress;
+      }
+      if (!ipInfo && req.socket) {
+        ipInfo = req.socket.remoteAddress;
+      }
+    } catch (e) {
+      ipInfo = "[Unable to extract IP]";
+    }
+    
+    // Extract headers safely
+    let headersInfo = {};
+    try {
+      if (req.get && typeof req.get === "function") {
+        headersInfo = {
+          authorization: req.get("authorization") ? "present" : "missing",
+          contentType: req.get("content-type") || undefined,
+          accept: req.get("accept") || undefined,
+        };
+      }
+    } catch (e) {
+      headersInfo = { error: "Unable to extract headers" };
     }
     
     return {
       method: req.method,
       path: req.path,
       url: req.url,
-      query: req.query ? sanitizeObject(req.query) : undefined,
+      query: queryInfo,
       body: bodyInfo,
-      ip: req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress,
-      userAgent: req.get ? req.get("user-agent") : undefined,
-      headers: {
-        authorization: req.get ? (req.get("authorization") ? "present" : "missing") : undefined,
-        contentType: req.get ? req.get("content-type") : undefined,
-        accept: req.get ? req.get("accept") : undefined,
-      },
+      ip: ipInfo,
+      userAgent: (req.get && typeof req.get === "function") ? req.get("user-agent") : undefined,
+      headers: headersInfo,
     };
   } catch (e) {
     return {
