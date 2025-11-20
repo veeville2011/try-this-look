@@ -223,11 +223,12 @@ const createTimer = (operationName) => {
 };
 
 /**
- * Log error message
+ * Log error message with clean, exact error information
  * Handles cases where req object might be passed as metadata
  */
 const error = (message, error = null, metadata = {}) => {
   if (currentLogLevel >= LOG_LEVELS.ERROR) {
+    const timestamp = new Date().toISOString();
     let safeMetadata = {};
     
     // Always sanitize metadata to handle circular references
@@ -254,29 +255,35 @@ const error = (message, error = null, metadata = {}) => {
       };
     }
     
+    // Build clean error object
+    const errorInfo = error ? {
+      name: error.name || "Error",
+      message: error.message || "Unknown error",
+      code: error.code || undefined,
+      stack: error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : undefined, // First 5 lines of stack
+    } : null;
+    
     const errorMetadata = {
       ...safeMetadata,
-      ...(error && {
-        error: {
-          message: error.message,
-          stack: error.stack?.substring(0, 1000), // Truncate stack
-          name: error.name,
-          code: error.code,
-        },
-      }),
+      ...(errorInfo && { error: errorInfo }),
     };
     
-    // Use safeStringify directly instead of formatLogMessage to avoid double processing
+    // Log with clean formatting
     try {
-      const timestamp = new Date().toISOString();
-      const levelName = LOG_LEVEL_NAMES[LOG_LEVELS.ERROR];
       const metadataStr = Object.keys(errorMetadata).length > 0 
         ? "\n" + safeStringify(errorMetadata, 2)
         : "";
-      console.error(`[${timestamp}] [${levelName}] ${message}${metadataStr}`);
+      console.error(`[${timestamp}] [ERROR] ${message}${metadataStr}`);
+      
+      // Also log a one-line summary for quick scanning
+      const errorSummary = errorInfo 
+        ? `${errorInfo.name}: ${errorInfo.message}${errorInfo.code ? ` (${errorInfo.code})` : ''}`
+        : message;
+      console.error(`[${timestamp}] [ERROR SUMMARY] ${errorSummary}`);
     } catch (e) {
       // Ultimate fallback - just log the message
-      console.error(`[${new Date().toISOString()}] [ERROR] ${message} [Metadata serialization failed: ${e.message}]`);
+      const errorMsg = error?.message || message;
+      console.error(`[${timestamp}] [ERROR] ${errorMsg} [Logging failed: ${e.message}]`);
     }
   }
 };

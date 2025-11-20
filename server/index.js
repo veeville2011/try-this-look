@@ -861,11 +861,28 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
 // Billing API Routes
 // Get current subscription status
 app.get("/api/billing/subscription", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const startTime = Date.now();
+  
   try {
+    logger.info("[BILLING] [GET_SUBSCRIPTION] Request received", {
+      requestId,
+      method: req.method,
+      path: req.path,
+      query: req.query,
+      timestamp: new Date().toISOString(),
+    });
+
     const shop = req.query.shop;
     if (!shop) {
+      logger.warn("[BILLING] [GET_SUBSCRIPTION] Missing shop parameter", {
+        requestId,
+        query: req.query,
+      });
       return res.status(400).json({
         error: "Missing shop parameter",
+        message: "Shop parameter is required in query string",
+        requestId,
       });
     }
 
@@ -874,35 +891,115 @@ app.get("/api/billing/subscription", async (req, res) => {
       ? shop
       : `${shop}.myshopify.com`;
 
-    // Get session for the shop
-    const sessionId = shopify.session.getOfflineId(shopDomain);
-    const session = await shopify.session.getSessionById(sessionId);
+    logger.info("[BILLING] [GET_SUBSCRIPTION] Shop domain normalized", {
+      requestId,
+      originalShop: shop,
+      normalizedShop: shopDomain,
+    });
 
-    if (!session) {
-      return res.status(401).json({
-        error: "Session not found",
-        message: "Please install the app first",
+    // Get session for the shop
+    let session;
+    try {
+      const sessionId = shopify.session.getOfflineId(shopDomain);
+      logger.info("[BILLING] [GET_SUBSCRIPTION] Retrieving session", {
+        requestId,
+        sessionId,
+        shopDomain,
+      });
+      
+      session = await shopify.session.getSessionById(sessionId);
+      
+      logger.info("[BILLING] [GET_SUBSCRIPTION] Session retrieved", {
+        requestId,
+        hasSession: !!session,
+        sessionId: session?.id || "N/A",
+      });
+    } catch (sessionError) {
+      logger.error("[BILLING] [GET_SUBSCRIPTION] Session retrieval failed", sessionError, req, {
+        requestId,
+        shopDomain,
+        errorType: sessionError.constructor.name,
+        errorCode: sessionError.code,
+      });
+      return res.status(500).json({
+        error: "Session retrieval failed",
+        message: sessionError.message || "Failed to retrieve session",
+        requestId,
       });
     }
 
-    const subscriptionStatus = await billing.checkSubscription(
-      shopify,
-      session
-    );
+    if (!session) {
+      logger.warn("[BILLING] [GET_SUBSCRIPTION] Session not found", {
+        requestId,
+        shopDomain,
+      });
+      return res.status(401).json({
+        error: "Session not found",
+        message: "Please install the app first",
+        requestId,
+      });
+    }
 
-    logger.info("[BILLING] Subscription status checked", {
-      shop,
-      hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
-      planHandle: subscriptionStatus.plan?.handle,
+    let subscriptionStatus;
+    try {
+      logger.info("[BILLING] [GET_SUBSCRIPTION] Checking subscription status", {
+        requestId,
+        shopDomain,
+      });
+      
+      subscriptionStatus = await billing.checkSubscription(
+        shopify,
+        session
+      );
+      
+      logger.info("[BILLING] [GET_SUBSCRIPTION] Subscription status retrieved", {
+        requestId,
+        shop: shopDomain,
+        hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+        planHandle: subscriptionStatus.plan?.handle,
+        isFree: subscriptionStatus.isFree,
+      });
+    } catch (checkError) {
+      logger.error("[BILLING] [GET_SUBSCRIPTION] Subscription check failed", checkError, req, {
+        requestId,
+        shopDomain,
+        errorType: checkError.constructor.name,
+        errorCode: checkError.code,
+      });
+      return res.status(500).json({
+        error: "Subscription check failed",
+        message: checkError.message || "Failed to check subscription status",
+        requestId,
+      });
+    }
+
+    const duration = Date.now() - startTime;
+    logger.info("[BILLING] [GET_SUBSCRIPTION] Request completed successfully", {
+      requestId,
+      shop: shopDomain,
+      duration: `${duration}ms`,
     });
 
-    res.json(subscriptionStatus);
+    res.json({
+      ...subscriptionStatus,
+      requestId, // Include for debugging
+    });
   } catch (error) {
-    logger.error("[BILLING] Failed to check subscription", error, req);
-    res.status(500).json({
-      error: "Failed to check subscription",
-      message: error.message,
+    const duration = Date.now() - startTime;
+    logger.error("[BILLING] [GET_SUBSCRIPTION] Unexpected error", error, req, {
+      requestId,
+      duration: `${duration}ms`,
+      errorType: error.constructor.name,
+      errorCode: error.code,
     });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Internal server error",
+        message: error.message || "An unexpected error occurred",
+        requestId,
+      });
+    }
   }
 });
 

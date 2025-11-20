@@ -1,4 +1,5 @@
 import { TryOnResponse } from "@/types/tryon";
+import { logError, logApiError } from "@/utils/errorHandler";
 
 const API_ENDPOINT = "https://try-on-server-v1.onrender.com/api/fashion-photo";
 const HEALTH_ENDPOINT = "https://try-on-server-v1.onrender.com/api/health";
@@ -10,46 +11,160 @@ export async function generateTryOn(
   clothingKey?: string | null,
   personKey?: string | null
 ): Promise<TryOnResponse> {
+  const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const startTime = Date.now();
+  
   try {
-    const formData = new FormData();
-    formData.append("personImage", personImage);
-    formData.append("clothingImage", clothingImage, "clothing-item.jpg");
-
-    if (storeName) {
-      formData.append("storeName", storeName);
-    }
-
-    // Send clothingKey if available (non-mandatory field)
-    if (clothingKey) {
-      formData.append("clothingKey", clothingKey);
-    }
-
-    // Send personKey if available (non-mandatory field, for demo pictures)
-    if (personKey) {
-      formData.append("personKey", personKey);
-    }
-
-    const response = await fetch(API_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-        "Content-Language": "fr",
-      },
-      body: formData,
+    console.log("[FRONTEND] [TRYON] Starting generation", {
+      requestId,
+      hasPersonImage: !!personImage,
+      hasClothingImage: !!clothingImage,
+      storeName: storeName || "not provided",
+      clothingKey: clothingKey || "not provided",
+      personKey: personKey || "not provided",
+      timestamp: new Date().toISOString(),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Prepare FormData
+    let formData: FormData;
+    try {
+      formData = new FormData();
+      formData.append("personImage", personImage);
+      formData.append("clothingImage", clothingImage, "clothing-item.jpg");
+
+      if (storeName) {
+        formData.append("storeName", storeName);
+      }
+
+      if (clothingKey) {
+        formData.append("clothingKey", clothingKey);
+      }
+
+      if (personKey) {
+        formData.append("personKey", personKey);
+      }
+      
+      console.log("[FRONTEND] [TRYON] FormData prepared", {
+        requestId,
+        hasStoreName: !!storeName,
+        hasClothingKey: !!clothingKey,
+        hasPersonKey: !!personKey,
+      });
+    } catch (formError) {
+      logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {
+        requestId,
+      });
+      return {
+        status: "error",
+        error_message: {
+          code: "FORM_DATA_ERROR",
+          message: "Failed to prepare form data",
+        },
+      };
     }
 
-    const data = await response.json();
-    return data;
+    // Send request
+    let response: Response;
+    try {
+      console.log("[FRONTEND] [TRYON] Sending request", {
+        requestId,
+        endpoint: API_ENDPOINT,
+        method: "POST",
+      });
+
+      response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+          "Content-Language": "fr",
+        },
+        body: formData,
+      });
+
+      const requestDuration = Date.now() - startTime;
+      console.log("[FRONTEND] [TRYON] Response received", {
+        requestId,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        duration: `${requestDuration}ms`,
+      });
+    } catch (fetchError) {
+      const duration = Date.now() - startTime;
+      logError("[FRONTEND] [TRYON] Fetch request failed", fetchError, {
+        requestId,
+        duration: `${duration}ms`,
+      });
+      return {
+        status: "error",
+        error_message: {
+          code: "NETWORK_ERROR",
+          message: "Une erreur de connexion s'est produite.",
+        },
+      };
+    }
+
+    // Handle error response
+    if (!response.ok) {
+      const errorDetails = await logApiError(
+        "[FRONTEND] [TRYON]",
+        response,
+        { requestId }
+      );
+      
+      return {
+        status: "error",
+        error_message: {
+          code: errorDetails.code || `HTTP_${response.status}`,
+          message: errorDetails.message || "Une erreur s'est produite lors de la génération.",
+        },
+      };
+    }
+
+    // Parse successful response
+    let data: TryOnResponse;
+    try {
+      const responseText = await response.text();
+      if (!responseText) {
+        throw new Error("Empty response body");
+      }
+      data = JSON.parse(responseText);
+      
+      const totalDuration = Date.now() - startTime;
+      console.log("[FRONTEND] [TRYON] Response parsed successfully", {
+        requestId,
+        status: data.status,
+        hasImage: !!data.image,
+        hasError: !!data.error_message,
+        duration: `${totalDuration}ms`,
+      });
+      
+      return data;
+    } catch (parseError) {
+      logError("[FRONTEND] [TRYON] Response parsing failed", parseError, {
+        requestId,
+        status: response.status,
+      });
+      return {
+        status: "error",
+        error_message: {
+          code: "PARSE_ERROR",
+          message: "Failed to parse server response",
+        },
+      };
+    }
   } catch (error) {
+    const duration = Date.now() - startTime;
+    logError("[FRONTEND] [TRYON] Unexpected error", error, {
+      requestId,
+      duration: `${duration}ms`,
+    });
+    
     return {
       status: "error",
       error_message: {
-        code: "NETWORK_ERROR",
-        message: "Une erreur de connexion s'est produite.",
+        code: "UNKNOWN_ERROR",
+        message: "Une erreur inattendue s'est produite.",
       },
     };
   }
