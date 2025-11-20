@@ -88,17 +88,48 @@ export const createSubscription = async (
   trialDays = 0,
   replacementBehavior = "STANDARD"
 ) => {
+  const startTime = Date.now();
+  const operationId = `billing-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
   try {
+    logger.info("[BILLING] [CREATE] Starting subscription creation", {
+      operationId,
+      shop: session.shop,
+      planHandle,
+      returnUrl,
+      trialDays,
+      replacementBehavior,
+      timestamp: new Date().toISOString(),
+    });
+
     const plan = PLANS[planHandle];
+
+    logger.info("[BILLING] [CREATE] Plan lookup", {
+      operationId,
+      planHandle,
+      planFound: !!plan,
+      planName: plan?.name || "N/A",
+      planPrice: plan?.price || "N/A",
+    });
+
     if (!plan) {
+      logger.error("[BILLING] [CREATE] Invalid plan handle", {
+        operationId,
+        planHandle,
+        availablePlans: Object.keys(PLANS),
+      });
       throw new Error(`Invalid plan handle: ${planHandle}`);
     }
 
     // For free plan, we don't need to create a subscription
     if (planHandle === PLAN_HANDLES.FREE) {
-      logger.info("[BILLING] Free plan - no subscription needed", {
+      logger.info("[BILLING] [CREATE] Free plan - no subscription needed", {
+        operationId,
         shop: session.shop,
         planHandle,
+        planName: plan.name,
       });
       return {
         success: true,
@@ -111,6 +142,16 @@ export const createSubscription = async (
     // Note: session needs to be passed with shopify instance
     // For now, we'll use the shopify instance directly
     // This requires the shopify instance to be passed or imported
+
+    logger.info("[BILLING] [CREATE] Preparing GraphQL mutation", {
+      operationId,
+      shop: session.shop,
+      planHandle,
+      planName: plan.name,
+      planPrice: plan.price,
+      planCurrency: plan.currencyCode,
+      planInterval: plan.interval,
+    });
 
     // GraphQL mutation for creating subscription
     const mutation = `
@@ -137,6 +178,40 @@ export const createSubscription = async (
       }
     `;
 
+    // Validate interval enum value
+    const validIntervals = ["EVERY_30_DAYS", "ANNUAL"];
+    if (!validIntervals.includes(plan.interval)) {
+      logger.error("[BILLING] [CREATE] Invalid interval value", {
+        operationId,
+        planHandle,
+        interval: plan.interval,
+        validIntervals,
+      });
+      throw new Error(
+        `Invalid interval: ${
+          plan.interval
+        }. Valid values: ${validIntervals.join(", ")}`
+      );
+    }
+
+    // Ensure price is a string (Shopify requires string format for MoneyInput)
+    const priceAmount =
+      typeof plan.price === "number"
+        ? plan.price.toFixed(2)
+        : String(plan.price);
+
+    // Validate returnUrl is a valid URL
+    try {
+      new URL(returnUrl);
+    } catch (urlError) {
+      logger.error("[BILLING] [CREATE] Invalid returnUrl", {
+        operationId,
+        returnUrl,
+        error: urlError.message,
+      });
+      throw new Error(`Invalid returnUrl: ${returnUrl}`);
+    }
+
     const variables = {
       name: plan.name,
       lineItems: [
@@ -144,7 +219,7 @@ export const createSubscription = async (
           plan: {
             appRecurringPricingDetails: {
               price: {
-                amount: plan.price,
+                amount: priceAmount,
                 currencyCode: plan.currencyCode,
               },
               interval: plan.interval,
@@ -157,25 +232,113 @@ export const createSubscription = async (
       replacementBehavior: replacementBehavior,
     };
 
+    logger.info("[BILLING] [CREATE] Variables prepared with price conversion", {
+      operationId,
+      originalPrice: plan.price,
+      priceType: typeof plan.price,
+      convertedPrice: priceAmount,
+      priceCurrency: plan.currencyCode,
+      interval: plan.interval,
+    });
+
+    logger.info("[BILLING] [CREATE] GraphQL variables prepared", {
+      operationId,
+      variables: {
+        name: variables.name,
+        returnUrl: variables.returnUrl,
+        trialDays: variables.trialDays || 0,
+        replacementBehavior: variables.replacementBehavior,
+        lineItemsCount: variables.lineItems.length,
+        price:
+          variables.lineItems[0].plan.appRecurringPricingDetails.price.amount,
+        priceType:
+          typeof variables.lineItems[0].plan.appRecurringPricingDetails.price
+            .amount,
+        currency:
+          variables.lineItems[0].plan.appRecurringPricingDetails.price
+            .currencyCode,
+        interval:
+          variables.lineItems[0].plan.appRecurringPricingDetails.interval,
+      },
+      fullVariablesJSON: JSON.stringify(variables, null, 2),
+    });
+
     // Use shopify instance to make GraphQL request
+    logger.info("[BILLING] [CREATE] Creating GraphQL client", {
+      operationId,
+      shop: session.shop,
+      hasSession: !!session,
+    });
+
     const client = new shopify.clients.Graphql({ session });
 
-    const response = await client.query({
+    // Add timeout handling for GraphQL request (25 seconds max)
+    const timeoutMs = 25000;
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        logger.error("[BILLING] [CREATE] GraphQL request timeout", {
+          operationId,
+          shop: session.shop,
+          timeoutMs,
+        });
+        reject(new Error("GraphQL request timed out after 25 seconds"));
+      }, timeoutMs);
+    });
+
+    logger.info("[BILLING] [CREATE] Initiating GraphQL request", {
+      operationId,
+      shop: session.shop,
+      timeoutMs,
+      mutation: "appSubscriptionCreate",
+    });
+
+    const graphqlStartTime = Date.now();
+    const queryPromise = client.query({
       data: {
         query: mutation,
         variables: variables,
       },
     });
 
+    const response = await Promise.race([queryPromise, timeoutPromise]);
+    const graphqlDuration = Date.now() - graphqlStartTime;
+
+    logger.info("[BILLING] [CREATE] GraphQL request completed", {
+      operationId,
+      shop: session.shop,
+      duration: `${graphqlDuration}ms`,
+      hasResponse: !!response,
+      responseType: typeof response,
+    });
+
+    logger.info("[BILLING] [CREATE] Parsing GraphQL response", {
+      operationId,
+      shop: session.shop,
+      hasResponseBody: !!response.body,
+      hasResponseData: !!response.data,
+    });
+
     // Response structure: { body: { data: {...}, extensions: {...} } }
     const responseData = response.body?.data || response.data;
 
+    logger.info("[BILLING] [CREATE] Response data extracted", {
+      operationId,
+      shop: session.shop,
+      hasResponseData: !!responseData,
+      hasAppSubscriptionCreate: !!responseData?.appSubscriptionCreate,
+      hasUserErrors: !!responseData?.appSubscriptionCreate?.userErrors,
+      userErrorsCount:
+        responseData?.appSubscriptionCreate?.userErrors?.length || 0,
+    });
+
     if (responseData?.appSubscriptionCreate?.userErrors?.length > 0) {
       const errors = responseData.appSubscriptionCreate.userErrors;
-      logger.error("[BILLING] Subscription creation errors", null, null, {
+      logger.error("[BILLING] [CREATE] GraphQL user errors", null, null, {
+        operationId,
         shop: session.shop,
         planHandle,
         errors,
+        errorsCount: errors.length,
       });
       throw new Error(
         `Subscription creation failed: ${errors
@@ -188,10 +351,48 @@ export const createSubscription = async (
     const confirmationUrl =
       responseData?.appSubscriptionCreate?.confirmationUrl;
 
-    logger.info("[BILLING] Subscription created successfully", {
+    logger.info("[BILLING] [CREATE] Subscription data extracted", {
+      operationId,
+      shop: session.shop,
+      hasSubscription: !!subscription,
+      subscriptionId: subscription?.id || "N/A",
+      subscriptionName: subscription?.name || "N/A",
+      subscriptionStatus: subscription?.status || "N/A",
+      hasConfirmationUrl: !!confirmationUrl,
+      confirmationUrlLength: confirmationUrl?.length || 0,
+    });
+
+    // Validate that confirmationUrl exists for paid plans
+    if (!confirmationUrl) {
+      logger.error(
+        "[BILLING] [CREATE] Missing confirmationUrl in response",
+        null,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+          planHandle,
+          responseData: JSON.stringify(responseData).substring(0, 500),
+          hasSubscription: !!subscription,
+          subscriptionId: subscription?.id || "N/A",
+        }
+      );
+      throw new Error(
+        "Subscription creation succeeded but no confirmation URL was returned. Please try again."
+      );
+    }
+
+    const totalDuration = Date.now() - startTime;
+    logger.info("[BILLING] [CREATE] Subscription created successfully", {
+      operationId,
       shop: session.shop,
       planHandle,
       subscriptionId: subscription?.id,
+      subscriptionName: subscription?.name,
+      subscriptionStatus: subscription?.status,
+      hasConfirmationUrl: !!confirmationUrl,
+      confirmationUrlPreview: confirmationUrl.substring(0, 100) + "...",
+      totalDuration: `${totalDuration}ms`,
     });
 
     return {
@@ -201,10 +402,43 @@ export const createSubscription = async (
       plan: plan,
     };
   } catch (error) {
-    logger.error("[BILLING] Failed to create subscription", error, null, {
-      shop: session?.shop,
-      planHandle,
-    });
+    const totalDuration = Date.now() - startTime;
+
+    logger.error(
+      "[BILLING] [CREATE] Subscription creation failed",
+      error,
+      null,
+      {
+        operationId: operationId || "unknown",
+        shop: session?.shop || "unknown",
+        planHandle: planHandle || "unknown",
+        errorMessage: error.message,
+        errorType: error.constructor.name,
+        errorCode: error.code,
+        errorStack: error.stack,
+        totalDuration: `${totalDuration}ms`,
+        isTimeout:
+          error.message.includes("timeout") ||
+          error.message.includes("timed out"),
+      }
+    );
+
+    // Provide more specific error messages
+    if (
+      error.message.includes("timeout") ||
+      error.message.includes("timed out")
+    ) {
+      logger.error("[BILLING] [CREATE] Timeout error detected", null, null, {
+        operationId,
+        shop: session?.shop,
+        planHandle,
+        duration: `${totalDuration}ms`,
+      });
+      throw new Error(
+        "The subscription request took too long to process. Please try again. If the issue persists, check your Shopify connection."
+      );
+    }
+
     throw error;
   }
 };

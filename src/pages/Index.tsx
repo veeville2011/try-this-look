@@ -215,14 +215,32 @@ const Index = () => {
   };
 
   const handleSelectPlan = async (planHandle: string) => {
+    const startTime = Date.now();
     try {
+      console.log("[FRONTEND] [SUBSCRIBE] Starting subscription process", {
+        planHandle,
+        timestamp: new Date().toISOString(),
+      });
+
       setSubscribing(planHandle);
 
       // Get shop from App Bridge hook or URL params (fallback)
       const shopDomain =
         shop || new URLSearchParams(window.location.search).get("shop");
+
+      console.log("[FRONTEND] [SUBSCRIBE] Shop domain extraction", {
+        shopFromHook: shop || "not available",
+        shopFromUrl:
+          new URLSearchParams(window.location.search).get("shop") ||
+          "not available",
+        finalShopDomain: shopDomain || "not found",
+        hasSessionToken: !!sessionToken,
+      });
+
       if (!shopDomain) {
+        console.error("[FRONTEND] [SUBSCRIBE] Missing shop parameter");
         toast.error("Shop parameter is required");
+        setSubscribing(null);
         return;
       }
 
@@ -230,37 +248,113 @@ const Index = () => {
       const headers: HeadersInit = { "Content-Type": "application/json" };
       if (sessionToken) {
         headers["Authorization"] = `Bearer ${sessionToken}`;
+        console.log("[FRONTEND] [SUBSCRIBE] Session token included in headers");
+      } else {
+        console.warn("[FRONTEND] [SUBSCRIBE] No session token available");
       }
 
+      const requestBody = {
+        planHandle,
+        returnUrl: window.location.href,
+      };
+
+      console.log("[FRONTEND] [SUBSCRIBE] Sending subscription request", {
+        url: "/api/billing/subscribe",
+        method: "POST",
+        planHandle,
+        returnUrl: window.location.href,
+        shopDomain,
+      });
+
+      const requestStartTime = Date.now();
       const response = await fetch("/api/billing/subscribe", {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          planHandle,
-          returnUrl: window.location.href,
-        }),
+        body: JSON.stringify(requestBody),
+      });
+      const requestDuration = Date.now() - requestStartTime;
+
+      console.log("[FRONTEND] [SUBSCRIBE] Received response", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        duration: `${requestDuration}ms`,
+        headers: Object.fromEntries(response.headers.entries()),
       });
 
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          error: "Unknown error",
+          message: `HTTP ${response.status}: ${response.statusText}`,
+        }));
+
+        console.error("[FRONTEND] [SUBSCRIBE] Error response received", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+        });
+
+        toast.error(
+          errorData.message ||
+            errorData.error ||
+            "Failed to create subscription"
+        );
+        setSubscribing(null);
+        return;
+      }
+
       const data = await response.json();
+      const totalDuration = Date.now() - startTime;
+
+      console.log("[FRONTEND] [SUBSCRIBE] Response data parsed", {
+        hasConfirmationUrl: !!data.confirmationUrl,
+        isFree: data.isFree,
+        hasSubscription: !!data.subscription,
+        success: data.success,
+        totalDuration: `${totalDuration}ms`,
+      });
 
       if (data.confirmationUrl) {
+        console.log("[FRONTEND] [SUBSCRIBE] Redirecting to confirmation URL", {
+          confirmationUrl: data.confirmationUrl,
+        });
         // Redirect to Shopify's confirmation page
         window.location.href = data.confirmationUrl;
       } else if (data.isFree) {
+        console.log("[FRONTEND] [SUBSCRIBE] Free plan activated", {
+          planHandle,
+        });
         // Free plan - no confirmation needed
         toast.success("Free plan activated!");
         setTimeout(() => {
           window.location.reload();
         }, 1000);
       } else {
-        toast.error("Failed to create subscription");
+        console.error("[FRONTEND] [SUBSCRIBE] Unexpected response", {
+          data,
+        });
+        toast.error(data.message || "Failed to create subscription");
+        setSubscribing(null);
       }
     } catch (error) {
+      const totalDuration = Date.now() - startTime;
+      console.error("[FRONTEND] [SUBSCRIBE] Exception occurred", {
+        error: error instanceof Error ? error.message : String(error),
+        errorType:
+          error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined,
+        duration: `${totalDuration}ms`,
+      });
+
       if (import.meta.env.DEV) {
         console.error("Failed to subscribe:", error);
       }
-      toast.error("Failed to subscribe. Please try again.");
-    } finally {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to subscribe. Please try again."
+      );
       setSubscribing(null);
     }
   };
