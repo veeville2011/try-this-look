@@ -26,8 +26,143 @@ const getLogLevel = () => {
 const currentLogLevel = getLogLevel();
 
 /**
+ * Safe JSON stringify that handles circular references and other problematic values
+ */
+const safeStringify = (obj, space = null, maxDepth = 10) => {
+  const seen = new WeakSet();
+  const replacer = (key, value) => {
+    // Handle circular references
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) {
+        return "[Circular Reference]";
+      }
+      seen.add(value);
+    }
+    
+    // Handle functions
+    if (typeof value === "function") {
+      return `[Function: ${value.name || "anonymous"}]`;
+    }
+    
+    // Handle undefined
+    if (value === undefined) {
+      return "[undefined]";
+    }
+    
+    // Handle Error objects
+    if (value instanceof Error) {
+      return {
+        name: value.name,
+        message: value.message,
+        stack: value.stack,
+        code: value.code,
+      };
+    }
+    
+    // Handle Date objects
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    
+    // Handle Buffer objects
+    if (Buffer.isBuffer(value)) {
+      return `[Buffer: ${value.length} bytes]`;
+    }
+    
+    // Handle objects with too much nesting
+    if (maxDepth <= 0) {
+      return "[Max Depth Reached]";
+    }
+    
+    return value;
+  };
+  
+  try {
+    return JSON.stringify(obj, replacer, space);
+  } catch (error) {
+    // If stringify still fails, return a safe representation
+    try {
+      return JSON.stringify({
+        error: "Failed to stringify object",
+        errorMessage: error.message,
+        type: typeof obj,
+        constructor: obj?.constructor?.name,
+      }, null, space);
+    } catch {
+      return "[Unable to serialize object]";
+    }
+  }
+};
+
+/**
+ * Safely extract serializable data from an object, handling circular references
+ */
+const sanitizeObject = (obj, maxDepth = 5, currentDepth = 0) => {
+  if (currentDepth >= maxDepth) {
+    return "[Max Depth Reached]";
+  }
+  
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  // Handle primitives
+  if (typeof obj !== "object") {
+    return obj;
+  }
+  
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeObject(item, maxDepth, currentDepth + 1));
+  }
+  
+  // Handle Date
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+  
+  // Handle Error
+  if (obj instanceof Error) {
+    return {
+      name: obj.name,
+      message: obj.message,
+      stack: obj.stack?.substring(0, 500),
+      code: obj.code,
+    };
+  }
+  
+  // Handle Buffer
+  if (Buffer.isBuffer(obj)) {
+    return `[Buffer: ${obj.length} bytes]`;
+  }
+  
+  // Handle functions
+  if (typeof obj === "function") {
+    return `[Function: ${obj.name || "anonymous"}]`;
+  }
+  
+  // Handle plain objects
+  const sanitized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Skip known problematic properties
+    if (key === "socket" || key === "connection" || key === "parser" || key === "_httpMessage") {
+      sanitized[key] = "[Skipped: Circular Reference Risk]";
+      continue;
+    }
+    
+    try {
+      sanitized[key] = sanitizeObject(value, maxDepth, currentDepth + 1);
+    } catch (e) {
+      sanitized[key] = `[Error serializing: ${e.message}]`;
+    }
+  }
+  
+  return sanitized;
+};
+
+/**
  * Format log message with timestamp and log level
- * Enhanced with better formatting for readability
+ * Enhanced with better formatting for readability and circular reference handling
  */
 const formatLogMessage = (level, message, metadata = {}) => {
   const timestamp = new Date().toISOString();
@@ -37,21 +172,23 @@ const formatLogMessage = (level, message, metadata = {}) => {
   let metadataStr = "";
   if (Object.keys(metadata).length > 0) {
     try {
+      // Sanitize metadata to remove circular references
+      const sanitizedMetadata = sanitizeObject(metadata);
+      
       // Truncate very long values for readability
       const truncatedMetadata = {};
-      for (const [key, value] of Object.entries(metadata)) {
+      for (const [key, value] of Object.entries(sanitizedMetadata)) {
         if (typeof value === "string" && value.length > 500) {
           truncatedMetadata[key] = value.substring(0, 500) + "... [truncated]";
-        } else if (typeof value === "object" && value !== null) {
-          const str = JSON.stringify(value);
-          truncatedMetadata[key] = str.length > 500 ? str.substring(0, 500) + "... [truncated]" : value;
         } else {
           truncatedMetadata[key] = value;
         }
       }
-      metadataStr = JSON.stringify(truncatedMetadata, null, 2);
+      
+      // Use safe stringify
+      metadataStr = safeStringify(truncatedMetadata, 2);
     } catch (e) {
-      metadataStr = "[Metadata serialization failed]";
+      metadataStr = `[Metadata serialization failed: ${e.message}]`;
     }
   }
   
@@ -126,28 +263,84 @@ const debug = (message, metadata = {}) => {
  * Log HTTP request
  */
 const logRequest = (req, metadata = {}) => {
-  const requestMetadata = {
-    method: req.method,
-    path: req.path,
-    query: req.query,
-    ip: req.ip || req.connection.remoteAddress,
-    userAgent: req.get("user-agent"),
-    ...metadata,
-  };
-  info(`${req.method} ${req.path}`, requestMetadata);
+  try {
+    const requestMetadata = {
+      method: req?.method,
+      path: req?.path,
+      query: req?.query ? sanitizeObject(req.query) : undefined,
+      ip: req?.ip || req?.connection?.remoteAddress || req?.socket?.remoteAddress,
+      userAgent: req?.get ? req.get("user-agent") : undefined,
+      ...metadata,
+    };
+    info(`${req?.method || "UNKNOWN"} ${req?.path || "UNKNOWN"}`, requestMetadata);
+  } catch (e) {
+    // Fallback if request logging fails
+    info("Request received", { error: "Failed to log request details", errorMessage: e.message });
+  }
 };
 
 /**
  * Log HTTP response
  */
 const logResponse = (req, res, metadata = {}) => {
-  const responseMetadata = {
-    method: req.method,
-    path: req.path,
-    statusCode: res.statusCode,
-    ...metadata,
-  };
-  info(`${req.method} ${req.path} ${res.statusCode}`, responseMetadata);
+  try {
+    const responseMetadata = {
+      method: req?.method,
+      path: req?.path,
+      statusCode: res?.statusCode,
+      ...metadata,
+    };
+    info(`${req?.method || "UNKNOWN"} ${req?.path || "UNKNOWN"} ${res?.statusCode || "UNKNOWN"}`, responseMetadata);
+  } catch (e) {
+    // Fallback if response logging fails
+    info("Response sent", { error: "Failed to log response details", errorMessage: e.message });
+  }
+};
+
+/**
+ * Safely extract request information without circular references
+ */
+const extractRequestInfo = (req) => {
+  if (!req) return null;
+  
+  try {
+    // Safely extract body
+    let bodyInfo = undefined;
+    if (req.body) {
+      try {
+        if (typeof req.body === "string") {
+          bodyInfo = req.body.substring(0, 500);
+        } else if (typeof req.body === "object") {
+          const bodyStr = safeStringify(req.body);
+          bodyInfo = bodyStr.length > 500 ? bodyStr.substring(0, 500) + "... [truncated]" : bodyStr;
+        } else {
+          bodyInfo = String(req.body).substring(0, 500);
+        }
+      } catch (e) {
+        bodyInfo = "[Unable to serialize body]";
+      }
+    }
+    
+    return {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      query: req.query ? sanitizeObject(req.query) : undefined,
+      body: bodyInfo,
+      ip: req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress,
+      userAgent: req.get ? req.get("user-agent") : undefined,
+      headers: {
+        authorization: req.get ? (req.get("authorization") ? "present" : "missing") : undefined,
+        contentType: req.get ? req.get("content-type") : undefined,
+        accept: req.get ? req.get("accept") : undefined,
+      },
+    };
+  } catch (e) {
+    return {
+      error: "Failed to extract request info",
+      errorMessage: e.message,
+    };
+  }
 };
 
 /**
@@ -157,26 +350,15 @@ const logError = (message, error, req = null, metadata = {}) => {
   const errorMetadata = {
     ...metadata,
     ...(req && {
-      request: {
-        method: req.method,
-        path: req.path,
-        query: req.query,
-        body: req.body ? (typeof req.body === "object" ? JSON.stringify(req.body).substring(0, 500) : String(req.body).substring(0, 500)) : undefined,
-        ip: req.ip || req.connection?.remoteAddress,
-        userAgent: req.get("user-agent"),
-        headers: {
-          authorization: req.get("authorization") ? "present" : "missing",
-          contentType: req.get("content-type"),
-        },
-      },
+      request: extractRequestInfo(req),
     }),
     ...(error && {
       error: {
         message: error.message,
-        stack: error.stack,
+        stack: error.stack?.substring(0, 1000), // Truncate stack trace
         name: error.name,
         code: error.code,
-        cause: error.cause,
+        cause: error.cause ? String(error.cause).substring(0, 200) : undefined,
       },
     }),
   };
@@ -187,10 +369,26 @@ const logError = (message, error, req = null, metadata = {}) => {
  * Log GraphQL operation with detailed request/response info
  */
 const logGraphQL = (operation, variables, response, duration, metadata = {}) => {
+  let variablesStr = undefined;
+  if (variables) {
+    try {
+      if (typeof variables === "object") {
+        variablesStr = safeStringify(variables);
+        if (variablesStr.length > 1000) {
+          variablesStr = variablesStr.substring(0, 1000) + "... [truncated]";
+        }
+      } else {
+        variablesStr = String(variables).substring(0, 1000);
+      }
+    } catch (e) {
+      variablesStr = "[Unable to serialize variables]";
+    }
+  }
+  
   const graphqlMetadata = {
     ...metadata,
     operation,
-    variables: variables ? (typeof variables === "object" ? JSON.stringify(variables).substring(0, 1000) : String(variables)) : undefined,
+    variables: variablesStr,
     duration: `${duration}ms`,
     hasResponse: !!response,
     responseType: typeof response,
