@@ -263,25 +263,70 @@ export const createSubscription = async (
       fullVariablesJSON: JSON.stringify(variables, null, 2),
     });
 
+    // Validate session before creating GraphQL client
+    if (!session || !session.shop) {
+      logger.error("[BILLING] [CREATE] Invalid session - missing shop", null, null, {
+        operationId,
+        hasSession: !!session,
+        sessionShop: session?.shop || "missing",
+      });
+      throw new Error("Invalid session: shop is required");
+    }
+
+    if (!session.accessToken) {
+      logger.error("[BILLING] [CREATE] Invalid session - missing access token", null, null, {
+        operationId,
+        shop: session.shop,
+        hasAccessToken: !!session.accessToken,
+        sessionId: session.id || "N/A",
+      });
+      throw new Error("Invalid session: access token is required. Please re-authenticate the app.");
+    }
+
     // Use shopify instance to make GraphQL request
     logger.info("[BILLING] [CREATE] Creating GraphQL client", {
       operationId,
       shop: session.shop,
       hasSession: !!session,
+      sessionId: session.id || "N/A",
+      accessToken: session.accessToken ? "present" : "missing",
+      accessTokenLength: session.accessToken?.length || 0,
     });
 
-    const client = new shopify.clients.Graphql({ session });
+    const clientTimer = logger.createTimer(`[BILLING] [CREATE] GraphQL Client Creation`);
+    let client;
+    try {
+      client = new shopify.clients.Graphql({ session });
+      clientTimer.log("GraphQL client created", {
+        operationId,
+        shop: session.shop,
+      });
+    } catch (clientError) {
+      clientTimer.log("GraphQL client creation failed", {
+        operationId,
+        shop: session.shop,
+        error: clientError.message,
+      });
+      logger.error("[BILLING] [CREATE] Failed to create GraphQL client", clientError, null, {
+        operationId,
+        shop: session.shop,
+      });
+      throw new Error(`Failed to create GraphQL client: ${clientError.message}`);
+    }
 
-    // Add timeout handling for GraphQL request (25 seconds max)
-    const timeoutMs = 25000;
+    // Add timeout handling for GraphQL request (20 seconds max to leave buffer for Vercel)
+    // Vercel has 60s max, but we want to fail fast and leave time for error handling
+    const timeoutMs = 20000;
+    let timeoutId = null;
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         logger.error("[BILLING] [CREATE] GraphQL request timeout", {
           operationId,
           shop: session.shop,
           timeoutMs,
+          elapsed: `${Date.now() - startTime}ms`,
         });
-        reject(new Error("GraphQL request timed out after 25 seconds"));
+        reject(new Error("GraphQL request timed out after 20 seconds"));
       }, timeoutMs);
     });
 
@@ -290,38 +335,126 @@ export const createSubscription = async (
       shop: session.shop,
       timeoutMs,
       mutation: "appSubscriptionCreate",
-    });
-
-    const graphqlStartTime = Date.now();
-    const queryPromise = client.query({
-      data: {
-        query: mutation,
-        variables: variables,
+      variablesPreview: {
+        name: variables.name,
+        returnUrl: variables.returnUrl?.substring(0, 100),
+        trialDays: variables.trialDays,
+        replacementBehavior: variables.replacementBehavior,
+        price: variables.lineItems[0]?.plan?.appRecurringPricingDetails?.price?.amount,
+        currency: variables.lineItems[0]?.plan?.appRecurringPricingDetails?.price?.currencyCode,
+        interval: variables.lineItems[0]?.plan?.appRecurringPricingDetails?.interval,
       },
     });
 
-    const response = await Promise.race([queryPromise, timeoutPromise]);
-    const graphqlDuration = Date.now() - graphqlStartTime;
+    const graphqlTimer = logger.createTimer(`[BILLING] [CREATE] GraphQL Request`);
+    let queryPromise;
+    
+    try {
+      logger.info("[BILLING] [CREATE] Preparing GraphQL query", {
+        operationId,
+        shop: session.shop,
+        mutationLength: mutation.length,
+        variablesKeys: Object.keys(variables),
+      });
+      
+      queryPromise = client.query({
+        data: {
+          query: mutation,
+          variables: variables,
+        },
+      });
+      
+      logger.info("[BILLING] [CREATE] GraphQL query promise created", {
+        operationId,
+        shop: session.shop,
+        promiseType: typeof queryPromise,
+        hasThen: typeof queryPromise?.then === "function",
+        isPromise: queryPromise instanceof Promise,
+      });
+    } catch (queryError) {
+      if (timeoutId) clearTimeout(timeoutId);
+      logger.error("[BILLING] [CREATE] Failed to create GraphQL query promise", queryError, null, {
+        operationId,
+        shop: session.shop,
+        errorType: queryError.constructor.name,
+        errorCode: queryError.code,
+        errorMessage: queryError.message,
+      });
+      throw new Error(`Failed to create GraphQL query: ${queryError.message}`);
+    }
 
-    logger.info("[BILLING] [CREATE] GraphQL request completed", {
-      operationId,
-      shop: session.shop,
-      duration: `${graphqlDuration}ms`,
-      hasResponse: !!response,
-      responseType: typeof response,
-    });
+    let response;
+    try {
+      logger.info("[BILLING] [CREATE] Waiting for GraphQL response (Promise.race)", {
+        operationId,
+        shop: session.shop,
+      });
+      
+      response = await Promise.race([queryPromise, timeoutPromise]);
+      
+      // Clear timeout if request completed
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      
+      const graphqlDuration = graphqlTimer.elapsed();
+      graphqlTimer.log("GraphQL request completed", {
+        operationId,
+        shop: session.shop,
+        hasResponse: !!response,
+        responseType: typeof response,
+      });
+      
+      // Log GraphQL operation details
+      logger.logGraphQL(
+        "appSubscriptionCreate",
+        variables,
+        response,
+        graphqlDuration,
+        {
+          operationId,
+          shop: session.shop,
+        }
+      );
+    } catch (raceError) {
+      // Clear timeout if it was the timeout that won
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      
+      const graphqlDuration = graphqlTimer.elapsed();
+      logger.error("[BILLING] [CREATE] GraphQL request failed", raceError, null, {
+        operationId,
+        shop: session.shop,
+        duration: `${graphqlDuration}ms`,
+        isTimeout: raceError.message.includes("timeout") || raceError.message.includes("timed out"),
+        errorCode: raceError.code,
+      });
+      throw raceError;
+    }
+    
+    const graphqlDuration = graphqlTimer.elapsed();
 
-    logger.info("[BILLING] [CREATE] Parsing GraphQL response", {
-      operationId,
-      shop: session.shop,
-      hasResponseBody: !!response.body,
-      hasResponseData: !!response.data,
-    });
+    // Response parsing is already logged above, continue with extraction
 
     // Response structure: { body: { data: {...}, extensions: {...} } }
-    const responseData = response.body?.data || response.data;
+    const parseTimer = logger.createTimer(`[BILLING] [CREATE] Response Parsing`);
+    
+    logger.info("[BILLING] [CREATE] Parsing GraphQL response structure", {
+      operationId,
+      shop: session.shop,
+      hasResponse: !!response,
+      hasResponseBody: !!response.body,
+      hasResponseData: !!response.data,
+      responseKeys: response ? Object.keys(response) : [],
+      bodyKeys: response?.body ? Object.keys(response.body) : [],
+    });
 
-    logger.info("[BILLING] [CREATE] Response data extracted", {
+    const responseData = response.body?.data || response.data;
+    
+    parseTimer.log("Response data extracted", {
       operationId,
       shop: session.shop,
       hasResponseData: !!responseData,
@@ -329,20 +462,58 @@ export const createSubscription = async (
       hasUserErrors: !!responseData?.appSubscriptionCreate?.userErrors,
       userErrorsCount:
         responseData?.appSubscriptionCreate?.userErrors?.length || 0,
+      responseDataKeys: responseData ? Object.keys(responseData) : [],
     });
+    
+    // Log full response structure for debugging (truncated)
+    if (responseData) {
+      try {
+        const responseStr = JSON.stringify(responseData);
+        logger.debug("[BILLING] [CREATE] Full response data", {
+          operationId,
+          shop: session.shop,
+          responsePreview: responseStr.substring(0, 1000),
+          responseLength: responseStr.length,
+        });
+      } catch (e) {
+        logger.warn("[BILLING] [CREATE] Could not serialize response for logging", {
+          operationId,
+          shop: session.shop,
+          error: e.message,
+        });
+      }
+    }
 
     if (responseData?.appSubscriptionCreate?.userErrors?.length > 0) {
       const errors = responseData.appSubscriptionCreate.userErrors;
-      logger.error("[BILLING] [CREATE] GraphQL user errors", null, null, {
+      logger.error("[BILLING] [CREATE] GraphQL user errors returned", null, null, {
         operationId,
         shop: session.shop,
         planHandle,
-        errors,
+        errors: errors.map(e => ({ field: e.field, message: e.message })),
         errorsCount: errors.length,
+        fullErrors: errors,
       });
       throw new Error(
         `Subscription creation failed: ${errors
-          .map((e) => e.message)
+          .map((e) => `${e.field ? `${e.field}: ` : ""}${e.message}`)
+          .join(", ")}`
+      );
+    }
+    
+    // Check for GraphQL errors (different from userErrors)
+    if (response.body?.errors || response.errors) {
+      const graphqlErrors = response.body?.errors || response.errors;
+      logger.error("[BILLING] [CREATE] GraphQL API errors returned", null, null, {
+        operationId,
+        shop: session.shop,
+        planHandle,
+        errors: graphqlErrors,
+        errorsCount: graphqlErrors.length,
+      });
+      throw new Error(
+        `GraphQL API error: ${graphqlErrors
+          .map((e) => e.message || JSON.stringify(e))
           .join(", ")}`
       );
     }
