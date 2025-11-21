@@ -936,52 +936,38 @@ app.get("/api/billing/subscription", async (req, res) => {
       normalizedShop: shopDomain,
     });
 
-    // Get session for the shop (needed for GraphQL fallback)
-    let session;
+    // Get session for the shop (optional - needed only for setup progress)
+    // For subscription status, we don't need a session (uses webhook cache)
+    let session = null;
     try {
-      const sessionId = shopify.session.getOfflineId(shopDomain);
-      logger.info("[BILLING] [GET_SUBSCRIPTION] Retrieving session", {
-        requestId,
-        sessionId,
-        shopDomain,
-      });
-
-      session = await shopify.session.getSessionById(sessionId);
-
-      logger.info("[BILLING] [GET_SUBSCRIPTION] Session retrieved", {
-        requestId,
-        hasSession: !!session,
-        sessionId: session?.id || "N/A",
-      });
+      // Try to get session from Authorization header if available
+      const authHeader = req.get("Authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const sessionToken = authHeader.replace("Bearer ", "");
+        try {
+          session = await shopify.session.decodeSessionToken(sessionToken);
+          logger.info("[BILLING] [GET_SUBSCRIPTION] Session decoded from token", {
+            requestId,
+            shop: session?.shop,
+          });
+        } catch (tokenError) {
+          logger.debug("[BILLING] [GET_SUBSCRIPTION] Could not decode session token", {
+            requestId,
+            error: tokenError.message,
+          });
+        }
+      }
     } catch (sessionError) {
-      logger.error(
-        "[BILLING] [GET_SUBSCRIPTION] Session retrieval failed",
-        sessionError,
-        req,
+      // Session is optional for subscription endpoint
+      // We can still return subscription status from cache
+      logger.debug(
+        "[BILLING] [GET_SUBSCRIPTION] Session retrieval failed (non-critical)",
         {
           requestId,
           shopDomain,
-          errorType: sessionError.constructor.name,
-          errorCode: sessionError.code,
+          error: sessionError.message,
         }
       );
-      return res.status(500).json({
-        error: "Session retrieval failed",
-        message: sessionError.message || "Failed to retrieve session",
-        requestId,
-      });
-    }
-
-    if (!session) {
-      logger.warn("[BILLING] [GET_SUBSCRIPTION] Session not found", {
-        requestId,
-        shopDomain,
-      });
-      return res.status(401).json({
-        error: "Session not found",
-        message: "Please install the app first",
-        requestId,
-      });
     }
 
     let subscriptionStatus;
@@ -1024,28 +1010,43 @@ app.get("/api/billing/subscription", async (req, res) => {
       });
     }
 
-    // Calculate setup progress
+    // Calculate setup progress (only if we have a session)
     let setupProgress;
-    try {
-      const { calculateSetupProgress } = await import("./utils/setupProgress.js");
-      setupProgress = await calculateSetupProgress(shopify, session);
-    } catch (setupError) {
-      logger.error(
-        "[BILLING] [GET_SUBSCRIPTION] Setup progress calculation failed",
-        setupError,
-        req,
-        {
-          requestId,
-          shopDomain,
-        }
-      );
-      // Use default setup progress on error
+    if (session) {
+      try {
+        const { calculateSetupProgress } = await import("./utils/setupProgress.js");
+        setupProgress = await calculateSetupProgress(shopify, session);
+      } catch (setupError) {
+        logger.error(
+          "[BILLING] [GET_SUBSCRIPTION] Setup progress calculation failed",
+          setupError,
+          req,
+          {
+            requestId,
+            shopDomain,
+          }
+        );
+        // Use default setup progress on error
+        setupProgress = {
+          stepsCompleted: 1,
+          totalSteps: 4,
+          completed: false,
+          completedSteps: ["app_installed"],
+        };
+      }
+    } else {
+      // No session available - return minimal progress
+      // App is installed (we have subscription data), but can't check other steps
       setupProgress = {
         stepsCompleted: 1,
         totalSteps: 4,
         completed: false,
         completedSteps: ["app_installed"],
       };
+      logger.debug("[BILLING] [GET_SUBSCRIPTION] No session for setup progress", {
+        requestId,
+        shopDomain,
+      });
     }
 
     const duration = Date.now() - startTime;
