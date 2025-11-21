@@ -59,16 +59,17 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
         setSubscriptionStatus(data);
       }
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("[QuickStatusCard] Failed to fetch status:", error);
-      }
+      // Silently handle errors - subscription status will show as free/default
     } finally {
       setLoading(false);
     }
   };
 
   const getPlanBadge = () => {
-    if (!currentPlan || currentPlan === "free") {
+    // Use plan from subscriptionStatus if available, otherwise fall back to currentPlan prop
+    const planHandle = subscriptionStatus?.plan?.handle || currentPlan;
+    
+    if (!planHandle || planHandle === "free") {
       return (
         <Badge variant="outline" className="gap-1.5 whitespace-nowrap">
           <Zap className="w-3 h-3" />
@@ -77,7 +78,7 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
       );
     }
 
-    if (currentPlan === "pro-annual") {
+    if (planHandle === "pro-annual") {
       return (
         <Badge className="gap-1.5 bg-primary whitespace-nowrap">
           <Crown className="w-3 h-3" />
@@ -86,7 +87,13 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
       );
     }
 
-    return null;
+    // Fallback for any other plan handle
+    return (
+      <Badge className="gap-1.5 bg-primary whitespace-nowrap">
+        <Crown className="w-3 h-3" />
+        {subscriptionStatus?.plan?.name || "Pro Plan"}
+      </Badge>
+    );
   };
 
   const getSetupStatus = () => {
@@ -99,12 +106,16 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
       return subscriptionStatus.setupProgress;
     }
     
-    // Default: calculate based on common setup steps
-    // This can be enhanced to check actual setup completion
+    // If subscriptionStatus exists, we can infer some progress
+    // App is installed (step 1) if we have subscription data
+    const hasSubscriptionData = !!subscriptionStatus;
+    const stepsCompleted = hasSubscriptionData ? 1 : 0;
+    const totalSteps = 4;
+    
     return {
-      completed: false,
-      stepsCompleted: 0,
-      totalSteps: 4,
+      completed: stepsCompleted === totalSteps,
+      stepsCompleted,
+      totalSteps,
     };
   };
 

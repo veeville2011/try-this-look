@@ -1024,15 +1024,41 @@ app.get("/api/billing/subscription", async (req, res) => {
       });
     }
 
+    // Calculate setup progress
+    let setupProgress;
+    try {
+      const { calculateSetupProgress } = await import("./utils/setupProgress.js");
+      setupProgress = await calculateSetupProgress(shopify, session);
+    } catch (setupError) {
+      logger.error(
+        "[BILLING] [GET_SUBSCRIPTION] Setup progress calculation failed",
+        setupError,
+        req,
+        {
+          requestId,
+          shopDomain,
+        }
+      );
+      // Use default setup progress on error
+      setupProgress = {
+        stepsCompleted: 1,
+        totalSteps: 4,
+        completed: false,
+        completedSteps: ["app_installed"],
+      };
+    }
+
     const duration = Date.now() - startTime;
     logger.info("[BILLING] [GET_SUBSCRIPTION] Request completed successfully", {
       requestId,
       shop: shopDomain,
       duration: `${duration}ms`,
+      setupProgress: setupProgress.stepsCompleted,
     });
 
     res.json({
       ...subscriptionStatus,
+      setupProgress,
       requestId, // Include for debugging
     });
   } catch (error) {

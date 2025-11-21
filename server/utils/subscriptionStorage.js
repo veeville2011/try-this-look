@@ -164,6 +164,18 @@ export const processWebhookSubscription = (appSubscription, shopDomain) => {
   let currencyCode = "EUR";
   let interval = "EVERY_30_DAYS";
   
+  // Try to get plan handle from lineItem.plan if available
+  // Note: Managed App Pricing webhooks may not include plan handle directly
+  // We'll match by price and interval as fallback
+  if (lineItem?.plan?.id || lineItem?.plan?.name) {
+    // Log available plan identifiers for debugging
+    logger.debug("[SUBSCRIPTION_STORAGE] Plan identifiers from webhook", {
+      shop: normalizedShop,
+      planId: lineItem?.plan?.id,
+      planName: lineItem?.plan?.name,
+    });
+  }
+  
   if (pricingDetails) {
     // Handle recurring pricing
     if (pricingDetails.price) {
@@ -171,8 +183,19 @@ export const processWebhookSubscription = (appSubscription, shopDomain) => {
       currencyCode = pricingDetails.price.currencyCode;
       interval = pricingDetails.interval;
       
+      logger.debug("[SUBSCRIPTION_STORAGE] Matching plan by pricing", {
+        shop: normalizedShop,
+        price,
+        currencyCode,
+        interval,
+      });
+      
       // Match to plan by price and interval
+      // This is the recommended approach for Managed App Pricing
+      // since plan handles aren't directly provided in webhooks
       const plans = getAvailablePlans();
+      let matchedPlan = null;
+      
       for (const plan of plans) {
         const priceMatches = Math.abs(plan.price - price) < 0.01;
         const intervalMatches = plan.interval === interval;
@@ -180,7 +203,53 @@ export const processWebhookSubscription = (appSubscription, shopDomain) => {
         
         if (priceMatches && intervalMatches && currencyMatches) {
           planHandle = plan.handle;
+          matchedPlan = plan;
           break;
+        }
+      }
+      
+      if (matchedPlan) {
+        logger.info("[SUBSCRIPTION_STORAGE] Plan matched successfully", {
+          shop: normalizedShop,
+          planHandle,
+          planName: matchedPlan.name,
+          matchedPrice: price,
+          matchedInterval: interval,
+        });
+      } else {
+        // Try alternative interval matching (Shopify might use different values)
+        // For annual plans, Shopify might send "ANNUAL" or "YEAR" or "EVERY_365_DAYS"
+        const alternativeInterval = interval === "ANNUAL" ? "EVERY_365_DAYS" : 
+                                   interval === "EVERY_365_DAYS" ? "ANNUAL" : null;
+        
+        if (alternativeInterval) {
+          for (const plan of plans) {
+            const priceMatches = Math.abs(plan.price - price) < 0.01;
+            const intervalMatches = plan.interval === alternativeInterval || plan.interval === interval;
+            const currencyMatches = plan.currencyCode === currencyCode;
+            
+            if (priceMatches && intervalMatches && currencyMatches) {
+              planHandle = plan.handle;
+              matchedPlan = plan;
+              logger.info("[SUBSCRIPTION_STORAGE] Plan matched with alternative interval", {
+                shop: normalizedShop,
+                planHandle,
+                originalInterval: interval,
+                matchedInterval: plan.interval,
+              });
+              break;
+            }
+          }
+        }
+        
+        if (!matchedPlan) {
+          logger.warn("[SUBSCRIPTION_STORAGE] No plan match found", {
+            shop: normalizedShop,
+            price,
+            currencyCode,
+            interval,
+            availablePlans: plans.map(p => ({ handle: p.handle, price: p.price, interval: p.interval })),
+          });
         }
       }
     }
