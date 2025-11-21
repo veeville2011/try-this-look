@@ -6,7 +6,8 @@
 import { useShop } from "@/providers/AppBridgeProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, AlertCircle, Crown, Zap } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { CheckCircle2, Clock, Crown, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface SubscriptionStatus {
@@ -16,14 +17,24 @@ interface SubscriptionStatus {
     handle: string;
     name: string;
   };
+  setupProgress?: {
+    stepsCompleted: number;
+    totalSteps: number;
+    completed: boolean;
+  };
 }
 
 interface QuickStatusCardProps {
   currentPlan: string | null;
   onViewDetails?: () => void;
+  setupProgress?: {
+    stepsCompleted: number;
+    totalSteps: number;
+    completed: boolean;
+  };
 }
 
-const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) => {
+const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupProgress }: QuickStatusCardProps) => {
   const shop = useShop();
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,25 +70,16 @@ const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) =
   const getPlanBadge = () => {
     if (!currentPlan || currentPlan === "free") {
       return (
-        <Badge variant="outline" className="gap-1.5">
+        <Badge variant="outline" className="gap-1.5 whitespace-nowrap">
           <Zap className="w-3 h-3" />
           Free Plan
         </Badge>
       );
     }
 
-    if (currentPlan === "pro") {
-      return (
-        <Badge className="gap-1.5 bg-primary">
-          <Crown className="w-3 h-3" />
-          Pro Monthly
-        </Badge>
-      );
-    }
-
     if (currentPlan === "pro-annual") {
       return (
-        <Badge className="gap-1.5 bg-primary">
+        <Badge className="gap-1.5 bg-primary whitespace-nowrap">
           <Crown className="w-3 h-3" />
           Pro Annual
         </Badge>
@@ -88,8 +90,17 @@ const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) =
   };
 
   const getSetupStatus = () => {
-    // TODO: Implement actual setup status check
-    // For now, return a default status
+    // Use prop if provided, otherwise check subscriptionStatus, otherwise default
+    if (propSetupProgress) {
+      return propSetupProgress;
+    }
+    
+    if (subscriptionStatus?.setupProgress) {
+      return subscriptionStatus.setupProgress;
+    }
+    
+    // Default: calculate based on common setup steps
+    // This can be enhanced to check actual setup completion
     return {
       completed: false,
       stepsCompleted: 0,
@@ -112,27 +123,18 @@ const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) =
 
   const setupStatus = getSetupStatus();
 
+  const progressPercentage = Math.min(
+    (setupStatus.stepsCompleted / setupStatus.totalSteps) * 100,
+    100
+  );
+
   return (
     <Card className="border-2 border-border shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-4 sm:p-6">
         <div className="space-y-4">
-          {/* Subscription Status */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">
-                Subscription:
-              </span>
-              {getPlanBadge()}
-            </div>
-            {onViewDetails && (
-              <button
-                onClick={onViewDetails}
-                className="text-sm text-primary hover:underline"
-                aria-label="View subscription details"
-              >
-                View Details
-              </button>
-            )}
+          {/* Plan Name */}
+          <div className="flex items-center">
+            {getPlanBadge()}
           </div>
 
           {/* Setup Progress */}
@@ -145,16 +147,12 @@ const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) =
                 {setupStatus.stepsCompleted}/{setupStatus.totalSteps} steps
               </span>
             </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${(setupStatus.stepsCompleted / setupStatus.totalSteps) * 100}%`,
-                }}
-              />
-            </div>
+            <Progress 
+              value={progressPercentage} 
+              className="h-2"
+            />
             {setupStatus.completed ? (
-              <div className="flex items-center gap-2 text-sm text-success">
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Setup Complete!</span>
               </div>

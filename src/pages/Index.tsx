@@ -473,11 +473,6 @@ const Index = () => {
               <div className="w-full lg:w-80 flex-shrink-0">
                 <QuickStatusCard
                   currentPlan={currentPlan}
-                  onViewDetails={() => {
-                    document
-                      .getElementById("subscription-section")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                  }}
                 />
               </div>
             </div>

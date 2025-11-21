@@ -16,7 +16,6 @@
  */
 export const PLAN_HANDLES = {
   FREE: "free",
-  PRO: "pro",
   PRO_ANNUAL: "pro-annual",
 };
 
@@ -36,23 +35,6 @@ export const PLANS = {
     limits: {
       monthlyTryOns: 10,
       processingPriority: "standard",
-    },
-  },
-  [PLAN_HANDLES.PRO]: {
-    name: "Plan Pro (Mensuel)",
-    handle: PLAN_HANDLES.PRO,
-    price: 20.0,
-    currencyCode: "EUR",
-    interval: "EVERY_30_DAYS",
-    description: "Solution complète pour booster vos ventes",
-    features: [
-      "Essayages illimités",
-      "10 vidéos publicitaires/mois",
-      "Personnalisation complète du widget",
-    ],
-    limits: {
-      monthlyVideoGenerations: 10,
-      processingPriority: "priority",
     },
   },
   [PLAN_HANDLES.PRO_ANNUAL]: {

@@ -308,40 +308,6 @@ const SubscriptionManagement = ({
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
             {subscription.hasActiveSubscription && !subscription.isFree && (
               <>
-                {/* Change Plan Button */}
-                {subscription.plan.handle === "pro" && (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleChangePlan("pro-annual")}
-                    disabled={changingPlan}
-                  >
-                    {changingPlan ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      "Switch to Annual (Save 25%)"
-                    )}
-                  </Button>
-                )}
-                {subscription.plan.handle === "pro-annual" && (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleChangePlan("pro")}
-                    disabled={changingPlan}
-                  >
-                    {changingPlan ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      "Switch to Monthly"
-                    )}
-                  </Button>
-                )}
-
                 {/* Cancel Subscription */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
