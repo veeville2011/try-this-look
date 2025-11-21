@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,12 +45,16 @@ interface SubscriptionManagementProps {
   onSubscriptionUpdate?: () => void;
 }
 
-const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagementProps) => {
+const SubscriptionManagement = ({
+  onSubscriptionUpdate,
+}: SubscriptionManagementProps) => {
   // App Bridge hooks for embedded app
   const shop = useShop();
   const { token: sessionToken } = useSessionToken();
 
-  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
@@ -56,7 +66,8 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
   const fetchSubscription = async () => {
     try {
       // Get shop from App Bridge hook or URL params (fallback)
-      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
         setLoading(false);
         return;
@@ -68,12 +79,15 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
         headers["Authorization"] = `Bearer ${sessionToken}`;
       }
 
-      const response = await fetch(`/api/billing/subscription?shop=${shopDomain}`, {
-        headers,
-      });
+      const response = await fetch(
+        `/api/billing/subscription?shop=${shopDomain}`,
+        {
+          headers,
+        }
+      );
       const data = await response.json();
       setSubscription(data);
-      
+
       // Notify parent component of subscription update
       if (onSubscriptionUpdate) {
         onSubscriptionUpdate();
@@ -91,9 +105,10 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
   const handleCancel = async (prorate: boolean = false) => {
     try {
       setCancelling(true);
-      
+
       // Get shop from App Bridge hook or URL params (fallback)
-      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
         toast.error("Shop parameter is required");
         return;
@@ -140,9 +155,10 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
   const handleChangePlan = async (newPlanHandle: string) => {
     try {
       setChangingPlan(true);
-      
+
       // Get shop from App Bridge hook or URL params (fallback)
-      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
         toast.error("Shop parameter is required");
         return;
@@ -158,6 +174,7 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
         method: "POST",
         headers,
         body: JSON.stringify({
+          shop: shopDomain,
           planHandle: newPlanHandle,
           returnUrl: window.location.href,
         }),
@@ -193,7 +210,9 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
     return (
       <Card>
         <CardContent className="p-6">
-          <p className="text-muted-foreground">Unable to load subscription information</p>
+          <p className="text-muted-foreground">
+            Unable to load subscription information
+          </p>
         </CardContent>
       </Card>
     );
@@ -209,7 +228,13 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    const statusMap: Record<
+      string,
+      {
+        label: string;
+        variant: "default" | "secondary" | "destructive" | "outline";
+      }
+    > = {
       ACTIVE: { label: "Active", variant: "default" },
       PENDING: { label: "Pending", variant: "secondary" },
       DECLINED: { label: "Declined", variant: "destructive" },
@@ -218,10 +243,11 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
       FROZEN: { label: "Frozen", variant: "secondary" },
     };
 
-    const statusInfo = statusMap[status] || { label: status, variant: "outline" };
-    return (
-      <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-    );
+    const statusInfo = statusMap[status] || {
+      label: status,
+      variant: "outline",
+    };
+    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
   return (
@@ -229,19 +255,24 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
       <Card>
         <CardHeader>
           <CardTitle>Current Subscription</CardTitle>
-          <CardDescription>Manage your subscription and billing</CardDescription>
+          <CardDescription>
+            Manage your subscription and billing
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Current Plan Info */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">{subscription.plan.name}</h3>
+                <h3 className="text-lg font-semibold">
+                  {subscription.plan.name}
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   {subscription.plan.description}
                 </p>
               </div>
-              {subscription.subscription && getStatusBadge(subscription.subscription.status)}
+              {subscription.subscription &&
+                getStatusBadge(subscription.subscription.status)}
             </div>
 
             {subscription.subscription && (
@@ -260,9 +291,18 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
                   <div>
                     <p className="text-sm font-medium">Price</p>
                     <p className="text-sm text-muted-foreground">
-                      {subscription.plan.interval === "ANNUAL" && (subscription.plan as any).monthlyEquivalent
-                        ? `${(subscription.plan as any).monthlyEquivalent} €/mois`
-                        : `${subscription.plan.price} €${subscription.plan.interval === "EVERY_30_DAYS" ? "/mois" : subscription.plan.interval === "ANNUAL" ? "/an" : ""}`}
+                      {subscription.plan.interval === "ANNUAL" &&
+                      (subscription.plan as any).monthlyEquivalent
+                        ? `${
+                            (subscription.plan as any).monthlyEquivalent
+                          } €/mois`
+                        : `${subscription.plan.price} €${
+                            subscription.plan.interval === "EVERY_30_DAYS"
+                              ? "/mois"
+                              : subscription.plan.interval === "ANNUAL"
+                              ? "/an"
+                              : ""
+                          }`}
                       {subscription.plan.interval === "ANNUAL" && (
                         <span className="block text-xs text-muted-foreground mt-1">
                           (Facturé {subscription.plan.price} €/an)
@@ -275,19 +315,23 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
             )}
 
             {/* Features */}
-            {subscription.plan.features && subscription.plan.features.length > 0 && (
-              <div className="pt-4 border-t">
-                <h4 className="text-sm font-semibold mb-2">Plan Features</h4>
-                <ul className="space-y-2">
-                  {subscription.plan.features.map((feature, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <span className="text-success">✓</span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {subscription.plan.features &&
+              subscription.plan.features.length > 0 && (
+                <div className="pt-4 border-t">
+                  <h4 className="text-sm font-semibold mb-2">Plan Features</h4>
+                  <ul className="space-y-2">
+                    {subscription.plan.features.map((feature, index) => (
+                      <li
+                        key={index}
+                        className="text-sm text-muted-foreground flex items-start gap-2"
+                      >
+                        <span className="text-success">✓</span>
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
           </div>
 
           {/* Actions */}
@@ -340,7 +384,9 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to cancel your subscription? You will lose access to Pro features at the end of your billing period.
+                        Are you sure you want to cancel your subscription? You
+                        will lose access to Pro features at the end of your
+                        billing period.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -367,7 +413,11 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
 
             {subscription.isFree && (
               <Button
-                onClick={() => (window.location.href = "/?shop=" + new URLSearchParams(window.location.search).get("shop"))}
+                onClick={() =>
+                  (window.location.href =
+                    "/?shop=" +
+                    new URLSearchParams(window.location.search).get("shop"))
+                }
               >
                 Upgrade to Pro
               </Button>
@@ -380,4 +430,3 @@ const SubscriptionManagement = ({ onSubscriptionUpdate }: SubscriptionManagement
 };
 
 export default SubscriptionManagement;
-

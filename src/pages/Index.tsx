@@ -381,6 +381,7 @@ const Index = () => {
       }
 
       const requestBody = {
+        shop: shopDomain,
         planHandle,
         returnUrl: window.location.href,
       };
