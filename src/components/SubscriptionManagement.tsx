@@ -45,9 +45,9 @@ const SubscriptionManagement = ({
       if (onSubscriptionUpdate) {
         onSubscriptionUpdate();
       }
-      toast.success("Subscription status updated");
+      toast.success("Statut de l'abonnement mis à jour");
     } catch (error) {
-      toast.error("Failed to refresh subscription status");
+      toast.error("Échec de la mise à jour du statut de l'abonnement");
     } finally {
       setRefreshing(false);
     }
@@ -61,7 +61,7 @@ const SubscriptionManagement = ({
       const shopDomain =
         shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
-        toast.error("Shop parameter is required");
+        toast.error("Le paramètre shop est requis");
         setCancelling(false);
         return;
       }
@@ -80,7 +80,7 @@ const SubscriptionManagement = ({
       console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
         error: error instanceof Error ? error.message : String(error),
       });
-      toast.error("Failed to redirect to plan selection. Please try again.");
+      toast.error("Échec de la redirection vers la sélection de plan. Veuillez réessayer.");
     } finally {
       setCancelling(false);
     }
@@ -94,7 +94,7 @@ const SubscriptionManagement = ({
       const shopDomain =
         shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
-        toast.error("Shop parameter is required");
+        toast.error("Le paramètre shop est requis");
         setChangingPlan(false);
         return;
       }
@@ -112,7 +112,7 @@ const SubscriptionManagement = ({
       console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
         error: error instanceof Error ? error.message : String(error),
       });
-      toast.error("Failed to redirect to plan selection. Please try again.");
+      toast.error("Échec de la redirection vers la sélection de plan. Veuillez réessayer.");
     } finally {
       setChangingPlan(false);
     }
@@ -131,7 +131,7 @@ const SubscriptionManagement = ({
       <Card>
         <CardContent className="p-6">
           <p className="text-muted-foreground">
-            Unable to load subscription information
+            Impossible de charger les informations d'abonnement
           </p>
         </CardContent>
       </Card>
@@ -155,12 +155,12 @@ const SubscriptionManagement = ({
         variant: "default" | "secondary" | "destructive" | "outline";
       }
     > = {
-      ACTIVE: { label: "Active", variant: "default" },
-      PENDING: { label: "Pending", variant: "secondary" },
-      DECLINED: { label: "Declined", variant: "destructive" },
-      CANCELLED: { label: "Cancelled", variant: "outline" },
-      EXPIRED: { label: "Expired", variant: "destructive" },
-      FROZEN: { label: "Frozen", variant: "secondary" },
+      ACTIVE: { label: "Actif", variant: "default" },
+      PENDING: { label: "En attente", variant: "secondary" },
+      DECLINED: { label: "Refusé", variant: "destructive" },
+      CANCELLED: { label: "Annulé", variant: "outline" },
+      EXPIRED: { label: "Expiré", variant: "destructive" },
+      FROZEN: { label: "Gelé", variant: "secondary" },
     };
 
     const statusInfo = statusMap[status] || {
@@ -176,9 +176,9 @@ const SubscriptionManagement = ({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Current Subscription</CardTitle>
+              <CardTitle>Abonnement actuel</CardTitle>
               <CardDescription>
-                Manage your subscription and billing
+                Gérez votre abonnement et la facturation
               </CardDescription>
             </div>
             <Button
@@ -186,12 +186,12 @@ const SubscriptionManagement = ({
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing || loading}
-              aria-label="Refresh subscription status"
+              aria-label="Actualiser le statut de l'abonnement"
             >
               <RefreshCw
                 className={`w-4 h-4 mr-2 ${refreshing || loading ? "animate-spin" : ""}`}
               />
-              Refresh
+              Actualiser
             </Button>
           </div>
         </CardHeader>
@@ -216,7 +216,7 @@ const SubscriptionManagement = ({
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Next Billing Date</p>
+                    <p className="text-sm font-medium">Prochaine date de facturation</p>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(subscription.subscription.currentPeriodEnd)}
                     </p>
@@ -225,7 +225,7 @@ const SubscriptionManagement = ({
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Price</p>
+                    <p className="text-sm font-medium">Prix</p>
                     <p className="text-sm text-muted-foreground">
                       {subscription.plan.interval === "ANNUAL" &&
                       (subscription.plan as any).monthlyEquivalent
@@ -254,7 +254,7 @@ const SubscriptionManagement = ({
             {subscription.plan.features &&
               subscription.plan.features.length > 0 && (
                 <div className="pt-4 border-t">
-                  <h4 className="text-sm font-semibold mb-2">Plan Features</h4>
+                  <h4 className="text-sm font-semibold mb-2">Fonctionnalités du plan</h4>
                   <ul className="space-y-2">
                     {subscription.plan.features.map((feature, index) => (
                       <li
@@ -279,19 +279,19 @@ const SubscriptionManagement = ({
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" disabled={cancelling}>
                       <X className="w-4 h-4 mr-2" />
-                      Cancel Subscription
+                      Annuler l'abonnement
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
+                      <AlertDialogTitle>Annuler l'abonnement</AlertDialogTitle>
                       <AlertDialogDescription>
-                        You will be redirected to Shopify's admin to cancel your subscription.
-                        You will lose access to Pro features at the end of your billing period.
+                        Vous serez redirigé vers l'administration Shopify pour annuler votre abonnement.
+                        Vous perdrez l'accès aux fonctionnalités Pro à la fin de votre période de facturation.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                      <AlertDialogCancel>Conserver l'abonnement</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleCancel}
                         className="bg-destructive text-destructive-foreground"
@@ -300,10 +300,10 @@ const SubscriptionManagement = ({
                         {cancelling ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Redirecting...
+                            Redirection en cours...
                           </>
                         ) : (
-                          "Cancel Subscription"
+                          "Annuler l'abonnement"
                         )}
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -320,7 +320,7 @@ const SubscriptionManagement = ({
                     new URLSearchParams(window.location.search).get("shop"))
                 }
               >
-                Upgrade to Pro
+                Passer à Pro
               </Button>
             )}
           </div>

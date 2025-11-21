@@ -39,7 +39,7 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
 
     if (!shopDomain) {
       console.warn("[ShopifyManagedPricing] No shop domain found");
-      setError("Shop parameter is required to load pricing");
+      setError("Le paramètre shop est requis pour charger les tarifs");
       setLoading(false);
       return;
     }
@@ -52,7 +52,7 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
       setLoading(false);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to load pricing";
+        err instanceof Error ? err.message : "Échec du chargement des tarifs";
       console.error("[ShopifyManagedPricing] Error generating URL:", err);
       setError(errorMessage);
       setLoading(false);
@@ -84,7 +84,7 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
     return (
       <div className={`flex flex-col items-center justify-center py-16 ${className}`}>
         <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading pricing plans...</p>
+        <p className="text-muted-foreground">Chargement des plans tarifaires...</p>
       </div>
     );
   }
@@ -96,7 +96,7 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
           <div className="flex items-center gap-3 text-destructive">
             <AlertCircle className="w-5 h-5" />
             <div>
-              <p className="font-semibold">Failed to load pricing</p>
+              <p className="font-semibold">Échec du chargement des tarifs</p>
               <p className="text-sm text-muted-foreground">{error}</p>
             </div>
           </div>
@@ -119,10 +119,10 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
     <div className={`w-full ${className}`}>
       <div className="mb-6 text-center">
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
-          Choose Your Plan
+          Choisissez votre plan
         </h2>
         <p className="text-lg sm:text-xl text-muted-foreground">
-          Select the perfect plan for your store
+          Sélectionnez le plan parfait pour votre boutique
         </p>
       </div>
 
@@ -134,12 +134,12 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
                 <ExternalLink className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Shopify Managed Pricing
+                Tarification gérée par Shopify
               </h3>
               <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-                Access Shopify's secure, native pricing interface to view and
-                select your plan. All billing is handled securely by Shopify's
-                trusted payment system.
+                Accédez à l'interface de tarification sécurisée et native de Shopify pour voir et
+                sélectionner votre plan. Toute la facturation est gérée en toute sécurité par le
+                système de paiement de confiance de Shopify.
               </p>
             </div>
 
@@ -154,14 +154,14 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
                     redirectToPlanSelection(shopDomain);
                   } else {
                     console.error("[ShopifyManagedPricing] No shop domain available");
-                    setError("Shop parameter is required");
+                    setError("Le paramètre shop est requis");
                   }
                 }}
                 className="px-8 py-6 text-lg font-semibold"
                 disabled={!shopDomain}
               >
                 <ExternalLink className="w-5 h-5 mr-2" />
-                View Pricing Plans
+                Voir les plans tarifaires
               </Button>
             </div>
 
@@ -169,15 +169,15 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span>Secure billing by Shopify</span>
+                  <span>Facturation sécurisée par Shopify</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span>Native Shopify interface</span>
+                  <span>Interface native Shopify</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span>Trusted payment processing</span>
+                  <span>Traitement de paiement de confiance</span>
                 </div>
               </div>
             </div>

@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
+import { useShop } from "@/providers/AppBridgeProvider";
+
+// Free plan configuration (matches server billing.js)
+const FREE_PLAN = {
+  handle: "free",
+  name: "Plan Gratuit",
+  price: 0,
+  currencyCode: "EUR",
+  interval: "EVERY_30_DAYS",
+  features: ["Essayage virtuel par IA", "Widget intégré facilement"],
+};
 
 interface SubscriptionStatus {
   hasActiveSubscription: boolean;
@@ -31,23 +41,22 @@ interface UseSubscriptionReturn {
   refresh: () => Promise<void>;
 }
 
+const STORAGE_KEY_PREFIX = "nusense_subscription_";
+
 /**
  * Custom hook to manage subscription status
- * Fetches subscription data from the server and provides refresh functionality
- * Updates automatically on window focus and visibility changes (no polling)
+ * Reads from localStorage cache (populated by webhooks via server)
+ * No API calls - uses cache only, defaults to free plan if cache is empty
  */
 export const useSubscription = (): UseSubscriptionReturn => {
   const shop = useShop();
-  const { token: sessionToken } = useSessionToken();
 
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSubscription = useCallback(async () => {
+  const loadFromCache = useCallback(() => {
     try {
-      setError(null);
-
       // Get shop from App Bridge hook or URL params (fallback)
       const shopDomain =
         shop || new URLSearchParams(window.location.search).get("shop");
@@ -57,66 +66,87 @@ export const useSubscription = (): UseSubscriptionReturn => {
         return;
       }
 
-      // Prepare headers with session token if available
-      const headers: HeadersInit = {};
-      if (sessionToken) {
-        headers["Authorization"] = `Bearer ${sessionToken}`;
+      // Normalize shop domain
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
+
+      // Read from localStorage cache
+      const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+      const cachedData = localStorage.getItem(storageKey);
+
+      if (cachedData) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          setSubscription(parsed);
+          
+          if (import.meta.env.DEV) {
+            console.log("[useSubscription] Loaded from cache", {
+              shop: normalizedShop,
+              planHandle: parsed.plan?.handle,
+            });
+          }
+        } catch (parseError) {
+          console.error("[useSubscription] Failed to parse cached data", parseError);
+          // Fall through to default free plan
+        }
+      } else {
+        // Cache miss - default to free plan
+        setSubscription({
+          hasActiveSubscription: false,
+          isFree: true,
+          plan: FREE_PLAN,
+          subscription: null,
+        });
+
+        if (import.meta.env.DEV) {
+          console.log("[useSubscription] Cache miss - using default free plan", {
+            shop: normalizedShop,
+          });
+        }
       }
-
-      const response = await fetch(
-        `/api/billing/subscription?shop=${shopDomain}`,
-        { headers }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch subscription: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setSubscription(data);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load subscription information";
       setError(errorMessage);
       
       if (import.meta.env.DEV) {
-        console.error("[useSubscription] Failed to fetch subscription:", err);
+        console.error("[useSubscription] Failed to load from cache:", err);
       }
     } finally {
       setLoading(false);
     }
-  }, [shop, sessionToken]);
+  }, [shop]);
 
-  // Initial fetch on mount
+  // Initial load on mount
   useEffect(() => {
-    fetchSubscription();
-  }, [fetchSubscription]);
+    loadFromCache();
+  }, [loadFromCache]);
 
-  // Refresh on window focus (user returns to tab)
+  // Listen for storage events (when webhook updates cache via server)
   useEffect(() => {
-    const handleFocus = () => {
-      fetchSubscription();
-    };
+    const handleStorageChange = (e: StorageEvent) => {
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
+      
+      if (!shopDomain) return;
 
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchSubscription]);
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
 
-  // Refresh when tab becomes visible (handles switching between tabs)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchSubscription();
+      const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+      
+      if (e.key === storageKey) {
+        loadFromCache();
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [fetchSubscription]);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [shop, loadFromCache]);
 
   // Check for subscription update in URL parameters
-  // Shopify may redirect back with query params indicating subscription changes
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const subscriptionUpdated =
@@ -125,23 +155,23 @@ export const useSubscription = (): UseSubscriptionReturn => {
       urlParams.get("plan_changed") === "true";
 
     if (subscriptionUpdated) {
-      // Refresh subscription status
-      fetchSubscription();
+      // Reload from cache
+      loadFromCache();
 
-      // Clean up URL parameters after refreshing
+      // Clean up URL parameters
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("subscription_updated");
       newUrl.searchParams.delete("subscription_status");
       newUrl.searchParams.delete("plan_changed");
       window.history.replaceState({}, "", newUrl.toString());
     }
-  }, [fetchSubscription]);
+  }, [loadFromCache]);
 
   return {
     subscription,
     loading,
     error,
-    refresh: fetchSubscription,
+    refresh: loadFromCache,
   };
 };
 

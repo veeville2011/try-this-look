@@ -35,7 +35,6 @@ import {
 import { Button } from "@/components/ui/button";
 import SubscriptionManagement from "@/components/SubscriptionManagement";
 import ShopifyManagedPricing from "@/components/ShopifyManagedPricing";
-import QuickStatusCard from "@/components/QuickStatusCard";
 import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import {
@@ -259,9 +258,9 @@ const Index = () => {
       <header className="relative overflow-hidden bg-card border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20 relative">
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-              {/* Left: Hero Content */}
-              <div className="flex-1">
+            <div className="flex flex-col items-start gap-6">
+              {/* Hero Content */}
+              <div className="w-full">
                 <div className="flex flex-col items-start gap-4">
                   <div className="inline-flex flex-col items-start">
                     <h1
@@ -324,10 +323,6 @@ const Index = () => {
                   </div>
                 </div>
               </div>
-              {/* Right: Status Card */}
-              <div className="w-full lg:w-80 flex-shrink-0">
-                <QuickStatusCard currentPlan={currentPlan} />
-              </div>
             </div>
           </div>
         </div>
@@ -337,20 +332,20 @@ const Index = () => {
       <section className="py-8 sm:py-12 bg-background border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 md:px-8">
           <div className="max-w-6xl mx-auto">
-            <QuickActions
-              showInstall={!currentPlan || currentPlan === "free"}
-              showConfigure={currentPlan && currentPlan !== "free"}
-              onInstallClick={() => {
-                document
-                  .getElementById("installation-guide")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
-              onConfigureClick={() => {
-                document
-                  .getElementById("installation-guide")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
-            />
+          <QuickActions
+            showInstall={!currentPlan || currentPlan === "free"}
+            showConfigure={currentPlan && currentPlan !== "free"}
+            onInstallClick={() => {
+              document
+                .getElementById("installation-guide")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+            onConfigureClick={() => {
+              document
+                .getElementById("installation-guide")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
           </div>
         </div>
       </section>
@@ -362,7 +357,7 @@ const Index = () => {
       >
         <div className="container mx-auto px-4 sm:px-6 md:px-8">
           <div className="max-w-6xl mx-auto">
-            <div className="space-y-8 sm:space-y-10 md:space-y-12">
+          <div className="space-y-8 sm:space-y-10 md:space-y-12">
             {/* Installation Steps */}
             <Card className="p-6 sm:p-8 md:p-10 lg:p-12 border-2 border-border bg-card shadow-lg">
               <CardHeader className="p-0 mb-8 sm:mb-10">
@@ -777,7 +772,7 @@ const Index = () => {
       <section className="py-12 sm:py-16 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 md:px-8">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-8">
+          <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-foreground">
               Pourquoi choisir NusenseTryOn?
             </h2>
@@ -792,25 +787,25 @@ const Index = () => {
 
       {/* Subscription Management Section */}
       {currentPlan && currentPlan !== "free" && (
-        <section
-          id="subscription-section"
-          className="py-12 sm:py-16 bg-background border-b border-border"
-        >
+      <section
+        id="subscription-section"
+        className="py-12 sm:py-16 bg-background border-b border-border"
+      >
           <div className="container mx-auto px-4 sm:px-6 md:px-8">
             <div className="max-w-6xl mx-auto">
-              <SubscriptionManagement
-                onSubscriptionUpdate={refreshSubscription}
-              />
-            </div>
-          </div>
-        </section>
+            <SubscriptionManagement
+              onSubscriptionUpdate={refreshSubscription}
+            />
+                </div>
+        </div>
+      </section>
       )}
 
       {/* Shopify Managed Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
         <div className="container mx-auto px-4 sm:px-6 md:px-8">
           <div className="max-w-6xl mx-auto">
-            <ShopifyManagedPricing />
+          <ShopifyManagedPricing />
           </div>
         </div>
       </section>

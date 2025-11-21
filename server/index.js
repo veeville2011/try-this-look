@@ -798,11 +798,11 @@ app.post(
         );
 
         if (subscriptionData) {
-          logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
-            shop,
-            subscriptionId: app_subscription?.id,
-            status: app_subscription?.status,
-            planHandle: subscriptionData?.plan?.handle,
+        logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
+          shop,
+          subscriptionId: app_subscription?.id,
+          status: app_subscription?.status,
+          planHandle: subscriptionData?.plan?.handle,
             planName: subscriptionData?.plan?.name,
             hasActiveSubscription: subscriptionData?.hasActiveSubscription,
             isFree: subscriptionData?.isFree,
@@ -811,7 +811,7 @@ app.post(
           logger.warn("[WEBHOOK] app/subscriptions/update - failed to process subscription data", {
             shop,
             subscriptionId: app_subscription?.id,
-          });
+        });
         }
       } else {
         // If subscription is null/undefined, it might be cancelled
@@ -1005,6 +1005,9 @@ app.get("/api/billing/subscription", async (req, res) => {
       // Subscription data is populated by app/subscriptions/update webhook
       subscriptionStatus = subscriptionStorage.getSubscriptionStatus(shopDomain);
 
+      // Log cache status for debugging
+      const cacheStats = subscriptionStorage.getCacheStats();
+
       logger.info(
         "[BILLING] [GET_SUBSCRIPTION] Subscription status retrieved",
         {
@@ -1012,10 +1015,26 @@ app.get("/api/billing/subscription", async (req, res) => {
           shop: shopDomain,
           hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
           planHandle: subscriptionStatus.plan?.handle,
+          planName: subscriptionStatus.plan?.name,
           isFree: subscriptionStatus.isFree,
           cacheMiss: subscriptionStatus.cacheMiss || false,
+          cacheSize: cacheStats.size,
+          cachedShops: cacheStats.keys,
         }
       );
+      
+      // If cache miss, log warning to help debug
+      if (subscriptionStatus.cacheMiss) {
+        logger.warn(
+          "[BILLING] [GET_SUBSCRIPTION] Cache miss - webhook may not have fired yet",
+          {
+            requestId,
+            shop: shopDomain,
+            note: "Subscription data will be available after app/subscriptions/update webhook is received from Shopify",
+            suggestion: "Check Shopify Partners Dashboard to ensure webhook is configured and firing",
+        }
+      );
+      }
     } catch (checkError) {
       logger.error(
         "[BILLING] [GET_SUBSCRIPTION] Subscription check failed",

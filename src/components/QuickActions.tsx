@@ -43,12 +43,12 @@ const QuickActions = ({
         >
           <Settings className="w-6 h-6" />
           <span className="font-semibold">
-            {showConfigure ? "Configure Widget" : "Install Widget"}
+            {showConfigure ? "Configurer le widget" : "Installer le widget"}
           </span>
           <span className="text-xs opacity-90 font-normal">
             {showConfigure
-              ? "Customize your try-on widget"
-              : "Get started in minutes"}
+              ? "Personnalisez votre widget d'essayage"
+              : "Démarrez en quelques minutes"}
           </span>
         </Button>
       )}
@@ -61,9 +61,9 @@ const QuickActions = ({
         className="h-auto py-6 flex flex-col items-center justify-center gap-2 border-2"
       >
         <CreditCard className="w-6 h-6" />
-        <span className="font-semibold">View Pricing Plans</span>
+        <span className="font-semibold">Voir les tarifs</span>
         <span className="text-xs opacity-90 font-normal">
-          Choose your plan
+          Choisissez votre plan
         </span>
       </Button>
     </div>

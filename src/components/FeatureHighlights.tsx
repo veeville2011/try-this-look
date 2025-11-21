@@ -15,23 +15,23 @@ interface Feature {
 const features: Feature[] = [
   {
     icon: <Sparkles className="w-8 h-8 text-primary" />,
-    title: "AI-Powered Virtual Try-On",
-    description: "Advanced AI technology for realistic virtual try-on experiences",
+    title: "Essayage virtuel alimenté par IA",
+    description: "Technologie IA avancée pour des expériences d'essayage virtuel réalistes",
   },
   {
     icon: <Zap className="w-8 h-8 text-primary" />,
-    title: "Easy Integration",
-    description: "Install in minutes with our simple setup process",
+    title: "Intégration facile",
+    description: "Installez en quelques minutes avec notre processus de configuration simple",
   },
   {
     icon: <TrendingUp className="w-8 h-8 text-primary" />,
-    title: "Boost Sales",
-    description: "Increase conversions by helping customers visualize products",
+    title: "Augmentez les ventes",
+    description: "Augmentez les conversions en aidant les clients à visualiser les produits",
   },
   {
     icon: <Smartphone className="w-8 h-8 text-primary" />,
-    title: "Mobile-Friendly",
-    description: "Works seamlessly on all devices and screen sizes",
+    title: "Compatible mobile",
+    description: "Fonctionne parfaitement sur tous les appareils et tailles d'écran",
   },
 ];
 
