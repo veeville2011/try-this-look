@@ -873,6 +873,8 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
 
 // Billing API Routes
 // Get current subscription status
+// This endpoint works with both GraphQL Billing API and Managed App Pricing
+// It queries the currentAppInstallation to get subscription status
 app.get("/api/billing/subscription", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random()
     .toString(36)
@@ -1028,348 +1030,19 @@ app.get("/api/billing/subscription", async (req, res) => {
   }
 });
 
-// Create subscription
+// Create subscription - DEPRECATED: Using Managed App Pricing
+// This endpoint is no longer used. The app now redirects to Shopify's plan selection page.
 app.post("/api/billing/subscribe", async (req, res) => {
-  const startTime = Date.now();
-  const requestId = `req-${Date.now()}-${Math.random()
-    .toString(36)
-    .substr(2, 9)}`;
-  const apiTimer = logger.createTimer(`[API] [SUBSCRIBE] Total Request Time`);
-
-  try {
-    logger.info("[API] [SUBSCRIBE] ===== REQUEST START =====", {
-      requestId,
-      method: req.method,
-      path: req.path,
-      url: req.url,
-      ip: req.ip || req.connection?.remoteAddress,
-      userAgent: req.get("user-agent"),
-      timestamp: new Date().toISOString(),
-      headers: {
-        authorization: req.get("authorization") ? "present" : "missing",
-        contentType: req.get("content-type"),
-        accept: req.get("accept"),
-      },
-    });
-
-    const bodyParseTimer = logger.createTimer(`[API] [SUBSCRIBE] Body Parsing`);
-    const { planHandle, returnUrl, trialDays } = req.body;
-    bodyParseTimer.log("Request body parsed", {
-      requestId,
-      planHandle: planHandle || "missing",
-      returnUrl: returnUrl || "not provided",
-      trialDays: trialDays || 0,
-      hasBody: !!req.body,
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-    });
-
-    if (!planHandle) {
-      logger.warn("[API] [SUBSCRIBE] Missing planHandle parameter", {
-        requestId,
-        body: req.body,
-      });
-      return res.status(400).json({
-        error: "Missing required parameters",
-        message: "planHandle is required",
-      });
-    }
-
-    // Get shop from authenticated session (more secure than request body)
-    let shopDomain = req.shop || req.session?.shop;
-
-    logger.info("[API] [SUBSCRIBE] Shop domain extraction - step 1", {
-      requestId,
-      shopFromReq: req.shop || "not available",
-      shopFromSession: req.session?.shop || "not available",
-      shopFromQuery: req.query.shop || "not available",
-      shopFromBody: req.body.shop || "not available",
-    });
-
-    // Fallback: try to get from query params or request body (for backward compatibility)
-    if (!shopDomain) {
-      const shopParam = req.query.shop || req.body.shop;
-      if (shopParam) {
-        shopDomain = shopParam.includes(".myshopify.com")
-          ? shopParam
-          : `${shopParam}.myshopify.com`;
-        logger.info("[API] [SUBSCRIBE] Shop domain extracted from fallback", {
-          requestId,
-          shopParam,
-          normalizedShopDomain: shopDomain,
-        });
-      }
-    }
-
-    if (!shopDomain) {
-      logger.error("[API] [SUBSCRIBE] Shop domain not found", {
-        requestId,
-        reqShop: req.shop,
-        reqSessionShop: req.session?.shop,
-        queryShop: req.query.shop,
-        bodyShop: req.body.shop,
-        headers: {
-          authorization: req.get("authorization") ? "present" : "missing",
-        },
-      });
-      return res.status(401).json({
-        error: "Unauthorized",
-        message:
-          "Shop information not found. Please ensure you're authenticated.",
-      });
-    }
-
-    // Normalize shop domain
-    const originalShopDomain = shopDomain;
-    shopDomain = shopDomain.includes(".myshopify.com")
-      ? shopDomain
-      : `${shopDomain}.myshopify.com`;
-
-    logger.info("[API] [SUBSCRIBE] Shop domain normalized", {
-      requestId,
-      originalShopDomain,
-      normalizedShopDomain: shopDomain,
-    });
-
-    // Get session for the shop
-    const sessionIdTimer = logger.createTimer(
-      `[API] [SUBSCRIBE] Session ID Generation`
-    );
-    const sessionId = shopify.session.getOfflineId(shopDomain);
-    sessionIdTimer.log("Session ID generated", {
-      requestId,
-      shopDomain,
-      sessionId,
-    });
-
-    const sessionRetrieveTimer = logger.createTimer(
-      `[API] [SUBSCRIBE] Session Retrieval`
-    );
-    logger.info("[API] [SUBSCRIBE] Attempting to retrieve session", {
-      requestId,
-      sessionId,
-      shopDomain,
-    });
-
-    // Add timeout for session retrieval (5 seconds max)
-    const sessionTimeoutMs = 5000;
-    let sessionTimeoutId = null;
-    const sessionTimeoutPromise = new Promise((_, reject) => {
-      sessionTimeoutId = setTimeout(() => {
-        logger.error("[API] [SUBSCRIBE] Session retrieval timeout", null, req, {
-          requestId,
-          sessionId,
-          shopDomain,
-          timeoutMs: sessionTimeoutMs,
-        });
-        reject(new Error("Session retrieval timed out after 5 seconds"));
-      }, sessionTimeoutMs);
-    });
-
-    let session;
-    try {
-      const sessionPromise = shopify.session.getSessionById(sessionId);
-      session = await Promise.race([sessionPromise, sessionTimeoutPromise]);
-
-      // Clear timeout if successful
-      if (sessionTimeoutId) {
-        clearTimeout(sessionTimeoutId);
-        sessionTimeoutId = null;
-      }
-
-      const sessionRetrieveDuration = sessionRetrieveTimer.elapsed();
-
-      logger.info("[API] [SUBSCRIBE] Session retrieved", {
-        requestId,
-        sessionId,
-        hasSession: !!session,
-        sessionShop: session?.shop || "N/A",
-        sessionId: session?.id || "N/A",
-        hasAccessToken: !!session?.accessToken,
-        accessTokenLength: session?.accessToken?.length || 0,
-        duration: `${sessionRetrieveDuration}ms`,
-      });
-    } catch (sessionError) {
-      // Clear timeout if error occurred
-      if (sessionTimeoutId) {
-        clearTimeout(sessionTimeoutId);
-        sessionTimeoutId = null;
-      }
-
-      const sessionRetrieveDuration = sessionRetrieveTimer.elapsed();
-      logger.error(
-        "[API] [SUBSCRIBE] Session retrieval failed",
-        sessionError,
-        req,
-        {
-          requestId,
-          sessionId,
-          shopDomain,
-          duration: `${sessionRetrieveDuration}ms`,
-          isTimeout:
-            sessionError.message?.includes("timeout") ||
-            sessionError.message?.includes("timed out"),
-          errorCode: sessionError.code,
-        }
-      );
-      throw sessionError;
-    }
-
-    if (!session) {
-      logger.error("[API] [SUBSCRIBE] Session not found", {
-        requestId,
-        shopDomain,
-        sessionId,
-      });
-      return res.status(401).json({
-        error: "Session not found",
-        message: "Please install the app first",
-      });
-    }
-
-    // Default return URL if not provided
-    const defaultReturnUrl = `${
-      process.env.VITE_SHOPIFY_APP_URL || appUrl
-    }/auth/callback?shop=${shopDomain}`;
-    const finalReturnUrl = returnUrl || defaultReturnUrl;
-
-    logger.info("[API] [SUBSCRIBE] Return URL determined", {
-      requestId,
-      providedReturnUrl: returnUrl || "not provided",
-      defaultReturnUrl,
-      finalReturnUrl,
-    });
-
-    logger.info("[API] [SUBSCRIBE] Calling billing.createSubscription", {
-      requestId,
-      shopDomain,
-      planHandle,
-      finalReturnUrl,
-      trialDays: trialDays || 0,
-      replacementBehavior: "STANDARD",
-      sessionId: session.id || "N/A",
-    });
-
-    const billingTimer = logger.createTimer(
-      `[API] [SUBSCRIBE] Billing.createSubscription`
-    );
-    let result;
-
-    try {
-      result = await billing.createSubscription(
-        shopify,
-        session,
-        planHandle,
-        finalReturnUrl,
-        trialDays || 0,
-        "STANDARD" // Default replacement behavior
-      );
-
-      const billingDuration = billingTimer.elapsed();
-      billingTimer.log("Billing subscription created", {
-        requestId,
-        shop: shopDomain,
-        planHandle,
-        isFree: result.isFree,
-        hasConfirmationUrl: !!result.confirmationUrl,
-        hasSubscription: !!result.subscription,
-        subscriptionId: result.subscription?.id || "N/A",
-        subscriptionStatus: result.subscription?.status || "N/A",
-      });
-
-      const totalDuration = apiTimer.elapsed();
-      logger.info("[API] [SUBSCRIBE] ===== REQUEST SUCCESS =====", {
-        requestId,
-        shop: shopDomain,
-        planHandle,
-        isFree: result.isFree,
-        hasConfirmationUrl: !!result.confirmationUrl,
-        totalDuration: `${totalDuration}ms`,
-        breakdown: {
-          bodyParsing: bodyParseTimer.elapsedMs(),
-          shopExtraction: "N/A", // Could add timer if needed
-          sessionIdGeneration: sessionIdTimer.elapsedMs(),
-          sessionRetrieval: sessionRetrieveTimer.elapsedMs(),
-          billingCreation: billingDuration,
-          total: totalDuration,
-        },
-      });
-
-      res.json(result);
-    } catch (billingError) {
-      const billingDuration = billingTimer.elapsed();
-      logger.error(
-        "[API] [SUBSCRIBE] billing.createSubscription failed",
-        billingError,
-        req,
-        {
-          requestId,
-          shop: shopDomain,
-          planHandle,
-          duration: `${billingDuration}ms`,
-          isTimeout:
-            billingError.message?.includes("timeout") ||
-            billingError.message?.includes("timed out"),
-        }
-      );
-      throw billingError;
-    }
-  } catch (error) {
-    const totalDuration = apiTimer.elapsed();
-
-    // Handle timeout errors specifically
-    const isTimeout =
-      error.message?.includes("timeout") ||
-      error.message?.includes("timed out") ||
-      error.code === "ETIMEDOUT" ||
-      error.code === "ECONNRESET";
-
-    logger.error("[API] [SUBSCRIBE] ===== REQUEST FAILED =====", {
-      requestId,
-      error: error.message,
-      errorType: error.constructor.name,
-      errorCode: error.code,
-      errorStack: error.stack?.substring(0, 1000), // Truncate stack trace
-      totalDuration: `${totalDuration}ms`,
-      shop: req.shop || req.query.shop || req.body?.shop || "unknown",
-      isTimeout,
-      errorDetails: {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        cause: error.cause,
-      },
-    });
-
-    // Log additional context if available
-    if (error.response) {
-      logger.error("[API] [SUBSCRIBE] Error response details", {
-        requestId,
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data,
-      });
-    }
-
-    const statusCode = isTimeout ? 504 : 500;
-    const errorMessage = isTimeout
-      ? "The subscription request timed out. Please try again. If this persists, check your Shopify connection."
-      : error.message || "Failed to create subscription";
-
-    if (!res.headersSent) {
-      res.status(statusCode).json({
-        error: isTimeout ? "Gateway Timeout" : "Failed to create subscription",
-        message: errorMessage,
-        requestId, // Include requestId for debugging
-      });
-    } else {
-      logger.warn(
-        "[API] [SUBSCRIBE] Response already sent, cannot send error response",
-        {
-          requestId,
-        }
-      );
-    }
-  }
+  logger.warn("[API] [SUBSCRIBE] Deprecated endpoint called - using Managed App Pricing", {
+    shop: req.body?.shop || req.query?.shop,
+    planHandle: req.body?.planHandle,
+  });
+  
+  return res.status(410).json({
+    error: "Deprecated",
+    message: "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin.",
+    managedPricing: true,
+  });
 });
 
 // Get available plans
@@ -1427,53 +1100,19 @@ app.post("/api/billing/cancel", async (req, res) => {
   }
 });
 
-// Change plan
+// Change plan - DEPRECATED: Using Managed App Pricing
+// This endpoint is no longer used. The app now redirects to Shopify's plan selection page.
 app.post("/api/billing/change-plan", async (req, res) => {
-  try {
-    const { shop, planHandle, returnUrl, replacementBehavior } = req.body;
-
-    if (!shop || !planHandle) {
-      return res.status(400).json({
-        error: "Missing required parameters",
-        message: "shop and planHandle are required",
-      });
-    }
-
-    const shopDomain = shop.includes(".myshopify.com")
-      ? shop
-      : `${shop}.myshopify.com`;
-
-    const sessionId = shopify.session.getOfflineId(shopDomain);
-    const session = await shopify.session.getSessionById(sessionId);
-
-    if (!session) {
-      return res.status(401).json({
-        error: "Session not found",
-        message: "Please install the app first",
-      });
-    }
-
-    const defaultReturnUrl = `${
-      process.env.VITE_SHOPIFY_APP_URL || appUrl
-    }/auth/callback?shop=${shopDomain}`;
-    const finalReturnUrl = returnUrl || defaultReturnUrl;
-
-    const result = await billing.changePlan(
-      shopify,
-      session,
-      planHandle,
-      finalReturnUrl,
-      replacementBehavior || "STANDARD"
-    );
-
-    res.json(result);
-  } catch (error) {
-    logger.error("[BILLING] Failed to change plan", error, req);
-    res.status(500).json({
-      error: "Failed to change plan",
-      message: error.message,
-    });
-  }
+  logger.warn("[API] [CHANGE_PLAN] Deprecated endpoint called - using Managed App Pricing", {
+    shop: req.body?.shop || req.query?.shop,
+    planHandle: req.body?.planHandle,
+  });
+  
+  return res.status(410).json({
+    error: "Deprecated",
+    message: "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin to change your plan.",
+    managedPricing: true,
+  });
 });
 
 // API Routes

@@ -22,6 +22,7 @@ import {
 import { Loader2, Calendar, CreditCard, X } from "lucide-react";
 import { toast } from "sonner";
 import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
+import { redirectToPlanSelection } from "@/utils/managedPricing";
 
 interface SubscriptionStatus {
   hasActiveSubscription: boolean;
@@ -161,38 +162,24 @@ const SubscriptionManagement = ({
         shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
         toast.error("Shop parameter is required");
+        setChangingPlan(false);
         return;
       }
 
-      // Prepare headers with session token if available
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (sessionToken) {
-        headers["Authorization"] = `Bearer ${sessionToken}`;
-      }
-
-      const response = await fetch("/api/billing/change-plan", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          shop: shopDomain,
-          planHandle: newPlanHandle,
-          returnUrl: window.location.href,
-        }),
+      // With Managed App Pricing, Shopify hosts the plan selection page
+      // We redirect directly to Shopify's plan selection page
+      // The merchant can change their plan there, and Shopify handles the billing
+      console.log("[MANAGED_PRICING] Redirecting to plan selection for plan change", {
+        shopDomain,
+        newPlanHandle,
       });
 
-      const data = await response.json();
-
-      if (data.confirmationUrl) {
-        // Redirect to Shopify's confirmation page
-        window.location.href = data.confirmationUrl;
-      } else {
-        toast.error("Failed to change plan");
-      }
+      redirectToPlanSelection(shopDomain);
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Failed to change plan:", error);
-      }
-      toast.error("Failed to change plan. Please try again.");
+      console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      toast.error("Failed to redirect to plan selection. Please try again.");
     } finally {
       setChangingPlan(false);
     }

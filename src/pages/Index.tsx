@@ -28,25 +28,12 @@ import {
   Shield,
   Link2,
   AlertCircle,
-  Check,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import SubscriptionManagement from "@/components/SubscriptionManagement";
+import ShopifyManagedPricing from "@/components/ShopifyManagedPricing";
 import { logError, logApiError, getUserFriendlyMessage } from "@/utils/errorHandler";
 
-interface Plan {
-  handle: string;
-  name: string;
-  price: number;
-  interval: string;
-  description: string;
-  features: string[];
-  monthlyEquivalent?: number;
-  isPopular?: boolean;
-}
 
 const Index = () => {
   // Deep linking configuration
@@ -67,11 +54,8 @@ const Index = () => {
     template: "product" | "index";
   } | null>(null);
 
-  // Pricing state
-  const [plans, setPlans] = useState<Plan[]>([]);
+  // Subscription state
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
-  const [loadingPlans, setLoadingPlans] = useState(true);
-  const [subscribing, setSubscribing] = useState<string | null>(null);
 
   const handleDeepLinkClick = (
     type: "embed" | "block",
@@ -143,9 +127,8 @@ const Index = () => {
     }
   };
 
-  // Pricing functions
+  // Subscription status polling
   useEffect(() => {
-    fetchPlans();
     fetchCurrentSubscription();
 
     // After returning from Shopify subscription confirmation, poll subscription status
@@ -174,26 +157,6 @@ const Index = () => {
       clearInterval(pollSubscription);
     };
   }, []);
-
-  const fetchPlans = async () => {
-    try {
-      const response = await fetch("/api/billing/plans");
-      const data = await response.json();
-      // Mark Pro Annual as popular
-      const plansWithPopular = data.plans.map((plan: Plan) => ({
-        ...plan,
-        isPopular: plan.handle === "pro-annual",
-      }));
-      setPlans(plansWithPopular);
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Failed to fetch plans:", error);
-      }
-      toast.error("Failed to load pricing plans");
-    } finally {
-      setLoadingPlans(false);
-    }
-  };
 
   const fetchCurrentSubscription = async () => {
     const requestId = `fetch-sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -328,252 +291,6 @@ const Index = () => {
     }
   };
 
-  const handleSelectPlan = async (planHandle: string) => {
-    const startTime = Date.now();
-    const requestId = `frontend-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    try {
-      console.log("[FRONTEND] [SUBSCRIBE] ===== REQUEST START =====", {
-        requestId,
-        planHandle,
-        timestamp: new Date().toISOString(),
-        url: window.location.href,
-      });
-
-      setSubscribing(planHandle);
-
-      // Get shop from App Bridge hook or URL params (fallback)
-      let shopDomain: string | null = null;
-      try {
-        shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
-      console.log("[FRONTEND] [SUBSCRIBE] Shop domain extraction", {
-          requestId,
-        shopFromHook: shop || "not available",
-          shopFromUrl: new URLSearchParams(window.location.search).get("shop") || "not available",
-        finalShopDomain: shopDomain || "not found",
-        hasSessionToken: !!sessionToken,
-      });
-      } catch (extractError) {
-        console.error("[FRONTEND] [SUBSCRIBE] Failed to extract shop domain", {
-          requestId,
-          error: extractError instanceof Error ? extractError.message : String(extractError),
-        });
-      }
-
-      if (!shopDomain) {
-        const errorMsg = "Shop parameter is required";
-        console.error("[FRONTEND] [SUBSCRIBE] Validation failed", {
-          requestId,
-          error: errorMsg,
-        });
-        toast.error(errorMsg);
-        setSubscribing(null);
-        return;
-      }
-
-      // Prepare headers with session token if available
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      try {
-      if (sessionToken) {
-        headers["Authorization"] = `Bearer ${sessionToken}`;
-          console.log("[FRONTEND] [SUBSCRIBE] Session token included in headers", {
-            requestId,
-            hasToken: true,
-          });
-      } else {
-          console.warn("[FRONTEND] [SUBSCRIBE] No session token available", {
-            requestId,
-          });
-        }
-      } catch (headerError) {
-        console.error("[FRONTEND] [SUBSCRIBE] Failed to prepare headers", {
-          requestId,
-          error: headerError instanceof Error ? headerError.message : String(headerError),
-        });
-      }
-
-      const requestBody = {
-        shop: shopDomain,
-        planHandle,
-        returnUrl: window.location.href,
-      };
-
-      console.log("[FRONTEND] [SUBSCRIBE] Sending subscription request", {
-        requestId,
-        url: "/api/billing/subscribe",
-        method: "POST",
-        planHandle,
-        returnUrl: window.location.href,
-        shopDomain,
-        hasHeaders: Object.keys(headers).length > 0,
-      });
-
-      let response: Response;
-      const requestStartTime = Date.now();
-      try {
-        response = await fetch("/api/billing/subscribe", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody),
-      });
-      const requestDuration = Date.now() - requestStartTime;
-
-      console.log("[FRONTEND] [SUBSCRIBE] Received response", {
-          requestId,
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        duration: `${requestDuration}ms`,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      } catch (fetchError) {
-        const requestDuration = Date.now() - requestStartTime;
-        console.error("[FRONTEND] [SUBSCRIBE] Fetch request failed", {
-          requestId,
-          error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-          errorType: fetchError instanceof Error ? fetchError.constructor.name : typeof fetchError,
-          duration: `${requestDuration}ms`,
-        });
-        toast.error("Network error. Please check your connection and try again.");
-        setSubscribing(null);
-        return;
-      }
-
-      // Check if response is OK before parsing JSON
-      if (!response.ok) {
-        let errorData: any = {};
-        try {
-          const errorText = await response.text();
-          if (errorText) {
-            try {
-              errorData = JSON.parse(errorText);
-            } catch (parseError) {
-              errorData = {
-          error: "Unknown error",
-          message: `HTTP ${response.status}: ${response.statusText}`,
-                rawResponse: errorText.substring(0, 500),
-              };
-            }
-          } else {
-            errorData = {
-              error: "Unknown error",
-              message: `HTTP ${response.status}: ${response.statusText}`,
-            };
-          }
-        } catch (readError) {
-          console.error("[FRONTEND] [SUBSCRIBE] Failed to read error response", {
-            requestId,
-            error: readError instanceof Error ? readError.message : String(readError),
-          });
-          errorData = {
-            error: "Unknown error",
-            message: `HTTP ${response.status}: ${response.statusText}`,
-          };
-        }
-
-        console.error("[FRONTEND] [SUBSCRIBE] Error response received", {
-          requestId,
-          status: response.status,
-          statusText: response.statusText,
-          errorData,
-          requestIdFromServer: errorData.requestId,
-        });
-
-        const errorMessage = errorData.message || errorData.error || "Failed to create subscription";
-        toast.error(errorMessage);
-        setSubscribing(null);
-        return;
-      }
-
-      // Parse successful response
-      let data: any;
-      try {
-        const responseText = await response.text();
-        if (!responseText) {
-          throw new Error("Empty response body");
-        }
-        data = JSON.parse(responseText);
-      const totalDuration = Date.now() - startTime;
-
-      console.log("[FRONTEND] [SUBSCRIBE] Response data parsed", {
-          requestId,
-        hasConfirmationUrl: !!data.confirmationUrl,
-        isFree: data.isFree,
-        hasSubscription: !!data.subscription,
-        success: data.success,
-        totalDuration: `${totalDuration}ms`,
-          requestIdFromServer: data.requestId,
-        });
-      } catch (parseError) {
-        console.error("[FRONTEND] [SUBSCRIBE] Failed to parse response", {
-          requestId,
-          error: parseError instanceof Error ? parseError.message : String(parseError),
-          errorType: parseError instanceof Error ? parseError.constructor.name : typeof parseError,
-        });
-        toast.error("Invalid response from server. Please try again.");
-        setSubscribing(null);
-        return;
-      }
-
-      // Handle response based on data
-      try {
-      if (data.confirmationUrl) {
-        console.log("[FRONTEND] [SUBSCRIBE] Redirecting to confirmation URL", {
-            requestId,
-          confirmationUrl: data.confirmationUrl,
-        });
-        // Redirect to Shopify's confirmation page
-        window.location.href = data.confirmationUrl;
-      } else if (data.isFree) {
-        console.log("[FRONTEND] [SUBSCRIBE] Free plan activated", {
-            requestId,
-          planHandle,
-        });
-        // Free plan - no confirmation needed
-        toast.success("Free plan activated!");
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-          console.error("[FRONTEND] [SUBSCRIBE] Unexpected response format", {
-            requestId,
-          data,
-        });
-        toast.error(data.message || "Failed to create subscription");
-          setSubscribing(null);
-        }
-      } catch (handleError) {
-        console.error("[FRONTEND] [SUBSCRIBE] Failed to handle response", {
-          requestId,
-          error: handleError instanceof Error ? handleError.message : String(handleError),
-        });
-        toast.error("Failed to process subscription response. Please try again.");
-        setSubscribing(null);
-      }
-    } catch (error) {
-      const totalDuration = Date.now() - startTime;
-      console.error("[FRONTEND] [SUBSCRIBE] ===== UNEXPECTED ERROR =====", {
-        requestId,
-        error: error instanceof Error ? error.message : String(error),
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 10).join('\n') : undefined,
-        duration: `${totalDuration}ms`,
-      });
-
-      // Log summary
-      const errorSummary = error instanceof Error 
-        ? `${error.constructor.name}: ${error.message}`
-        : `Unknown error: ${String(error)}`;
-      console.error(`[FRONTEND] [SUBSCRIBE] [ERROR SUMMARY] ${errorSummary}`);
-
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to subscribe. Please try again."
-      );
-      setSubscribing(null);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -1126,120 +843,10 @@ const Index = () => {
         </section>
       )}
 
-      {/* Pricing Section */}
+      {/* Shopify Managed Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
-              Choose Your Plan
-            </h2>
-            <p className="text-lg sm:text-xl text-muted-foreground">
-              Select the perfect plan for your store
-            </p>
-          </div>
-
-          {loadingPlans ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {plans.map((plan) => {
-                const isCurrentPlan = currentPlan === plan.handle;
-                const displayPrice = plan.monthlyEquivalent
-                  ? plan.monthlyEquivalent
-                  : plan.price;
-                const displayInterval =
-                  plan.interval === "ANNUAL"
-                    ? "mois"
-                    : plan.interval === "EVERY_30_DAYS"
-                    ? "mois"
-                    : "an";
-                const annualNote =
-                  plan.interval === "ANNUAL"
-                    ? `Facturé ${plan.price} €/an`
-                    : null;
-
-                return (
-                  <Card
-                    key={plan.handle}
-                    className={`relative ${
-                      plan.isPopular ? "border-primary shadow-lg scale-105" : ""
-                    }`}
-                  >
-                    {plan.isPopular && (
-                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        Le plus populaire
-                      </Badge>
-                    )}
-                    {isCurrentPlan && (
-                      <Badge className="absolute -top-3 right-4 bg-success">
-                        Current Plan
-                      </Badge>
-                    )}
-                    <CardHeader>
-                      <CardTitle>{plan.name}</CardTitle>
-                      <CardDescription>{plan.description}</CardDescription>
-                      <div className="mt-4">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold">
-                            {displayPrice} €
-                          </span>
-                          <span className="text-muted-foreground">
-                            /{displayInterval}
-                          </span>
-                        </div>
-                        {annualNote && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {annualNote}
-                          </p>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-3 mb-6">
-                        {plan.features.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <Check className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                            <span className="text-sm">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <Button
-                        className="w-full"
-                        variant={plan.isPopular ? "default" : "outline"}
-                        onClick={() => handleSelectPlan(plan.handle)}
-                        disabled={isCurrentPlan || subscribing === plan.handle}
-                      >
-                        {subscribing === plan.handle ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Processing...
-                          </>
-                        ) : isCurrentPlan ? (
-                          "Current Plan"
-                        ) : currentPlan &&
-                          currentPlan !== "free" &&
-                          currentPlan !== plan.handle ? (
-                          plan.price >
-                          (plans.find((p) => p.handle === currentPlan)?.price ||
-                            0) ? (
-                            "Upgrade"
-                          ) : (
-                            "Downgrade"
-                          )
-                        ) : plan.price === 0 ? (
-                          "Get Started"
-                        ) : (
-                          "Select Plan"
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+          <ShopifyManagedPricing />
         </div>
       </section>
 

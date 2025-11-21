@@ -327,6 +327,9 @@ export const createSubscription = async (
     );
     let client;
     try {
+      // Create GraphQL client with session
+      // Note: The Shopify client doesn't support timeout in constructor,
+      // so we'll handle timeout via Promise.race
       client = new shopify.clients.Graphql({ session });
       clientTimer.log("GraphQL client created", {
         operationId,
@@ -352,19 +355,24 @@ export const createSubscription = async (
       );
     }
 
-    // Add timeout handling for GraphQL request (20 seconds max to leave buffer for Vercel)
+    // Add timeout handling for GraphQL request (15 seconds max to fail faster)
+    // Reduced from 20s to 15s to fail faster and identify issues sooner
     // Vercel has 60s max, but we want to fail fast and leave time for error handling
-    const timeoutMs = 20000;
+    const timeoutMs = 15000;
     let timeoutId = null;
+    let isTimedOut = false;
+
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => {
+        isTimedOut = true;
         logger.error("[BILLING] [CREATE] GraphQL request timeout", {
           operationId,
           shop: session.shop,
           timeoutMs,
           elapsed: `${Date.now() - startTime}ms`,
+          note: "Request is taking too long - this may indicate Shopify API issues or network problems",
         });
-        reject(new Error("GraphQL request timed out after 20 seconds"));
+        reject(new Error("GraphQL request timed out after 15 seconds"));
       }, timeoutMs);
     });
 
@@ -402,12 +410,21 @@ export const createSubscription = async (
         variablesKeys: Object.keys(variables),
       });
 
-      queryPromise = client.query({
-        data: {
-          query: mutation,
-          variables: variables,
-        },
-      });
+      // Create the query promise with error handling
+      queryPromise = client
+        .query({
+          data: {
+            query: mutation,
+            variables: variables,
+          },
+        })
+        .catch((error) => {
+          // If timeout already occurred, don't log this error
+          if (isTimedOut) {
+            throw new Error("GraphQL request timed out after 15 seconds");
+          }
+          throw error;
+        });
 
       logger.info("[BILLING] [CREATE] GraphQL query promise created", {
         operationId,
@@ -436,13 +453,16 @@ export const createSubscription = async (
     let response;
     try {
       logger.info(
-        "[BILLING] [CREATE] Waiting for GraphQL response (Promise.race)",
+        "[BILLING] [CREATE] Waiting for GraphQL response (Promise.race with 15s timeout)",
         {
           operationId,
           shop: session.shop,
+          timeoutMs,
         }
       );
 
+      // Use Promise.race to enforce timeout
+      // Note: The underlying HTTP request may continue, but we'll reject the promise
       response = await Promise.race([queryPromise, timeoutPromise]);
 
       // Clear timeout if request completed
@@ -980,6 +1000,12 @@ export const cancelSubscription = async (shopify, session, prorate = false) => {
  * @param {string} replacementBehavior - How to handle existing subscription
  *   Valid values: "STANDARD" (default), "APPLY_IMMEDIATELY", "APPLY_ON_NEXT_BILLING_CYCLE"
  * @returns {Promise<Object>} New subscription creation result
+ */
+/**
+ * Change subscription plan
+ * @deprecated This function is deprecated. The app now uses Shopify Managed App Pricing.
+ * Merchants are redirected to Shopify's plan selection page to change plans.
+ * This function is kept for backward compatibility but should not be used in new code.
  */
 export const changePlan = async (
   shopify,
