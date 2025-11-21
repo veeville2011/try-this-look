@@ -103,7 +103,7 @@ const SubscriptionManagement = ({
     }
   };
 
-  const handleCancel = async (prorate: boolean = false) => {
+  const handleCancel = async () => {
     try {
       setCancelling(true);
 
@@ -112,42 +112,25 @@ const SubscriptionManagement = ({
         shop || new URLSearchParams(window.location.search).get("shop");
       if (!shopDomain) {
         toast.error("Shop parameter is required");
+        setCancelling(false);
         return;
       }
 
-      // Prepare headers with session token if available
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (sessionToken) {
-        headers["Authorization"] = `Bearer ${sessionToken}`;
-      }
-
-      const response = await fetch("/api/billing/cancel", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          shop: shopDomain,
-          prorate,
-        }),
+      // With Managed App Pricing, cancellations are handled through Shopify's admin interface
+      // Redirect to the plan selection page where users can cancel their subscription
+      console.log("[MANAGED_PRICING] Redirecting to plan selection for cancellation", {
+        shopDomain,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success("Subscription cancelled successfully");
-        setTimeout(() => {
-          fetchSubscription();
-          if (onSubscriptionUpdate) {
-            onSubscriptionUpdate();
-          }
-        }, 1000);
-      } else {
-        toast.error("Failed to cancel subscription");
-      }
+      redirectToPlanSelection(shopDomain);
+      
+      // Note: User will be redirected to Shopify, so we don't need to update state here
+      // The webhook will update the subscription status when cancellation is processed
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Failed to cancel subscription:", error);
-      }
-      toast.error("Failed to cancel subscription. Please try again.");
+      console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      toast.error("Failed to redirect to plan selection. Please try again.");
     } finally {
       setCancelling(false);
     }
@@ -371,22 +354,21 @@ const SubscriptionManagement = ({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to cancel your subscription? You
-                        will lose access to Pro features at the end of your
-                        billing period.
+                        You will be redirected to Shopify's admin to cancel your subscription.
+                        You will lose access to Pro features at the end of your billing period.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handleCancel(true)}
+                        onClick={handleCancel}
                         className="bg-destructive text-destructive-foreground"
                         disabled={cancelling}
                       >
                         {cancelling ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Cancelling...
+                            Redirecting...
                           </>
                         ) : (
                           "Cancel Subscription"

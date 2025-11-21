@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
+import * as subscriptionStorage from "./utils/subscriptionStorage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -741,6 +742,7 @@ app.post(
 
 // App subscriptions update webhook - for billing status changes
 // Reference: https://shopify.dev/docs/apps/launch/billing/subscription-billing
+// This webhook is used with Managed App Pricing to keep subscription status in sync
 app.post(
   "/webhooks/app/subscriptions/update",
   verifyWebhookSignature,
@@ -771,9 +773,28 @@ app.post(
       // - Capped amount is changed (for usage-based subscriptions)
       // - Subscription is created, updated, or cancelled
 
-      // Update your database/cache with new subscription status
-      // Send notifications if needed
-      // Handle feature access based on status
+      // Store subscription status in cache (Managed App Pricing approach)
+      // This replaces the need for GraphQL queries to check subscription status
+      if (app_subscription) {
+        const subscriptionData = subscriptionStorage.processWebhookSubscription(
+          app_subscription,
+          shop
+        );
+
+        logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
+          shop,
+          subscriptionId: app_subscription?.id,
+          status: app_subscription?.status,
+          planHandle: subscriptionData?.plan?.handle,
+        });
+      } else {
+        // If subscription is null/undefined, it might be cancelled
+        // Remove from cache
+        subscriptionStorage.removeSubscription(shop);
+        logger.info("[WEBHOOK] app/subscriptions/update - subscription removed from cache", {
+          shop,
+        });
+      }
 
       logger.info("[WEBHOOK] app/subscriptions/update processed successfully", {
         shop,
@@ -873,8 +894,7 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
 
 // Billing API Routes
 // Get current subscription status
-// This endpoint works with both GraphQL Billing API and Managed App Pricing
-// It queries the currentAppInstallation to get subscription status
+// Uses Managed App Pricing approach: checks cache first (populated by webhooks), falls back to GraphQL if needed
 app.get("/api/billing/subscription", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random()
     .toString(36)
@@ -914,7 +934,7 @@ app.get("/api/billing/subscription", async (req, res) => {
       normalizedShop: shopDomain,
     });
 
-    // Get session for the shop
+    // Get session for the shop (needed for GraphQL fallback)
     let session;
     try {
       const sessionId = shopify.session.getOfflineId(shopDomain);
@@ -964,12 +984,13 @@ app.get("/api/billing/subscription", async (req, res) => {
 
     let subscriptionStatus;
     try {
-      logger.info("[BILLING] [GET_SUBSCRIPTION] Checking subscription status", {
+      logger.info("[BILLING] [GET_SUBSCRIPTION] Checking subscription status (Managed Pricing)", {
         requestId,
         shopDomain,
       });
 
-      subscriptionStatus = await billing.checkSubscription(shopify, session);
+      // Use Managed App Pricing approach: check cache only (populated by webhooks)
+      subscriptionStatus = subscriptionStorage.getSubscriptionStatus(shopDomain);
 
       logger.info(
         "[BILLING] [GET_SUBSCRIPTION] Subscription status retrieved",
@@ -979,6 +1000,7 @@ app.get("/api/billing/subscription", async (req, res) => {
           hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
           planHandle: subscriptionStatus.plan?.handle,
           isFree: subscriptionStatus.isFree,
+          cacheMiss: subscriptionStatus.cacheMiss || false,
         }
       );
     } catch (checkError) {
@@ -1059,45 +1081,40 @@ app.get("/api/billing/plans", (req, res) => {
   }
 });
 
-// Cancel subscription
+// Cancel subscription - DEPRECATED: Using Managed App Pricing
+// With Managed App Pricing, cancellations are handled through Shopify's admin interface
+// This endpoint redirects users to the plan selection page where they can cancel
 app.post("/api/billing/cancel", async (req, res) => {
-  try {
-    const { shop, prorate } = req.body;
+  const { shop } = req.body;
 
-    if (!shop) {
-      return res.status(400).json({
-        error: "Missing shop parameter",
-      });
-    }
-
-    const shopDomain = shop.includes(".myshopify.com")
-      ? shop
-      : `${shop}.myshopify.com`;
-
-    const sessionId = shopify.session.getOfflineId(shopDomain);
-    const session = await shopify.session.getSessionById(sessionId);
-
-    if (!session) {
-      return res.status(401).json({
-        error: "Session not found",
-        message: "Please install the app first",
-      });
-    }
-
-    const result = await billing.cancelSubscription(
-      shopify,
-      session,
-      prorate || false
-    );
-
-    res.json(result);
-  } catch (error) {
-    logger.error("[BILLING] Failed to cancel subscription", error, req);
-    res.status(500).json({
-      error: "Failed to cancel subscription",
-      message: error.message,
+  if (!shop) {
+    return res.status(400).json({
+      error: "Missing shop parameter",
     });
   }
+
+  const shopDomain = shop.includes(".myshopify.com")
+    ? shop
+    : `${shop}.myshopify.com`;
+
+  logger.warn("[API] [CANCEL] Deprecated endpoint called - using Managed App Pricing", {
+    shop: shopDomain,
+  });
+
+  // Extract store handle and app handle
+  const storeHandle = shopDomain.replace(".myshopify.com", "");
+  const appHandle = process.env.VITE_APP_HANDLE || "nusense-tryon";
+  
+  // Redirect to Shopify's plan selection page where users can cancel
+  // Format: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
+  const planSelectionUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans`;
+
+  return res.status(200).json({
+    message: "This app uses Shopify Managed App Pricing. Please cancel your subscription through the Shopify admin.",
+    managedPricing: true,
+    redirectUrl: planSelectionUrl,
+    instructions: "Visit the plan selection page in Shopify admin to cancel your subscription",
+  });
 });
 
 // Change plan - DEPRECATED: Using Managed App Pricing
