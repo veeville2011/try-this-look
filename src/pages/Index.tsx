@@ -148,19 +148,10 @@ const Index = () => {
     fetchPlans();
     fetchCurrentSubscription();
 
-    // Check if returning from Shopify subscription confirmation
-    const urlParams = new URLSearchParams(window.location.search);
-    const subscriptionStatus = urlParams.get("subscription");
-
-    if (subscriptionStatus === "approved" || subscriptionStatus === "active") {
-      // Refresh subscription status after approval
-      setTimeout(() => {
-        fetchCurrentSubscription();
-        toast.success("Subscription activated successfully!");
-      }, 1000);
-    } else if (subscriptionStatus === "declined") {
-      toast.error("Subscription was declined. Please try again.");
-    }
+    // After returning from Shopify subscription confirmation, always check actual status
+    // Shopify redirects to returnUrl but doesn't add specific query params
+    // We check the actual subscription status via API instead of relying on URL params
+    // The fetchCurrentSubscription() call above handles status updates
   }, []);
 
   const fetchPlans = async () => {

@@ -194,11 +194,28 @@ export const createSubscription = async (
       );
     }
 
-    // Ensure price is a string (Shopify requires string format for MoneyInput)
-    const priceAmount =
-      typeof plan.price === "number"
-        ? plan.price.toFixed(2)
-        : String(plan.price);
+    // Ensure price is a number (Decimal type accepts both, but examples show numbers)
+    // Shopify GraphQL Decimal type accepts both number and string, but examples use numbers
+    let priceAmount;
+    if (typeof plan.price === "number") {
+      priceAmount = parseFloat(plan.price.toFixed(2));
+    } else {
+      priceAmount = parseFloat(plan.price);
+    }
+
+    // Validate price is a valid number
+    if (isNaN(priceAmount) || priceAmount < 0) {
+      logger.error("[BILLING] [CREATE] Invalid price value", {
+        operationId,
+        planHandle,
+        originalPrice: plan.price,
+        priceType: typeof plan.price,
+        parsedPrice: priceAmount,
+      });
+      throw new Error(
+        `Invalid price value: ${plan.price}. Price must be a valid positive number.`
+      );
+    }
 
     // Validate returnUrl is a valid URL
     try {
@@ -265,22 +282,34 @@ export const createSubscription = async (
 
     // Validate session before creating GraphQL client
     if (!session || !session.shop) {
-      logger.error("[BILLING] [CREATE] Invalid session - missing shop", null, null, {
-        operationId,
-        hasSession: !!session,
-        sessionShop: session?.shop || "missing",
-      });
+      logger.error(
+        "[BILLING] [CREATE] Invalid session - missing shop",
+        null,
+        null,
+        {
+          operationId,
+          hasSession: !!session,
+          sessionShop: session?.shop || "missing",
+        }
+      );
       throw new Error("Invalid session: shop is required");
     }
 
     if (!session.accessToken) {
-      logger.error("[BILLING] [CREATE] Invalid session - missing access token", null, null, {
-        operationId,
-        shop: session.shop,
-        hasAccessToken: !!session.accessToken,
-        sessionId: session.id || "N/A",
-      });
-      throw new Error("Invalid session: access token is required. Please re-authenticate the app.");
+      logger.error(
+        "[BILLING] [CREATE] Invalid session - missing access token",
+        null,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+          hasAccessToken: !!session.accessToken,
+          sessionId: session.id || "N/A",
+        }
+      );
+      throw new Error(
+        "Invalid session: access token is required. Please re-authenticate the app."
+      );
     }
 
     // Use shopify instance to make GraphQL request
@@ -293,7 +322,9 @@ export const createSubscription = async (
       accessTokenLength: session.accessToken?.length || 0,
     });
 
-    const clientTimer = logger.createTimer(`[BILLING] [CREATE] GraphQL Client Creation`);
+    const clientTimer = logger.createTimer(
+      `[BILLING] [CREATE] GraphQL Client Creation`
+    );
     let client;
     try {
       client = new shopify.clients.Graphql({ session });
@@ -307,11 +338,18 @@ export const createSubscription = async (
         shop: session.shop,
         error: clientError.message,
       });
-      logger.error("[BILLING] [CREATE] Failed to create GraphQL client", clientError, null, {
-        operationId,
-        shop: session.shop,
-      });
-      throw new Error(`Failed to create GraphQL client: ${clientError.message}`);
+      logger.error(
+        "[BILLING] [CREATE] Failed to create GraphQL client",
+        clientError,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+        }
+      );
+      throw new Error(
+        `Failed to create GraphQL client: ${clientError.message}`
+      );
     }
 
     // Add timeout handling for GraphQL request (20 seconds max to leave buffer for Vercel)
@@ -340,15 +378,22 @@ export const createSubscription = async (
         returnUrl: variables.returnUrl?.substring(0, 100),
         trialDays: variables.trialDays,
         replacementBehavior: variables.replacementBehavior,
-        price: variables.lineItems[0]?.plan?.appRecurringPricingDetails?.price?.amount,
-        currency: variables.lineItems[0]?.plan?.appRecurringPricingDetails?.price?.currencyCode,
-        interval: variables.lineItems[0]?.plan?.appRecurringPricingDetails?.interval,
+        price:
+          variables.lineItems[0]?.plan?.appRecurringPricingDetails?.price
+            ?.amount,
+        currency:
+          variables.lineItems[0]?.plan?.appRecurringPricingDetails?.price
+            ?.currencyCode,
+        interval:
+          variables.lineItems[0]?.plan?.appRecurringPricingDetails?.interval,
       },
     });
 
-    const graphqlTimer = logger.createTimer(`[BILLING] [CREATE] GraphQL Request`);
+    const graphqlTimer = logger.createTimer(
+      `[BILLING] [CREATE] GraphQL Request`
+    );
     let queryPromise;
-    
+
     try {
       logger.info("[BILLING] [CREATE] Preparing GraphQL query", {
         operationId,
@@ -356,14 +401,14 @@ export const createSubscription = async (
         mutationLength: mutation.length,
         variablesKeys: Object.keys(variables),
       });
-      
+
       queryPromise = client.query({
         data: {
           query: mutation,
           variables: variables,
         },
       });
-      
+
       logger.info("[BILLING] [CREATE] GraphQL query promise created", {
         operationId,
         shop: session.shop,
@@ -373,31 +418,39 @@ export const createSubscription = async (
       });
     } catch (queryError) {
       if (timeoutId) clearTimeout(timeoutId);
-      logger.error("[BILLING] [CREATE] Failed to create GraphQL query promise", queryError, null, {
-        operationId,
-        shop: session.shop,
-        errorType: queryError.constructor.name,
-        errorCode: queryError.code,
-        errorMessage: queryError.message,
-      });
+      logger.error(
+        "[BILLING] [CREATE] Failed to create GraphQL query promise",
+        queryError,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+          errorType: queryError.constructor.name,
+          errorCode: queryError.code,
+          errorMessage: queryError.message,
+        }
+      );
       throw new Error(`Failed to create GraphQL query: ${queryError.message}`);
     }
 
     let response;
     try {
-      logger.info("[BILLING] [CREATE] Waiting for GraphQL response (Promise.race)", {
-        operationId,
-        shop: session.shop,
-      });
-      
+      logger.info(
+        "[BILLING] [CREATE] Waiting for GraphQL response (Promise.race)",
+        {
+          operationId,
+          shop: session.shop,
+        }
+      );
+
       response = await Promise.race([queryPromise, timeoutPromise]);
-      
+
       // Clear timeout if request completed
       if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
-      
+
       const graphqlDuration = graphqlTimer.elapsed();
       graphqlTimer.log("GraphQL request completed", {
         operationId,
@@ -405,7 +458,7 @@ export const createSubscription = async (
         hasResponse: !!response,
         responseType: typeof response,
       });
-      
+
       // Log GraphQL operation details
       logger.logGraphQL(
         "appSubscriptionCreate",
@@ -423,25 +476,34 @@ export const createSubscription = async (
         clearTimeout(timeoutId);
         timeoutId = null;
       }
-      
+
       const graphqlDuration = graphqlTimer.elapsed();
-      logger.error("[BILLING] [CREATE] GraphQL request failed", raceError, null, {
-        operationId,
-        shop: session.shop,
-        duration: `${graphqlDuration}ms`,
-        isTimeout: raceError.message.includes("timeout") || raceError.message.includes("timed out"),
-        errorCode: raceError.code,
-      });
+      logger.error(
+        "[BILLING] [CREATE] GraphQL request failed",
+        raceError,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+          duration: `${graphqlDuration}ms`,
+          isTimeout:
+            raceError.message.includes("timeout") ||
+            raceError.message.includes("timed out"),
+          errorCode: raceError.code,
+        }
+      );
       throw raceError;
     }
-    
+
     const graphqlDuration = graphqlTimer.elapsed();
 
     // Response parsing is already logged above, continue with extraction
 
     // Response structure: { body: { data: {...}, extensions: {...} } }
-    const parseTimer = logger.createTimer(`[BILLING] [CREATE] Response Parsing`);
-    
+    const parseTimer = logger.createTimer(
+      `[BILLING] [CREATE] Response Parsing`
+    );
+
     logger.info("[BILLING] [CREATE] Parsing GraphQL response structure", {
       operationId,
       shop: session.shop,
@@ -453,7 +515,7 @@ export const createSubscription = async (
     });
 
     const responseData = response.body?.data || response.data;
-    
+
     parseTimer.log("Response data extracted", {
       operationId,
       shop: session.shop,
@@ -464,7 +526,7 @@ export const createSubscription = async (
         responseData?.appSubscriptionCreate?.userErrors?.length || 0,
       responseDataKeys: responseData ? Object.keys(responseData) : [],
     });
-    
+
     // Log full response structure for debugging (truncated)
     if (responseData) {
       try {
@@ -476,41 +538,54 @@ export const createSubscription = async (
           responseLength: responseStr.length,
         });
       } catch (e) {
-        logger.warn("[BILLING] [CREATE] Could not serialize response for logging", {
-          operationId,
-          shop: session.shop,
-          error: e.message,
-        });
+        logger.warn(
+          "[BILLING] [CREATE] Could not serialize response for logging",
+          {
+            operationId,
+            shop: session.shop,
+            error: e.message,
+          }
+        );
       }
     }
 
     if (responseData?.appSubscriptionCreate?.userErrors?.length > 0) {
       const errors = responseData.appSubscriptionCreate.userErrors;
-      logger.error("[BILLING] [CREATE] GraphQL user errors returned", null, null, {
-        operationId,
-        shop: session.shop,
-        planHandle,
-        errors: errors.map(e => ({ field: e.field, message: e.message })),
-        errorsCount: errors.length,
-        fullErrors: errors,
-      });
+      logger.error(
+        "[BILLING] [CREATE] GraphQL user errors returned",
+        null,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+          planHandle,
+          errors: errors.map((e) => ({ field: e.field, message: e.message })),
+          errorsCount: errors.length,
+          fullErrors: errors,
+        }
+      );
       throw new Error(
         `Subscription creation failed: ${errors
           .map((e) => `${e.field ? `${e.field}: ` : ""}${e.message}`)
           .join(", ")}`
       );
     }
-    
+
     // Check for GraphQL errors (different from userErrors)
     if (response.body?.errors || response.errors) {
       const graphqlErrors = response.body?.errors || response.errors;
-      logger.error("[BILLING] [CREATE] GraphQL API errors returned", null, null, {
-        operationId,
-        shop: session.shop,
-        planHandle,
-        errors: graphqlErrors,
-        errorsCount: graphqlErrors.length,
-      });
+      logger.error(
+        "[BILLING] [CREATE] GraphQL API errors returned",
+        null,
+        null,
+        {
+          operationId,
+          shop: session.shop,
+          planHandle,
+          errors: graphqlErrors,
+          errorsCount: graphqlErrors.length,
+        }
+      );
       throw new Error(
         `GraphQL API error: ${graphqlErrors
           .map((e) => e.message || JSON.stringify(e))
@@ -700,17 +775,32 @@ export const checkSubscription = async (
       const subscriptionPrice = parseFloat(pricingDetails.price.amount);
       const subscriptionInterval = pricingDetails.interval;
 
-      // Match price and interval to plan (use tolerance for floating point comparison)
+      // Match price, interval, and currency to plan (use tolerance for floating point comparison)
       for (const [handle, plan] of Object.entries(PLANS)) {
         // Compare prices with small tolerance for floating point precision
         // Also match interval to distinguish monthly vs annual
-        if (
-          Math.abs(plan.price - subscriptionPrice) < 0.01 &&
-          plan.interval === subscriptionInterval
-        ) {
+        // Match currency to ensure correct plan identification
+        const priceMatches = Math.abs(plan.price - subscriptionPrice) < 0.01;
+        const intervalMatches = plan.interval === subscriptionInterval;
+        const currencyMatches =
+          plan.currencyCode === pricingDetails.price?.currencyCode;
+
+        if (priceMatches && intervalMatches && currencyMatches) {
           planHandle = handle;
           break;
         }
+      }
+
+      // Log if plan wasn't matched (for debugging)
+      if (planHandle === PLAN_HANDLES.FREE && subscriptionPrice > 0) {
+        logger.warn("[BILLING] [CHECK] Subscription plan not matched", {
+          operationId,
+          shop: session.shop,
+          subscriptionPrice,
+          subscriptionInterval,
+          subscriptionCurrency: pricingDetails.price?.currencyCode,
+          availablePlans: Object.keys(PLANS),
+        });
       }
     }
 
