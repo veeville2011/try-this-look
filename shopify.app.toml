@@ -28,11 +28,10 @@ api_version = "2024-01"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-  [[webhooks.subscriptions]]
-  topics = [ "app/subscriptions/update" ]
-  uri = "/webhooks/app/subscriptions/update"
-  # This webhook is used with Managed App Pricing to keep subscription status in sync
-  # Subscription status is stored in cache and updated via webhooks instead of polling
+  # Note: app/subscriptions/update webhook is not available as a configurable
+  # webhook topic in shopify.app.toml. Subscription status updates for Managed
+  # App Pricing are handled automatically by Shopify. The webhook handler
+  # endpoint exists in the code but cannot be registered via TOML configuration.
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
