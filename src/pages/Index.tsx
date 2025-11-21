@@ -335,7 +335,7 @@ const Index = () => {
 
       {/* Quick Actions Section */}
       <section className="py-8 sm:py-12 bg-background border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 max-w-6xl">
           <QuickActions
             showInstall={!currentPlan || currentPlan === "free"}
             showConfigure={currentPlan && currentPlan !== "free"}
@@ -358,7 +358,7 @@ const Index = () => {
         id="installation-guide"
         className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background"
       >
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 max-w-6xl">
           <div className="space-y-8 sm:space-y-10 md:space-y-12">
             {/* Installation Steps */}
             <Card className="p-6 sm:p-8 md:p-10 lg:p-12 border-2 border-border bg-card shadow-lg">
@@ -771,7 +771,7 @@ const Index = () => {
 
       {/* Feature Highlights Section */}
       <section className="py-12 sm:py-16 bg-muted/30">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 max-w-6xl">
           <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-foreground">
               Pourquoi choisir NusenseTryOn?
@@ -789,7 +789,7 @@ const Index = () => {
         id="subscription-section"
         className="py-12 sm:py-16 bg-background border-b border-border"
       >
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 max-w-6xl">
           {currentPlan && currentPlan !== "free" ? (
             <SubscriptionManagement
               onSubscriptionUpdate={refreshSubscription}
@@ -828,7 +828,7 @@ const Index = () => {
 
       {/* Shopify Managed Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 max-w-6xl">
           <ShopifyManagedPricing />
         </div>
       </section>
