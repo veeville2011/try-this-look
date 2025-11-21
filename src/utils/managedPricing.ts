@@ -14,16 +14,17 @@ export const getPlanSelectionUrl = (
   appHandle?: string
 ): string => {
   // Extract store handle from shop domain
-  // e.g., "cool-shop" from "cool-shop.myshopify.com"
+  // e.g., "vto-demo" from "vto-demo.myshopify.com"
   const storeHandle = shopDomain.replace(".myshopify.com", "");
 
-  // Use provided app handle or default to app name from config
+  // Use provided app handle or default to "nutryon" from config
   // The app handle is configured in Partner Dashboard when setting up managed pricing
-  const handle = appHandle || import.meta.env.VITE_APP_HANDLE || "nusense-tryon";
+  // Format: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
+  const handle = appHandle || import.meta.env.VITE_APP_HANDLE || "nutryon";
 
   // Construct the plan selection page URL
-  // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/settings/billing/apps/{app_handle}
-  return `https://admin.shopify.com/store/${storeHandle}/settings/billing/apps/${handle}`;
+  // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
+  return `https://admin.shopify.com/store/${storeHandle}/charges/${handle}/pricing_plans`;
 };
 
 /**

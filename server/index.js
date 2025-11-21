@@ -1105,11 +1105,11 @@ app.post("/api/billing/cancel", async (req, res) => {
 
   // Extract store handle and app handle
   const storeHandle = shopDomain.replace(".myshopify.com", "");
-  const appHandle = process.env.VITE_APP_HANDLE || "nusense-tryon";
+  const appHandle = process.env.VITE_APP_HANDLE || "nutryon";
   
   // Redirect to Shopify's plan selection page where users can cancel
-  // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/settings/billing/apps/{app_handle}
-  const planSelectionUrl = `https://admin.shopify.com/store/${storeHandle}/settings/billing/apps/${appHandle}`;
+  // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
+  const planSelectionUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans`;
 
   return res.status(200).json({
     message: "This app uses Shopify Managed App Pricing. Please cancel your subscription through the Shopify admin.",
