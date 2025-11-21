@@ -148,10 +148,31 @@ const Index = () => {
     fetchPlans();
     fetchCurrentSubscription();
 
-    // After returning from Shopify subscription confirmation, always check actual status
+    // After returning from Shopify subscription confirmation, poll subscription status
     // Shopify redirects to returnUrl but doesn't add specific query params
-    // We check the actual subscription status via API instead of relying on URL params
-    // The fetchCurrentSubscription() call above handles status updates
+    // We poll the subscription status to detect when it becomes active
+    // This is the recommended approach since app/subscriptions/update webhook 
+    // is not available as app-specific webhook in shopify.app.toml
+    
+    // Check if we just returned from subscription confirmation
+    // Poll every 2 seconds for up to 30 seconds to catch status changes
+    let pollCount = 0;
+    const maxPolls = 15; // 15 polls * 2 seconds = 30 seconds
+    const pollInterval = 2000; // 2 seconds
+
+    const pollSubscription = setInterval(() => {
+      pollCount++;
+      if (pollCount <= maxPolls) {
+        fetchCurrentSubscription();
+      } else {
+        clearInterval(pollSubscription);
+      }
+    }, pollInterval);
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(pollSubscription);
+    };
   }, []);
 
   const fetchPlans = async () => {
