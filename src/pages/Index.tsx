@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { redirectToPlanSelection } from "@/utils/managedPricing";
@@ -108,7 +108,7 @@ const Index = () => {
 
     // Extract store handle from domain
     const storeHandle = myshopifyDomain.replace(".myshopify.com", "");
-    
+
     let deepLinkUrl = "";
     if (pendingAction.type === "embed") {
       // App embed block deep link - template is optional for embed blocks
@@ -156,7 +156,6 @@ const Index = () => {
       }
     }
   }, [subscription]);
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -269,7 +268,10 @@ const Index = () => {
                       className="inline-flex items-center font-extrabold tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight"
                       aria-label="NusenseTryOn"
                     >
-                      <span className="text-primary" style={{ color: "#ce0003" }}>
+                      <span
+                        className="text-primary"
+                        style={{ color: "#ce0003" }}
+                      >
                         Nusense
                       </span>
                       <span
@@ -307,7 +309,10 @@ const Index = () => {
                       variant="outline"
                       onClick={() => {
                         const shopDomain =
-                          shop || new URLSearchParams(window.location.search).get("shop");
+                          shop ||
+                          new URLSearchParams(window.location.search).get(
+                            "shop"
+                          );
                         if (shopDomain) {
                           redirectToPlanSelection(shopDomain);
                         }
@@ -321,9 +326,7 @@ const Index = () => {
               </div>
               {/* Right: Status Card */}
               <div className="w-full lg:w-80 flex-shrink-0">
-                <QuickStatusCard
-                  currentPlan={currentPlan}
-                />
+                <QuickStatusCard currentPlan={currentPlan} />
               </div>
             </div>
           </div>
@@ -806,7 +809,8 @@ const Index = () => {
                     size="lg"
                     onClick={() => {
                       const shopDomain =
-                        shop || new URLSearchParams(window.location.search).get("shop");
+                        shop ||
+                        new URLSearchParams(window.location.search).get("shop");
                       if (shopDomain) {
                         redirectToPlanSelection(shopDomain);
                       }
