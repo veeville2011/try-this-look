@@ -5,8 +5,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Crown, Zap, CreditCard } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useShop } from "@/providers/AppBridgeProvider";
+import { redirectToPlanSelection } from "@/utils/managedPricing";
 
 interface QuickStatusCardProps {
   currentPlan: string | null;
@@ -15,6 +18,15 @@ interface QuickStatusCardProps {
 
 const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) => {
   const { subscription: subscriptionStatus, loading } = useSubscription();
+  const shop = useShop();
+
+  const handleChangePlan = () => {
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+    if (shopDomain) {
+      redirectToPlanSelection(shopDomain);
+    }
+  };
 
   const getPlanBadge = () => {
     // Use plan from subscriptionStatus if available, otherwise fall back to currentPlan prop
@@ -61,13 +73,15 @@ const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) =
   }
 
   const planFeatures = subscriptionStatus?.plan?.features || [];
+  const planHandle = subscriptionStatus?.plan?.handle || currentPlan;
+  const isFreePlan = !planHandle || planHandle === "free";
 
   return (
     <Card className="border-2 border-border shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-4 sm:p-6">
         <div className="space-y-4">
           {/* Plan Name */}
-          <div className="flex items-center">
+          <div className="flex items-center justify-between">
             {getPlanBadge()}
           </div>
 
@@ -90,6 +104,19 @@ const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) =
               </ul>
             </div>
           )}
+
+          {/* Change Plan Button */}
+          <div className="pt-2 border-t border-border">
+            <Button
+              onClick={handleChangePlan}
+              variant={isFreePlan ? "default" : "outline"}
+              className="w-full"
+              size="sm"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              {isFreePlan ? "Upgrade Plan" : "Change Plan"}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

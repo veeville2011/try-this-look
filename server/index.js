@@ -778,17 +778,41 @@ app.post(
       // Store subscription status in cache (Managed App Pricing approach)
       // This replaces the need for GraphQL queries to check subscription status
       if (app_subscription) {
+        // Log full webhook payload for debugging
+        logger.info("[WEBHOOK] app/subscriptions/update - full payload", {
+          shop,
+          subscriptionId: app_subscription?.id,
+          status: app_subscription?.status,
+          currentPeriodEnd: app_subscription?.currentPeriodEnd,
+          lineItems: app_subscription?.lineItems?.map(item => ({
+            id: item?.id,
+            planId: item?.plan?.id,
+            planName: item?.plan?.name,
+            pricingDetails: item?.plan?.pricingDetails,
+          })),
+        });
+
         const subscriptionData = subscriptionStorage.processWebhookSubscription(
           app_subscription,
           shop
         );
 
-        logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
-          shop,
-          subscriptionId: app_subscription?.id,
-          status: app_subscription?.status,
-          planHandle: subscriptionData?.plan?.handle,
-        });
+        if (subscriptionData) {
+          logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
+            shop,
+            subscriptionId: app_subscription?.id,
+            status: app_subscription?.status,
+            planHandle: subscriptionData?.plan?.handle,
+            planName: subscriptionData?.plan?.name,
+            hasActiveSubscription: subscriptionData?.hasActiveSubscription,
+            isFree: subscriptionData?.isFree,
+          });
+        } else {
+          logger.warn("[WEBHOOK] app/subscriptions/update - failed to process subscription data", {
+            shop,
+            subscriptionId: app_subscription?.id,
+          });
+        }
       } else {
         // If subscription is null/undefined, it might be cancelled
         // Remove from cache
@@ -937,7 +961,7 @@ app.get("/api/billing/subscription", async (req, res) => {
     });
 
     // Get session for the shop (optional - needed only for setup progress)
-    // For subscription status, we don't need a session (uses webhook cache)
+    // For subscription status, we use webhook cache only (Managed App Pricing approach)
     let session = null;
     try {
       // Try to get session from Authorization header if available
@@ -978,6 +1002,7 @@ app.get("/api/billing/subscription", async (req, res) => {
       });
 
       // Use Managed App Pricing approach: check cache only (populated by webhooks)
+      // Subscription data is populated by app/subscriptions/update webhook
       subscriptionStatus = subscriptionStorage.getSubscriptionStatus(shopDomain);
 
       logger.info(

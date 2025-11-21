@@ -791,48 +791,20 @@ const Index = () => {
       </section>
 
       {/* Subscription Management Section */}
-      <section
-        id="subscription-section"
-        className="py-12 sm:py-16 bg-background border-b border-border"
-      >
-        <div className="container mx-auto px-4 sm:px-6 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            {currentPlan && currentPlan !== "free" ? (
-            <SubscriptionManagement
-              onSubscriptionUpdate={refreshSubscription}
-            />
-          ) : (
-            <Card className="border-2 border-border">
-              <CardContent className="p-8 text-center">
-                <div className="max-w-2xl mx-auto space-y-4">
-                  <h3 className="text-2xl font-bold text-foreground">
-                    Vous utilisez le plan gratuit
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Passez à Pro pour débloquer toutes les fonctionnalités et
-                    augmenter vos ventes
-                  </p>
-                  <Button
-                    size="lg"
-                    onClick={() => {
-                      const shopDomain =
-                        shop ||
-                        new URLSearchParams(window.location.search).get("shop");
-                      if (shopDomain) {
-                        redirectToPlanSelection(shopDomain);
-                      }
-                    }}
-                    className="mt-4"
-                  >
-                    Voir les plans Pro
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      {currentPlan && currentPlan !== "free" && (
+        <section
+          id="subscription-section"
+          className="py-12 sm:py-16 bg-background border-b border-border"
+        >
+          <div className="container mx-auto px-4 sm:px-6 md:px-8">
+            <div className="max-w-6xl mx-auto">
+              <SubscriptionManagement
+                onSubscriptionUpdate={refreshSubscription}
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Shopify Managed Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">

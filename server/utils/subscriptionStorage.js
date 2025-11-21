@@ -196,15 +196,75 @@ export const processWebhookSubscription = (appSubscription, shopDomain) => {
       const plans = getAvailablePlans();
       let matchedPlan = null;
       
+      // Normalize interval values for comparison
+      // Shopify may send different interval formats
+      const normalizeInterval = (int) => {
+        if (!int) return int;
+        const upper = int.toUpperCase();
+        // Map various interval formats to standard ones
+        if (upper === "ANNUAL" || upper === "YEAR" || upper === "EVERY_365_DAYS" || upper === "365_DAYS") {
+          return "ANNUAL";
+        }
+        if (upper === "MONTHLY" || upper === "EVERY_30_DAYS" || upper === "30_DAYS") {
+          return "EVERY_30_DAYS";
+        }
+        return int;
+      };
+      
+      const normalizedInterval = normalizeInterval(interval);
+      
+      logger.debug("[SUBSCRIPTION_STORAGE] Attempting plan match", {
+        shop: normalizedShop,
+        price,
+        currencyCode,
+        originalInterval: interval,
+        normalizedInterval,
+        availablePlans: plans.map(p => ({ 
+          handle: p.handle, 
+          name: p.name,
+          price: p.price, 
+          interval: p.interval,
+          currencyCode: p.currencyCode 
+        })),
+      });
+      
+      // First pass: exact match
       for (const plan of plans) {
         const priceMatches = Math.abs(plan.price - price) < 0.01;
-        const intervalMatches = plan.interval === interval;
+        const planIntervalNormalized = normalizeInterval(plan.interval);
+        const intervalMatches = planIntervalNormalized === normalizedInterval;
         const currencyMatches = plan.currencyCode === currencyCode;
         
         if (priceMatches && intervalMatches && currencyMatches) {
           planHandle = plan.handle;
           matchedPlan = plan;
           break;
+        }
+      }
+      
+      // Second pass: try with flexible interval matching
+      if (!matchedPlan) {
+        for (const plan of plans) {
+          const priceMatches = Math.abs(plan.price - price) < 0.01;
+          const planIntervalNormalized = normalizeInterval(plan.interval);
+          const currencyMatches = plan.currencyCode === currencyCode;
+          
+          // Flexible interval matching for annual plans
+          const isAnnual = normalizedInterval === "ANNUAL" || planIntervalNormalized === "ANNUAL";
+          const intervalMatches = planIntervalNormalized === normalizedInterval || 
+                                 (isAnnual && (normalizedInterval === "ANNUAL" || planIntervalNormalized === "ANNUAL"));
+          
+          if (priceMatches && intervalMatches && currencyMatches) {
+            planHandle = plan.handle;
+            matchedPlan = plan;
+            logger.info("[SUBSCRIPTION_STORAGE] Plan matched with flexible interval matching", {
+              shop: normalizedShop,
+              planHandle,
+              originalInterval: interval,
+              planInterval: plan.interval,
+            });
+            break;
+          }
         }
       }
       
@@ -215,42 +275,23 @@ export const processWebhookSubscription = (appSubscription, shopDomain) => {
           planName: matchedPlan.name,
           matchedPrice: price,
           matchedInterval: interval,
+          planInterval: matchedPlan.interval,
         });
       } else {
-        // Try alternative interval matching (Shopify might use different values)
-        // For annual plans, Shopify might send "ANNUAL" or "YEAR" or "EVERY_365_DAYS"
-        const alternativeInterval = interval === "ANNUAL" ? "EVERY_365_DAYS" : 
-                                   interval === "EVERY_365_DAYS" ? "ANNUAL" : null;
-        
-        if (alternativeInterval) {
-          for (const plan of plans) {
-            const priceMatches = Math.abs(plan.price - price) < 0.01;
-            const intervalMatches = plan.interval === alternativeInterval || plan.interval === interval;
-            const currencyMatches = plan.currencyCode === currencyCode;
-            
-            if (priceMatches && intervalMatches && currencyMatches) {
-              planHandle = plan.handle;
-              matchedPlan = plan;
-              logger.info("[SUBSCRIPTION_STORAGE] Plan matched with alternative interval", {
-                shop: normalizedShop,
-                planHandle,
-                originalInterval: interval,
-                matchedInterval: plan.interval,
-              });
-              break;
-            }
-          }
-        }
-        
-        if (!matchedPlan) {
-          logger.warn("[SUBSCRIPTION_STORAGE] No plan match found", {
-            shop: normalizedShop,
-            price,
-            currencyCode,
-            interval,
-            availablePlans: plans.map(p => ({ handle: p.handle, price: p.price, interval: p.interval })),
-          });
-        }
+        logger.warn("[SUBSCRIPTION_STORAGE] No plan match found", {
+          shop: normalizedShop,
+          price,
+          currencyCode,
+          interval,
+          normalizedInterval,
+          availablePlans: plans.map(p => ({ 
+            handle: p.handle, 
+            name: p.name,
+            price: p.price, 
+            interval: p.interval,
+            currencyCode: p.currencyCode 
+          })),
+        });
       }
     }
   }
