@@ -494,7 +494,9 @@ app.get("/auth/callback", async (req, res) => {
       res.redirect(redirectUrl);
     } else {
       // Fallback for non-embedded or legacy redirect
-      const redirectUrl = `https://${shop}/admin/apps/${apiKey}`;
+      // Correct format: https://admin.shopify.com/store/{store_handle}/apps/{app_id}
+      const storeHandle = shop.replace(".myshopify.com", "");
+      const redirectUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${apiKey}`;
       res.redirect(redirectUrl);
     }
   } catch (error) {
@@ -1106,8 +1108,8 @@ app.post("/api/billing/cancel", async (req, res) => {
   const appHandle = process.env.VITE_APP_HANDLE || "nusense-tryon";
   
   // Redirect to Shopify's plan selection page where users can cancel
-  // Format: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
-  const planSelectionUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans`;
+  // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/settings/billing/apps/{app_handle}
+  const planSelectionUrl = `https://admin.shopify.com/store/${storeHandle}/settings/billing/apps/${appHandle}`;
 
   return res.status(200).json({
     message: "This app uses Shopify Managed App Pricing. Please cancel your subscription through the Shopify admin.",

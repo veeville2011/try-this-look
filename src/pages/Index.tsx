@@ -108,14 +108,19 @@ const Index = () => {
 
     if (!pendingAction) return;
 
+    // Extract store handle from domain
+    const storeHandle = myshopifyDomain.replace(".myshopify.com", "");
+    
     let deepLinkUrl = "";
     if (pendingAction.type === "embed") {
       // App embed block deep link - template is optional for embed blocks
       // Using index template as default since embed blocks work globally
-      deepLinkUrl = `https://${myshopifyDomain}/admin/themes/current/editor?context=apps&template=index&activateAppId=${API_KEY}/${APP_EMBED_HANDLE}`;
+      // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template=index&activateAppId={app_id}/{app_embed_handle}
+      deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=index&activateAppId=${API_KEY}/${APP_EMBED_HANDLE}`;
     } else {
       // App block deep link - template specifies which page to add block to
-      deepLinkUrl = `https://${myshopifyDomain}/admin/themes/current/editor?context=apps&template=${pendingAction.template}&addAppBlockId=${API_KEY}/${APP_BLOCK_HANDLE}`;
+      // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}&addAppBlockId={app_id}/{app_block_handle}
+      deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${pendingAction.template}&addAppBlockId=${API_KEY}/${APP_BLOCK_HANDLE}`;
     }
 
     setIsDialogOpen(false);

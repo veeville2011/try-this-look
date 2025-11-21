@@ -22,8 +22,8 @@ export const getPlanSelectionUrl = (
   const handle = appHandle || import.meta.env.VITE_APP_HANDLE || "nusense-tryon";
 
   // Construct the plan selection page URL
-  // Format: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
-  return `https://admin.shopify.com/store/${storeHandle}/charges/${handle}/pricing_plans`;
+  // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/settings/billing/apps/{app_handle}
+  return `https://admin.shopify.com/store/${storeHandle}/settings/billing/apps/${handle}`;
 };
 
 /**
