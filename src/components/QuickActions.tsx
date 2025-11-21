@@ -4,7 +4,7 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Settings, CreditCard, HelpCircle } from "lucide-react";
+import { Settings, CreditCard } from "lucide-react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { redirectToPlanSelection } from "@/utils/managedPricing";
 
@@ -31,13 +31,8 @@ const QuickActions = ({
     }
   };
 
-  const handleHelpClick = () => {
-    // Open help/documentation in new tab
-    window.open("https://docs.nusense-tryon.com", "_blank");
-  };
-
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {/* Install/Configure Widget Button */}
       {(showInstall || showConfigure) && (
         <Button
@@ -69,20 +64,6 @@ const QuickActions = ({
         <span className="font-semibold">View Pricing Plans</span>
         <span className="text-xs opacity-90 font-normal">
           Choose your plan
-        </span>
-      </Button>
-
-      {/* Get Help Button */}
-      <Button
-        size="lg"
-        onClick={handleHelpClick}
-        variant="outline"
-        className="h-auto py-6 flex flex-col items-center justify-center gap-2 border-2"
-      >
-        <HelpCircle className="w-6 h-6" />
-        <span className="font-semibold">Get Help</span>
-        <span className="text-xs opacity-90 font-normal">
-          Documentation & support
         </span>
       </Button>
     </div>

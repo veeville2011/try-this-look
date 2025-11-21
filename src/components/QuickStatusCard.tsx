@@ -1,25 +1,19 @@
 /**
  * Quick Status Card Component
- * Shows at-a-glance overview of subscription and setup status
+ * Shows at-a-glance overview of subscription and plan features
  */
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Clock, Crown, Zap } from "lucide-react";
+import { Crown, Zap } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
 interface QuickStatusCardProps {
   currentPlan: string | null;
   onViewDetails?: () => void;
-  setupProgress?: {
-    stepsCompleted: number;
-    totalSteps: number;
-    completed: boolean;
-  };
 }
 
-const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupProgress }: QuickStatusCardProps) => {
+const QuickStatusCard = ({ currentPlan, onViewDetails }: QuickStatusCardProps) => {
   const { subscription: subscriptionStatus, loading } = useSubscription();
 
   const getPlanBadge = () => {
@@ -53,29 +47,6 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
     );
   };
 
-  const getSetupStatus = () => {
-    // Use prop if provided, otherwise check subscriptionStatus, otherwise default
-    if (propSetupProgress) {
-      return propSetupProgress;
-    }
-    
-    if (subscriptionStatus?.setupProgress) {
-      return subscriptionStatus.setupProgress;
-    }
-    
-    // If subscriptionStatus exists, we can infer some progress
-    // App is installed (step 1) if we have subscription data
-    const hasSubscriptionData = !!subscriptionStatus;
-    const stepsCompleted = hasSubscriptionData ? 1 : 0;
-    const totalSteps = 4;
-    
-    return {
-      completed: stepsCompleted === totalSteps,
-      stepsCompleted,
-      totalSteps,
-    };
-  };
-
   if (loading) {
     return (
       <Card className="border-2 border-border">
@@ -89,12 +60,7 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
     );
   }
 
-  const setupStatus = getSetupStatus();
-
-  const progressPercentage = Math.min(
-    (setupStatus.stepsCompleted / setupStatus.totalSteps) * 100,
-    100
-  );
+  const planFeatures = subscriptionStatus?.plan?.features || [];
 
   return (
     <Card className="border-2 border-border shadow-sm hover:shadow-md transition-shadow">
@@ -105,32 +71,25 @@ const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupP
             {getPlanBadge()}
           </div>
 
-          {/* Setup Progress */}
-          <div className="space-y-2 pt-2 border-t border-border">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Setup Progress:
-              </span>
-              <span className="text-sm font-semibold text-foreground">
-                {setupStatus.stepsCompleted}/{setupStatus.totalSteps} steps
-              </span>
+          {/* Plan Features */}
+          {planFeatures.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-border">
+              <h4 className="text-sm font-semibold text-foreground mb-2">
+                Plan Features
+              </h4>
+              <ul className="space-y-2">
+                {planFeatures.map((feature, index) => (
+                  <li
+                    key={index}
+                    className="text-sm text-muted-foreground flex items-start gap-2"
+                  >
+                    <span className="text-green-600 dark:text-green-400 mt-0.5">✓</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <Progress 
-              value={progressPercentage} 
-              className="h-2"
-            />
-            {setupStatus.completed ? (
-              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Setup Complete!</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>Continue setup below</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>
