@@ -320,14 +320,14 @@ const debug = (message, metadata = {}) => {
  */
 const logRequest = (req, metadata = {}) => {
   try {
-    const requestMetadata = {
+  const requestMetadata = {
       method: req?.method,
       path: req?.path,
       query: req?.query ? sanitizeObject(req.query) : undefined,
       ip: req?.ip || req?.connection?.remoteAddress || req?.socket?.remoteAddress,
       userAgent: req?.get ? req.get("user-agent") : undefined,
-      ...metadata,
-    };
+    ...metadata,
+  };
     info(`${req?.method || "UNKNOWN"} ${req?.path || "UNKNOWN"}`, requestMetadata);
   } catch (e) {
     // Fallback if request logging fails
@@ -340,7 +340,7 @@ const logRequest = (req, metadata = {}) => {
  */
 const logResponse = (req, res, metadata = {}) => {
   try {
-    const responseMetadata = {
+  const responseMetadata = {
       method: req?.method,
       path: req?.path,
       statusCode: res?.statusCode,
@@ -418,8 +418,8 @@ const extractRequestInfo = (req) => {
     }
     
     return {
-      method: req.method,
-      path: req.path,
+    method: req.method,
+    path: req.path,
       url: req.url,
       query: queryInfo,
       body: bodyInfo,

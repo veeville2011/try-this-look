@@ -283,7 +283,7 @@ const verifySessionToken = async (req, res, next) => {
     // Get session token from Authorization header (optional for now)
     // App Bridge will send this for authenticated requests
     const authHeader = req.get("Authorization");
-    
+
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const sessionToken = authHeader.replace("Bearer ", "");
 
@@ -293,9 +293,15 @@ const verifySessionToken = async (req, res, next) => {
         // Attach session info to request
         req.session = session;
         req.shop = session.shop;
-        logger.info("[AUTH] Session token verified", { shop: session.shop, path: req.path });
+        logger.info("[AUTH] Session token verified", {
+          shop: session.shop,
+          path: req.path,
+        });
       } catch (error) {
-        logger.warn("[AUTH] Invalid session token", { path: req.path, error: error.message });
+        logger.warn("[AUTH] Invalid session token", {
+          path: req.path,
+          error: error.message,
+        });
         // Don't fail the request, but log the warning
         // This allows backward compatibility while transitioning to embedded app
       }
@@ -309,7 +315,7 @@ const verifySessionToken = async (req, res, next) => {
           : `${shopParam}.myshopify.com`;
       }
     }
-    
+
     next();
   } catch (error) {
     logger.error("[AUTH] Session token verification failed", error, req);
@@ -364,14 +370,14 @@ app.use((req, res, next) => {
       "frame-ancestors https://admin.shopify.com https://*.myshopify.com;",
     ].join(" ")
   );
-  
+
   // Required headers for embedded apps
   // Note: X-Frame-Options should NOT be set to ALLOWALL for security
   // Instead, we use frame-ancestors in CSP which is the modern approach
   // X-Frame-Options is removed to allow iframe embedding (required for embedded apps)
   res.removeHeader("X-Frame-Options");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  
+
   next();
 });
 
@@ -402,7 +408,7 @@ app.get("/health/detailed", async (req, res) => {
       },
     },
   };
-  
+
   res.json(healthCheck);
 });
 
@@ -478,10 +484,12 @@ app.get("/auth/callback", async (req, res) => {
     // For embedded apps, redirect with host parameter
     // Get host from query params (provided by Shopify during OAuth)
     const host = req.query.host;
-    
+
     if (host) {
       // Embedded app redirect - include host parameter
-      const redirectUrl = `${process.env.VITE_SHOPIFY_APP_URL || appUrl}/?shop=${shop}&host=${encodeURIComponent(host)}`;
+      const redirectUrl = `${
+        process.env.VITE_SHOPIFY_APP_URL || appUrl
+      }/?shop=${shop}&host=${encodeURIComponent(host)}`;
       res.redirect(redirectUrl);
     } else {
       // Fallback for non-embedded or legacy redirect
@@ -757,7 +765,7 @@ app.post(
       // - EXPIRED: Subscription has expired
       // - CANCELLED: Subscription was cancelled
       // - FROZEN: Store billing account is frozen
-      
+
       // The webhook also fires when:
       // - Subscription status changes (approval, cancellation, etc.)
       // - Capped amount is changed (for usage-based subscriptions)
@@ -775,12 +783,17 @@ app.post(
 
       res.status(200).json({ received: true });
     } catch (error) {
-      logger.error("[WEBHOOK ERROR] app/subscriptions/update failed", error, req, {
-        shop: req.webhookShop,
-        webhookTopic: req.webhookTopic,
-      });
-      
-      res.status(200).json({ 
+      logger.error(
+        "[WEBHOOK ERROR] app/subscriptions/update failed",
+        error,
+        req,
+        {
+          shop: req.webhookShop,
+          webhookTopic: req.webhookTopic,
+        }
+      );
+
+      res.status(200).json({
         received: true,
         error: "Webhook processed but encountered an error",
       });
@@ -861,9 +874,11 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
 // Billing API Routes
 // Get current subscription status
 app.get("/api/billing/subscription", async (req, res) => {
-  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
   const startTime = Date.now();
-  
+
   try {
     logger.info("[BILLING] [GET_SUBSCRIPTION] Request received", {
       requestId,
@@ -906,21 +921,26 @@ app.get("/api/billing/subscription", async (req, res) => {
         sessionId,
         shopDomain,
       });
-      
+
       session = await shopify.session.getSessionById(sessionId);
-      
+
       logger.info("[BILLING] [GET_SUBSCRIPTION] Session retrieved", {
         requestId,
         hasSession: !!session,
         sessionId: session?.id || "N/A",
       });
     } catch (sessionError) {
-      logger.error("[BILLING] [GET_SUBSCRIPTION] Session retrieval failed", sessionError, req, {
-        requestId,
-        shopDomain,
-        errorType: sessionError.constructor.name,
-        errorCode: sessionError.code,
-      });
+      logger.error(
+        "[BILLING] [GET_SUBSCRIPTION] Session retrieval failed",
+        sessionError,
+        req,
+        {
+          requestId,
+          shopDomain,
+          errorType: sessionError.constructor.name,
+          errorCode: sessionError.code,
+        }
+      );
       return res.status(500).json({
         error: "Session retrieval failed",
         message: sessionError.message || "Failed to retrieve session",
@@ -946,26 +966,31 @@ app.get("/api/billing/subscription", async (req, res) => {
         requestId,
         shopDomain,
       });
-      
-      subscriptionStatus = await billing.checkSubscription(
-        shopify,
-        session
+
+      subscriptionStatus = await billing.checkSubscription(shopify, session);
+
+      logger.info(
+        "[BILLING] [GET_SUBSCRIPTION] Subscription status retrieved",
+        {
+          requestId,
+          shop: shopDomain,
+          hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+          planHandle: subscriptionStatus.plan?.handle,
+          isFree: subscriptionStatus.isFree,
+        }
       );
-      
-      logger.info("[BILLING] [GET_SUBSCRIPTION] Subscription status retrieved", {
-        requestId,
-        shop: shopDomain,
-        hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
-        planHandle: subscriptionStatus.plan?.handle,
-        isFree: subscriptionStatus.isFree,
-      });
     } catch (checkError) {
-      logger.error("[BILLING] [GET_SUBSCRIPTION] Subscription check failed", checkError, req, {
-        requestId,
-        shopDomain,
-        errorType: checkError.constructor.name,
-        errorCode: checkError.code,
-      });
+      logger.error(
+        "[BILLING] [GET_SUBSCRIPTION] Subscription check failed",
+        checkError,
+        req,
+        {
+          requestId,
+          shopDomain,
+          errorType: checkError.constructor.name,
+          errorCode: checkError.code,
+        }
+      );
       return res.status(500).json({
         error: "Subscription check failed",
         message: checkError.message || "Failed to check subscription status",
@@ -992,7 +1017,7 @@ app.get("/api/billing/subscription", async (req, res) => {
       errorType: error.constructor.name,
       errorCode: error.code,
     });
-    
+
     if (!res.headersSent) {
       res.status(500).json({
         error: "Internal server error",
@@ -1006,9 +1031,11 @@ app.get("/api/billing/subscription", async (req, res) => {
 // Create subscription
 app.post("/api/billing/subscribe", async (req, res) => {
   const startTime = Date.now();
-  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
   const apiTimer = logger.createTimer(`[API] [SUBSCRIBE] Total Request Time`);
-  
+
   try {
     logger.info("[API] [SUBSCRIBE] ===== REQUEST START =====", {
       requestId,
@@ -1086,7 +1113,8 @@ app.post("/api/billing/subscribe", async (req, res) => {
       });
       return res.status(401).json({
         error: "Unauthorized",
-        message: "Shop information not found. Please ensure you're authenticated.",
+        message:
+          "Shop information not found. Please ensure you're authenticated.",
       });
     }
 
@@ -1103,7 +1131,9 @@ app.post("/api/billing/subscribe", async (req, res) => {
     });
 
     // Get session for the shop
-    const sessionIdTimer = logger.createTimer(`[API] [SUBSCRIBE] Session ID Generation`);
+    const sessionIdTimer = logger.createTimer(
+      `[API] [SUBSCRIBE] Session ID Generation`
+    );
     const sessionId = shopify.session.getOfflineId(shopDomain);
     sessionIdTimer.log("Session ID generated", {
       requestId,
@@ -1111,13 +1141,15 @@ app.post("/api/billing/subscribe", async (req, res) => {
       sessionId,
     });
 
-    const sessionRetrieveTimer = logger.createTimer(`[API] [SUBSCRIBE] Session Retrieval`);
+    const sessionRetrieveTimer = logger.createTimer(
+      `[API] [SUBSCRIBE] Session Retrieval`
+    );
     logger.info("[API] [SUBSCRIBE] Attempting to retrieve session", {
       requestId,
       sessionId,
       shopDomain,
     });
-    
+
     // Add timeout for session retrieval (5 seconds max)
     const sessionTimeoutMs = 5000;
     let sessionTimeoutId = null;
@@ -1132,20 +1164,20 @@ app.post("/api/billing/subscribe", async (req, res) => {
         reject(new Error("Session retrieval timed out after 5 seconds"));
       }, sessionTimeoutMs);
     });
-    
+
     let session;
     try {
       const sessionPromise = shopify.session.getSessionById(sessionId);
       session = await Promise.race([sessionPromise, sessionTimeoutPromise]);
-      
+
       // Clear timeout if successful
       if (sessionTimeoutId) {
         clearTimeout(sessionTimeoutId);
         sessionTimeoutId = null;
       }
-      
+
       const sessionRetrieveDuration = sessionRetrieveTimer.elapsed();
-      
+
       logger.info("[API] [SUBSCRIBE] Session retrieved", {
         requestId,
         sessionId,
@@ -1162,16 +1194,23 @@ app.post("/api/billing/subscribe", async (req, res) => {
         clearTimeout(sessionTimeoutId);
         sessionTimeoutId = null;
       }
-      
+
       const sessionRetrieveDuration = sessionRetrieveTimer.elapsed();
-      logger.error("[API] [SUBSCRIBE] Session retrieval failed", sessionError, req, {
-        requestId,
-        sessionId,
-        shopDomain,
-        duration: `${sessionRetrieveDuration}ms`,
-        isTimeout: sessionError.message?.includes("timeout") || sessionError.message?.includes("timed out"),
-        errorCode: sessionError.code,
-      });
+      logger.error(
+        "[API] [SUBSCRIBE] Session retrieval failed",
+        sessionError,
+        req,
+        {
+          requestId,
+          sessionId,
+          shopDomain,
+          duration: `${sessionRetrieveDuration}ms`,
+          isTimeout:
+            sessionError.message?.includes("timeout") ||
+            sessionError.message?.includes("timed out"),
+          errorCode: sessionError.code,
+        }
+      );
       throw sessionError;
     }
 
@@ -1210,9 +1249,11 @@ app.post("/api/billing/subscribe", async (req, res) => {
       sessionId: session.id || "N/A",
     });
 
-    const billingTimer = logger.createTimer(`[API] [SUBSCRIBE] Billing.createSubscription`);
+    const billingTimer = logger.createTimer(
+      `[API] [SUBSCRIBE] Billing.createSubscription`
+    );
     let result;
-    
+
     try {
       result = await billing.createSubscription(
         shopify,
@@ -1222,7 +1263,7 @@ app.post("/api/billing/subscribe", async (req, res) => {
         trialDays || 0,
         "STANDARD" // Default replacement behavior
       );
-      
+
       const billingDuration = billingTimer.elapsed();
       billingTimer.log("Billing subscription created", {
         requestId,
@@ -1256,24 +1297,32 @@ app.post("/api/billing/subscribe", async (req, res) => {
       res.json(result);
     } catch (billingError) {
       const billingDuration = billingTimer.elapsed();
-      logger.error("[API] [SUBSCRIBE] billing.createSubscription failed", billingError, req, {
-        requestId,
-        shop: shopDomain,
-        planHandle,
-        duration: `${billingDuration}ms`,
-        isTimeout: billingError.message?.includes("timeout") || billingError.message?.includes("timed out"),
-      });
+      logger.error(
+        "[API] [SUBSCRIBE] billing.createSubscription failed",
+        billingError,
+        req,
+        {
+          requestId,
+          shop: shopDomain,
+          planHandle,
+          duration: `${billingDuration}ms`,
+          isTimeout:
+            billingError.message?.includes("timeout") ||
+            billingError.message?.includes("timed out"),
+        }
+      );
       throw billingError;
     }
   } catch (error) {
     const totalDuration = apiTimer.elapsed();
-    
+
     // Handle timeout errors specifically
-    const isTimeout = error.message?.includes("timeout") || 
-                     error.message?.includes("timed out") ||
-                     error.code === "ETIMEDOUT" ||
-                     error.code === "ECONNRESET";
-    
+    const isTimeout =
+      error.message?.includes("timeout") ||
+      error.message?.includes("timed out") ||
+      error.code === "ETIMEDOUT" ||
+      error.code === "ECONNRESET";
+
     logger.error("[API] [SUBSCRIBE] ===== REQUEST FAILED =====", {
       requestId,
       error: error.message,
@@ -1290,7 +1339,7 @@ app.post("/api/billing/subscribe", async (req, res) => {
         cause: error.cause,
       },
     });
-    
+
     // Log additional context if available
     if (error.response) {
       logger.error("[API] [SUBSCRIBE] Error response details", {
@@ -1300,12 +1349,12 @@ app.post("/api/billing/subscribe", async (req, res) => {
         data: error.response.data,
       });
     }
-    
+
     const statusCode = isTimeout ? 504 : 500;
-    const errorMessage = isTimeout 
+    const errorMessage = isTimeout
       ? "The subscription request timed out. Please try again. If this persists, check your Shopify connection."
       : error.message || "Failed to create subscription";
-    
+
     if (!res.headersSent) {
       res.status(statusCode).json({
         error: isTimeout ? "Gateway Timeout" : "Failed to create subscription",
@@ -1313,9 +1362,12 @@ app.post("/api/billing/subscribe", async (req, res) => {
         requestId, // Include requestId for debugging
       });
     } else {
-      logger.warn("[API] [SUBSCRIBE] Response already sent, cannot send error response", {
-        requestId,
-      });
+      logger.warn(
+        "[API] [SUBSCRIBE] Response already sent, cannot send error response",
+        {
+          requestId,
+        }
+      );
     }
   }
 });
@@ -1401,7 +1453,9 @@ app.post("/api/billing/change-plan", async (req, res) => {
       });
     }
 
-    const defaultReturnUrl = `${process.env.VITE_SHOPIFY_APP_URL || appUrl}/auth/callback?shop=${shopDomain}`;
+    const defaultReturnUrl = `${
+      process.env.VITE_SHOPIFY_APP_URL || appUrl
+    }/auth/callback?shop=${shopDomain}`;
     const finalReturnUrl = returnUrl || defaultReturnUrl;
 
     const result = await billing.changePlan(

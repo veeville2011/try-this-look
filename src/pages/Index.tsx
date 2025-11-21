@@ -183,7 +183,7 @@ const Index = () => {
     }
   };
 
-    const fetchCurrentSubscription = async () => {
+  const fetchCurrentSubscription = async () => {
     const requestId = `fetch-sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const startTime = Date.now();
     
@@ -220,8 +220,8 @@ const Index = () => {
       // Prepare headers with session token if available
       const headers: HeadersInit = {};
       try {
-        if (sessionToken) {
-          headers["Authorization"] = `Bearer ${sessionToken}`;
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
           console.log("[FRONTEND] [GET_SUBSCRIPTION] Session token included", {
             requestId,
           });
@@ -290,14 +290,14 @@ const Index = () => {
       }
 
       try {
-        if (data.hasActiveSubscription && !data.isFree) {
-          setCurrentPlan(data.plan.handle);
+      if (data.hasActiveSubscription && !data.isFree) {
+        setCurrentPlan(data.plan.handle);
           console.log("[FRONTEND] [GET_SUBSCRIPTION] Plan set", {
             requestId,
             plan: data.plan.handle,
           });
-        } else if (data.isFree) {
-          setCurrentPlan("free");
+      } else if (data.isFree) {
+        setCurrentPlan("free");
           console.log("[FRONTEND] [GET_SUBSCRIPTION] Free plan set", {
             requestId,
           });
@@ -334,13 +334,13 @@ const Index = () => {
       let shopDomain: string | null = null;
       try {
         shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
-        console.log("[FRONTEND] [SUBSCRIBE] Shop domain extraction", {
+      console.log("[FRONTEND] [SUBSCRIBE] Shop domain extraction", {
           requestId,
-          shopFromHook: shop || "not available",
+        shopFromHook: shop || "not available",
           shopFromUrl: new URLSearchParams(window.location.search).get("shop") || "not available",
-          finalShopDomain: shopDomain || "not found",
-          hasSessionToken: !!sessionToken,
-        });
+        finalShopDomain: shopDomain || "not found",
+        hasSessionToken: !!sessionToken,
+      });
       } catch (extractError) {
         console.error("[FRONTEND] [SUBSCRIBE] Failed to extract shop domain", {
           requestId,
@@ -362,13 +362,13 @@ const Index = () => {
       // Prepare headers with session token if available
       const headers: HeadersInit = { "Content-Type": "application/json" };
       try {
-        if (sessionToken) {
-          headers["Authorization"] = `Bearer ${sessionToken}`;
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
           console.log("[FRONTEND] [SUBSCRIBE] Session token included in headers", {
             requestId,
             hasToken: true,
           });
-        } else {
+      } else {
           console.warn("[FRONTEND] [SUBSCRIBE] No session token available", {
             requestId,
           });
@@ -399,20 +399,20 @@ const Index = () => {
       const requestStartTime = Date.now();
       try {
         response = await fetch("/api/billing/subscribe", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(requestBody),
-        });
-        const requestDuration = Date.now() - requestStartTime;
-        
-        console.log("[FRONTEND] [SUBSCRIBE] Received response", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+      const requestDuration = Date.now() - requestStartTime;
+
+      console.log("[FRONTEND] [SUBSCRIBE] Received response", {
           requestId,
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          duration: `${requestDuration}ms`,
-          headers: Object.fromEntries(response.headers.entries()),
-        });
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        duration: `${requestDuration}ms`,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
       } catch (fetchError) {
         const requestDuration = Date.now() - requestStartTime;
         console.error("[FRONTEND] [SUBSCRIBE] Fetch request failed", {
@@ -436,8 +436,8 @@ const Index = () => {
               errorData = JSON.parse(errorText);
             } catch (parseError) {
               errorData = {
-                error: "Unknown error",
-                message: `HTTP ${response.status}: ${response.statusText}`,
+          error: "Unknown error",
+          message: `HTTP ${response.status}: ${response.statusText}`,
                 rawResponse: errorText.substring(0, 500),
               };
             }
@@ -480,15 +480,15 @@ const Index = () => {
           throw new Error("Empty response body");
         }
         data = JSON.parse(responseText);
-        const totalDuration = Date.now() - startTime;
+      const totalDuration = Date.now() - startTime;
 
-        console.log("[FRONTEND] [SUBSCRIBE] Response data parsed", {
+      console.log("[FRONTEND] [SUBSCRIBE] Response data parsed", {
           requestId,
-          hasConfirmationUrl: !!data.confirmationUrl,
-          isFree: data.isFree,
-          hasSubscription: !!data.subscription,
-          success: data.success,
-          totalDuration: `${totalDuration}ms`,
+        hasConfirmationUrl: !!data.confirmationUrl,
+        isFree: data.isFree,
+        hasSubscription: !!data.subscription,
+        success: data.success,
+        totalDuration: `${totalDuration}ms`,
           requestIdFromServer: data.requestId,
         });
       } catch (parseError) {
@@ -504,29 +504,29 @@ const Index = () => {
 
       // Handle response based on data
       try {
-        if (data.confirmationUrl) {
-          console.log("[FRONTEND] [SUBSCRIBE] Redirecting to confirmation URL", {
+      if (data.confirmationUrl) {
+        console.log("[FRONTEND] [SUBSCRIBE] Redirecting to confirmation URL", {
             requestId,
-            confirmationUrl: data.confirmationUrl,
-          });
-          // Redirect to Shopify's confirmation page
-          window.location.href = data.confirmationUrl;
-        } else if (data.isFree) {
-          console.log("[FRONTEND] [SUBSCRIBE] Free plan activated", {
+          confirmationUrl: data.confirmationUrl,
+        });
+        // Redirect to Shopify's confirmation page
+        window.location.href = data.confirmationUrl;
+      } else if (data.isFree) {
+        console.log("[FRONTEND] [SUBSCRIBE] Free plan activated", {
             requestId,
-            planHandle,
-          });
-          // Free plan - no confirmation needed
-          toast.success("Free plan activated!");
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        } else {
+          planHandle,
+        });
+        // Free plan - no confirmation needed
+        toast.success("Free plan activated!");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
           console.error("[FRONTEND] [SUBSCRIBE] Unexpected response format", {
             requestId,
-            data,
-          });
-          toast.error(data.message || "Failed to create subscription");
+          data,
+        });
+        toast.error(data.message || "Failed to create subscription");
           setSubscribing(null);
         }
       } catch (handleError) {
