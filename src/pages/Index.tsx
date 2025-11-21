@@ -786,7 +786,6 @@ const Index = () => {
             </p>
           </div>
           <FeatureHighlights />
-            </div>
           </div>
         </div>
       </section>
