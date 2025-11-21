@@ -7,7 +7,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { getPlanSelectionUrl, redirectToPlanSelection } from "@/utils/managedPricing";
-import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -23,12 +23,22 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
   const [iframeBlocked, setIframeBlocked] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Debug: Log component render
   useEffect(() => {
+    console.log("[ShopifyManagedPricing] Component rendered - Shopify Managed Pricing UI");
+  }, []);
+
+  useEffect(() => {
+    console.log("[ShopifyManagedPricing] Component mounted/updated", { shop });
+    
     // Get shop from App Bridge hook or URL params (fallback)
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
 
+    console.log("[ShopifyManagedPricing] Shop domain extracted", { shopDomain, shop });
+
     if (!shopDomain) {
+      console.warn("[ShopifyManagedPricing] No shop domain found");
       setError("Shop parameter is required to load pricing");
       setLoading(false);
       return;
@@ -37,16 +47,15 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
     try {
       // Get the Shopify managed pricing URL
       const url = getPlanSelectionUrl(shopDomain);
+      console.log("[ShopifyManagedPricing] Pricing URL generated", { url });
       setPricingUrl(url);
       setLoading(false);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load pricing";
+      console.error("[ShopifyManagedPricing] Error generating URL:", err);
       setError(errorMessage);
       setLoading(false);
-      if (import.meta.env.DEV) {
-        console.error("[ShopifyManagedPricing] Error:", err);
-      }
     }
   }, [shop]);
 
@@ -100,58 +109,12 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
     return null;
   }
 
-  // If iframe is blocked, show fallback button
-  if (iframeBlocked) {
-    const shopDomain =
-      shop || new URLSearchParams(window.location.search).get("shop");
+  // Get shop domain for the button
+  const shopDomain =
+    shop || new URLSearchParams(window.location.search).get("shop");
 
-    return (
-      <div className={`w-full ${className}`}>
-        <div className="mb-6 text-center">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-foreground">
-            Choose Your Plan
-          </h2>
-          <p className="text-lg sm:text-xl text-muted-foreground">
-            Select the perfect plan for your store
-          </p>
-        </div>
-
-        <Card className="border-2 border-border">
-          <CardContent className="p-12 text-center">
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-foreground">
-                  Shopify Managed Pricing
-                </h3>
-                <p className="text-muted-foreground">
-                  Access Shopify's secure, native pricing interface to view and
-                  select your plan. All billing is handled securely by Shopify.
-                </p>
-              </div>
-
-              <Button
-                size="lg"
-                onClick={() => {
-                  if (shopDomain) {
-                    redirectToPlanSelection(shopDomain);
-                  }
-                }}
-                className="mt-6"
-              >
-                <ExternalLink className="w-5 h-5 mr-2" />
-                View Pricing Plans
-              </Button>
-
-              <p className="text-sm text-muted-foreground mt-4">
-                Powered by Shopify's secure billing system
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // Always show the button-based UI since Shopify admin pages block iframe embedding
+  // This provides a better, more reliable user experience
   return (
     <div className={`w-full ${className}`}>
       <div className="mb-6 text-center">
@@ -163,56 +126,64 @@ const ShopifyManagedPricing = ({ className = "" }: ShopifyManagedPricingProps) =
         </p>
       </div>
 
-      {/* Embed Shopify's managed pricing UI */}
-      <div className="w-full rounded-lg border-2 border-border overflow-hidden bg-card shadow-lg">
-        <iframe
-          ref={iframeRef}
-          src={pricingUrl}
-          className="w-full min-h-[800px] border-0"
-          title="Shopify Pricing Plans"
-          allow="payment"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
-          style={{
-            minHeight: "800px",
-            width: "100%",
-          }}
-          onLoad={() => {
-            setLoading(false);
-            // Check if iframe content loaded successfully
-            try {
-              // Try to access iframe content to detect X-Frame-Options blocking
-              const iframe = iframeRef.current;
-              if (iframe && iframe.contentWindow) {
-                // If we can access contentWindow, the iframe loaded
-                if (import.meta.env.DEV) {
-                  console.log("[ShopifyManagedPricing] Iframe loaded successfully");
-                }
-              }
-            } catch (e) {
-              // Cross-origin restrictions - this is expected for Shopify admin pages
-              // The iframe might still be loading, so we'll wait a bit
-              setTimeout(() => {
-                setLoading(false);
-              }, 2000);
-            }
-          }}
-          onError={() => {
-            // Iframe failed to load - likely blocked by X-Frame-Options
-            setIframeBlocked(true);
-            setLoading(false);
-            if (import.meta.env.DEV) {
-              console.warn("[ShopifyManagedPricing] Iframe blocked, using fallback");
-            }
-          }}
-        />
-      </div>
+      <Card className="border-2 border-border shadow-lg">
+        <CardContent className="p-8 sm:p-12 text-center">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+                <ExternalLink className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-foreground">
+                Shopify Managed Pricing
+              </h3>
+              <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+                Access Shopify's secure, native pricing interface to view and
+                select your plan. All billing is handled securely by Shopify's
+                trusted payment system.
+              </p>
+            </div>
 
-      {/* Note about Shopify's native pricing */}
-      <div className="mt-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Powered by Shopify's secure billing system
-        </p>
-      </div>
+            <div className="pt-4">
+              <Button
+                size="lg"
+                onClick={() => {
+                  if (shopDomain) {
+                    console.log("[ShopifyManagedPricing] Redirecting to Shopify pricing", {
+                      shopDomain,
+                    });
+                    redirectToPlanSelection(shopDomain);
+                  } else {
+                    console.error("[ShopifyManagedPricing] No shop domain available");
+                    setError("Shop parameter is required");
+                  }
+                }}
+                className="px-8 py-6 text-lg font-semibold"
+                disabled={!shopDomain}
+              >
+                <ExternalLink className="w-5 h-5 mr-2" />
+                View Pricing Plans
+              </Button>
+            </div>
+
+            <div className="pt-6 border-t border-border">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  <span>Secure billing by Shopify</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  <span>Native Shopify interface</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  <span>Trusted payment processing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

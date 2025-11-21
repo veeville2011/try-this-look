@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
+import { redirectToPlanSelection } from "@/utils/managedPricing";
 import {
   Card,
   CardContent,
@@ -28,10 +29,20 @@ import {
   Shield,
   Link2,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SubscriptionManagement from "@/components/SubscriptionManagement";
 import ShopifyManagedPricing from "@/components/ShopifyManagedPricing";
+import QuickStatusCard from "@/components/QuickStatusCard";
+import QuickActions from "@/components/QuickActions";
+import FeatureHighlights from "@/components/FeatureHighlights";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { logError, logApiError, getUserFriendlyMessage } from "@/utils/errorHandler";
 
 
@@ -390,37 +401,110 @@ const Index = () => {
       </Dialog>
 
       {/* Main Content */}
-      {/* Hero Section */}
+      {/* Enhanced Hero Section */}
       <header className="relative overflow-hidden bg-card border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-16 sm:py-20 md:py-24 relative">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col items-center text-center">
-              <div className="inline-flex flex-col items-center">
-                <h1
-                  className="inline-flex items-center font-extrabold tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight"
-                  aria-label="NusenseTryOn"
-                >
-                  <span className="text-primary" style={{ color: "#ce0003" }}>
-                    Nusense
-                  </span>
-                  <span
-                    className="text-foreground"
-                    style={{ color: "#564646" }}
-                  >
-                    TryOn
-                  </span>
-                </h1>
-                <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium no-orphans text-center w-full">
-                  Essayage virtuel pour&nbsp;Shopify
-                </p>
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20 relative">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+              {/* Left: Hero Content */}
+              <div className="flex-1">
+                <div className="flex flex-col items-start gap-4">
+                  <div className="inline-flex flex-col items-start">
+                    <h1
+                      className="inline-flex items-center font-extrabold tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight"
+                      aria-label="NusenseTryOn"
+                    >
+                      <span className="text-primary" style={{ color: "#ce0003" }}>
+                        Nusense
+                      </span>
+                      <span
+                        className="text-foreground"
+                        style={{ color: "#564646" }}
+                      >
+                        TryOn
+                      </span>
+                    </h1>
+                    <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium no-orphans mt-2">
+                      Essayage virtuel pour&nbsp;Shopify
+                    </p>
+                    <p className="text-base sm:text-lg text-muted-foreground mt-3 max-w-2xl">
+                      Transformez l'expérience d'achat de vos clients avec notre
+                      technologie d'essayage virtuel alimentée par l'IA
+                    </p>
+                  </div>
+                  {/* Primary CTA */}
+                  <div className="flex flex-wrap gap-3 mt-4">
+                    <Button
+                      size="lg"
+                      onClick={() => {
+                        // Scroll to installation guide
+                        document
+                          .getElementById("installation-guide")
+                          ?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="px-6"
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Commencer l'installation
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => {
+                        const shopDomain =
+                          shop || new URLSearchParams(window.location.search).get("shop");
+                        if (shopDomain) {
+                          redirectToPlanSelection(shopDomain);
+                        }
+                      }}
+                      className="px-6"
+                    >
+                      Voir les tarifs
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              {/* Right: Status Card */}
+              <div className="w-full lg:w-80 flex-shrink-0">
+                <QuickStatusCard
+                  currentPlan={currentPlan}
+                  onViewDetails={() => {
+                    document
+                      .getElementById("subscription-section")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                />
               </div>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Quick Actions Section */}
+      <section className="py-8 sm:py-12 bg-background border-b border-border">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+          <QuickActions
+            showInstall={!currentPlan || currentPlan === "free"}
+            showConfigure={currentPlan && currentPlan !== "free"}
+            onInstallClick={() => {
+              document
+                .getElementById("installation-guide")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+            onConfigureClick={() => {
+              document
+                .getElementById("installation-guide")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+        </div>
+      </section>
+
       {/* Installation Instructions */}
-      <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background">
+      <section
+        id="installation-guide"
+        className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background"
+      >
         <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
           <div className="space-y-8 sm:space-y-10 md:space-y-12">
             {/* Installation Steps */}
@@ -832,21 +916,131 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Subscription Management Section - Only show if user has active subscription */}
-      {currentPlan && currentPlan !== "free" && (
-        <section className="py-12 sm:py-16 bg-background border-b border-border">
-          <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+      {/* Feature Highlights Section */}
+      <section className="py-12 sm:py-16 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-foreground">
+              Pourquoi choisir NusenseTryOn?
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Des fonctionnalités puissantes pour améliorer l'expérience d'achat
+            </p>
+          </div>
+          <FeatureHighlights />
+        </div>
+      </section>
+
+      {/* Subscription Management Section */}
+      <section
+        id="subscription-section"
+        className="py-12 sm:py-16 bg-background border-b border-border"
+      >
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+          {currentPlan && currentPlan !== "free" ? (
             <SubscriptionManagement
               onSubscriptionUpdate={fetchCurrentSubscription}
             />
-          </div>
-        </section>
-      )}
+          ) : (
+            <Card className="border-2 border-border">
+              <CardContent className="p-8 text-center">
+                <div className="max-w-2xl mx-auto space-y-4">
+                  <h3 className="text-2xl font-bold text-foreground">
+                    Vous utilisez le plan gratuit
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Passez à Pro pour débloquer toutes les fonctionnalités et
+                    augmenter vos ventes
+                  </p>
+                  <Button
+                    size="lg"
+                    onClick={() => {
+                      const shopDomain =
+                        shop || new URLSearchParams(window.location.search).get("shop");
+                      if (shopDomain) {
+                        redirectToPlanSelection(shopDomain);
+                      }
+                    }}
+                    className="mt-4"
+                  >
+                    Voir les plans Pro
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
 
       {/* Shopify Managed Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
           <ShopifyManagedPricing />
+        </div>
+      </section>
+
+      {/* Support & Resources Section */}
+      <section className="py-12 sm:py-16 bg-background border-b border-border">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
+          <Card className="border-2 border-border">
+            <CardHeader>
+              <CardTitle className="text-2xl sm:text-3xl flex items-center gap-3">
+                <HelpCircle className="w-6 h-6 text-primary" />
+                Besoin d'aide?
+              </CardTitle>
+              <CardDescription className="text-base">
+                Ressources et support pour vous aider à réussir
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Button
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col items-center gap-2"
+                  onClick={() => window.open("https://docs.nusense-tryon.com", "_blank")}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span className="font-semibold">Documentation</span>
+                  <span className="text-xs text-muted-foreground">
+                    Guides complets
+                  </span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col items-center gap-2"
+                  onClick={() => window.open("mailto:support@nusense-tryon.com", "_blank")}
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-semibold">Support Email</span>
+                  <span className="text-xs text-muted-foreground">
+                    support@nusense-tryon.com
+                  </span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col items-center gap-2"
+                  onClick={() => window.open("https://faq.nusense-tryon.com", "_blank")}
+                >
+                  <HelpCircle className="w-5 h-5" />
+                  <span className="font-semibold">FAQ</span>
+                  <span className="text-xs text-muted-foreground">
+                    Questions fréquentes
+                  </span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto py-4 flex flex-col items-center gap-2"
+                  onClick={() => window.open("https://tutorials.nusense-tryon.com", "_blank")}
+                >
+                  <Zap className="w-5 h-5" />
+                  <span className="font-semibold">Tutoriels</span>
+                  <span className="text-xs text-muted-foreground">
+                    Vidéos et exemples
+                  </span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
