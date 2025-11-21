@@ -3,26 +3,11 @@
  * Shows at-a-glance overview of subscription and setup status
  */
 
-import { useShop } from "@/providers/AppBridgeProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Clock, Crown, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface SubscriptionStatus {
-  hasActiveSubscription: boolean;
-  isFree: boolean;
-  plan: {
-    handle: string;
-    name: string;
-  };
-  setupProgress?: {
-    stepsCompleted: number;
-    totalSteps: number;
-    completed: boolean;
-  };
-}
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface QuickStatusCardProps {
   currentPlan: string | null;
@@ -35,35 +20,7 @@ interface QuickStatusCardProps {
 }
 
 const QuickStatusCard = ({ currentPlan, onViewDetails, setupProgress: propSetupProgress }: QuickStatusCardProps) => {
-  const shop = useShop();
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchStatus();
-  }, [shop, currentPlan]);
-
-  const fetchStatus = async () => {
-    try {
-      const shopDomain =
-        shop || new URLSearchParams(window.location.search).get("shop");
-
-      if (!shopDomain) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`/api/billing/subscription?shop=${shopDomain}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSubscriptionStatus(data);
-      }
-    } catch (error) {
-      // Silently handle errors - subscription status will show as free/default
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { subscription: subscriptionStatus, loading } = useSubscription();
 
   const getPlanBadge = () => {
     // Use plan from subscriptionStatus if available, otherwise fall back to currentPlan prop

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
+import { useState } from "react";
+import { useShop } from "@/providers/AppBridgeProvider";
+import { useSubscription } from "@/hooks/useSubscription";
 import { redirectToPlanSelection } from "@/utils/managedPricing";
 import {
   Card,
@@ -43,8 +44,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { logError, logApiError, getUserFriendlyMessage } from "@/utils/errorHandler";
-
 
 const Index = () => {
   // Deep linking configuration
@@ -54,7 +53,6 @@ const Index = () => {
 
   // App Bridge hooks for embedded app
   const shop = useShop();
-  const { token: sessionToken } = useSessionToken();
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -143,169 +141,21 @@ const Index = () => {
     }
   };
 
-  // Subscription status polling
+  // Use subscription hook instead of polling
+  const { subscription, refresh: refreshSubscription } = useSubscription();
+
+  // Update current plan based on subscription status
   useEffect(() => {
-    fetchCurrentSubscription();
-
-    // After returning from Shopify subscription confirmation, poll subscription status
-    // Shopify redirects to returnUrl but doesn't add specific query params
-    // We poll the subscription status to detect when it becomes active
-    // This is the recommended approach since app/subscriptions/update webhook 
-    // is not available as app-specific webhook in shopify.app.toml
-    
-    // Check if we just returned from subscription confirmation
-    // Poll every 2 seconds for up to 30 seconds to catch status changes
-    let pollCount = 0;
-    const maxPolls = 15; // 15 polls * 2 seconds = 30 seconds
-    const pollInterval = 2000; // 2 seconds
-
-    const pollSubscription = setInterval(() => {
-      pollCount++;
-      if (pollCount <= maxPolls) {
-        fetchCurrentSubscription();
-      } else {
-        clearInterval(pollSubscription);
-      }
-    }, pollInterval);
-
-    // Cleanup interval on unmount
-    return () => {
-      clearInterval(pollSubscription);
-    };
-  }, []);
-
-  const fetchCurrentSubscription = async () => {
-    const requestId = `fetch-sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const startTime = Date.now();
-    
-    try {
-      console.log("[FRONTEND] [GET_SUBSCRIPTION] Starting", {
-        requestId,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Get shop from App Bridge hook or URL params (fallback)
-      let shopDomain: string | null = null;
-      try {
-        shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
-        console.log("[FRONTEND] [GET_SUBSCRIPTION] Shop domain extracted", {
-          requestId,
-          shopFromHook: shop || "not available",
-          shopFromUrl: new URLSearchParams(window.location.search).get("shop") || "not available",
-          finalShopDomain: shopDomain || "not found",
-        });
-      } catch (extractError) {
-        logError("[FRONTEND] [GET_SUBSCRIPTION] Shop extraction", extractError, {
-          requestId,
-        });
-        return;
-      }
-
-      if (!shopDomain) {
-        console.warn("[FRONTEND] [GET_SUBSCRIPTION] No shop domain found", {
-          requestId,
-        });
-        return;
-      }
-
-      // Prepare headers with session token if available
-      const headers: HeadersInit = {};
-      try {
-      if (sessionToken) {
-        headers["Authorization"] = `Bearer ${sessionToken}`;
-          console.log("[FRONTEND] [GET_SUBSCRIPTION] Session token included", {
-            requestId,
-          });
-        }
-      } catch (headerError) {
-        logError("[FRONTEND] [GET_SUBSCRIPTION] Header preparation", headerError, {
-          requestId,
-        });
-      }
-
-      let response: Response;
-      try {
-        const url = `/api/billing/subscription?shop=${shopDomain}`;
-        console.log("[FRONTEND] [GET_SUBSCRIPTION] Sending request", {
-          requestId,
-          url,
-          hasHeaders: Object.keys(headers).length > 0,
-        });
-
-        response = await fetch(url, { headers });
-        
-        console.log("[FRONTEND] [GET_SUBSCRIPTION] Response received", {
-          requestId,
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-        });
-      } catch (fetchError) {
-        logError("[FRONTEND] [GET_SUBSCRIPTION] Fetch failed", fetchError, {
-          requestId,
-          shopDomain,
-        });
-        return;
-      }
-
-      if (!response.ok) {
-        const errorDetails = await logApiError(
-          "[FRONTEND] [GET_SUBSCRIPTION]",
-          response,
-          { requestId, shopDomain }
-        );
-        return;
-      }
-
-      let data: any;
-      try {
-        const responseText = await response.text();
-        if (!responseText) {
-          throw new Error("Empty response body");
-        }
-        data = JSON.parse(responseText);
-        
-        console.log("[FRONTEND] [GET_SUBSCRIPTION] Data parsed", {
-          requestId,
-          hasActiveSubscription: data.hasActiveSubscription,
-          isFree: data.isFree,
-          planHandle: data.plan?.handle,
-          duration: `${Date.now() - startTime}ms`,
-        });
-      } catch (parseError) {
-        logError("[FRONTEND] [GET_SUBSCRIPTION] Parse failed", parseError, {
-          requestId,
-          shopDomain,
-        });
-        return;
-      }
-
-      try {
-      if (data.hasActiveSubscription && !data.isFree) {
-        setCurrentPlan(data.plan.handle);
-          console.log("[FRONTEND] [GET_SUBSCRIPTION] Plan set", {
-            requestId,
-            plan: data.plan.handle,
-          });
-      } else if (data.isFree) {
+    if (subscription) {
+      if (subscription.hasActiveSubscription && !subscription.isFree) {
+        setCurrentPlan(subscription.plan.handle);
+      } else if (subscription.isFree) {
         setCurrentPlan("free");
-          console.log("[FRONTEND] [GET_SUBSCRIPTION] Free plan set", {
-            requestId,
-          });
-        }
-      } catch (stateError) {
-        logError("[FRONTEND] [GET_SUBSCRIPTION] State update failed", stateError, {
-          requestId,
-        });
+      } else {
+        setCurrentPlan(null);
       }
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      logError("[FRONTEND] [GET_SUBSCRIPTION] Unexpected error", error, {
-        requestId,
-        duration: `${duration}ms`,
-      });
     }
-  };
+  }, [subscription]);
 
 
   return (
@@ -939,7 +789,7 @@ const Index = () => {
         <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
           {currentPlan && currentPlan !== "free" ? (
             <SubscriptionManagement
-              onSubscriptionUpdate={fetchCurrentSubscription}
+              onSubscriptionUpdate={refreshSubscription}
             />
           ) : (
             <Card className="border-2 border-border">

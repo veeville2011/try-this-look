@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -19,28 +19,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Calendar, CreditCard, X } from "lucide-react";
+import { Loader2, Calendar, CreditCard, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { useShop, useSessionToken } from "@/providers/AppBridgeProvider";
+import { useShop } from "@/providers/AppBridgeProvider";
 import { redirectToPlanSelection } from "@/utils/managedPricing";
-
-interface SubscriptionStatus {
-  hasActiveSubscription: boolean;
-  isFree: boolean;
-  plan: {
-    handle: string;
-    name: string;
-    price: number;
-    interval: string;
-    features: string[];
-    monthlyEquivalent?: number;
-  };
-  subscription: {
-    id: string;
-    status: string;
-    currentPeriodEnd: string;
-  } | null;
-}
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface SubscriptionManagementProps {
   onSubscriptionUpdate?: () => void;
@@ -49,57 +32,24 @@ interface SubscriptionManagementProps {
 const SubscriptionManagement = ({
   onSubscriptionUpdate,
 }: SubscriptionManagementProps) => {
-  // App Bridge hooks for embedded app
   const shop = useShop();
-  const { token: sessionToken } = useSessionToken();
-
-  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
+  const { subscription, loading, refresh } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchSubscription();
-  }, [shop, sessionToken]);
-
-  const fetchSubscription = async () => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      // Get shop from App Bridge hook or URL params (fallback)
-      const shopDomain =
-        shop || new URLSearchParams(window.location.search).get("shop");
-      if (!shopDomain) {
-        setLoading(false);
-        return;
-      }
-
-      // Prepare headers with session token if available
-      const headers: HeadersInit = {};
-      if (sessionToken) {
-        headers["Authorization"] = `Bearer ${sessionToken}`;
-      }
-
-      const response = await fetch(
-        `/api/billing/subscription?shop=${shopDomain}`,
-        {
-          headers,
-        }
-      );
-      const data = await response.json();
-      setSubscription(data);
-
-      // Notify parent component of subscription update
+      await refresh();
       if (onSubscriptionUpdate) {
         onSubscriptionUpdate();
       }
+      toast.success("Subscription status updated");
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Failed to fetch subscription:", error);
-      }
-      toast.error("Failed to load subscription information");
+      toast.error("Failed to refresh subscription status");
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -224,10 +174,26 @@ const SubscriptionManagement = ({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Current Subscription</CardTitle>
-          <CardDescription>
-            Manage your subscription and billing
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Current Subscription</CardTitle>
+              <CardDescription>
+                Manage your subscription and billing
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              aria-label="Refresh subscription status"
+            >
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${refreshing || loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Current Plan Info */}
