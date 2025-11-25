@@ -120,7 +120,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     // Debug logging only when video keys exist
     if (videoKeys.size > 0) {
-      console.log("[TryOnWidget] Video generation cache loaded:");
+      console.log("[TryOnWidget] Video generation cache loaded from memory:");
       console.log("  - Total video records:", videoRecords.length);
       console.log("  - Completed with clothingKey:", videoKeys.size);
       console.log("  - Video clothing keys:", Array.from(videoKeys));
