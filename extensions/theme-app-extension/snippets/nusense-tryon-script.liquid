@@ -284,6 +284,13 @@
       if (!bannerElement) {
         return;
       }
+      
+      // Clear auto-close timeout if it exists
+      if (bannerElement._autoCloseTimeout) {
+        clearTimeout(bannerElement._autoCloseTimeout);
+        bannerElement._autoCloseTimeout = null;
+      }
+      
       bannerElement.classList.add('is-leaving');
       window.sessionStorage && window.sessionStorage.setItem(storageKey, 'true');
       window.setTimeout(() => {
@@ -356,6 +363,11 @@
           requestAnimationFrame(() => {
             if (banner.parentNode) {
               banner.classList.add('is-visible');
+              
+              // Auto-close after 10 seconds
+              banner._autoCloseTimeout = setTimeout(() => {
+                handleDismiss(banner);
+              }, 10000); // 10 seconds
             }
           });
         });
