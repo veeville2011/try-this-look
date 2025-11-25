@@ -119,34 +119,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
-  const [hasAutoLoadedCachedResult, setHasAutoLoadedCachedResult] =
-    useState(false);
-
-  const cachedCombinationKey = useMemo(() => {
-    if (!selectedClothing || !selectedDemoPhotoUrl) {
-      return null;
-    }
-
-    const clothingKey = availableImagesWithIds.get(selectedClothing);
-    const personKey = DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl);
-
-    if (!clothingKey || !personKey) {
-      return null;
-    }
-
-    const normalizedCombination = `${String(personKey).trim()}-${String(
-      clothingKey
-    ).trim()}`;
-
-    return generatedKeyCombinations.has(normalizedCombination)
-      ? normalizedCombination
-      : null;
-  }, [
-    selectedClothing,
-    selectedDemoPhotoUrl,
-    availableImagesWithIds,
-    generatedKeyCombinations,
-  ]);
 
   // Fetch image generations on component load
   useEffect(() => {
@@ -391,7 +363,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     setStatusVariant("info");
     setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
-    setHasAutoLoadedCachedResult(false);
   };
 
   const handleClothingSelect = (imageUrl: string) => {
@@ -409,18 +380,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       setStatusVariant("info");
       setStatusMessage("Prêt à générer. Cliquez sur Générer.");
-      setHasAutoLoadedCachedResult(false);
     } else {
       setSelectedClothingKey(null);
       // Clear clothingKey in Redux
       setReduxClothingKey(null);
       setStatusVariant("info");
       setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
-      setHasAutoLoadedCachedResult(false);
     }
   };
 
-  const runImageGeneration = async (triggeredByCache = false) => {
+  const runImageGeneration = async () => {
     if (!uploadedImage || !selectedClothing) {
       setStatusVariant("error");
       setStatusMessage(
@@ -478,7 +447,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage("Résultat prêt. Vous pouvez acheter ou télécharger.");
-        setHasAutoLoadedCachedResult((prev) => prev || triggeredByCache);
 
         // Fetch all generations to update Redux state with the new generation
         fetchGenerations({
@@ -612,7 +580,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setCurrentStep(1);
     setStatusVariant("info");
     setStatusMessage("Photo effacée. Téléchargez votre photo.");
-    setHasAutoLoadedCachedResult(false);
   };
 
   const handleReset = () => {
@@ -631,7 +598,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setStatusMessage(
       "Téléchargez votre photo puis choisissez un article à essayer"
     );
-    setHasAutoLoadedCachedResult(false);
   };
 
   // Restore clothingKey when images are loaded (for saved state)
@@ -669,44 +635,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   }, [uploadedImage, selectedClothing, generatedImage]); // Depend on state to ensure it's set before resuming
 
-  useEffect(() => {
-    if (
-      !cachedCombinationKey ||
-      isGenerating ||
-      generatedImage ||
-      !uploadedImage ||
-      !selectedClothing
-    ) {
-      return;
-    }
-
-    const runAutoGeneration = async () => {
-      try {
-        await runImageGeneration(true);
-      } catch {
-        // Errors are surfaced via handleGenerate state updates
-      }
-    };
-
-    void runAutoGeneration();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    cachedCombinationKey,
-    isGenerating,
-    generatedImage,
-    uploadedImage,
-    selectedClothing,
-  ]);
-
   // Check if we're inside an iframe
   const isInIframe = typeof window !== "undefined" && window.parent !== window;
-
-  const primaryActionLabel = hasAutoLoadedCachedResult
-    ? "Régénérer Image"
-    : "Générer Image";
-  const primaryActionAriaLabel = hasAutoLoadedCachedResult
-    ? "Régénérer l'essayage virtuel"
-    : "Générer l'essayage virtuel";
 
   // Handle close - if in iframe, notify parent window
   const handleClose = () => {
@@ -967,7 +897,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               onClick={handleGenerate}
               disabled={!selectedClothing || !uploadedImage || isGenerating}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={primaryActionAriaLabel}
+              aria-label="Générer l'essayage virtuel"
               aria-describedby={
                 !selectedClothing || !uploadedImage
                   ? "generate-help"
@@ -978,7 +908,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                 aria-hidden="true"
               />
-              {primaryActionLabel}
+              Générer Image
             </Button>
             {(!selectedClothing || !uploadedImage) && (
               <p id="generate-help" className="sr-only">
