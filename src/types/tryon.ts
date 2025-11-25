@@ -40,30 +40,6 @@ export interface TryOnResponse {
   };
 }
 
-export interface VideoAdResponse {
-  status: 'success' | 'error';
-  image: string | null;
-  error_message: {
-    code: string | null;
-    message: string | null;
-    details?: Record<string, any>;
-  };
-  compression?: {
-    images: Array<{
-      index: number;
-      originalSize: number;
-      finalSize: number;
-      compressionRatio: number;
-    }>;
-    totalCompressionRatio: string;
-  };
-  referenceImages?: {
-    count: number;
-    format: string;
-    note: string;
-  };
-}
-
 export interface GenerationState {
   isGenerating: boolean;
   currentStep: number;

@@ -19,18 +19,9 @@ import {
   getHealthStatus,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import {
-  Sparkles,
-  X,
-  RotateCcw,
-  XCircle,
-  Video,
-  CheckCircle,
-} from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle } from "lucide-react";
 import StatusBar from "./StatusBar";
-import { generateVideoAd, dataURLToFile } from "@/services/videoAdApi";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
-import { useVideoGenerations } from "@/hooks/useVideoGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 
 interface TryOnWidgetProps {
@@ -41,10 +32,6 @@ interface TryOnWidgetProps {
 export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Redux state for image generations
   const { fetchGenerations, records } = useImageGenerations();
-
-  // Redux state for video generations
-  const { fetchGenerations: fetchVideoGenerations, records: videoRecords } =
-    useVideoGenerations();
 
   // Redux state for key mappings
   const {
@@ -104,31 +91,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     );
   }, [records]);
 
-  // Memoize the set of generated video clothing keys to avoid recreating on every render
-  const generatedVideoClothingKeys = useMemo(() => {
-    const videoKeys = new Set(
-      videoRecords
-        .filter((record) => {
-          // Ensure clothingKey exists and is not empty, and status is completed
-          const hasClothingKey =
-            record.clothingKey && String(record.clothingKey).trim() !== "";
-          const isCompleted = record.status === "completed";
-          return hasClothingKey && isCompleted;
-        })
-        .map((record) => String(record.clothingKey).trim())
-    );
-
-    // Debug logging only when video keys exist
-    if (videoKeys.size > 0) {
-      console.log("[TryOnWidget] Video generation cache loaded from memory:");
-      console.log("  - Total video records:", videoRecords.length);
-      console.log("  - Completed with clothingKey:", videoKeys.size);
-      console.log("  - Video clothing keys:", Array.from(videoKeys));
-    }
-
-    return videoKeys;
-  }, [videoRecords]);
-
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -145,12 +107,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   >(new Map());
   const [recommendedImages, setRecommendedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [videoProgress, setVideoProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(
     "Téléchargez votre photo puis choisissez un article à essayer"
@@ -160,6 +119,34 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
+  const [hasAutoLoadedCachedResult, setHasAutoLoadedCachedResult] =
+    useState(false);
+
+  const cachedCombinationKey = useMemo(() => {
+    if (!selectedClothing || !selectedDemoPhotoUrl) {
+      return null;
+    }
+
+    const clothingKey = availableImagesWithIds.get(selectedClothing);
+    const personKey = DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl);
+
+    if (!clothingKey || !personKey) {
+      return null;
+    }
+
+    const normalizedCombination = `${String(personKey).trim()}-${String(
+      clothingKey
+    ).trim()}`;
+
+    return generatedKeyCombinations.has(normalizedCombination)
+      ? normalizedCombination
+      : null;
+  }, [
+    selectedClothing,
+    selectedDemoPhotoUrl,
+    availableImagesWithIds,
+    generatedKeyCombinations,
+  ]);
 
   // Fetch image generations on component load
   useEffect(() => {
@@ -167,17 +154,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       page: 1,
       limit: 1000,
       orderBy: "createdAt",
-      orderDirection: "DESC",
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only fetch once on mount
-
-  // Fetch video generations on component load
-  useEffect(() => {
-    fetchVideoGenerations({
-      page: 1,
-      limit: 1000,
-      orderBy: "created_at",
       orderDirection: "DESC",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -415,6 +391,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     setStatusVariant("info");
     setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
+    setHasAutoLoadedCachedResult(false);
   };
 
   const handleClothingSelect = (imageUrl: string) => {
@@ -430,42 +407,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const clothingKey = clothingId ? String(clothingId).trim() : null;
       setReduxClothingKey(clothingKey);
 
-      // Check if this clothingKey exists in video generations Redux state
-      if (clothingId) {
-        const normalizedKey = String(clothingId).trim();
-
-        // Search for matching video generation records
-        const matchingVideoRecords = videoRecords.filter((record) => {
-          if (!record.clothingKey) return false;
-          const recordKey = String(record.clothingKey).trim();
-          return recordKey === normalizedKey;
-        });
-
-        // If matching records found, log them
-        if (matchingVideoRecords.length > 0) {
-          console.log(
-            "✅ Clothing key is present for the selected clothingKey:",
-            normalizedKey
-          );
-          console.log("📦 Complete video generation object(s):");
-          matchingVideoRecords.forEach((record, index) => {
-            console.log(`   [${index + 1}]`, record);
-          });
-        }
-      }
-
       setStatusVariant("info");
       setStatusMessage("Prêt à générer. Cliquez sur Générer.");
+      setHasAutoLoadedCachedResult(false);
     } else {
       setSelectedClothingKey(null);
       // Clear clothingKey in Redux
       setReduxClothingKey(null);
       setStatusVariant("info");
       setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
+      setHasAutoLoadedCachedResult(false);
     }
   };
 
-  const handleGenerate = async () => {
+  const runImageGeneration = async (triggeredByCache = false) => {
     if (!uploadedImage || !selectedClothing) {
       setStatusVariant("error");
       setStatusMessage(
@@ -523,6 +478,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage("Résultat prêt. Vous pouvez acheter ou télécharger.");
+        setHasAutoLoadedCachedResult((prev) => prev || triggeredByCache);
 
         // Fetch all generations to update Redux state with the new generation
         fetchGenerations({
@@ -552,84 +508,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   };
 
-  const handleGenerateVideo = async () => {
-    if (!selectedClothing || !generatedImage) {
-      setStatusVariant("error");
-      setStatusMessage("La génération de vidéo nécessite une image générée.");
-      return;
-    }
-
-    setIsGeneratingVideo(true);
-    setError(null);
-    setVideoProgress(0);
-    setStatusVariant("info");
-    setStatusMessage(
-      "Génération de la vidéo en cours. Cela peut prendre 1 à 5 minutes…"
-    );
-
-    try {
-      // Convert selected clothing image to File
-      const clothingFile = await dataURLToFile(
-        selectedClothing,
-        "clothing-image.jpg"
-      );
-
-      // Convert generated image to File
-      const generatedFile = await dataURLToFile(
-        generatedImage,
-        "generated-image.jpg"
-      );
-
-      // Get store name and user info from storeInfo
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
-
-      // Get clothingKey from selected clothing ID (non-mandatory field)
-      const clothingKey = selectedClothingKey
-        ? String(selectedClothingKey)
-        : undefined;
-
-      // Prepare product images array with only 2 images: clothing and generated
-      const productImages: File[] = [clothingFile, generatedFile];
-
-      setVideoProgress(30);
-
-      const result = await generateVideoAd(productImages, {
-        storeName: storeName || undefined,
-        clothingKey: clothingKey,
-      });
-
-      setVideoProgress(90);
-
-      if (result.status === "success" && result.image) {
-        setGeneratedVideo(result.image);
-        setVideoProgress(100);
-        setStatusVariant("info");
-        setStatusMessage("Vidéo générée avec succès !");
-
-        // Fetch all video generations to update Redux state with the new generation
-        fetchVideoGenerations({
-          page: 1,
-          limit: 1000,
-          orderBy: "created_at",
-          orderDirection: "DESC",
-        });
-      } else {
-        throw new Error(
-          result.error_message?.message || "Erreur de génération de vidéo"
-        );
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Une erreur inattendue s'est produite lors de la génération de la vidéo";
-      setError(errorMessage);
-      setStatusVariant("error");
-      setStatusMessage(errorMessage);
-    } finally {
-      setIsGeneratingVideo(false);
-      setVideoProgress(0);
-    }
+  const handleGenerate = () => {
+    void runImageGeneration();
   };
 
   const handleRefreshImages = () => {
@@ -732,6 +612,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setCurrentStep(1);
     setStatusVariant("info");
     setStatusMessage("Photo effacée. Téléchargez votre photo.");
+    setHasAutoLoadedCachedResult(false);
   };
 
   const handleReset = () => {
@@ -750,6 +631,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setStatusMessage(
       "Téléchargez votre photo puis choisissez un article à essayer"
     );
+    setHasAutoLoadedCachedResult(false);
   };
 
   // Restore clothingKey when images are loaded (for saved state)
@@ -783,12 +665,48 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       !savedResult &&
       !generatedImage
     ) {
-      handleGenerate();
+      void runImageGeneration();
     }
   }, [uploadedImage, selectedClothing, generatedImage]); // Depend on state to ensure it's set before resuming
 
+  useEffect(() => {
+    if (
+      !cachedCombinationKey ||
+      isGenerating ||
+      generatedImage ||
+      !uploadedImage ||
+      !selectedClothing
+    ) {
+      return;
+    }
+
+    const runAutoGeneration = async () => {
+      try {
+        await runImageGeneration(true);
+      } catch {
+        // Errors are surfaced via handleGenerate state updates
+      }
+    };
+
+    void runAutoGeneration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    cachedCombinationKey,
+    isGenerating,
+    generatedImage,
+    uploadedImage,
+    selectedClothing,
+  ]);
+
   // Check if we're inside an iframe
   const isInIframe = typeof window !== "undefined" && window.parent !== window;
+
+  const primaryActionLabel = hasAutoLoadedCachedResult
+    ? "Régénérer Image"
+    : "Générer Image";
+  const primaryActionAriaLabel = hasAutoLoadedCachedResult
+    ? "Régénérer l'essayage virtuel"
+    : "Générer l'essayage virtuel";
 
   // Handle close - if in iframe, notify parent window
   const handleClose = () => {
@@ -1033,7 +951,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 onRefreshImages={handleRefreshImages}
                 availableImagesWithIds={availableImagesWithIds}
                 generatedClothingKeys={generatedClothingKeys}
-                generatedVideoClothingKeys={generatedVideoClothingKeys}
                 generatedKeyCombinations={generatedKeyCombinations}
                 selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                 demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
@@ -1043,19 +960,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           </section>
         </div>
 
-        {/* Generate buttons - show when not generating */}
-        {!isGenerating && !isGeneratingVideo && (
-          <div className="pt-1 sm:pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+        {/* Generate button - show when not generating */}
+        {!isGenerating && (
+          <div className="pt-1 sm:pt-2">
             <Button
               onClick={handleGenerate}
-              disabled={
-                !selectedClothing ||
-                !uploadedImage ||
-                isGenerating ||
-                isGeneratingVideo
-              }
+              disabled={!selectedClothing || !uploadedImage || isGenerating}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Générer l'essayage virtuel"
+              aria-label={primaryActionAriaLabel}
               aria-describedby={
                 !selectedClothing || !uploadedImage
                   ? "generate-help"
@@ -1066,41 +978,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                 aria-hidden="true"
               />
-              Générer Image
-            </Button>
-            <Button
-              onClick={handleGenerateVideo}
-              disabled={
-                !selectedClothing ||
-                !generatedImage ||
-                isGenerating ||
-                isGeneratingVideo
-              }
-              variant="outline"
-              className="group w-full border-2 border-primary text-primary hover:border-primary-dark hover:text-primary-dark hover:bg-primary/5 active:bg-primary/10 h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Générer une vidéo publicitaire"
-              aria-describedby={
-                !selectedClothing || !generatedImage
-                  ? "generate-video-help"
-                  : undefined
-              }
-            >
-              <Video
-                className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform duration-200 group-hover:scale-110"
-                aria-hidden="true"
-              />
-              Générer Vidéo
+              {primaryActionLabel}
             </Button>
             {(!selectedClothing || !uploadedImage) && (
               <p id="generate-help" className="sr-only">
                 Veuillez télécharger une photo et sélectionner un vêtement pour
                 générer l'essayage virtuel
-              </p>
-            )}
-            {(!selectedClothing || !generatedImage) && (
-              <p id="generate-video-help" className="sr-only">
-                Veuillez générer une image d'abord avant de créer une vidéo
-                publicitaire
               </p>
             )}
           </div>
@@ -1120,12 +1003,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             generatedImage={generatedImage}
             personImage={uploadedImage}
             clothingImage={selectedClothing}
-            isGenerating={isGenerating || isGeneratingVideo}
-            progress={isGenerating ? progress : videoProgress}
-            generatedVideo={generatedVideo}
-            generationType={
-              isGeneratingVideo ? "video" : isGenerating ? "image" : null
-            }
+            isGenerating={isGenerating}
+            progress={progress}
           />
         </section>
 

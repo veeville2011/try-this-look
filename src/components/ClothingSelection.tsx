@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, Video } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface ClothingSelectionProps {
@@ -11,7 +11,6 @@ interface ClothingSelectionProps {
   onRefreshImages?: () => void;
   availableImagesWithIds?: Map<string, string | number>;
   generatedClothingKeys?: Set<string>;
-  generatedVideoClothingKeys?: Set<string>;
   generatedKeyCombinations?: Set<string>;
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
@@ -26,7 +25,6 @@ export default function ClothingSelection({
   onRefreshImages,
   availableImagesWithIds = new Map(),
   generatedClothingKeys = new Set(),
-  generatedVideoClothingKeys = new Set(),
   generatedKeyCombinations = new Set(),
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
@@ -51,18 +49,6 @@ export default function ClothingSelection({
     if (!clothingKey || matchingClothingKeys.length === 0) return false;
     const normalizedKey = String(clothingKey).trim();
     return matchingClothingKeys.includes(normalizedKey);
-  };
-
-  // Check if a video has been generated for the selected clothing item
-  const hasVideoGeneration = (): boolean => {
-    // Only check if there's a selected image
-    if (!selectedImage) return false;
-
-    const clothingKey = availableImagesWithIds.get(selectedImage);
-    if (!clothingKey) return false;
-
-    const normalizedKey = String(clothingKey).trim();
-    return generatedVideoClothingKeys.has(normalizedKey);
   };
 
   // Check if the selected person/clothing combination already exists in cache
@@ -270,32 +256,17 @@ export default function ClothingSelection({
                 alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
                 className="h-full w-auto object-contain"
               />
-              {/* Indicators: show tick when API returned matching clothing item or video generation exists */}
-              {(isMatching(selectedImage) || hasVideoGeneration()) && (
-                <div className="absolute top-2 right-2 flex flex-row gap-1.5">
-                  {/* Image generation tick */}
-                  {isMatching(selectedImage) && (
-                    <CheckCircle
-                      className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
-                        showCachedCombination
-                          ? "text-green-500"
-                          : "text-primary"
-                      }`}
-                      aria-hidden="true"
-                    />
-                  )}
-                  {/* Video generation tick */}
-                  {hasVideoGeneration() && (
-                    <div className="bg-purple-500 rounded-full p-1">
-                      <Video
-                        className="h-4 w-4 sm:h-5 sm:w-5 text-white"
-                        aria-hidden="true"
-                      />
-                    </div>
-                  )}
+              {/* Indicators: show tick when API returned matching clothing item */}
+              {isMatching(selectedImage) && (
+                <div className="absolute top-2 right-2">
+                  <CheckCircle
+                    className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
+                      showCachedCombination ? "text-green-500" : "text-primary"
+                    }`}
+                    aria-hidden="true"
+                  />
                   <span className="sr-only">
-                    {isGenerated(selectedImage) && "Image générée. "}
-                    {hasVideoGeneration() && "Vidéo générée."}
+                    {isGenerated(selectedImage) && "Image générée."}
                   </span>
                 </div>
               )}
