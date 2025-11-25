@@ -1,0 +1,22 @@
+{% comment %}
+  NUSENSE TryON Banner Block
+  This block displays a banner on the home page to promote the Try-On feature
+  Add this block to your home page sections via the theme editor
+{% endcomment %}
+
+{% comment %} Include the snippet that sets up the banner {% endcomment %}
+{% render 'nusense-tryon-script' %}
+
+{% schema %}
+{
+  "name": "NUSENSE Try-On Banner",
+  "target": "section",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "This banner will automatically appear on your home page to promote the virtual try-on feature. The banner can be dismissed by visitors and will remember their preference for the session."
+    }
+  ]
+}
+{% endschema %}
+

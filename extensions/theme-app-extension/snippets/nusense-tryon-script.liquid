@@ -107,24 +107,45 @@
     const bannerStyleId = 'nusense-tryon-availability-banner-styles';
     const storageKey = 'nusenseTryOnBannerDismissed';
 
+    // Early return checks
     if (typeof window === 'undefined' || document.getElementById(bannerId)) {
       return;
     }
 
+    // Check if banner was dismissed
     const isDismissed =
       window.sessionStorage && window.sessionStorage.getItem(storageKey) === 'true';
     if (isDismissed) {
       return;
     }
 
+    // Since we're already in {% if template == 'index' %} block, we know we're on the home page
+    // But we'll do a quick path check as a safety measure
     const isHomePath = (() => {
-      const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-      const shopifyRoot =
-        (window.Shopify &&
-          window.Shopify.routes &&
-          (window.Shopify.routes.root || '/').replace(/\/+$/, '')) ||
-        '/';
-      return currentPath === (shopifyRoot || '/');
+      try {
+        const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+        const normalizedPath = currentPath === '' ? '/' : currentPath;
+        
+        // Check if path is root or matches Shopify root route
+        if (normalizedPath === '/') {
+          return true;
+        }
+        
+        // Check against Shopify routes if available
+        if (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) {
+          const shopifyRoot = (window.Shopify.routes.root || '/').replace(/\/+$/, '') || '/';
+          if (normalizedPath === shopifyRoot) {
+            return true;
+          }
+        }
+        
+        // Since we're in the index template block, default to true
+        // This ensures the banner shows even if path detection is slightly off
+        return true;
+      } catch (e) {
+        // On error, default to true since we're in index template
+        return true;
+      }
     })();
 
     if (!isHomePath) {
@@ -281,61 +302,98 @@
     };
 
     const createBanner = () => {
-      ensureStyles();
-      const banner = document.createElement('div');
-      banner.id = bannerId;
-      banner.setAttribute('role', 'status');
-      banner.setAttribute('aria-live', 'polite');
-      banner.setAttribute('tabindex', '0');
-      banner.innerHTML = `
-        <div class="nusense-banner-content">
-          <div class="nusense-banner-header">
-            <span class="nusense-banner-icon" aria-hidden="true">✨</span>
-            <div class="nusense-banner-copy">
-              <p class="nusense-banner-title">Essayage virtuel disponible</p>
-              <p class="nusense-banner-subtitle">
-                Découvrez notre nouvelle expérience Try-On immersive directement sur la page d'accueil.
-              </p>
+      // Ensure document.body exists before creating banner
+      if (!document.body) {
+        // If body doesn't exist yet, wait for it
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', createBanner, { once: true });
+        } else {
+          // Use a small delay to ensure body is available
+          setTimeout(createBanner, 100);
+        }
+        return;
+      }
+      
+      // Double-check banner doesn't already exist
+      if (document.getElementById(bannerId)) {
+        return;
+      }
+      
+      try {
+        ensureStyles();
+        const banner = document.createElement('div');
+        banner.id = bannerId;
+        banner.setAttribute('role', 'status');
+        banner.setAttribute('aria-live', 'polite');
+        banner.setAttribute('tabindex', '0');
+        banner.innerHTML = `
+          <div class="nusense-banner-content">
+            <div class="nusense-banner-header">
+              <span class="nusense-banner-icon" aria-hidden="true">✨</span>
+              <div class="nusense-banner-copy">
+                <p class="nusense-banner-title">Essayage virtuel disponible</p>
+                <p class="nusense-banner-subtitle">
+                  Découvrez notre nouvelle expérience Try-On immersive directement sur la page d'accueil.
+                </p>
+              </div>
+            </div>
+            <div class="nusense-banner-actions">
+              <button type="button" class="nusense-banner-cta" aria-label="Découvrir la fonctionnalité Try-On">Découvrir</button>
+              <button type="button" class="nusense-banner-dismiss" aria-label="Fermer cette annonce">Fermer</button>
             </div>
           </div>
-          <div class="nusense-banner-actions">
-            <button type="button" class="nusense-banner-cta" aria-label="Découvrir la fonctionnalité Try-On">Découvrir</button>
-            <button type="button" class="nusense-banner-dismiss" aria-label="Fermer cette annonce">Fermer</button>
-          </div>
-        </div>
-      `;
+        `;
 
-      const ctaButton = banner.querySelector('.nusense-banner-cta');
-      const dismissButton = banner.querySelector('.nusense-banner-dismiss');
+        const ctaButton = banner.querySelector('.nusense-banner-cta');
+        const dismissButton = banner.querySelector('.nusense-banner-dismiss');
 
-      ctaButton &&
-        ctaButton.addEventListener('click', (event) => {
-          event.preventDefault();
-          handleCta();
-        });
-
-      dismissButton &&
-        dismissButton.addEventListener('click', (event) => {
-          event.preventDefault();
-          handleDismiss(banner);
-        });
-
-      banner.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-          handleDismiss(banner);
+        if (ctaButton) {
+          ctaButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleCta();
+          });
         }
-      });
 
-      document.body.appendChild(banner);
-      requestAnimationFrame(() => {
-        banner.classList.add('is-visible');
-      });
+        if (dismissButton) {
+          dismissButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleDismiss(banner);
+          });
+        }
+
+        banner.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            handleDismiss(banner);
+          }
+        });
+
+        document.body.appendChild(banner);
+        
+        // Use requestAnimationFrame to ensure DOM is ready before showing
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (banner.parentNode) {
+              banner.classList.add('is-visible');
+            }
+          });
+        });
+      } catch (e) {
+        // Silently fail if banner creation fails
+        console.error('NUSENSE: Failed to create banner', e);
+      }
     };
 
+    // Initialize banner creation
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', createBanner, { once: true });
     } else {
-      createBanner();
+      // DOM is already loaded, but ensure body exists
+      if (document.body) {
+        createBanner();
+      } else {
+        // Wait a bit for body to be available
+        setTimeout(createBanner, 50);
+      }
     }
   })();
 </script>
