@@ -70,9 +70,10 @@ const Index = () => {
       // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template=index&activateAppId={app_id}/{app_embed_handle}
       deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=index&activateAppId=${API_KEY}/${APP_EMBED_HANDLE}`;
     } else {
-      // App block deep link - template specifies which page to add block to
-      // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}&addAppBlockId={app_id}/{app_block_handle}
-      deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}&addAppBlockId=${API_KEY}/${APP_BLOCK_HANDLE}`;
+      // App block deep link - opens theme editor without auto-adding the block
+      // User can manually add the block from the app blocks section wherever they want
+      // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
+      deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
     }
 
     window.open(deepLinkUrl, "_blank");
