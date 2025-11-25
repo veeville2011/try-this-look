@@ -1,20 +1,30 @@
 {% comment %}
-  NUSENSE TryON Banner Block
-  This block displays a banner on the home page to promote the Try-On feature
-  Add this block to your home page sections via the theme editor
+  NUSENSE TryON Banner App Embed
+  This is an app embed that displays a banner on the home page to promote the Try-On feature
+  Merchants can add this app embed to their theme layout via the theme customizer
 {% endcomment %}
 
-{% comment %} Include the snippet that sets up the banner {% endcomment %}
-{% render 'nusense-tryon-script' %}
+{% comment %} Check if banner is enabled before rendering {% endcomment %}
+{% if block.settings.enabled != false %}
+  {% comment %} Include the snippet that sets up the banner {% endcomment %}
+  {% render 'nusense-tryon-script' %}
+{% endif %}
 
 {% schema %}
 {
   "name": "NUSENSE Try-On Banner",
-  "target": "section",
+  "target": "body",
   "settings": [
     {
       "type": "paragraph",
-      "content": "This banner will automatically appear on your home page to promote the virtual try-on feature. The banner can be dismissed by visitors and will remember their preference for the session."
+      "content": "This banner will automatically appear on your home page to promote the virtual try-on feature. The banner can be dismissed by visitors and will remember their preference for the session. Add this app embed to your theme layout to enable it."
+    },
+    {
+      "type": "checkbox",
+      "id": "enabled",
+      "label": "Enable Banner",
+      "default": true,
+      "info": "Uncheck to disable the banner temporarily without removing the app embed"
     }
   ]
 }

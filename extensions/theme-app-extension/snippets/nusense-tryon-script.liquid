@@ -100,7 +100,10 @@
   })();
 </script>
 
-{% if template == 'index' %}
+{% comment %}
+  Banner script - runs on all pages but only displays on home page
+  This allows the app embed to be added to theme layout and work correctly
+{% endcomment %}
 <script>
   (function() {
     const bannerId = 'nusense-tryon-availability-banner';
@@ -119,32 +122,41 @@
       return;
     }
 
-    // Since we're already in {% if template == 'index' %} block, we know we're on the home page
-    // But we'll do a quick path check as a safety measure
+    // Improved home path detection - works regardless of where snippet is included
     const isHomePath = (() => {
       try {
-        const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-        const normalizedPath = currentPath === '' ? '/' : currentPath;
+        const currentPath = (window.location.pathname || '/').trim();
+        const normalizedPath = currentPath.replace(/\/+$/, '') || '/';
         
-        // Check if path is root or matches Shopify root route
-        if (normalizedPath === '/') {
+        // Check if path is root or index
+        if (normalizedPath === '/' || normalizedPath === '') {
           return true;
         }
         
         // Check against Shopify routes if available
-        if (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) {
+        if (window.Shopify && window.Shopify.routes) {
           const shopifyRoot = (window.Shopify.routes.root || '/').replace(/\/+$/, '') || '/';
           if (normalizedPath === shopifyRoot) {
             return true;
           }
         }
         
-        // Since we're in the index template block, default to true
-        // This ensures the banner shows even if path detection is slightly off
-        return true;
+        // Check if path matches common home page patterns
+        const homePatterns = ['/index', '/home', '/pages/home'];
+        if (homePatterns.some(pattern => normalizedPath === pattern || normalizedPath.startsWith(pattern + '/'))) {
+          return true;
+        }
+        
+        // Additional check: if pathname is just the root or empty after normalization
+        const pathParts = normalizedPath.split('/').filter(Boolean);
+        if (pathParts.length === 0) {
+          return true;
+        }
+        
+        return false;
       } catch (e) {
-        // On error, default to true since we're in index template
-        return true;
+        // Fallback: if we can't determine, check if pathname is just '/'
+        return (window.location.pathname || '/').trim() === '/';
       }
     })();
 
@@ -397,7 +409,6 @@
     }
   })();
 </script>
-{% endif %}
 
 {% comment %}
   Automatic Image Transmission Listener
