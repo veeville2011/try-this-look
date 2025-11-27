@@ -470,27 +470,9 @@ const Index = () => {
                                     </p>
                                   </div>
                                   <Button
-                                    onClick={() => {
-                                      const shopDomain =
-                                        shop ||
-                                        new URLSearchParams(
-                                          window.location.search
-                                        ).get("shop");
-                                      if (
-                                        !subscription ||
-                                        !subscription.hasActiveSubscription ||
-                                        subscription.isFree
-                                      ) {
-                                        if (shopDomain) {
-                                          redirectToPlanSelection(
-                                            shopDomain,
-                                            APP_HANDLE
-                                          );
-                                        }
-                                      } else {
-                                        handleDeepLinkClick("product");
-                                      }
-                                    }}
+                                    onClick={() =>
+                                      handleDeepLinkClick("product")
+                                    }
                                     className="w-full sm:w-auto whitespace-nowrap"
                                     size="sm"
                                   >
@@ -616,27 +598,7 @@ const Index = () => {
                                     </p>
                                   </div>
                                   <Button
-                                    onClick={() => {
-                                      const shopDomain =
-                                        shop ||
-                                        new URLSearchParams(
-                                          window.location.search
-                                        ).get("shop");
-                                      if (
-                                        !subscription ||
-                                        !subscription.hasActiveSubscription ||
-                                        subscription.isFree
-                                      ) {
-                                        if (shopDomain) {
-                                          redirectToPlanSelection(
-                                            shopDomain,
-                                            APP_HANDLE
-                                          );
-                                        }
-                                      } else {
-                                        handleDeepLinkClick("index");
-                                      }
-                                    }}
+                                    onClick={() => handleDeepLinkClick("index")}
                                     className="w-full sm:w-auto whitespace-nowrap"
                                     size="sm"
                                   >
