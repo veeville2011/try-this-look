@@ -1,16 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 
-// Free plan configuration (matches server billing.js)
-const FREE_PLAN = {
-  handle: "free",
-  name: "Plan Gratuit",
-  price: 0,
-  currencyCode: "EUR",
-  interval: "EVERY_30_DAYS",
-  features: ["Essayage virtuel par IA", "Widget intégré facilement"],
-};
-
 interface SubscriptionStatus {
   hasActiveSubscription: boolean;
   isFree: boolean;
@@ -45,8 +35,8 @@ const STORAGE_KEY_PREFIX = "nusense_subscription_";
 
 /**
  * Custom hook to manage subscription status
- * Reads from localStorage cache (populated by webhooks via server)
- * No API calls - uses cache only, defaults to free plan if cache is empty
+ * Fetches from API endpoint which queries Shopify GraphQL when needed
+ * Uses localStorage as cache to reduce API calls
  */
 export const useSubscription = (): UseSubscriptionReturn => {
   const shop = useShop();
@@ -55,7 +45,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadFromCache = useCallback(() => {
+  const fetchSubscription = useCallback(async () => {
     try {
       // Get shop from App Bridge hook or URL params (fallback)
       const shopDomain =
@@ -71,47 +61,105 @@ export const useSubscription = (): UseSubscriptionReturn => {
         ? shopDomain.toLowerCase()
         : `${shopDomain.toLowerCase()}.myshopify.com`;
 
-      // Read from localStorage cache
+      // Check localStorage cache first
       const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
       const cachedData = localStorage.getItem(storageKey);
 
+      // If cache exists and is recent (less than 5 minutes old), use it
       if (cachedData) {
         try {
           const parsed = JSON.parse(cachedData);
-          setSubscription(parsed);
+          const cacheAge = parsed.cachedAt 
+            ? Date.now() - new Date(parsed.cachedAt).getTime()
+            : Infinity;
           
-          if (import.meta.env.DEV) {
-            console.log("[useSubscription] Loaded from cache", {
+          // Use cache if less than 5 minutes old
+          if (cacheAge < 5 * 60 * 1000) {
+            console.log("✅ [useSubscription] Using cached subscription", {
               shop: normalizedShop,
               planHandle: parsed.plan?.handle,
+              cacheAge: `${Math.round(cacheAge / 1000)}s`,
             });
+            setSubscription(parsed);
+            setLoading(false);
+            return;
           }
         } catch (parseError) {
-          console.error("[useSubscription] Failed to parse cached data", parseError);
-          // Fall through to default free plan
+          console.error("❌ [useSubscription] Failed to parse cached data", parseError);
+          // Continue to fetch from API
         }
-      } else {
-        // Cache miss - default to free plan
-        setSubscription({
-          hasActiveSubscription: false,
-          isFree: true,
-          plan: FREE_PLAN,
-          subscription: null,
-        });
+      }
 
-        if (import.meta.env.DEV) {
-          console.log("[useSubscription] Cache miss - using default free plan", {
-            shop: normalizedShop,
-          });
-        }
+      // Fetch from API endpoint
+      console.log("🔄 [useSubscription] Fetching subscription from API", {
+        shop: normalizedShop,
+      });
+
+      const response = await fetch(
+        `/api/billing/subscription?shop=${encodeURIComponent(normalizedShop)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch subscription: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // If subscription data exists (has plan), cache it
+      // If subscription is null, don't cache and set to null
+      if (data && data.plan) {
+        const subscriptionData = {
+          ...data,
+          cachedAt: new Date().toISOString(),
+        };
+        
+        localStorage.setItem(storageKey, JSON.stringify(subscriptionData));
+        
+        console.log("✅ [useSubscription] Subscription fetched from API", {
+          shop: normalizedShop,
+          planHandle: data.plan?.handle,
+          hasActiveSubscription: data.hasActiveSubscription,
+        });
+        
+        setSubscription(data);
+      } else {
+        // No subscription found - this is valid (user hasn't selected a plan yet)
+        console.log("ℹ️ [useSubscription] No subscription found - user needs to select a plan", {
+          shop: normalizedShop,
+        });
+        
+        // Clear cache if no subscription (so we don't show stale data)
+        localStorage.removeItem(storageKey);
+        setSubscription(null);
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load subscription information";
       setError(errorMessage);
+      console.error("❌ [useSubscription] Error fetching subscription:", err);
       
-      if (import.meta.env.DEV) {
-        console.error("[useSubscription] Failed to load from cache:", err);
+      // On error, try to use cached data as fallback
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
+      
+      if (shopDomain) {
+        const normalizedShop = shopDomain.includes(".myshopify.com")
+          ? shopDomain.toLowerCase()
+          : `${shopDomain.toLowerCase()}.myshopify.com`;
+        const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+        const cachedData = localStorage.getItem(storageKey);
+        
+        if (cachedData) {
+          try {
+            const parsed = JSON.parse(cachedData);
+            console.log("⚠️ [useSubscription] Using stale cache due to API error", {
+              shop: normalizedShop,
+            });
+            setSubscription(parsed);
+          } catch {
+            // Ignore parse errors
+          }
+        }
       }
     } finally {
       setLoading(false);
@@ -120,8 +168,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
   // Initial load on mount
   useEffect(() => {
-    loadFromCache();
-  }, [loadFromCache]);
+    fetchSubscription();
+  }, [fetchSubscription]);
 
   // Listen for storage events (when webhook updates cache via server)
   useEffect(() => {
@@ -138,13 +186,13 @@ export const useSubscription = (): UseSubscriptionReturn => {
       const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
       
       if (e.key === storageKey) {
-        loadFromCache();
+        fetchSubscription();
       }
     };
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [shop, loadFromCache]);
+  }, [shop, fetchSubscription]);
 
   // Check for subscription update in URL parameters
   useEffect(() => {
@@ -155,8 +203,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
       urlParams.get("plan_changed") === "true";
 
     if (subscriptionUpdated) {
-      // Reload from cache
-      loadFromCache();
+      // Reload from API
+      fetchSubscription();
 
       // Clean up URL parameters
       const newUrl = new URL(window.location.href);
@@ -165,13 +213,17 @@ export const useSubscription = (): UseSubscriptionReturn => {
       newUrl.searchParams.delete("plan_changed");
       window.history.replaceState({}, "", newUrl.toString());
     }
-  }, [loadFromCache]);
+  }, [fetchSubscription]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    await fetchSubscription();
+  }, [fetchSubscription]);
 
   return {
     subscription,
     loading,
     error,
-    refresh: loadFromCache,
+    refresh,
   };
 };
-

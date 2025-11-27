@@ -120,18 +120,12 @@ export const getSubscriptionStatus = (shopDomain) => {
   // This is expected for new installations or if webhook hasn't fired yet
   logger.warn("[SUBSCRIPTION_STORAGE] Cache miss - subscription data not available", {
     shop: shopDomain,
-    note: "Subscription data will be available after webhook is received",
+    note: "Subscription data will be available after webhook is received or GraphQL query",
   });
   
-  // Return free plan as default when cache miss
-  // This ensures the app works even if webhook hasn't fired yet
-  return {
-    hasActiveSubscription: false,
-    isFree: true,
-    plan: getPlan(PLAN_HANDLES.FREE),
-    subscription: null,
-    cacheMiss: true, // Flag to indicate this is a cache miss
-  };
+  // Return null to indicate no subscription data found
+  // The API endpoint should query Shopify GraphQL API when this happens
+  return null;
 };
 
 /**
