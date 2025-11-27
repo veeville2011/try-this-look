@@ -133,7 +133,7 @@ const Index = () => {
         "APP_HANDLE:",
         APP_HANDLE
       );
-      redirectToPlanSelection(shopDomain, APP_HANDLE);
+      // redirectToPlanSelection(shopDomain, APP_HANDLE);
       return;
     }
 
