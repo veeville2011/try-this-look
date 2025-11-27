@@ -9,7 +9,6 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
-import * as subscriptionStorage from "./utils/subscriptionStorage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -67,6 +66,247 @@ const shopify = shopifyApi({
   isEmbeddedApp: true,
   restResources,
 });
+
+class SubscriptionStatusError extends Error {
+  constructor(message, status = 500, details = {}) {
+    super(message);
+    this.status = status;
+    this.details = details;
+  }
+}
+
+const DEFAULT_SETUP_PROGRESS = {
+  stepsCompleted: 1,
+  totalSteps: 4,
+  completed: false,
+  completedSteps: ["app_installed"],
+};
+
+const normalizeShopDomain = (shopDomain) => {
+  if (!shopDomain) {
+    return null;
+  }
+  let normalized = shopDomain.trim().toLowerCase();
+  normalized = normalized.replace(/^https?:\/\//, "");
+  if (!normalized.includes(".myshopify.com")) {
+    normalized = `${normalized}.myshopify.com`;
+  }
+  return normalized;
+};
+
+const normalizeIntervalValue = (interval) => {
+  if (!interval) {
+    return null;
+  }
+  const normalized = interval.toUpperCase();
+  if (
+    normalized === "ANNUAL" ||
+    normalized === "YEARLY" ||
+    normalized === "EVERY_365_DAYS" ||
+    normalized === "365_DAYS"
+  ) {
+    return "ANNUAL";
+  }
+  if (
+    normalized === "MONTHLY" ||
+    normalized === "EVERY_30_DAYS" ||
+    normalized === "30_DAYS"
+  ) {
+    return "EVERY_30_DAYS";
+  }
+  return normalized;
+};
+
+const getOfflineSession = async (shopDomain) => {
+  const normalizedShop = normalizeShopDomain(shopDomain);
+  if (!normalizedShop) {
+    return null;
+  }
+
+  const offlineId =
+    typeof shopify.session.getOfflineId === "function"
+      ? shopify.session.getOfflineId(normalizedShop)
+      : `${normalizedShop}`;
+
+  if (!offlineId) {
+    logger.warn("[BILLING] No offline session id available", {
+      shop: normalizedShop,
+    });
+    return null;
+  }
+
+  const sessionStorage = shopify.session.storage;
+  if (!sessionStorage) {
+    logger.error("[BILLING] Session storage unavailable");
+    return null;
+  }
+
+  const storedSession = await sessionStorage.loadSession(offlineId);
+  if (storedSession) {
+    logger.debug("[BILLING] Offline session loaded", {
+      shop: normalizedShop,
+    });
+    return storedSession;
+  }
+
+  if (typeof sessionStorage.findSessionsByShop === "function") {
+    const shopSessions = await sessionStorage.findSessionsByShop(
+      normalizedShop
+    );
+    const offlineSession = shopSessions?.find(
+      (session) => session.isOnline === false
+    );
+    if (offlineSession) {
+      logger.debug(
+        "[BILLING] Offline session resolved via findSessionsByShop",
+        {
+          shop: normalizedShop,
+        }
+      );
+      return offlineSession;
+    }
+  }
+
+  logger.warn("[BILLING] Offline session not found", {
+    shop: normalizedShop,
+  });
+  return null;
+};
+
+const findPlanByPricing = (pricingDetails) => {
+  const plans = billing.getAvailablePlans();
+  if (!pricingDetails || !pricingDetails.price) {
+    return billing.getPlan(billing.PLAN_HANDLES.FREE);
+  }
+
+  const amount = Number.parseFloat(pricingDetails.price.amount);
+  const currencyCode = pricingDetails.price.currencyCode;
+  const interval = normalizeIntervalValue(pricingDetails.interval);
+  const tolerance = 0.01;
+
+  const exactMatch = plans.find((plan) => {
+    const normalizedPlanInterval = normalizeIntervalValue(plan.interval);
+    return (
+      Math.abs(plan.price - amount) < tolerance &&
+      normalizedPlanInterval === interval &&
+      plan.currencyCode === currencyCode
+    );
+  });
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  return (
+    plans.find(
+      (plan) =>
+        plan.currencyCode === currencyCode &&
+        Math.abs(plan.price - amount) < tolerance
+    ) || billing.getPlan(billing.PLAN_HANDLES.FREE)
+  );
+};
+
+const mapSubscriptionToPlan = (appSubscription) => {
+  const fallbackPlan = billing.getPlan(billing.PLAN_HANDLES.FREE) || {
+    name: "Free",
+    handle: billing.PLAN_HANDLES.FREE,
+    price: 0,
+    currencyCode: "USD",
+    interval: "EVERY_30_DAYS",
+    features: [],
+  };
+
+  if (!appSubscription) {
+    return {
+      hasActiveSubscription: false,
+      isFree: true,
+      plan: fallbackPlan,
+      subscription: null,
+    };
+  }
+
+  const lineItem = appSubscription.lineItems?.[0];
+  const pricingDetails = lineItem?.plan?.pricingDetails;
+  const matchedPlan = findPlanByPricing(pricingDetails) || fallbackPlan;
+  const hasActiveSubscription = appSubscription.status === "ACTIVE";
+
+  return {
+    hasActiveSubscription,
+    isFree:
+      matchedPlan.handle === billing.PLAN_HANDLES.FREE ||
+      !hasActiveSubscription,
+    plan: matchedPlan,
+    subscription: {
+      id: appSubscription.id,
+      status: appSubscription.status,
+      currentPeriodEnd: appSubscription.currentPeriodEnd,
+      createdAt: appSubscription.createdAt,
+    },
+  };
+};
+
+const fetchManagedSubscriptionStatus = async (shopDomain) => {
+  const normalizedShop = normalizeShopDomain(shopDomain);
+  const session = await getOfflineSession(normalizedShop);
+
+  if (!session) {
+    throw new SubscriptionStatusError(
+      "Unable to load billing session for this shop",
+      409,
+      {
+        resolution:
+          "Ask the merchant to open the app once so we can refresh billing access.",
+      }
+    );
+  }
+
+  const client = new shopify.clients.Graphql({ session });
+  const query = `
+    query ManagedPricingSubscription {
+      currentAppInstallation {
+        activeSubscriptions {
+          id
+          status
+          currentPeriodEnd
+          createdAt
+          lineItems {
+            plan {
+              name
+              pricingDetails {
+                __typename
+                ... on AppRecurringPricing {
+                  interval
+                  price {
+                    amount
+                    currencyCode
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const response = await client.query({ data: query });
+
+  const subscriptions =
+    response.body?.data?.currentAppInstallation?.activeSubscriptions || [];
+
+  logger.info("[BILLING] GraphQL subscription query completed", {
+    shop: normalizedShop,
+    subscriptionsFound: subscriptions.length,
+    statuses: subscriptions.map((sub) => sub.status),
+  });
+
+  const activeSubscription =
+    subscriptions.find((subscription) => subscription.status === "ACTIVE") ||
+    subscriptions[0] ||
+    null;
+
+  return mapSubscriptionToPlan(activeSubscription);
+};
 
 const app = express();
 
@@ -824,12 +1064,9 @@ app.post(
       // - Capped amount is changed (for usage-based subscriptions)
       // - Subscription is created, updated, or cancelled
 
-      // Store subscription status in cache (Managed App Pricing approach)
-      // This replaces the need for GraphQL queries to check subscription status
       if (app_subscription) {
-        // Log full webhook payload for debugging
         logger.info(
-          "[WEBHOOK] app/subscriptions/update - full subscription data",
+          "[WEBHOOK] app/subscriptions/update - subscription payload logged",
           {
             shop,
             subscriptionId: app_subscription?.id,
@@ -846,39 +1083,9 @@ app.post(
             })),
           }
         );
-
-        const subscriptionData = subscriptionStorage.processWebhookSubscription(
-          app_subscription,
-          shop
-        );
-
-        if (subscriptionData) {
-          logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
-            shop,
-            subscriptionId: app_subscription?.id,
-            status: app_subscription?.status,
-            planHandle: subscriptionData?.plan?.handle,
-            planName: subscriptionData?.plan?.name,
-            hasActiveSubscription: subscriptionData?.hasActiveSubscription,
-            isFree: subscriptionData?.isFree,
-          });
-        } else {
-          logger.warn(
-            "[WEBHOOK] app/subscriptions/update - failed to process subscription data",
-            {
-              shop,
-              subscriptionId: app_subscription?.id,
-              status: app_subscription?.status,
-              note: "processWebhookSubscription returned null - check plan matching logic",
-            }
-          );
-        }
       } else {
-        // If subscription is null/undefined, it might be cancelled or not found
-        // Remove from cache to ensure we don't show stale data
-        subscriptionStorage.removeSubscription(shop);
-        logger.info(
-          "[WEBHOOK] app/subscriptions/update - subscription removed from cache (no subscription in payload)",
+        logger.warn(
+          "[WEBHOOK] app/subscriptions/update - payload missing subscription data",
           {
             shop,
             webhookDataKeys: Object.keys(req.webhookData || {}),
@@ -1017,372 +1224,62 @@ app.get("/api/billing/subscription", async (req, res) => {
       });
     }
 
-    // Normalize shop domain
-    const shopDomain = shop.includes(".myshopify.com")
-      ? shop
-      : `${shop}.myshopify.com`;
-
-    logger.info("[BILLING] [GET_SUBSCRIPTION] Shop domain normalized", {
-      requestId,
-      originalShop: shop,
-      normalizedShop: shopDomain,
-    });
-
-    // Get session for the shop (optional - needed only for setup progress)
-    // For subscription status, we use webhook cache only (Managed App Pricing approach)
-    let session = null;
-    try {
-      // Try to get session from Authorization header if available
-      const authHeader = req.get("Authorization");
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        const sessionToken = authHeader.replace("Bearer ", "");
-        try {
-          session = await shopify.session.decodeSessionToken(sessionToken);
-          logger.info(
-            "[BILLING] [GET_SUBSCRIPTION] Session decoded from token",
-            {
-              requestId,
-              shop: session?.shop,
-            }
-          );
-        } catch (tokenError) {
-          logger.debug(
-            "[BILLING] [GET_SUBSCRIPTION] Could not decode session token",
-            {
-              requestId,
-              error: tokenError.message,
-            }
-          );
-        }
-      }
-    } catch (sessionError) {
-      // Session is optional for subscription endpoint
-      // We can still return subscription status from cache
-      logger.debug(
-        "[BILLING] [GET_SUBSCRIPTION] Session retrieval failed (non-critical)",
-        {
-          requestId,
-          shopDomain,
-          error: sessionError.message,
-        }
-      );
-    }
-
-    let subscriptionStatus;
-    try {
-      logger.info(
-        "[BILLING] [GET_SUBSCRIPTION] Checking subscription status (Managed Pricing)",
-        {
-          requestId,
-          shopDomain,
-        }
-      );
-
-      // Use Managed App Pricing approach: check cache first (populated by webhooks)
-      subscriptionStatus =
-        subscriptionStorage.getSubscriptionStatus(shopDomain);
-
-      // If cache miss, try to query Shopify GraphQL API
-      // First try to get session from shop domain if not available from header
-      if (!subscriptionStatus) {
-        // Try to get session from shop domain if we don't have one
-        if (!session) {
-          try {
-            // Try to load session from storage using shop domain
-            const sessionStorage = shopify.session.storage;
-            if (sessionStorage) {
-              // For offline sessions, the session ID format is typically: {shop}_{apiKey}
-              const sessionId = `${shopDomain}_${apiKey || ""}`;
-              const storedSession = await sessionStorage.loadSession(sessionId);
-              if (storedSession) {
-                session = storedSession;
-                logger.info(
-                  "[BILLING] [GET_SUBSCRIPTION] Session loaded from storage",
-                  {
-                    requestId,
-                    shop: shopDomain,
-                    sessionId,
-                  }
-                );
-              } else {
-                logger.debug(
-                  "[BILLING] [GET_SUBSCRIPTION] No session found in storage",
-                  {
-                    requestId,
-                    shopDomain,
-                    sessionId,
-                  }
-                );
-              }
-            }
-          } catch (sessionError) {
-            logger.debug(
-              "[BILLING] [GET_SUBSCRIPTION] Could not load session from shop domain",
-              {
-                requestId,
-                shopDomain,
-                error: sessionError.message,
-              }
-            );
-          }
-        }
-
-        if (session) {
-          logger.info(
-            "[BILLING] [GET_SUBSCRIPTION] Cache miss - querying Shopify GraphQL API",
-            {
-              requestId,
-              shopDomain,
-              hasSession: !!session,
-            }
-          );
-
-          try {
-            const client = new shopify.clients.Graphql({ session });
-
-            // Query current app installation to get ALL subscriptions (active, pending, etc.)
-            // Managed App Pricing subscriptions can be in PENDING status initially
-            // Note: We query activeSubscriptions which includes ACTIVE, PENDING, and other statuses
-            const query = `
-              query {
-                currentAppInstallation {
-                  activeSubscriptions {
-                    id
-                    status
-                    currentPeriodEnd
-                    createdAt
-                    updatedAt
-                    lineItems {
-                      id
-                      plan {
-                        id
-                        name
-                        pricingDetails {
-                          ... on AppRecurringPricing {
-                            price {
-                              amount
-                              currencyCode
-                            }
-                            interval
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-
-            const response = await client.query({ data: query });
-
-            logger.info(
-              "[BILLING] [GET_SUBSCRIPTION] GraphQL response received",
-              {
-                requestId,
-                shop: shopDomain,
-                responseData: JSON.stringify(response.body?.data),
-              }
-            );
-
-            const installation = response.body?.data?.currentAppInstallation;
-            const activeSubscriptions = installation?.activeSubscriptions || [];
-
-            logger.info(
-              "[BILLING] [GET_SUBSCRIPTION] GraphQL subscriptions found",
-              {
-                requestId,
-                shop: shopDomain,
-                count: activeSubscriptions.length,
-                subscriptions: activeSubscriptions.map((sub) => ({
-                  id: sub.id,
-                  status: sub.status,
-                  hasLineItems: !!sub.lineItems?.length,
-                })),
-              }
-            );
-
-            if (activeSubscriptions.length > 0) {
-              // Process the first subscription (even if pending)
-              const appSubscription = activeSubscriptions[0];
-              subscriptionStatus =
-                subscriptionStorage.processWebhookSubscription(
-                  appSubscription,
-                  shopDomain
-                );
-
-              logger.info(
-                "[BILLING] [GET_SUBSCRIPTION] Subscription retrieved from GraphQL",
-                {
-                  requestId,
-                  shop: shopDomain,
-                  planHandle: subscriptionStatus?.plan?.handle,
-                  hasActiveSubscription:
-                    subscriptionStatus?.hasActiveSubscription,
-                  isFree: subscriptionStatus?.isFree,
-                  status: appSubscription.status,
-                }
-              );
-            } else {
-              // No subscription found - this could mean:
-              // 1. User hasn't selected a plan yet
-              // 2. Subscription is in a state that's not returned by activeSubscriptions
-              // 3. Webhook hasn't fired yet to create the subscription
-              logger.warn(
-                "[BILLING] [GET_SUBSCRIPTION] No subscription found in Shopify GraphQL",
-                {
-                  requestId,
-                  shop: shopDomain,
-                  installationExists: !!installation,
-                  installationId: installation?.id,
-                  note: "This is expected if user hasn't selected a plan or webhook hasn't fired yet",
-                }
-              );
-              subscriptionStatus = null;
-            }
-          } catch (graphqlError) {
-            logger.error(
-              "[BILLING] [GET_SUBSCRIPTION] GraphQL query failed",
-              graphqlError,
-              req,
-              {
-                requestId,
-                shopDomain,
-                errorMessage: graphqlError.message,
-                errorStack: graphqlError.stack,
-              }
-            );
-            // Continue with null subscriptionStatus
-            subscriptionStatus = null;
-          }
-        } else {
-          logger.warn(
-            "[BILLING] [GET_SUBSCRIPTION] No session available for GraphQL query",
-            {
-              requestId,
-              shopDomain,
-              note: "Subscription data will be available after webhook is received. Webhook 'app/subscriptions/update' should fire when user selects a plan.",
-              suggestion:
-                "Check if webhook is configured in Shopify Partners Dashboard",
-            }
-          );
-        }
-      }
-
-      // Log cache status for debugging
-      const cacheStats = subscriptionStorage.getCacheStats();
-
-      if (subscriptionStatus) {
-        logger.info(
-          "[BILLING] [GET_SUBSCRIPTION] Subscription status retrieved",
-          {
-            requestId,
-            shop: shopDomain,
-            hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
-            planHandle: subscriptionStatus.plan?.handle,
-            planName: subscriptionStatus.plan?.name,
-            isFree: subscriptionStatus.isFree,
-            cacheSize: cacheStats.size,
-            cachedShops: cacheStats.keys,
-          }
-        );
-      } else {
-        logger.warn(
-          "[BILLING] [GET_SUBSCRIPTION] No subscription data available",
-          {
-            requestId,
-            shop: shopDomain,
-            note: "No subscription found in cache or Shopify. User may need to select a plan.",
-          }
-        );
-      }
-    } catch (checkError) {
-      logger.error(
-        "[BILLING] [GET_SUBSCRIPTION] Subscription check failed",
-        checkError,
-        req,
-        {
-          requestId,
-          shopDomain,
-          errorType: checkError.constructor.name,
-          errorCode: checkError.code,
-        }
-      );
-      return res.status(500).json({
-        error: "Subscription check failed",
-        message: checkError.message || "Failed to check subscription status",
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      logger.warn("[BILLING] [GET_SUBSCRIPTION] Invalid shop parameter", {
+        requestId,
+        originalShop: shop,
+      });
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
         requestId,
       });
     }
 
-    // Calculate setup progress (only if we have a session)
-    let setupProgress;
-    if (session) {
-      try {
-        const { calculateSetupProgress } = await import(
-          "./utils/setupProgress.js"
-        );
-        setupProgress = await calculateSetupProgress(shopify, session);
-      } catch (setupError) {
-        logger.error(
-          "[BILLING] [GET_SUBSCRIPTION] Setup progress calculation failed",
-          setupError,
-          req,
-          {
-            requestId,
-            shopDomain,
-          }
-        );
-        // Use default setup progress on error
-        setupProgress = {
-          stepsCompleted: 1,
-          totalSteps: 4,
-          completed: false,
-          completedSteps: ["app_installed"],
-        };
+    logger.info(
+      "[BILLING] [GET_SUBSCRIPTION] Fetching subscription via GraphQL",
+      {
+        requestId,
+        shop: shopDomain,
       }
-    } else {
-      // No session available - return minimal progress
-      // App is installed (we have subscription data), but can't check other steps
-      setupProgress = {
-        stepsCompleted: 1,
-        totalSteps: 4,
-        completed: false,
-        completedSteps: ["app_installed"],
-      };
-      logger.debug(
-        "[BILLING] [GET_SUBSCRIPTION] No session for setup progress",
-        {
-          requestId,
-          shopDomain,
-        }
-      );
-    }
+    );
 
+    const subscriptionStatus = await fetchManagedSubscriptionStatus(shopDomain);
     const duration = Date.now() - startTime;
-    logger.info("[BILLING] [GET_SUBSCRIPTION] Request completed successfully", {
+
+    logger.info("[BILLING] [GET_SUBSCRIPTION] GraphQL subscription resolved", {
       requestId,
       shop: shopDomain,
+      hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+      planHandle: subscriptionStatus.plan?.handle,
       duration: `${duration}ms`,
-      setupProgress: setupProgress.stepsCompleted,
     });
 
-    // Return subscription status or null if no subscription found
-    if (subscriptionStatus) {
-      res.json({
-        ...subscriptionStatus,
-        setupProgress,
-        requestId, // Include for debugging
-      });
-    } else {
-      // No subscription found - return null explicitly
-      res.json({
-        subscription: null,
-        setupProgress,
-        requestId, // Include for debugging
-      });
-    }
+    res.json({
+      ...subscriptionStatus,
+      setupProgress: DEFAULT_SETUP_PROGRESS,
+      requestId,
+    });
   } catch (error) {
     const duration = Date.now() - startTime;
+
+    if (error instanceof SubscriptionStatusError) {
+      logger.warn("[BILLING] [GET_SUBSCRIPTION] Subscription error", {
+        requestId,
+        duration: `${duration}ms`,
+        error: error.message,
+        details: error.details,
+      });
+
+      return res.status(error.status).json({
+        error: error.message,
+        details: error.details,
+        setupProgress: DEFAULT_SETUP_PROGRESS,
+        requestId,
+      });
+    }
+
     logger.error("[BILLING] [GET_SUBSCRIPTION] Unexpected error", error, req, {
       requestId,
       duration: `${duration}ms`,
@@ -1394,6 +1291,7 @@ app.get("/api/billing/subscription", async (req, res) => {
       res.status(500).json({
         error: "Internal server error",
         message: error.message || "An unexpected error occurred",
+        setupProgress: DEFAULT_SETUP_PROGRESS,
         requestId,
       });
     }

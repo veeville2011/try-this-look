@@ -4,7 +4,7 @@
  * This module now only contains plan configuration.
  * All subscription management is handled through Shopify Managed App Pricing:
  * - Plan selection: Redirects to Shopify's hosted pricing page
- * - Status checks: Uses subscriptionStorage (populated by webhooks)
+ * - Status checks: Query Shopify's GraphQL API for active subscriptions
  * - Cancellations: Redirects to Shopify admin UI
  *
  * GraphQL Billing API functions have been removed in favor of Managed App Pricing.
