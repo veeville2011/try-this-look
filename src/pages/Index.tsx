@@ -78,30 +78,94 @@ const Index = () => {
 
   // Check subscription and redirect to pricing page only if no plan is selected
   useEffect(() => {
+    console.log("🔍 [Redirect Debug] useEffect triggered");
+    console.log(
+      "🔍 [Redirect Debug] subscriptionLoading:",
+      subscriptionLoading
+    );
+    console.log("🔍 [Redirect Debug] subscription:", subscription);
+
     // Wait for subscription to load
-    if (subscriptionLoading) return;
+    if (subscriptionLoading) {
+      console.log(
+        "🔍 [Redirect Debug] Still loading subscription, skipping..."
+      );
+      return;
+    }
 
     // Get shop domain
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
 
-    if (!shopDomain) return;
+    console.log("🔍 [Redirect Debug] shopDomain:", shopDomain);
+
+    if (!shopDomain) {
+      console.log(
+        "🔍 [Redirect Debug] No shop domain found, skipping redirect"
+      );
+      return;
+    }
 
     // Only redirect if no plan is selected at all
     // If a plan exists (even free or inactive), don't redirect
     // Check for subscription, plan object, and plan handle to ensure a plan is truly selected
+    const hasSubscription = !!subscription;
+    const hasPlan = !!subscription?.plan;
+    const hasPlanHandle = !!subscription?.plan?.handle;
+
+    console.log("🔍 [Redirect Debug] hasSubscription:", hasSubscription);
+    console.log("🔍 [Redirect Debug] hasPlan:", hasPlan);
+    console.log("🔍 [Redirect Debug] hasPlanHandle:", hasPlanHandle);
+    console.log("🔍 [Redirect Debug] subscription.plan:", subscription?.plan);
+    console.log(
+      "🔍 [Redirect Debug] subscription.plan?.handle:",
+      subscription?.plan?.handle
+    );
+
     if (!subscription || !subscription.plan || !subscription.plan.handle) {
       // No subscription data or no plan selected - redirect to pricing page
+      console.log(
+        "🚨 [Redirect Debug] REDIRECTING to pricing page - missing subscription, plan, or handle"
+      );
+      console.log(
+        "🚨 [Redirect Debug] Redirect params - shopDomain:",
+        shopDomain,
+        "APP_HANDLE:",
+        APP_HANDLE
+      );
       redirectToPlanSelection(shopDomain, APP_HANDLE);
       return;
     }
 
+    // Console log the handle
+    console.log(
+      "✅ [Redirect Debug] NO REDIRECT - Plan handle exists:",
+      subscription.plan.handle
+    );
+    console.log(
+      "✅ [Redirect Debug] subscription.hasActiveSubscription:",
+      subscription.hasActiveSubscription
+    );
+    console.log(
+      "✅ [Redirect Debug] subscription.isFree:",
+      subscription.isFree
+    );
+
     // Update current plan state
     if (subscription.hasActiveSubscription && !subscription.isFree) {
+      console.log(
+        "✅ [Redirect Debug] Setting currentPlan to:",
+        subscription.plan.handle
+      );
       setCurrentPlan(subscription.plan.handle);
     } else if (subscription.isFree) {
+      console.log("✅ [Redirect Debug] Setting currentPlan to: free");
       setCurrentPlan("free");
     } else {
+      console.log(
+        "✅ [Redirect Debug] Setting currentPlan to:",
+        subscription.plan.handle
+      );
       setCurrentPlan(subscription.plan.handle);
     }
   }, [subscription, subscriptionLoading, shop]);
