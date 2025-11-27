@@ -29,12 +29,16 @@ const Index = () => {
   // Deep linking configuration
   const API_KEY = "f8de7972ae23d3484581d87137829385"; // From shopify.app.toml client_id
   const APP_BLOCK_HANDLE = "nusense-tryon-button";
+  const APP_HANDLE = "nutryon"; // App handle for Managed Pricing (from Partner Dashboard)
 
   // App Bridge hooks for embedded app
   const shop = useShop();
 
   // Subscription state
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+
+  // Use subscription hook to check subscription status
+  const { subscription, loading: subscriptionLoading, refresh: refreshSubscription } = useSubscription();
 
   const handleDeepLinkClick = (template: "product" | "index" = "product") => {
     // Get shop domain from App Bridge or URL params
@@ -68,12 +72,30 @@ const Index = () => {
     window.open(deepLinkUrl, "_blank");
   };
 
-  // Use subscription hook instead of polling
-  const { subscription, refresh: refreshSubscription } = useSubscription();
-
-  // Update current plan based on subscription status
+  // Check subscription and redirect to pricing page if no active subscription
   useEffect(() => {
+    // Wait for subscription to load
+    if (subscriptionLoading) return;
+
+    // Get shop domain
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+
+    if (!shopDomain) return;
+
+    // Check if user has active paid subscription
+    // Redirect to pricing page if no active subscription or only free plan
     if (subscription) {
+      const hasActivePaidSubscription =
+        subscription.hasActiveSubscription && !subscription.isFree;
+
+      if (!hasActivePaidSubscription) {
+        // Redirect to pricing page
+        redirectToPlanSelection(shopDomain, APP_HANDLE);
+        return;
+      }
+
+      // Update current plan state
       if (subscription.hasActiveSubscription && !subscription.isFree) {
         setCurrentPlan(subscription.plan.handle);
       } else if (subscription.isFree) {
@@ -81,8 +103,20 @@ const Index = () => {
       } else {
         setCurrentPlan(null);
       }
+    } else {
+      // No subscription data - redirect to pricing page
+      redirectToPlanSelection(shopDomain, APP_HANDLE);
     }
-  }, [subscription]);
+  }, [subscription, subscriptionLoading, shop]);
+
+  // Show loading state while checking subscription
+  if (subscriptionLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,10 +160,25 @@ const Index = () => {
                     <Button
                       size="lg"
                       onClick={() => {
-                        // Scroll to installation guide
-                        document
-                          .getElementById("installation-guide")
-                          ?.scrollIntoView({ behavior: "smooth" });
+                        const shopDomain =
+                          shop ||
+                          new URLSearchParams(window.location.search).get(
+                            "shop"
+                          );
+                        if (
+                          !subscription ||
+                          !subscription.hasActiveSubscription ||
+                          subscription.isFree
+                        ) {
+                          if (shopDomain) {
+                            redirectToPlanSelection(shopDomain, APP_HANDLE);
+                          }
+                        } else {
+                          // Scroll to installation guide
+                          document
+                            .getElementById("installation-guide")
+                            ?.scrollIntoView({ behavior: "smooth" });
+                        }
                       }}
                       className="px-6"
                     >
@@ -169,30 +218,59 @@ const Index = () => {
               showInstall={!currentPlan || currentPlan === "free"}
               showConfigure={currentPlan && currentPlan !== "free"}
               onInstallClick={() => {
-                document
-                  .getElementById("installation-guide")
-                  ?.scrollIntoView({ behavior: "smooth" });
+                const shopDomain =
+                  shop ||
+                  new URLSearchParams(window.location.search).get("shop");
+                if (
+                  !subscription ||
+                  !subscription.hasActiveSubscription ||
+                  subscription.isFree
+                ) {
+                  if (shopDomain) {
+                    redirectToPlanSelection(shopDomain, APP_HANDLE);
+                  }
+                } else {
+                  document
+                    .getElementById("installation-guide")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }
               }}
               onConfigureClick={() => {
-                document
-                  .getElementById("installation-guide")
-                  ?.scrollIntoView({ behavior: "smooth" });
+                const shopDomain =
+                  shop ||
+                  new URLSearchParams(window.location.search).get("shop");
+                if (
+                  !subscription ||
+                  !subscription.hasActiveSubscription ||
+                  subscription.isFree
+                ) {
+                  if (shopDomain) {
+                    redirectToPlanSelection(shopDomain, APP_HANDLE);
+                  }
+                } else {
+                  document
+                    .getElementById("installation-guide")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }
               }}
             />
           </div>
         </div>
       </section>
 
-      {/* Installation Instructions */}
-      <section
-        id="installation-guide"
-        className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background"
-      >
-        <div className="container mx-auto px-4 sm:px-6 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="space-y-8 sm:space-y-10 md:space-y-12">
-              {/* Installation Steps */}
-              <Card className="p-6 sm:p-8 md:p-10 lg:p-12 border-2 border-border bg-card shadow-lg">
+      {/* Installation Instructions - Only show if user has active subscription */}
+      {subscription &&
+        subscription.hasActiveSubscription &&
+        !subscription.isFree && (
+          <section
+            id="installation-guide"
+            className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background"
+          >
+            <div className="container mx-auto px-4 sm:px-6 md:px-8">
+              <div className="max-w-6xl mx-auto">
+                <div className="space-y-8 sm:space-y-10 md:space-y-12">
+                  {/* Installation Steps */}
+                  <Card className="p-6 sm:p-8 md:p-10 lg:p-12 border-2 border-border bg-card shadow-lg">
                 <CardHeader className="p-0 mb-8 sm:mb-10">
                   <CardTitle className="text-2xl sm:text-3xl md:text-4xl flex items-center gap-3 sm:gap-4 text-foreground no-orphans">
                     <Zap
@@ -380,7 +458,27 @@ const Index = () => {
                                     </p>
                                   </div>
                                   <Button
-                                    onClick={() => handleDeepLinkClick("product")}
+                                    onClick={() => {
+                                      const shopDomain =
+                                        shop ||
+                                        new URLSearchParams(
+                                          window.location.search
+                                        ).get("shop");
+                                      if (
+                                        !subscription ||
+                                        !subscription.hasActiveSubscription ||
+                                        subscription.isFree
+                                      ) {
+                                        if (shopDomain) {
+                                          redirectToPlanSelection(
+                                            shopDomain,
+                                            APP_HANDLE
+                                          );
+                                        }
+                                      } else {
+                                        handleDeepLinkClick("product");
+                                      }
+                                    }}
                                     className="w-full sm:w-auto whitespace-nowrap"
                                     size="sm"
                                   >
@@ -506,7 +604,27 @@ const Index = () => {
                                     </p>
                                   </div>
                                   <Button
-                                    onClick={() => handleDeepLinkClick("index")}
+                                    onClick={() => {
+                                      const shopDomain =
+                                        shop ||
+                                        new URLSearchParams(
+                                          window.location.search
+                                        ).get("shop");
+                                      if (
+                                        !subscription ||
+                                        !subscription.hasActiveSubscription ||
+                                        subscription.isFree
+                                      ) {
+                                        if (shopDomain) {
+                                          redirectToPlanSelection(
+                                            shopDomain,
+                                            APP_HANDLE
+                                          );
+                                        }
+                                      } else {
+                                        handleDeepLinkClick("index");
+                                      }
+                                    }}
                                     className="w-full sm:w-auto whitespace-nowrap"
                                     size="sm"
                                   >
@@ -583,6 +701,7 @@ const Index = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Feature Highlights Section */}
       <section className="py-12 sm:py-16 bg-muted/30">

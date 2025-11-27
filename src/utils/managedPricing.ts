@@ -20,6 +20,7 @@ export const getPlanSelectionUrl = (
   // Use provided app handle or default to "nutryon" from config
   // The app handle is configured in Partner Dashboard when setting up managed pricing
   // Format: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
+  // Note: The app handle "nutryon" is configured in Partner Dashboard for Managed Pricing
   const handle = appHandle || import.meta.env.VITE_APP_HANDLE || "nutryon";
 
   // Construct the plan selection page URL
