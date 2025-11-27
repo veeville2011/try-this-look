@@ -745,19 +745,68 @@ app.post(
 // App subscriptions update webhook - for billing status changes
 // Reference: https://shopify.dev/docs/apps/launch/billing/subscription-billing
 // This webhook is used with Managed App Pricing to keep subscription status in sync
+// Note: This webhook is automatically registered by Shopify for Managed App Pricing
+// and cannot be configured in shopify.app.toml
 app.post(
   "/webhooks/app/subscriptions/update",
   verifyWebhookSignature,
   async (req, res) => {
     try {
-      const { app_subscription } = req.webhookData;
+      // Log raw webhook data for debugging
+      logger.info("[WEBHOOK] app/subscriptions/update - raw payload received", {
+        shop: req.webhookShop,
+        topic: req.webhookTopic,
+        payloadKeys: Object.keys(req.webhookData || {}),
+        fullPayload: JSON.stringify(req.webhookData),
+      });
+
+      // Extract subscription data - Shopify may send it in different formats:
+      // 1. Direct: { id, status, ... } (root level)
+      // 2. Nested: { app_subscription: { id, status, ... } }
+      // 3. Array: { app_subscriptions: [{ id, status, ... }] }
+      let app_subscription = null;
+
+      if (req.webhookData) {
+        // Try nested format first (most common)
+        if (req.webhookData.app_subscription) {
+          app_subscription = req.webhookData.app_subscription;
+        }
+        // Try array format
+        else if (
+          req.webhookData.app_subscriptions &&
+          Array.isArray(req.webhookData.app_subscriptions) &&
+          req.webhookData.app_subscriptions.length > 0
+        ) {
+          app_subscription = req.webhookData.app_subscriptions[0];
+        }
+        // Try direct format (if payload IS the subscription object)
+        else if (req.webhookData.id && req.webhookData.status) {
+          app_subscription = req.webhookData;
+        }
+      }
+
       const shop = req.webhookShop;
+
+      if (!shop) {
+        logger.error(
+          "[WEBHOOK] app/subscriptions/update - missing shop domain",
+          {
+            headers: req.headers,
+            webhookData: req.webhookData,
+          }
+        );
+        return res.status(400).json({
+          error: "Missing shop domain",
+          received: true,
+        });
+      }
 
       logger.info("[WEBHOOK] app/subscriptions/update received", {
         shop,
         subscriptionId: app_subscription?.id,
         status: app_subscription?.status,
         webhookTopic: req.webhookTopic,
+        hasSubscription: !!app_subscription,
       });
 
       // Handle subscription status changes:
@@ -779,18 +828,24 @@ app.post(
       // This replaces the need for GraphQL queries to check subscription status
       if (app_subscription) {
         // Log full webhook payload for debugging
-        logger.info("[WEBHOOK] app/subscriptions/update - full payload", {
-          shop,
-          subscriptionId: app_subscription?.id,
-          status: app_subscription?.status,
-          currentPeriodEnd: app_subscription?.currentPeriodEnd,
-          lineItems: app_subscription?.lineItems?.map(item => ({
-            id: item?.id,
-            planId: item?.plan?.id,
-            planName: item?.plan?.name,
-            pricingDetails: item?.plan?.pricingDetails,
-          })),
-        });
+        logger.info(
+          "[WEBHOOK] app/subscriptions/update - full subscription data",
+          {
+            shop,
+            subscriptionId: app_subscription?.id,
+            status: app_subscription?.status,
+            currentPeriodEnd: app_subscription?.currentPeriodEnd,
+            createdAt: app_subscription?.createdAt,
+            updatedAt: app_subscription?.updatedAt,
+            lineItemsCount: app_subscription?.lineItems?.length || 0,
+            lineItems: app_subscription?.lineItems?.map((item) => ({
+              id: item?.id,
+              planId: item?.plan?.id,
+              planName: item?.plan?.name,
+              hasPricingDetails: !!item?.plan?.pricingDetails,
+            })),
+          }
+        );
 
         const subscriptionData = subscriptionStorage.processWebhookSubscription(
           app_subscription,
@@ -798,28 +853,37 @@ app.post(
         );
 
         if (subscriptionData) {
-        logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
-          shop,
-          subscriptionId: app_subscription?.id,
-          status: app_subscription?.status,
-          planHandle: subscriptionData?.plan?.handle,
+          logger.info("[WEBHOOK] app/subscriptions/update stored in cache", {
+            shop,
+            subscriptionId: app_subscription?.id,
+            status: app_subscription?.status,
+            planHandle: subscriptionData?.plan?.handle,
             planName: subscriptionData?.plan?.name,
             hasActiveSubscription: subscriptionData?.hasActiveSubscription,
             isFree: subscriptionData?.isFree,
           });
         } else {
-          logger.warn("[WEBHOOK] app/subscriptions/update - failed to process subscription data", {
-            shop,
-            subscriptionId: app_subscription?.id,
-        });
+          logger.warn(
+            "[WEBHOOK] app/subscriptions/update - failed to process subscription data",
+            {
+              shop,
+              subscriptionId: app_subscription?.id,
+              status: app_subscription?.status,
+              note: "processWebhookSubscription returned null - check plan matching logic",
+            }
+          );
         }
       } else {
-        // If subscription is null/undefined, it might be cancelled
-        // Remove from cache
+        // If subscription is null/undefined, it might be cancelled or not found
+        // Remove from cache to ensure we don't show stale data
         subscriptionStorage.removeSubscription(shop);
-        logger.info("[WEBHOOK] app/subscriptions/update - subscription removed from cache", {
-          shop,
-        });
+        logger.info(
+          "[WEBHOOK] app/subscriptions/update - subscription removed from cache (no subscription in payload)",
+          {
+            shop,
+            webhookDataKeys: Object.keys(req.webhookData || {}),
+          }
+        );
       }
 
       logger.info("[WEBHOOK] app/subscriptions/update processed successfully", {
@@ -837,9 +901,13 @@ app.post(
         {
           shop: req.webhookShop,
           webhookTopic: req.webhookTopic,
+          errorMessage: error.message,
+          errorStack: error.stack,
         }
       );
 
+      // Always return 200 to Shopify to prevent retries for processing errors
+      // But log the error for debugging
       res.status(200).json({
         received: true,
         error: "Webhook processed but encountered an error",
@@ -970,15 +1038,21 @@ app.get("/api/billing/subscription", async (req, res) => {
         const sessionToken = authHeader.replace("Bearer ", "");
         try {
           session = await shopify.session.decodeSessionToken(sessionToken);
-          logger.info("[BILLING] [GET_SUBSCRIPTION] Session decoded from token", {
-            requestId,
-            shop: session?.shop,
-          });
+          logger.info(
+            "[BILLING] [GET_SUBSCRIPTION] Session decoded from token",
+            {
+              requestId,
+              shop: session?.shop,
+            }
+          );
         } catch (tokenError) {
-          logger.debug("[BILLING] [GET_SUBSCRIPTION] Could not decode session token", {
-            requestId,
-            error: tokenError.message,
-          });
+          logger.debug(
+            "[BILLING] [GET_SUBSCRIPTION] Could not decode session token",
+            {
+              requestId,
+              error: tokenError.message,
+            }
+          );
         }
       }
     } catch (sessionError) {
@@ -996,92 +1070,201 @@ app.get("/api/billing/subscription", async (req, res) => {
 
     let subscriptionStatus;
     try {
-      logger.info("[BILLING] [GET_SUBSCRIPTION] Checking subscription status (Managed Pricing)", {
-        requestId,
-        shopDomain,
-      });
-
-      // Use Managed App Pricing approach: check cache first (populated by webhooks)
-      subscriptionStatus = subscriptionStorage.getSubscriptionStatus(shopDomain);
-
-      // If cache miss, try to query Shopify GraphQL API if we have a session
-      if (!subscriptionStatus && session) {
-        logger.info("[BILLING] [GET_SUBSCRIPTION] Cache miss - querying Shopify GraphQL API", {
+      logger.info(
+        "[BILLING] [GET_SUBSCRIPTION] Checking subscription status (Managed Pricing)",
+        {
           requestId,
           shopDomain,
-        });
+        }
+      );
 
-        try {
-          const client = new shopify.clients.Graphql({ session });
-          
-          // Query current app installation to get subscription status
-          const query = `
-            query {
-              currentAppInstallation {
-                activeSubscriptions {
-                  id
-                  status
-                  currentPeriodEnd
-                  lineItems {
+      // Use Managed App Pricing approach: check cache first (populated by webhooks)
+      subscriptionStatus =
+        subscriptionStorage.getSubscriptionStatus(shopDomain);
+
+      // If cache miss, try to query Shopify GraphQL API
+      // First try to get session from shop domain if not available from header
+      if (!subscriptionStatus) {
+        // Try to get session from shop domain if we don't have one
+        if (!session) {
+          try {
+            // Try to load session from storage using shop domain
+            const sessionStorage = shopify.session.storage;
+            if (sessionStorage) {
+              // For offline sessions, the session ID format is typically: {shop}_{apiKey}
+              const sessionId = `${shopDomain}_${apiKey || ""}`;
+              const storedSession = await sessionStorage.loadSession(sessionId);
+              if (storedSession) {
+                session = storedSession;
+                logger.info(
+                  "[BILLING] [GET_SUBSCRIPTION] Session loaded from storage",
+                  {
+                    requestId,
+                    shop: shopDomain,
+                    sessionId,
+                  }
+                );
+              } else {
+                logger.debug(
+                  "[BILLING] [GET_SUBSCRIPTION] No session found in storage",
+                  {
+                    requestId,
+                    shopDomain,
+                    sessionId,
+                  }
+                );
+              }
+            }
+          } catch (sessionError) {
+            logger.debug(
+              "[BILLING] [GET_SUBSCRIPTION] Could not load session from shop domain",
+              {
+                requestId,
+                shopDomain,
+                error: sessionError.message,
+              }
+            );
+          }
+        }
+
+        if (session) {
+          logger.info(
+            "[BILLING] [GET_SUBSCRIPTION] Cache miss - querying Shopify GraphQL API",
+            {
+              requestId,
+              shopDomain,
+              hasSession: !!session,
+            }
+          );
+
+          try {
+            const client = new shopify.clients.Graphql({ session });
+
+            // Query current app installation to get ALL subscriptions (active, pending, etc.)
+            // Managed App Pricing subscriptions can be in PENDING status initially
+            // Note: We query activeSubscriptions which includes ACTIVE, PENDING, and other statuses
+            const query = `
+              query {
+                currentAppInstallation {
+                  activeSubscriptions {
                     id
-                    plan {
+                    status
+                    currentPeriodEnd
+                    createdAt
+                    updatedAt
+                    lineItems {
                       id
-                      name
-                      pricingDetails {
-                        ... on AppRecurringPricing {
-                          price {
-                            amount
-                            currencyCode
+                      plan {
+                        id
+                        name
+                        pricingDetails {
+                          ... on AppRecurringPricing {
+                            price {
+                              amount
+                              currencyCode
+                            }
+                            interval
                           }
-                          interval
                         }
                       }
                     }
                   }
                 }
               }
-            }
-          `;
-          
-          const response = await client.query({ data: query });
+            `;
 
-          const installation = response.body?.data?.currentAppInstallation;
-          const activeSubscriptions = installation?.activeSubscriptions || [];
-          
-          if (activeSubscriptions.length > 0) {
-            // Process the first active subscription
-            const appSubscription = activeSubscriptions[0];
-            subscriptionStatus = subscriptionStorage.processWebhookSubscription(
-              appSubscription,
-              shopDomain
+            const response = await client.query({ data: query });
+
+            logger.info(
+              "[BILLING] [GET_SUBSCRIPTION] GraphQL response received",
+              {
+                requestId,
+                shop: shopDomain,
+                responseData: JSON.stringify(response.body?.data),
+              }
             );
-            
-            logger.info("[BILLING] [GET_SUBSCRIPTION] Subscription retrieved from GraphQL", {
-              requestId,
-              shop: shopDomain,
-              planHandle: subscriptionStatus?.plan?.handle,
-              hasActiveSubscription: subscriptionStatus?.hasActiveSubscription,
-            });
-          } else {
-            // No active subscription found
-            logger.info("[BILLING] [GET_SUBSCRIPTION] No active subscription found in Shopify", {
-              requestId,
-              shop: shopDomain,
-            });
+
+            const installation = response.body?.data?.currentAppInstallation;
+            const activeSubscriptions = installation?.activeSubscriptions || [];
+
+            logger.info(
+              "[BILLING] [GET_SUBSCRIPTION] GraphQL subscriptions found",
+              {
+                requestId,
+                shop: shopDomain,
+                count: activeSubscriptions.length,
+                subscriptions: activeSubscriptions.map((sub) => ({
+                  id: sub.id,
+                  status: sub.status,
+                  hasLineItems: !!sub.lineItems?.length,
+                })),
+              }
+            );
+
+            if (activeSubscriptions.length > 0) {
+              // Process the first subscription (even if pending)
+              const appSubscription = activeSubscriptions[0];
+              subscriptionStatus =
+                subscriptionStorage.processWebhookSubscription(
+                  appSubscription,
+                  shopDomain
+                );
+
+              logger.info(
+                "[BILLING] [GET_SUBSCRIPTION] Subscription retrieved from GraphQL",
+                {
+                  requestId,
+                  shop: shopDomain,
+                  planHandle: subscriptionStatus?.plan?.handle,
+                  hasActiveSubscription:
+                    subscriptionStatus?.hasActiveSubscription,
+                  isFree: subscriptionStatus?.isFree,
+                  status: appSubscription.status,
+                }
+              );
+            } else {
+              // No subscription found - this could mean:
+              // 1. User hasn't selected a plan yet
+              // 2. Subscription is in a state that's not returned by activeSubscriptions
+              // 3. Webhook hasn't fired yet to create the subscription
+              logger.warn(
+                "[BILLING] [GET_SUBSCRIPTION] No subscription found in Shopify GraphQL",
+                {
+                  requestId,
+                  shop: shopDomain,
+                  installationExists: !!installation,
+                  installationId: installation?.id,
+                  note: "This is expected if user hasn't selected a plan or webhook hasn't fired yet",
+                }
+              );
+              subscriptionStatus = null;
+            }
+          } catch (graphqlError) {
+            logger.error(
+              "[BILLING] [GET_SUBSCRIPTION] GraphQL query failed",
+              graphqlError,
+              req,
+              {
+                requestId,
+                shopDomain,
+                errorMessage: graphqlError.message,
+                errorStack: graphqlError.stack,
+              }
+            );
+            // Continue with null subscriptionStatus
             subscriptionStatus = null;
           }
-        } catch (graphqlError) {
-          logger.error(
-            "[BILLING] [GET_SUBSCRIPTION] GraphQL query failed",
-            graphqlError,
-            req,
+        } else {
+          logger.warn(
+            "[BILLING] [GET_SUBSCRIPTION] No session available for GraphQL query",
             {
               requestId,
               shopDomain,
+              note: "Subscription data will be available after webhook is received. Webhook 'app/subscriptions/update' should fire when user selects a plan.",
+              suggestion:
+                "Check if webhook is configured in Shopify Partners Dashboard",
             }
           );
-          // Continue with null subscriptionStatus
-          subscriptionStatus = null;
         }
       }
 
@@ -1135,7 +1318,9 @@ app.get("/api/billing/subscription", async (req, res) => {
     let setupProgress;
     if (session) {
       try {
-        const { calculateSetupProgress } = await import("./utils/setupProgress.js");
+        const { calculateSetupProgress } = await import(
+          "./utils/setupProgress.js"
+        );
         setupProgress = await calculateSetupProgress(shopify, session);
       } catch (setupError) {
         logger.error(
@@ -1164,10 +1349,13 @@ app.get("/api/billing/subscription", async (req, res) => {
         completed: false,
         completedSteps: ["app_installed"],
       };
-      logger.debug("[BILLING] [GET_SUBSCRIPTION] No session for setup progress", {
-        requestId,
-        shopDomain,
-      });
+      logger.debug(
+        "[BILLING] [GET_SUBSCRIPTION] No session for setup progress",
+        {
+          requestId,
+          shopDomain,
+        }
+      );
     }
 
     const duration = Date.now() - startTime;
@@ -1215,14 +1403,18 @@ app.get("/api/billing/subscription", async (req, res) => {
 // Create subscription - DEPRECATED: Using Managed App Pricing
 // This endpoint is no longer used. The app now redirects to Shopify's plan selection page.
 app.post("/api/billing/subscribe", async (req, res) => {
-  logger.warn("[API] [SUBSCRIBE] Deprecated endpoint called - using Managed App Pricing", {
-    shop: req.body?.shop || req.query?.shop,
-    planHandle: req.body?.planHandle,
-  });
-  
+  logger.warn(
+    "[API] [SUBSCRIBE] Deprecated endpoint called - using Managed App Pricing",
+    {
+      shop: req.body?.shop || req.query?.shop,
+      planHandle: req.body?.planHandle,
+    }
+  );
+
   return res.status(410).json({
     error: "Deprecated",
-    message: "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin.",
+    message:
+      "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin.",
     managedPricing: true,
   });
 });
@@ -1257,37 +1449,46 @@ app.post("/api/billing/cancel", async (req, res) => {
     ? shop
     : `${shop}.myshopify.com`;
 
-  logger.warn("[API] [CANCEL] Deprecated endpoint called - using Managed App Pricing", {
-    shop: shopDomain,
-  });
+  logger.warn(
+    "[API] [CANCEL] Deprecated endpoint called - using Managed App Pricing",
+    {
+      shop: shopDomain,
+    }
+  );
 
   // Extract store handle and app handle
   const storeHandle = shopDomain.replace(".myshopify.com", "");
   const appHandle = process.env.VITE_APP_HANDLE || "nutryon";
-  
+
   // Redirect to Shopify's plan selection page where users can cancel
   // Correct format for Managed App Pricing: https://admin.shopify.com/store/{store_handle}/charges/{app_handle}/pricing_plans
   const planSelectionUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans`;
 
   return res.status(200).json({
-    message: "This app uses Shopify Managed App Pricing. Please cancel your subscription through the Shopify admin.",
+    message:
+      "This app uses Shopify Managed App Pricing. Please cancel your subscription through the Shopify admin.",
     managedPricing: true,
     redirectUrl: planSelectionUrl,
-    instructions: "Visit the plan selection page in Shopify admin to cancel your subscription",
+    instructions:
+      "Visit the plan selection page in Shopify admin to cancel your subscription",
   });
 });
 
 // Change plan - DEPRECATED: Using Managed App Pricing
 // This endpoint is no longer used. The app now redirects to Shopify's plan selection page.
 app.post("/api/billing/change-plan", async (req, res) => {
-  logger.warn("[API] [CHANGE_PLAN] Deprecated endpoint called - using Managed App Pricing", {
-    shop: req.body?.shop || req.query?.shop,
-    planHandle: req.body?.planHandle,
-  });
-  
+  logger.warn(
+    "[API] [CHANGE_PLAN] Deprecated endpoint called - using Managed App Pricing",
+    {
+      shop: req.body?.shop || req.query?.shop,
+      planHandle: req.body?.planHandle,
+    }
+  );
+
   return res.status(410).json({
     error: "Deprecated",
-    message: "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin to change your plan.",
+    message:
+      "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin to change your plan.",
     managedPricing: true,
   });
 });
