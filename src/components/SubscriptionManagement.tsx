@@ -68,19 +68,24 @@ const SubscriptionManagement = ({
 
       // With Managed App Pricing, cancellations are handled through Shopify's admin interface
       // Redirect to the plan selection page where users can cancel their subscription
-      console.log("[MANAGED_PRICING] Redirecting to plan selection for cancellation", {
-        shopDomain,
-      });
+      console.log(
+        "[MANAGED_PRICING] Redirecting to plan selection for cancellation with Shopify",
+        {
+          shopDomain,
+        }
+      );
 
       redirectToPlanSelection(shopDomain);
-      
+
       // Note: User will be redirected to Shopify, so we don't need to update state here
       // The webhook will update the subscription status when cancellation is processed
     } catch (error) {
       console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
         error: error instanceof Error ? error.message : String(error),
       });
-      toast.error("Échec de la redirection vers la sélection de plan. Veuillez réessayer.");
+      toast.error(
+        "Échec de la redirection vers la sélection de plan. Veuillez réessayer."
+      );
     } finally {
       setCancelling(false);
     }
@@ -102,17 +107,22 @@ const SubscriptionManagement = ({
       // With Managed App Pricing, Shopify hosts the plan selection page
       // We redirect directly to Shopify's plan selection page
       // The merchant can change their plan there, and Shopify handles the billing
-      console.log("[MANAGED_PRICING] Redirecting to plan selection for plan change", {
-        shopDomain,
-        newPlanHandle,
-      });
+      console.log(
+        "[MANAGED_PRICING] Redirecting to plan selection for plan change",
+        {
+          shopDomain,
+          newPlanHandle,
+        }
+      );
 
       redirectToPlanSelection(shopDomain);
     } catch (error) {
       console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
         error: error instanceof Error ? error.message : String(error),
       });
-      toast.error("Échec de la redirection vers la sélection de plan. Veuillez réessayer.");
+      toast.error(
+        "Échec de la redirection vers la sélection de plan. Veuillez réessayer."
+      );
     } finally {
       setChangingPlan(false);
     }
@@ -189,7 +199,9 @@ const SubscriptionManagement = ({
               aria-label="Actualiser le statut de l'abonnement"
             >
               <RefreshCw
-                className={`w-4 h-4 mr-2 ${refreshing || loading ? "animate-spin" : ""}`}
+                className={`w-4 h-4 mr-2 ${
+                  refreshing || loading ? "animate-spin" : ""
+                }`}
               />
               Actualiser
             </Button>
@@ -216,7 +228,9 @@ const SubscriptionManagement = ({
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Prochaine date de facturation</p>
+                    <p className="text-sm font-medium">
+                      Prochaine date de facturation
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(subscription.subscription.currentPeriodEnd)}
                     </p>
@@ -254,7 +268,9 @@ const SubscriptionManagement = ({
             {subscription.plan.features &&
               subscription.plan.features.length > 0 && (
                 <div className="pt-4 border-t">
-                  <h4 className="text-sm font-semibold mb-2">Fonctionnalités du plan</h4>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Fonctionnalités du plan
+                  </h4>
                   <ul className="space-y-2">
                     {subscription.plan.features.map((feature, index) => (
                       <li
@@ -286,12 +302,16 @@ const SubscriptionManagement = ({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Annuler l'abonnement</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Vous serez redirigé vers l'administration Shopify pour annuler votre abonnement.
-                        Vous perdrez l'accès aux fonctionnalités Pro à la fin de votre période de facturation.
+                        Vous serez redirigé vers l'administration Shopify pour
+                        annuler votre abonnement. Vous perdrez l'accès aux
+                        fonctionnalités Pro à la fin de votre période de
+                        facturation.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Conserver l'abonnement</AlertDialogCancel>
+                      <AlertDialogCancel>
+                        Conserver l'abonnement
+                      </AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleCancel}
                         className="bg-destructive text-destructive-foreground"
