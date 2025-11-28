@@ -17,8 +17,14 @@ import {
   Zap,
   Shield,
   Link2,
+  Crown,
+  Check,
+  Calendar,
+  CreditCard,
+  Sparkle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import SubscriptionManagement from "@/components/SubscriptionManagement";
 import ShopifyManagedPricing from "@/components/ShopifyManagedPricing";
@@ -211,9 +217,9 @@ const Index = () => {
       <header className="relative overflow-hidden bg-card border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20 relative">
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col items-start gap-6">
-              {/* Hero Content */}
-              <div className="w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
+              {/* Hero Content - Left Side */}
+              <div className="lg:col-span-2">
                 <div className="flex flex-col items-start gap-4">
                   <div className="inline-flex flex-col items-start">
                     <h1
@@ -269,6 +275,200 @@ const Index = () => {
                     </Button>
                   </div>
                 </div>
+              </div>
+
+              {/* Plan Information Card - Right Side */}
+              <div className="lg:col-span-1">
+                {subscription && subscription.subscription !== null ? (
+                  <Card className="border-2 border-border shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-card/95">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <CardTitle className="text-lg font-bold text-foreground">
+                          Votre plan
+                        </CardTitle>
+                        {subscription.hasActiveSubscription && (
+                          <Badge
+                            variant="default"
+                            className="gap-1.5 bg-success/20 text-success border-success/30"
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            Actif
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        {subscription.isFree ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1.5 text-sm px-3 py-1"
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            Plan Gratuit
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="default"
+                            className="gap-1.5 bg-primary text-primary-foreground text-sm px-3 py-1"
+                          >
+                            <Crown className="w-3.5 h-3.5" />
+                            {subscription.plan?.name || "Plan Premium"}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Plan Pricing */}
+                      {subscription.plan && !subscription.isFree && (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold text-foreground">
+                            ${subscription.plan.price}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            /
+                            {subscription.plan.interval === "ANNUAL"
+                              ? "an"
+                              : "mois"}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {subscription.plan.currencyCode}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Subscription Status */}
+                      {subscription.subscription && (
+                        <div className="space-y-2 pt-2 border-t border-border">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              Renouvellement:
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {new Date(
+                                subscription.subscription.currentPeriodEnd
+                              ).toLocaleDateString("fr-FR", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <CheckCircle2 className="w-4 h-4 text-success" />
+                            <span className="text-muted-foreground">
+                              Statut:
+                            </span>
+                            <span className="font-medium text-foreground capitalize">
+                              {subscription.subscription.status.toLowerCase()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Plan Benefits */}
+                      <div className="pt-3 border-t border-border">
+                        <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Sparkle className="w-4 h-4 text-primary" />
+                          Avantages inclus
+                        </p>
+                        <ul className="space-y-2">
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                            <span className="text-muted-foreground">
+                              Essayage virtuel illimité
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                            <span className="text-muted-foreground">
+                              Support technique prioritaire
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                            <span className="text-muted-foreground">
+                              Intégration Shopify complète
+                            </span>
+                          </li>
+                          {!subscription.isFree && (
+                            <>
+                              <li className="flex items-start gap-2 text-sm">
+                                <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                <span className="text-muted-foreground">
+                                  Personnalisation avancée
+                                </span>
+                              </li>
+                              <li className="flex items-start gap-2 text-sm">
+                                <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                <span className="text-muted-foreground">
+                                  Analytics et rapports détaillés
+                                </span>
+                              </li>
+                            </>
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="pt-3">
+                        <Button
+                          size="sm"
+                          className="w-full border border-border bg-background hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => {
+                            const shopDomain =
+                              shop ||
+                              new URLSearchParams(window.location.search).get(
+                                "shop"
+                              );
+                            if (shopDomain) {
+                              redirectToPlanSelection(shopDomain, APP_HANDLE);
+                            }
+                          }}
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          {subscription.isFree
+                            ? "Passer à un plan premium"
+                            : "Gérer mon abonnement"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="border-2 border-dashed border-border bg-muted/30">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg font-bold text-foreground">
+                        Votre plan
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="text-center py-6">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+                          <CreditCard className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Aucun plan sélectionné
+                        </p>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            const shopDomain =
+                              shop ||
+                              new URLSearchParams(window.location.search).get(
+                                "shop"
+                              );
+                            if (shopDomain) {
+                              redirectToPlanSelection(shopDomain, APP_HANDLE);
+                            }
+                          }}
+                        >
+                          <Sparkle className="w-4 h-4 mr-2" />
+                          Choisir un plan
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </div>
