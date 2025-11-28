@@ -118,7 +118,15 @@ const Index = () => {
     // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
     deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
 
-    window.location.href = deepLinkUrl;
+    // For embedded apps, redirect to top-level window to break out of iframe
+    // This is required because Shopify admin pages set X-Frame-Options to 'deny'
+    if (window.top && window.top !== window.self) {
+      // We're in an iframe (embedded app)
+      window.top.location.href = deepLinkUrl;
+    } else {
+      // Not in iframe, direct redirect
+      window.location.href = deepLinkUrl;
+    }
   };
 
   // Check subscription and redirect to pricing page if subscription is null
