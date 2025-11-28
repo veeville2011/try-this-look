@@ -25,8 +25,20 @@ class DatabaseSessionStorage {
    */
   async initialize() {
     if (this.initialized) {
+      logger.debug("[SESSION_STORAGE] Database already initialized", {
+        initialized: true,
+        hasPool: !!this.pool,
+      });
       return;
     }
+
+    const initStartTime = Date.now();
+    logger.info("[SESSION_STORAGE] Initializing database connection...", {
+      hasConnectionString: !!this.connectionString,
+      connectionStringPreview: this.connectionString
+        ? `${this.connectionString.substring(0, 30)}...`
+        : "missing",
+    });
 
     try {
       // Detect if using Neon PostgreSQL (requires SSL)
@@ -70,15 +82,66 @@ class DatabaseSessionStorage {
         ON shopify_sessions(shop)
       `);
 
+      const initDuration = Date.now() - initStartTime;
       this.initialized = true;
       logger.info("[SESSION_STORAGE] Database session storage initialized", {
         type: "postgresql",
         provider: isNeon ? "neon" : "postgresql",
         ssl: useSSL,
+        duration: `${initDuration}ms`,
+        initialized: true,
       });
     } catch (error) {
       logger.error("[SESSION_STORAGE] Failed to initialize database:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Test database connection and return connection status
+   * Returns connection info including pool stats and database version
+   */
+  async testConnection() {
+    const startTime = Date.now();
+    try {
+      // Ensure database is initialized
+      await this.initialize();
+
+      // Test query to get database info
+      const result = await this.pool.query(
+        "SELECT NOW() as current_time, version() as pg_version, current_database() as database_name"
+      );
+
+      const duration = Date.now() - startTime;
+      const connectionInfo = {
+        connected: true,
+        duration: `${duration}ms`,
+        currentTime: result.rows[0]?.current_time,
+        pgVersion: result.rows[0]?.pg_version?.substring(0, 100) || "unknown",
+        databaseName: result.rows[0]?.database_name || "unknown",
+        poolStats: {
+          totalCount: this.pool?.totalCount || 0,
+          idleCount: this.pool?.idleCount || 0,
+          waitingCount: this.pool?.waitingCount || 0,
+        },
+        initialized: this.initialized,
+      };
+
+      logger.info("[SESSION_STORAGE] Database connection test successful", connectionInfo);
+      return connectionInfo;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorInfo = {
+        connected: false,
+        duration: `${duration}ms`,
+        error: error.message,
+        errorCode: error.code,
+        errorName: error.constructor.name,
+        initialized: this.initialized,
+      };
+
+      logger.error("[SESSION_STORAGE] Database connection test failed", error, null, errorInfo);
+      return errorInfo;
     }
   }
 

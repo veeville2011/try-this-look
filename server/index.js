@@ -57,14 +57,74 @@ if (appUrl) {
 
 // Initialize database session storage (required for Vercel deployment)
 if (!process.env.DATABASE_URL) {
+  logger.error("[INIT] DATABASE_URL environment variable is missing", null, null, {
+    hasDatabaseUrl: false,
+  });
   throw new Error(
     "DATABASE_URL environment variable is required. Please set up a PostgreSQL database for session storage."
   );
 }
 
+logger.info("[INIT] Initializing database session storage", {
+  hasDatabaseUrl: !!process.env.DATABASE_URL,
+  databaseUrlLength: process.env.DATABASE_URL?.length || 0,
+  isNeon: process.env.DATABASE_URL?.includes("neon.tech") || false,
+});
+
 const sessionStorage = new DatabaseSessionStorage();
-logger.info("[INIT] Database session storage initialized", {
-  type: "postgresql",
+
+// Test database connection at startup
+const testDatabaseConnection = async () => {
+  try {
+    logger.info("[INIT] Testing database connection...", {
+      timestamp: new Date().toISOString(),
+    });
+
+    // Test connection using the testConnection method
+    const connectionInfo = await sessionStorage.testConnection();
+
+    if (connectionInfo.connected) {
+      logger.info("[INIT] Database connection verified successfully", {
+        duration: connectionInfo.duration,
+        databaseName: connectionInfo.databaseName,
+        pgVersion: connectionInfo.pgVersion?.substring(0, 50),
+        poolStats: connectionInfo.poolStats,
+        timestamp: new Date().toISOString(),
+      });
+      return true;
+    } else {
+      logger.error("[INIT] Database connection test failed", null, null, {
+        error: connectionInfo.error,
+        errorCode: connectionInfo.errorCode,
+        duration: connectionInfo.duration,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        databaseUrlPreview: process.env.DATABASE_URL
+          ? `${process.env.DATABASE_URL.substring(0, 20)}...`
+          : "missing",
+      });
+      return false;
+    }
+  } catch (error) {
+    logger.error("[INIT] Database connection test error", error, null, {
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorName: error.constructor.name,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      databaseUrlPreview: process.env.DATABASE_URL
+        ? `${process.env.DATABASE_URL.substring(0, 20)}...`
+        : "missing",
+    });
+    return false;
+  }
+};
+
+// Test database connection at startup (non-blocking for server startup)
+// In production, we want the server to start even if DB test fails initially
+// The connection will be retried when actually needed
+testDatabaseConnection().catch((error) => {
+  logger.error("[INIT] Database connection test error (non-blocking)", error, null, {
+    note: "Server will continue to start. Database will be retried on first use.",
+  });
 });
 
 const shopify = shopifyApi({
@@ -681,6 +741,7 @@ app.get("/health/detailed", async (req, res) => {
       hasApiKey: !!process.env.VITE_SHOPIFY_API_KEY,
       hasApiSecret: !!process.env.VITE_SHOPIFY_API_SECRET,
       hasAppUrl: !!process.env.VITE_SHOPIFY_APP_URL,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
     },
     system: {
       nodeVersion: process.version,
@@ -691,7 +752,40 @@ app.get("/health/detailed", async (req, res) => {
         rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + "MB",
       },
     },
+    database: {
+      status: "checking...",
+    },
   };
+
+  // Test database connection
+  try {
+    const dbConnectionInfo = await sessionStorage.testConnection();
+    healthCheck.database = {
+      connected: dbConnectionInfo.connected,
+      duration: dbConnectionInfo.duration,
+      databaseName: dbConnectionInfo.databaseName,
+      pgVersion: dbConnectionInfo.pgVersion?.substring(0, 50),
+      poolStats: dbConnectionInfo.poolStats,
+      initialized: dbConnectionInfo.initialized,
+      error: dbConnectionInfo.error || null,
+      errorCode: dbConnectionInfo.errorCode || null,
+    };
+
+    // Update overall status if database is not connected
+    if (!dbConnectionInfo.connected) {
+      healthCheck.status = "degraded";
+      healthCheck.message = "Database connection failed";
+    }
+  } catch (error) {
+    healthCheck.database = {
+      connected: false,
+      error: error.message,
+      errorCode: error.code,
+      errorName: error.constructor.name,
+    };
+    healthCheck.status = "degraded";
+    healthCheck.message = "Database connection check failed";
+  }
 
   res.json(healthCheck);
 });
