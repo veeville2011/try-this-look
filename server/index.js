@@ -279,19 +279,18 @@ const fetchManagedSubscriptionStatus = async (
     // Log the token result structure for debugging
     logger.info("[BILLING] Token exchange result received", {
       shop: normalizedShop,
-      hasAccessToken: !!(tokenResult?.accessToken || tokenResult?.access_token),
-      hasScope: !!tokenResult?.scope,
+      hasSession: !!tokenResult?.session,
       tokenResultKeys: tokenResult ? Object.keys(tokenResult) : [],
+      sessionKeys: tokenResult?.session ? Object.keys(tokenResult.session) : [],
     });
 
-    // Token exchange returns access_token (snake_case) or accessToken (camelCase)
-    // Check both to handle different response formats
-    const accessToken = tokenResult?.accessToken || tokenResult?.access_token;
+    // Token exchange returns an object with a 'session' property
+    // The session object contains the accessToken
+    const session = tokenResult?.session;
 
-    // Verify accessToken exists
-    if (!tokenResult || !accessToken) {
+    if (!tokenResult || !session) {
       logger.error(
-        "[BILLING] Token exchange returned invalid result",
+        "[BILLING] Token exchange returned invalid result - missing session",
         null,
         null,
         {
@@ -300,23 +299,41 @@ const fetchManagedSubscriptionStatus = async (
         }
       );
       throw new SubscriptionStatusError(
-        "Token exchange did not return a valid access token",
+        "Token exchange did not return a valid session",
         500,
         {
           resolution:
             "Please try again. If the issue persists, contact support.",
-          error: "Invalid token exchange response",
+          error: "Invalid token exchange response - missing session",
         }
       );
     }
 
-    // Create a session object with the access token
-    // Shopify API library expects accessToken (camelCase)
+    // Extract accessToken from session (can be accessToken or access_token)
+    const accessToken = session.accessToken || session.access_token;
+
+    if (!accessToken) {
+      logger.error("[BILLING] Session missing access token", null, null, {
+        shop: normalizedShop,
+        sessionKeys: Object.keys(session),
+      });
+      throw new SubscriptionStatusError(
+        "Session from token exchange missing access token",
+        500,
+        {
+          resolution:
+            "Please try again. If the issue persists, contact support.",
+          error: "Session object missing accessToken",
+        }
+      );
+    }
+
+    // Use the session object directly (it already has the correct structure)
     sessionWithAccessToken = {
-      shop: normalizedShop,
+      shop: session.shop || normalizedShop,
       accessToken: accessToken,
-      scope: tokenResult.scope,
-      isOnline: false, // Offline token
+      scope: session.scope,
+      isOnline: session.isOnline || false, // Offline token
     };
 
     logger.info("[BILLING] Token exchange successful", {
