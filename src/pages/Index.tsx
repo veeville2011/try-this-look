@@ -54,7 +54,6 @@ const Index = () => {
     } else if (subscription) {
       console.log("✅ [Index] Subscription loaded successfully", {
         shop,
-        planHandle: subscription.plan?.handle,
         planName: subscription.plan?.name,
         hasActiveSubscription: subscription.hasActiveSubscription,
         isFree: subscription.isFree,
@@ -86,87 +85,37 @@ const Index = () => {
       return;
     }
 
-    // Normalize shop domain for API call
-    const normalizedShop = shopDomain.includes(".myshopify.com")
-      ? shopDomain.toLowerCase()
-      : `${shopDomain.toLowerCase()}.myshopify.com`;
-
-    // Show loading toast
-    const loadingToast = toast.loading("Vérification en cours...", {
-      description: "Vérification de votre plan tarifaire depuis Shopify.",
-    });
-
-    try {
-      // Check from Shopify server-side if plan is selected
-      const response = await fetch(
-        `/api/billing/check-installation?shop=${encodeURIComponent(
-          normalizedShop
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "same-origin",
-        }
-      );
-
-      const data = await response.json();
-
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      if (!response.ok) {
-        toast.error("Erreur de vérification", {
-          description:
-            data.message || "Impossible de vérifier votre plan tarifaire.",
-        });
-        return;
-      }
-
-      // Check if plan is selected
-      if (!data.canProceed || !data.hasPlanSelected) {
-        // No plan selected - redirect to pricing page
-        toast.info("Sélection d'un plan requise", {
-          description:
-            "Veuillez sélectionner un plan tarifaire avant de continuer l'installation.",
-        });
-        redirectToPlanSelection(shopDomain, APP_HANDLE);
-        return;
-      }
-
-      // Plan is selected - proceed with theme editor
-      // Extract store handle from domain
-      // Note: Shopify always uses myshopify.com domain internally (even for custom domain stores)
-      // App Bridge and URL params will always provide the myshopify.com format
-      // The deep link URLs require the store handle (part before .myshopify.com)
-      let storeHandle = shopDomain;
-      if (shopDomain.includes(".myshopify.com")) {
-        storeHandle = shopDomain.replace(".myshopify.com", "");
-      }
-
-      // Construct deep link URL
-      let deepLinkUrl = "";
-      // App block deep link - opens theme editor without auto-adding the block
-      // User can manually add the block from the app blocks section wherever they want
-      // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
-      deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
-
-      window.location.href = deepLinkUrl;
-    } catch (error) {
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      console.error("Error checking installation:", error);
-      toast.error("Erreur de connexion", {
+    // Check subscription status - gate feature if subscription is null
+    if (!subscription || subscription.subscription === null) {
+      toast.info("Sélection d'un plan requise", {
         description:
-          "Impossible de vérifier votre plan tarifaire. Veuillez réessayer.",
+          "Veuillez sélectionner un plan tarifaire avant de continuer l'installation.",
       });
+      redirectToPlanSelection(shopDomain, APP_HANDLE);
+      return;
     }
+
+    // Plan is selected - proceed with theme editor
+    // Extract store handle from domain
+    // Note: Shopify always uses myshopify.com domain internally (even for custom domain stores)
+    // App Bridge and URL params will always provide the myshopify.com format
+    // The deep link URLs require the store handle (part before .myshopify.com)
+    let storeHandle = shopDomain;
+    if (shopDomain.includes(".myshopify.com")) {
+      storeHandle = shopDomain.replace(".myshopify.com", "");
+    }
+
+    // Construct deep link URL
+    let deepLinkUrl = "";
+    // App block deep link - opens theme editor without auto-adding the block
+    // User can manually add the block from the app blocks section wherever they want
+    // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
+    deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
+
+    window.location.href = deepLinkUrl;
   };
 
-  // Check subscription and redirect to pricing page only if no plan is selected
+  // Check subscription and redirect to pricing page if subscription is null
   useEffect(() => {
     console.log("🔍 [Redirect Debug] useEffect triggered");
     console.log(
@@ -196,26 +145,12 @@ const Index = () => {
       return;
     }
 
-    // Only redirect if no plan is selected at all
-    // If a plan exists (even free or inactive), don't redirect
-    // Check for subscription, plan object, and plan handle to ensure a plan is truly selected
-    const hasSubscription = !!subscription;
-    const hasPlan = !!subscription?.plan;
-    const hasPlanHandle = !!subscription?.plan?.handle;
-
-    console.log("🔍 [Redirect Debug] hasSubscription:", hasSubscription);
-    console.log("🔍 [Redirect Debug] hasPlan:", hasPlan);
-    console.log("🔍 [Redirect Debug] hasPlanHandle:", hasPlanHandle);
-    console.log("🔍 [Redirect Debug] subscription.plan:", subscription?.plan);
-    console.log(
-      "🔍 [Redirect Debug] subscription.plan?.handle:",
-      subscription?.plan?.handle
-    );
-
-    if (!subscription || !subscription.plan || !subscription.plan.handle) {
-      // No subscription data or no plan selected - redirect to pricing page
+    // Redirect to pricing gate if subscription is null (not subscribed)
+    // Check if subscription object exists and if subscription.subscription is null
+    if (!subscription || subscription.subscription === null) {
+      // No subscription - redirect to pricing page
       console.log(
-        "🚨 [Redirect Debug] REDIRECTING to pricing page - missing subscription, plan, or handle"
+        "🚨 [Redirect Debug] REDIRECTING to pricing page - subscription is null"
       );
       console.log(
         "🚨 [Redirect Debug] Redirect params - shopDomain:",
@@ -223,14 +158,14 @@ const Index = () => {
         "APP_HANDLE:",
         APP_HANDLE
       );
-      // redirectToPlanSelection(shopDomain, APP_HANDLE);
+      redirectToPlanSelection(shopDomain, APP_HANDLE);
       return;
     }
 
-    // Console log the handle
+    // Console log subscription status
     console.log(
-      "✅ [Redirect Debug] NO REDIRECT - Plan handle exists:",
-      subscription.plan.handle
+      "✅ [Redirect Debug] NO REDIRECT - Subscription exists:",
+      subscription.subscription?.status
     );
     console.log(
       "✅ [Redirect Debug] subscription.hasActiveSubscription:",
@@ -245,18 +180,18 @@ const Index = () => {
     if (subscription.hasActiveSubscription && !subscription.isFree) {
       console.log(
         "✅ [Redirect Debug] Setting currentPlan to:",
-        subscription.plan.handle
+        subscription.plan?.name || "active"
       );
-      setCurrentPlan(subscription.plan.handle);
+      setCurrentPlan(subscription.plan?.name || "active");
     } else if (subscription.isFree) {
       console.log("✅ [Redirect Debug] Setting currentPlan to: free");
       setCurrentPlan("free");
     } else {
       console.log(
         "✅ [Redirect Debug] Setting currentPlan to:",
-        subscription.plan.handle
+        subscription.plan?.name || "inactive"
       );
-      setCurrentPlan(subscription.plan.handle);
+      setCurrentPlan(subscription.plan?.name || "inactive");
     }
   }, [subscription, subscriptionLoading, shop]);
 
@@ -318,7 +253,6 @@ const Index = () => {
                     </Button>
                     <Button
                       size="lg"
-                      variant="outline"
                       onClick={() => {
                         const shopDomain =
                           shop ||
@@ -342,18 +276,20 @@ const Index = () => {
       </header>
 
       {/* Quick Actions Section */}
-      <section className="py-8 sm:py-12 bg-background border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            <QuickActions
-              showInstall={!currentPlan || currentPlan === "free"}
-              showConfigure={currentPlan && currentPlan !== "free"}
-              onInstallClick={scrollToInstallationGuide}
-              onConfigureClick={scrollToInstallationGuide}
-            />
+      {subscription && subscription.subscription !== null && (
+        <section className="py-8 sm:py-12 bg-background border-b border-border">
+          <div className="container mx-auto px-4 sm:px-6 md:px-8">
+            <div className="max-w-6xl mx-auto">
+              <QuickActions
+                showInstall={!currentPlan || currentPlan === "free"}
+                showConfigure={currentPlan && currentPlan !== "free"}
+                onInstallClick={scrollToInstallationGuide}
+                onConfigureClick={scrollToInstallationGuide}
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Installation Instructions - Always visible */}
       <section
@@ -539,33 +475,69 @@ const Index = () => {
                                   </span>
                                 </p>
                               </div>
-                              <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 sm:p-5">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                  <div className="flex-1">
-                                    <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                      🚀 Accès&nbsp;rapide&nbsp;:
-                                    </p>
-                                    <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                      Cliquez sur le bouton ci-dessous pour
-                                      ouvrir l'éditeur de thème directement sur
-                                      une page produit.
-                                    </p>
+                              {subscription &&
+                              subscription.subscription !== null ? (
+                                <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 sm:p-5">
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
+                                        🚀 Accès&nbsp;rapide&nbsp;:
+                                      </p>
+                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
+                                        Cliquez sur le bouton ci-dessous pour
+                                        ouvrir l'éditeur de thème directement
+                                        sur une page produit.
+                                      </p>
+                                    </div>
+                                    <Button
+                                      onClick={() =>
+                                        handleDeepLinkClick("product")
+                                      }
+                                      className="w-full sm:w-auto whitespace-nowrap"
+                                      size="sm"
+                                    >
+                                      <Link2
+                                        className="w-4 h-4 mr-2"
+                                        aria-hidden="true"
+                                      />
+                                      Ajouter&nbsp;maintenant
+                                    </Button>
                                   </div>
-                                  <Button
-                                    onClick={() =>
-                                      handleDeepLinkClick("product")
-                                    }
-                                    className="w-full sm:w-auto whitespace-nowrap"
-                                    size="sm"
-                                  >
-                                    <Link2
-                                      className="w-4 h-4 mr-2"
-                                      aria-hidden="true"
-                                    />
-                                    Ajouter&nbsp;maintenant
-                                  </Button>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="bg-warning/20 border-2 border-warning/40 rounded-lg p-4 sm:p-5">
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
+                                        🔒 Accès&nbsp;restreint&nbsp;:
+                                      </p>
+                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
+                                        Veuillez sélectionner un plan tarifaire
+                                        pour accéder à cette fonctionnalité.
+                                      </p>
+                                    </div>
+                                    <Button
+                                      onClick={() => {
+                                        const shopDomain =
+                                          shop ||
+                                          new URLSearchParams(
+                                            window.location.search
+                                          ).get("shop");
+                                        if (shopDomain) {
+                                          redirectToPlanSelection(
+                                            shopDomain,
+                                            APP_HANDLE
+                                          );
+                                        }
+                                      }}
+                                      className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                                      size="sm"
+                                    >
+                                      Voir&nbsp;les&nbsp;tarifs
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -667,31 +639,69 @@ const Index = () => {
                                   </span>
                                 </p>
                               </div>
-                              <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 sm:p-5">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                  <div className="flex-1">
-                                    <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                      🚀 Accès&nbsp;rapide&nbsp;:
-                                    </p>
-                                    <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                      Cliquez sur le bouton ci-dessous pour
-                                      ouvrir l'éditeur de thème directement sur
-                                      la page d'accueil.
-                                    </p>
+                              {subscription &&
+                              subscription.subscription !== null ? (
+                                <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 sm:p-5">
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
+                                        🚀 Accès&nbsp;rapide&nbsp;:
+                                      </p>
+                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
+                                        Cliquez sur le bouton ci-dessous pour
+                                        ouvrir l'éditeur de thème directement
+                                        sur la page d'accueil.
+                                      </p>
+                                    </div>
+                                    <Button
+                                      onClick={() =>
+                                        handleDeepLinkClick("index")
+                                      }
+                                      className="w-full sm:w-auto whitespace-nowrap"
+                                      size="sm"
+                                    >
+                                      <Link2
+                                        className="w-4 h-4 mr-2"
+                                        aria-hidden="true"
+                                      />
+                                      Ajouter&nbsp;maintenant
+                                    </Button>
                                   </div>
-                                  <Button
-                                    onClick={() => handleDeepLinkClick("index")}
-                                    className="w-full sm:w-auto whitespace-nowrap"
-                                    size="sm"
-                                  >
-                                    <Link2
-                                      className="w-4 h-4 mr-2"
-                                      aria-hidden="true"
-                                    />
-                                    Ajouter&nbsp;maintenant
-                                  </Button>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="bg-warning/20 border-2 border-warning/40 rounded-lg p-4 sm:p-5">
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
+                                        🔒 Accès&nbsp;restreint&nbsp;:
+                                      </p>
+                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
+                                        Veuillez sélectionner un plan tarifaire
+                                        pour accéder à cette fonctionnalité.
+                                      </p>
+                                    </div>
+                                    <Button
+                                      onClick={() => {
+                                        const shopDomain =
+                                          shop ||
+                                          new URLSearchParams(
+                                            window.location.search
+                                          ).get("shop");
+                                        if (shopDomain) {
+                                          redirectToPlanSelection(
+                                            shopDomain,
+                                            APP_HANDLE
+                                          );
+                                        }
+                                      }}
+                                      className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                                      size="sm"
+                                    >
+                                      Voir&nbsp;les&nbsp;tarifs
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

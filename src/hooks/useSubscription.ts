@@ -5,23 +5,19 @@ interface SubscriptionStatus {
   hasActiveSubscription: boolean;
   isFree: boolean;
   plan: {
-    handle: string;
     name: string;
     price: number;
+    currencyCode: string;
     interval: string;
-    features: string[];
-    monthlyEquivalent?: number;
-  };
+  } | null;
   subscription: {
     id: string;
     status: string;
     currentPeriodEnd: string;
+    createdAt: string;
+    name: string;
   } | null;
-  setupProgress?: {
-    stepsCompleted: number;
-    totalSteps: number;
-    completed: boolean;
-  };
+  requestId?: string;
 }
 
 interface UseSubscriptionReturn {
@@ -77,7 +73,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
           const parsed = JSON.parse(cachedData);
           console.log("✅ [useSubscription] Using cached subscription", {
             shop: normalizedShop,
-            planHandle: parsed.plan?.handle,
+            planName: parsed.plan?.name,
           });
           setSubscription(parsed);
           // Continue to fetch fresh data in background
@@ -196,7 +192,6 @@ export const useSubscription = (): UseSubscriptionReturn => {
       
       console.log("✅ [useSubscription] Successfully fetched subscription from API", {
         shop: normalizedShop,
-        planHandle: subscriptionData.plan?.handle,
         planName: subscriptionData.plan?.name,
         hasActiveSubscription: subscriptionData.hasActiveSubscription,
         isFree: subscriptionData.isFree,
