@@ -52,12 +52,16 @@ class DatabaseSessionStorage {
       // Optimize pool settings for Vercel serverless functions with Neon
       // Neon uses connection pooling, so we can use a small pool
       // Single connection works well with Neon's pooler for serverless
+      // Increase timeout for serverless cold starts (Vercel can be slow on first connection)
+      const isVercel = process.env.VERCEL === "1" || process.env.VERCEL_ENV;
+      const connectionTimeout = isVercel ? 20000 : 10000; // 20s for Vercel, 10s for local
+      
       this.pool = new Pool({
         connectionString: this.connectionString,
         ssl: useSSL ? { rejectUnauthorized: false } : false,
         max: 1, // Single connection for serverless (Neon pooler handles the rest)
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 10000, // Increased for cold starts
+        connectionTimeoutMillis: connectionTimeout,
         allowExitOnIdle: true, // Allow process to exit when idle (serverless-friendly)
       });
 

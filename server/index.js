@@ -80,17 +80,31 @@ const sessionStorage = new DatabaseSessionStorage();
 
 // Test database connection at startup
 const testDatabaseConnection = async () => {
+  const startTime = Date.now();
+  const timeout = 25000; // 25 second timeout for startup test (longer than connection timeout)
+
   try {
     logger.info("[INIT] Testing database connection...", {
       timestamp: new Date().toISOString(),
+      timeout: `${timeout}ms`,
     });
 
-    // Test connection using the testConnection method
-    const connectionInfo = await sessionStorage.testConnection();
+    // Wrap in Promise.race to add an additional timeout safety net
+    const connectionPromise = sessionStorage.testConnection();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Connection test timeout")), timeout);
+    });
+
+    const connectionInfo = await Promise.race([
+      connectionPromise,
+      timeoutPromise,
+    ]);
 
     if (connectionInfo.connected) {
+      const totalDuration = Date.now() - startTime;
       logger.info("[INIT] Database connection verified successfully", {
         duration: connectionInfo.duration,
+        totalDuration: `${totalDuration}ms`,
         databaseName: connectionInfo.databaseName,
         pgVersion: connectionInfo.pgVersion?.substring(0, 50),
         poolStats: connectionInfo.poolStats,
@@ -98,41 +112,75 @@ const testDatabaseConnection = async () => {
       });
       return true;
     } else {
-      logger.error("[INIT] Database connection test failed", null, null, {
-        error: connectionInfo.error,
-        errorCode: connectionInfo.errorCode,
-        duration: connectionInfo.duration,
+      const totalDuration = Date.now() - startTime;
+      logger.warn(
+        "[INIT] Database connection test failed (will retry on first use)",
+        null,
+        null,
+        {
+          error: connectionInfo.error,
+          errorCode: connectionInfo.errorCode,
+          duration: connectionInfo.duration,
+          totalDuration: `${totalDuration}ms`,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          databaseUrlPreview: process.env.DATABASE_URL
+            ? `${process.env.DATABASE_URL.substring(0, 20)}...`
+            : "missing",
+          note: "This is non-blocking. Database will be initialized on first use.",
+        }
+      );
+      return false;
+    }
+  } catch (error) {
+    const totalDuration = Date.now() - startTime;
+    // Don't log as ERROR for timeout - it's expected on cold starts
+    const isTimeout =
+      error.message?.includes("timeout") ||
+      error.message?.includes("Connection terminated");
+
+    if (isTimeout) {
+      logger.warn(
+        "[INIT] Database connection test timeout (non-blocking)",
+        null,
+        null,
+        {
+          errorMessage: error.message,
+          totalDuration: `${totalDuration}ms`,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          databaseUrlPreview: process.env.DATABASE_URL
+            ? `${process.env.DATABASE_URL.substring(0, 20)}...`
+            : "missing",
+          note: "Timeout is expected on cold starts. Database will be initialized on first use.",
+        }
+      );
+    } else {
+      logger.error("[INIT] Database connection test error", error, null, {
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorName: error.constructor.name,
+        totalDuration: `${totalDuration}ms`,
         hasDatabaseUrl: !!process.env.DATABASE_URL,
         databaseUrlPreview: process.env.DATABASE_URL
           ? `${process.env.DATABASE_URL.substring(0, 20)}...`
           : "missing",
       });
-      return false;
     }
-  } catch (error) {
-    logger.error("[INIT] Database connection test error", error, null, {
-      errorMessage: error.message,
-      errorCode: error.code,
-      errorName: error.constructor.name,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      databaseUrlPreview: process.env.DATABASE_URL
-        ? `${process.env.DATABASE_URL.substring(0, 20)}...`
-        : "missing",
-    });
     return false;
   }
 };
 
 // Test database connection at startup (non-blocking for server startup)
 // In production, we want the server to start even if DB test fails initially
-// The connection will be retried when actually needed
+// The connection will be retried when actually needed (lazy initialization)
+// This is especially important for Vercel serverless cold starts
 testDatabaseConnection().catch((error) => {
-  logger.error(
+  logger.warn(
     "[INIT] Database connection test error (non-blocking)",
-    error,
+    null,
     null,
     {
-      note: "Server will continue to start. Database will be retried on first use.",
+      error: error.message,
+      note: "Server will continue to start. Database will be initialized on first use.",
     }
   );
 });
