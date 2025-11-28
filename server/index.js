@@ -732,22 +732,16 @@ app.get("/auth/callback", async (req, res) => {
       } else {
         // Determine the API base URL
         // Check for environment variable first, then use same server
-        let storesApiBaseUrl = process.env.VITE_API_ENDPOINT;
+        let storesApiBaseUrl = "https://try-on-server-v1.onrender.com";
 
         // Construct the full API URL
         // If storesApiBaseUrl is set, use it; otherwise construct from request
         let installApiUrl;
-        if (storesApiBaseUrl) {
-          installApiUrl = `${storesApiBaseUrl.replace(
-            /\/$/,
-            ""
-          )}/api/stores/install`;
-        } else {
-          // Fallback: construct from request (for same server)
-          const protocol = req.protocol || "https";
-          const host = req.get("host") || `localhost:${PORT}`;
-          installApiUrl = `${protocol}://${host}/api/stores/install`;
-        }
+
+        installApiUrl = `${storesApiBaseUrl.replace(
+          /\/$/,
+          ""
+        )}/api/stores/install`;
 
         // Prepare installation data from session
         const installData = {

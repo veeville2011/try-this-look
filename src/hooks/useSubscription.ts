@@ -35,8 +35,8 @@ const STORAGE_KEY_PREFIX = "nusense_subscription_";
 
 /**
  * Custom hook to manage subscription status
- * Fetches from API endpoint which queries Shopify GraphQL when needed
- * Uses localStorage as cache to reduce API calls
+ * Uses localStorage cache only (API calls removed)
+ * Subscription data should be updated via webhooks or other means
  */
 export const useSubscription = (): UseSubscriptionReturn => {
   const shop = useShop();
@@ -61,106 +61,39 @@ export const useSubscription = (): UseSubscriptionReturn => {
         ? shopDomain.toLowerCase()
         : `${shopDomain.toLowerCase()}.myshopify.com`;
 
-      // Check localStorage cache first
+      // Check localStorage cache only (API calls removed)
       const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
       const cachedData = localStorage.getItem(storageKey);
 
-      // If cache exists and is recent (less than 5 minutes old), use it
+      // If cache exists, use it
       if (cachedData) {
         try {
           const parsed = JSON.parse(cachedData);
-          const cacheAge = parsed.cachedAt 
-            ? Date.now() - new Date(parsed.cachedAt).getTime()
-            : Infinity;
-          
-          // Use cache if less than 5 minutes old
-          if (cacheAge < 5 * 60 * 1000) {
-            console.log("✅ [useSubscription] Using cached subscription", {
-              shop: normalizedShop,
-              planHandle: parsed.plan?.handle,
-              cacheAge: `${Math.round(cacheAge / 1000)}s`,
-            });
-            setSubscription(parsed);
-            setLoading(false);
-            return;
-          }
+          console.log("✅ [useSubscription] Using cached subscription", {
+            shop: normalizedShop,
+            planHandle: parsed.plan?.handle,
+          });
+          setSubscription(parsed);
+          setLoading(false);
+          return;
         } catch (parseError) {
           console.error("❌ [useSubscription] Failed to parse cached data", parseError);
-          // Continue to fetch from API
+          // Clear invalid cache
+          localStorage.removeItem(storageKey);
         }
       }
 
-      // Fetch from API endpoint
-      console.log("🔄 [useSubscription] Fetching subscription from API", {
+      // No cache available - return null (no subscription)
+      console.log("ℹ️ [useSubscription] No cached subscription found", {
         shop: normalizedShop,
       });
-
-      const response = await fetch(
-        `/api/billing/subscription?shop=${encodeURIComponent(normalizedShop)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch subscription: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      // If subscription data exists (has plan), cache it
-      // If subscription is null, don't cache and set to null
-      if (data && data.plan) {
-        const subscriptionData = {
-          ...data,
-          cachedAt: new Date().toISOString(),
-        };
-        
-        localStorage.setItem(storageKey, JSON.stringify(subscriptionData));
-        
-        console.log("✅ [useSubscription] Subscription fetched from API", {
-          shop: normalizedShop,
-          planHandle: data.plan?.handle,
-          hasActiveSubscription: data.hasActiveSubscription,
-        });
-        
-        setSubscription(data);
-      } else {
-        // No subscription found - this is valid (user hasn't selected a plan yet)
-        console.log("ℹ️ [useSubscription] No subscription found - user needs to select a plan", {
-          shop: normalizedShop,
-        });
-        
-        // Clear cache if no subscription (so we don't show stale data)
-        localStorage.removeItem(storageKey);
-        setSubscription(null);
-      }
+      setSubscription(null);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load subscription information";
       setError(errorMessage);
-      console.error("❌ [useSubscription] Error fetching subscription:", err);
-      
-      // On error, try to use cached data as fallback
-      const shopDomain =
-        shop || new URLSearchParams(window.location.search).get("shop");
-      
-      if (shopDomain) {
-        const normalizedShop = shopDomain.includes(".myshopify.com")
-          ? shopDomain.toLowerCase()
-          : `${shopDomain.toLowerCase()}.myshopify.com`;
-        const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
-        const cachedData = localStorage.getItem(storageKey);
-        
-        if (cachedData) {
-          try {
-            const parsed = JSON.parse(cachedData);
-            console.log("⚠️ [useSubscription] Using stale cache due to API error", {
-              shop: normalizedShop,
-            });
-            setSubscription(parsed);
-          } catch {
-            // Ignore parse errors
-          }
-        }
-      }
+      console.error("❌ [useSubscription] Error loading subscription:", err);
+      setSubscription(null);
     } finally {
       setLoading(false);
     }
@@ -203,7 +136,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
       urlParams.get("plan_changed") === "true";
 
     if (subscriptionUpdated) {
-      // Reload from API
+      // Reload from cache (API calls removed)
       fetchSubscription();
 
       // Clean up URL parameters
