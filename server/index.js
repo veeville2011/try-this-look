@@ -13,6 +13,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
+import * as subscriptionMetafield from "./utils/subscriptionMetafield.js";
 // No database - using no-op session storage (sessions not persisted)
 
 const __filename = fileURLToPath(import.meta.url);
@@ -377,7 +378,35 @@ const fetchManagedSubscriptionStatus = async (
     subscriptions[0] ||
     null;
 
-  return mapSubscriptionToPlan(activeSubscription);
+  const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+
+  // Sync metafield to control app block/banner visibility
+  // This happens asynchronously to not block the response
+  (async () => {
+    try {
+      const appInstallationId =
+        await subscriptionMetafield.getAppInstallationId(client);
+      await subscriptionMetafield.updateSubscriptionMetafield(
+        client,
+        appInstallationId,
+        subscriptionStatus.hasActiveSubscription &&
+          subscriptionStatus.subscription !== null
+      );
+    } catch (metafieldError) {
+      // Log error but don't fail the request
+      logger.error(
+        "[BILLING] Failed to sync subscription metafield",
+        metafieldError,
+        null,
+        {
+          shop: normalizedShop,
+          errorMessage: metafieldError.message,
+        }
+      );
+    }
+  })();
+
+  return subscriptionStatus;
 };
 
 const app = express();
@@ -1020,16 +1049,23 @@ app.post(
       // Clean up any app-specific data, sessions, or resources
       // This is a mandatory webhook for compliance
 
+      // IMPORTANT: Shopify automatically removes all app blocks and app embeds when an app is uninstalled
+      // Reference: https://shopify.dev/docs/apps/build/online-store/theme-app-extensions/ux#uninstalling-apps
+      // "When merchants uninstall apps, blocks associated with the apps are automatically and entirely removed from online store themes."
+
       // NOTE: This app stores data client-side only (localStorage)
       // No server-side database or storage system exists
       // Shopify API library handles session cleanup automatically
-      // If server-side storage is added in the future, implement cleanup logic here
 
-      // Example cleanup logic (for future server-side storage):
+      // App blocks and banners are automatically removed by Shopify on uninstall
+      // No manual cleanup needed for theme app extensions
+
+      // If server-side storage is added in the future, implement cleanup logic here:
       // - Delete shop sessions from database
       // - Remove shop configuration data
       // - Clean up shop-specific resources
       // - Revoke access tokens (handled by Shopify API library)
+      // - Delete app-data metafields (if needed)
 
       // Log successful processing
       logger.info(
