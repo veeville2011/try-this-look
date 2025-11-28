@@ -123,12 +123,7 @@ class SubscriptionStatusError extends Error {
   }
 }
 
-const DEFAULT_SETUP_PROGRESS = {
-  stepsCompleted: 1,
-  totalSteps: 4,
-  completed: false,
-  completedSteps: ["app_installed"],
-};
+// Removed DEFAULT_SETUP_PROGRESS - no longer returning hardcoded setup progress
 
 const normalizeShopDomain = (shopDomain) => {
   if (!shopDomain) {
@@ -142,97 +137,44 @@ const normalizeShopDomain = (shopDomain) => {
   return normalized;
 };
 
-const normalizeIntervalValue = (interval) => {
-  if (!interval) {
-    return null;
-  }
-  const normalized = interval.toUpperCase();
-  if (
-    normalized === "ANNUAL" ||
-    normalized === "YEARLY" ||
-    normalized === "EVERY_365_DAYS" ||
-    normalized === "365_DAYS"
-  ) {
-    return "ANNUAL";
-  }
-  if (
-    normalized === "MONTHLY" ||
-    normalized === "EVERY_30_DAYS" ||
-    normalized === "30_DAYS"
-  ) {
-    return "EVERY_30_DAYS";
-  }
-  return normalized;
-};
-
-const findPlanByPricing = (pricingDetails) => {
-  const plans = billing.getAvailablePlans();
-  if (!pricingDetails || !pricingDetails.price) {
-    return billing.getPlan(billing.PLAN_HANDLES.FREE);
-  }
-
-  const amount = Number.parseFloat(pricingDetails.price.amount);
-  const currencyCode = pricingDetails.price.currencyCode;
-  const interval = normalizeIntervalValue(pricingDetails.interval);
-  const tolerance = 0.01;
-
-  const exactMatch = plans.find((plan) => {
-    const normalizedPlanInterval = normalizeIntervalValue(plan.interval);
-    return (
-      Math.abs(plan.price - amount) < tolerance &&
-      normalizedPlanInterval === interval &&
-      plan.currencyCode === currencyCode
-    );
-  });
-
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  return (
-    plans.find(
-      (plan) =>
-        plan.currencyCode === currencyCode &&
-        Math.abs(plan.price - amount) < tolerance
-    ) || billing.getPlan(billing.PLAN_HANDLES.FREE)
-  );
-};
+// Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
 
 const mapSubscriptionToPlan = (appSubscription) => {
-  const fallbackPlan = billing.getPlan(billing.PLAN_HANDLES.FREE) || {
-    name: "Free",
-    handle: billing.PLAN_HANDLES.FREE,
-    price: 0,
-    currencyCode: "USD",
-    interval: "EVERY_30_DAYS",
-    features: [],
-  };
-
   if (!appSubscription) {
     return {
       hasActiveSubscription: false,
       isFree: true,
-      plan: fallbackPlan,
+      plan: null,
       subscription: null,
     };
   }
 
   const lineItem = appSubscription.lineItems?.[0];
   const pricingDetails = lineItem?.plan?.pricingDetails;
-  const matchedPlan = findPlanByPricing(pricingDetails) || fallbackPlan;
   const hasActiveSubscription = appSubscription.status === "ACTIVE";
+
+  // Only return data from Shopify API - no hardcoded plan details
+  const plan = pricingDetails
+    ? {
+        name: appSubscription.name || null,
+        price: pricingDetails.price?.amount
+          ? Number.parseFloat(pricingDetails.price.amount)
+          : null,
+        currencyCode: pricingDetails.price?.currencyCode || null,
+        interval: pricingDetails.interval || null,
+      }
+    : null;
 
   return {
     hasActiveSubscription,
-    isFree:
-      matchedPlan.handle === billing.PLAN_HANDLES.FREE ||
-      !hasActiveSubscription,
-    plan: matchedPlan,
+    isFree: !hasActiveSubscription,
+    plan,
     subscription: {
       id: appSubscription.id,
       status: appSubscription.status,
       currentPeriodEnd: appSubscription.currentPeriodEnd,
       createdAt: appSubscription.createdAt,
+      name: appSubscription.name || null,
     },
   };
 };
@@ -1568,7 +1510,6 @@ app.get("/api/billing/subscription", async (req, res) => {
 
     res.json({
       ...subscriptionStatus,
-      setupProgress: DEFAULT_SETUP_PROGRESS,
       requestId,
     });
   } catch (error) {
@@ -1585,7 +1526,6 @@ app.get("/api/billing/subscription", async (req, res) => {
       return res.status(error.status).json({
         error: error.message,
         details: error.details,
-        setupProgress: DEFAULT_SETUP_PROGRESS,
         requestId,
       });
     }
@@ -1601,7 +1541,6 @@ app.get("/api/billing/subscription", async (req, res) => {
       res.status(500).json({
         error: "Internal server error",
         message: error.message || "An unexpected error occurred",
-        setupProgress: DEFAULT_SETUP_PROGRESS,
         requestId,
       });
     }
