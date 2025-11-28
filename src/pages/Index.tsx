@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useStoreInstall } from "@/hooks/useStoreInstall";
 import { redirectToPlanSelection } from "@/utils/managedPricing";
 import {
   Card,
@@ -43,6 +44,10 @@ const Index = () => {
     loading: subscriptionLoading,
     refresh: refreshSubscription,
   } = useSubscription();
+
+  // Auto-install store information on remote server when app loads
+  // This calls the backend which retrieves access token and calls remote API
+  const { installing: storeInstalling, installed: storeInstalled, error: storeInstallError } = useStoreInstall();
 
   const scrollToInstallationGuide = () => {
     const guideElement = document.getElementById("installation-guide");

@@ -7,7 +7,6 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import dotenv from "dotenv";
 import crypto from "crypto";
-import axios from "axios";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
 
@@ -693,7 +692,10 @@ app.get("/auth", async (req, res) => {
 
 app.get("/auth/callback", async (req, res) => {
   try {
-    logger.info("[OAUTH] OAuth callback received");
+    logger.info("[OAUTH] OAuth callback received", {
+      query: req.query,
+      timestamp: new Date().toISOString(),
+    });
 
     const callbackResponse = await shopify.auth.callback({
       rawRequest: req,
@@ -721,107 +723,9 @@ app.get("/auth/callback", async (req, res) => {
 
     logger.info("[OAUTH] OAuth callback completed successfully", {
       shop,
+      hasSession: !!callbackResponse.session,
+      sessionId: callbackResponse.session?.id,
     });
-
-    // Call /api/stores/install to save store data
-    // This must be done before redirecting to ensure store is registered
-    try {
-      const session = callbackResponse.session;
-      if (!session) {
-        logger.warn("[OAUTH] No session data available for store installation");
-      } else {
-        // Determine the API base URL
-        // Check for environment variable first, then use same server
-        let storesApiBaseUrl = "https://try-on-server-v1.onrender.com";
-
-        // Construct the full API URL
-        // If storesApiBaseUrl is set, use it; otherwise construct from request
-        let installApiUrl;
-
-        installApiUrl = `${storesApiBaseUrl.replace(
-          /\/$/,
-          ""
-        )}/api/stores/install`;
-
-        // Prepare installation data from session
-        const installData = {
-          shop: session.shop,
-          accessToken: session.accessToken,
-          scope: session.scope,
-          isOnline: session.isOnline || false,
-          expires: session.expires
-            ? new Date(session.expires).toISOString()
-            : undefined,
-          sessionId: session.id,
-          state: session.state,
-          apiKey: apiKey,
-          appUrl: process.env.VITE_SHOPIFY_APP_URL || appUrl,
-          installedAt: new Date().toISOString(),
-        };
-
-        logger.info("[OAUTH] Calling /api/stores/install", {
-          shop: session.shop,
-          apiUrl: installApiUrl,
-          hasAccessToken: !!session.accessToken,
-          hasScope: !!session.scope,
-        });
-
-        // Make the API call using axios
-        try {
-          const installResponse = await axios.post(installApiUrl, installData, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            timeout: 10000, // 10 second timeout
-          });
-
-          const installResult = installResponse.data;
-          if (installResult.success) {
-            logger.info("[OAUTH] Store installation successful", {
-              shop: session.shop,
-              savedAt: installResult.savedAt,
-            });
-          } else {
-            logger.warn("[OAUTH] Store installation returned non-success", {
-              shop: session.shop,
-              message: installResult.message,
-            });
-          }
-        } catch (axiosError) {
-          // Axios throws errors for non-2xx responses
-          const status = axiosError.response?.status;
-          const statusText = axiosError.response?.statusText;
-          const errorText = axiosError.response?.data
-            ? JSON.stringify(axiosError.response.data).substring(0, 500)
-            : axiosError.message || "Unknown error";
-
-          logger.error(
-            "[OAUTH] Failed to call /api/stores/install",
-            axiosError,
-            req,
-            {
-              shop: session.shop,
-              status: status,
-              statusText: statusText,
-              errorText: errorText,
-            }
-          );
-          // Don't fail OAuth flow if store installation fails
-          // Log error but continue with redirect
-        }
-      }
-    } catch (installError) {
-      // Log error but don't fail OAuth flow
-      // Store installation failure shouldn't prevent app from working
-      logger.error(
-        "[OAUTH] Error calling /api/stores/install (non-blocking)",
-        installError,
-        req,
-        {
-          shop: callbackResponse.session?.shop,
-        }
-      );
-    }
 
     // For embedded apps, redirect with host parameter
     // Get host from query params (provided by Shopify during OAuth)
@@ -1490,6 +1394,137 @@ app.post("/api/billing/change-plan", async (req, res) => {
       "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin to change your plan.",
     managedPricing: true,
   });
+});
+
+// Store installation API route (called from frontend)
+// Frontend provides shop, backend retrieves access token and calls remote API
+app.post("/api/stores/install-from-frontend", async (req, res) => {
+  try {
+    const { shop: shopParam } = req.body;
+
+    if (!shopParam) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shopParam);
+    if (!shopDomain) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+      });
+    }
+
+    logger.info("[API] [STORE_INSTALL] Frontend-initiated store installation", {
+      shop: shopDomain,
+    });
+
+    // Get offline session to retrieve access token
+    const session = await getOfflineSession(shopDomain);
+    if (!session) {
+      logger.warn("[API] [STORE_INSTALL] No session found for shop", {
+        shop: shopDomain,
+      });
+      return res.status(404).json({
+        success: false,
+        error: "Session not found",
+        message:
+          "Unable to find session for this shop. Please ensure the app is properly installed.",
+      });
+    }
+
+    // Get API base URL from environment variable or use default
+    const storesApiBaseUrl =
+      process.env.STORES_API_BASE_URL ||
+      process.env.VITE_STORES_API_BASE_URL ||
+      "https://try-on-server-v1.onrender.com";
+
+    const installApiUrl = `${storesApiBaseUrl.replace(
+      /\/$/,
+      ""
+    )}/api/stores/install`;
+
+    // Prepare installation data from session
+    const installData = {
+      shop: session.shop,
+      accessToken: session.accessToken,
+      scope: session.scope,
+      isOnline: session.isOnline || false,
+      expires: session.expires
+        ? new Date(session.expires).toISOString()
+        : undefined,
+      sessionId: session.id,
+      state: session.state,
+      apiKey: apiKey,
+      appUrl: process.env.VITE_SHOPIFY_APP_URL || appUrl,
+      installedAt: new Date().toISOString(),
+    };
+
+    logger.info("[API] [STORE_INSTALL] Calling remote API", {
+      shop: shopDomain,
+      apiUrl: installApiUrl,
+      hasAccessToken: !!session.accessToken,
+    });
+
+    // Call remote API using fetch (axios was removed)
+    const response = await fetch(installApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Shopify-App-Frontend-Install/1.0",
+      },
+      body: JSON.stringify(installData),
+    });
+
+    const responseData = await response.json();
+
+    if (response.ok && responseData?.success) {
+      logger.info("[API] [STORE_INSTALL] Store installation successful", {
+        shop: shopDomain,
+        savedAt: responseData.savedAt,
+      });
+
+      return res.json({
+        success: true,
+        message: "Store installation successful",
+        shop: shopDomain,
+        savedAt: responseData.savedAt,
+      });
+    } else {
+      logger.warn("[API] [STORE_INSTALL] Remote API returned non-success", {
+        shop: shopDomain,
+        status: response.status,
+        message: responseData?.message || "Unknown error",
+      });
+
+      return res.status(response.status || 500).json({
+        success: false,
+        error: "Remote API error",
+        message: responseData?.message || "Failed to install store",
+        remoteResponse: responseData,
+      });
+    }
+  } catch (error) {
+    logger.error(
+      "[API] [STORE_INSTALL] Store installation failed",
+      error,
+      req,
+      {
+        shop: req.body?.shop,
+        errorMessage: error.message,
+      }
+    );
+
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      message: error.message || "Failed to install store",
+    });
+  }
 });
 
 // API Routes
