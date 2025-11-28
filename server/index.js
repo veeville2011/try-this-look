@@ -57,9 +57,14 @@ if (appUrl) {
 
 // Initialize database session storage (required for Vercel deployment)
 if (!process.env.DATABASE_URL) {
-  logger.error("[INIT] DATABASE_URL environment variable is missing", null, null, {
-    hasDatabaseUrl: false,
-  });
+  logger.error(
+    "[INIT] DATABASE_URL environment variable is missing",
+    null,
+    null,
+    {
+      hasDatabaseUrl: false,
+    }
+  );
   throw new Error(
     "DATABASE_URL environment variable is required. Please set up a PostgreSQL database for session storage."
   );
@@ -122,9 +127,14 @@ const testDatabaseConnection = async () => {
 // In production, we want the server to start even if DB test fails initially
 // The connection will be retried when actually needed
 testDatabaseConnection().catch((error) => {
-  logger.error("[INIT] Database connection test error (non-blocking)", error, null, {
-    note: "Server will continue to start. Database will be retried on first use.",
-  });
+  logger.error(
+    "[INIT] Database connection test error (non-blocking)",
+    error,
+    null,
+    {
+      note: "Server will continue to start. Database will be retried on first use.",
+    }
+  );
 });
 
 const shopify = shopifyApi({
@@ -728,6 +738,53 @@ app.use((req, res, next) => {
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Logs endpoint - view recent logs
+app.get("/api/logs", (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || "100", 10);
+    const level = req.query.level || null;
+    const search = req.query.search || null;
+
+    const logs = logger.getRecentLogs(limit, level, search);
+    const stats = logger.getLogStats();
+
+    res.json({
+      logs,
+      stats,
+      filters: {
+        limit,
+        level,
+        search,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error("[API] Failed to get logs", error, req);
+    res.status(500).json({
+      error: "Failed to get logs",
+      message: error.message,
+    });
+  }
+});
+
+// Database connection status endpoint
+app.get("/api/database/status", async (req, res) => {
+  try {
+    const connectionInfo = await sessionStorage.testConnection();
+    res.json({
+      ...connectionInfo,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error("[API] Failed to get database status", error, req);
+    res.status(500).json({
+      connected: false,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Detailed health check endpoint for debugging

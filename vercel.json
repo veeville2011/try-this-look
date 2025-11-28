@@ -30,6 +30,10 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/health/:path*",
+      "destination": "/api/index.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -25,6 +25,92 @@ const getLogLevel = () => {
 
 const currentLogLevel = getLogLevel();
 
+// In-memory log buffer for viewing logs via API
+// Stores last 500 log entries (configurable)
+const MAX_LOG_BUFFER_SIZE = 500;
+const logBuffer = [];
+
+/**
+ * Add log entry to in-memory buffer
+ */
+const addToBuffer = (level, message, metadata = {}, error = null) => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level: LOG_LEVEL_NAMES[level],
+    message,
+    metadata: metadata || {},
+    ...(error && {
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: error.stack?.split('\n').slice(0, 10).join('\n'),
+      },
+    }),
+  };
+
+  logBuffer.push(logEntry);
+
+  // Keep buffer size manageable
+  if (logBuffer.length > MAX_LOG_BUFFER_SIZE) {
+    logBuffer.shift(); // Remove oldest entry
+  }
+};
+
+/**
+ * Get recent logs from buffer
+ * @param {number} limit - Maximum number of logs to return
+ * @param {string} level - Filter by log level (optional)
+ * @param {string} search - Search term to filter logs (optional)
+ */
+const getRecentLogs = (limit = 100, level = null, search = null) => {
+  let filtered = [...logBuffer];
+
+  // Filter by level if specified
+  if (level) {
+    const levelUpper = level.toUpperCase();
+    filtered = filtered.filter((log) => log.level === levelUpper);
+  }
+
+  // Filter by search term if specified
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filtered = filtered.filter(
+      (log) =>
+        log.message.toLowerCase().includes(searchLower) ||
+        JSON.stringify(log.metadata).toLowerCase().includes(searchLower)
+    );
+  }
+
+  // Return most recent logs (newest first)
+  return filtered.slice(-limit).reverse();
+};
+
+/**
+ * Clear log buffer
+ */
+const clearLogBuffer = () => {
+  logBuffer.length = 0;
+};
+
+/**
+ * Get log buffer stats
+ */
+const getLogStats = () => {
+  const stats = {
+    total: logBuffer.length,
+    byLevel: {},
+    oldest: logBuffer[0]?.timestamp || null,
+    newest: logBuffer[logBuffer.length - 1]?.timestamp || null,
+  };
+
+  logBuffer.forEach((log) => {
+    stats.byLevel[log.level] = (stats.byLevel[log.level] || 0) + 1;
+  });
+
+  return stats;
+};
+
 /**
  * Safe JSON stringify that handles circular references and other problematic values
  */
@@ -228,6 +314,8 @@ const createTimer = (operationName) => {
  */
 const error = (message, error = null, metadata = {}) => {
   if (currentLogLevel >= LOG_LEVELS.ERROR) {
+    // Add to buffer
+    addToBuffer(LOG_LEVELS.ERROR, message, metadata, error);
     const timestamp = new Date().toISOString();
     let safeMetadata = {};
     
@@ -293,6 +381,7 @@ const error = (message, error = null, metadata = {}) => {
  */
 const warn = (message, metadata = {}) => {
   if (currentLogLevel >= LOG_LEVELS.WARN) {
+    addToBuffer(LOG_LEVELS.WARN, message, metadata);
     console.warn(formatLogMessage(LOG_LEVELS.WARN, message, metadata));
   }
 };
@@ -302,6 +391,7 @@ const warn = (message, metadata = {}) => {
  */
 const info = (message, metadata = {}) => {
   if (currentLogLevel >= LOG_LEVELS.INFO) {
+    addToBuffer(LOG_LEVELS.INFO, message, metadata);
     console.log(formatLogMessage(LOG_LEVELS.INFO, message, metadata));
   }
 };
@@ -311,6 +401,7 @@ const info = (message, metadata = {}) => {
  */
 const debug = (message, metadata = {}) => {
   if (currentLogLevel >= LOG_LEVELS.DEBUG) {
+    addToBuffer(LOG_LEVELS.DEBUG, message, metadata);
     console.debug(formatLogMessage(LOG_LEVELS.DEBUG, message, metadata));
   }
 };
@@ -525,6 +616,9 @@ export {
   requestLogger,
   errorLogger,
   createTimer,
+  getRecentLogs,
+  getLogStats,
+  clearLogBuffer,
   LOG_LEVELS,
 };
 
