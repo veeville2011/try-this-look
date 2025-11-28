@@ -9,7 +9,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
-import DatabaseSessionStorage from "./utils/databaseSessionStorage.js";
+// No database - using no-op session storage (sessions not persisted)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,135 +55,36 @@ if (appUrl) {
   }
 }
 
-// Initialize database session storage (required for Vercel deployment)
-if (!process.env.DATABASE_URL) {
-  logger.error(
-    "[INIT] DATABASE_URL environment variable is missing",
-    null,
-    null,
-    {
-      hasDatabaseUrl: false,
-    }
-  );
-  throw new Error(
-    "DATABASE_URL environment variable is required. Please set up a PostgreSQL database for session storage."
-  );
+// No-op session storage - required by Shopify API but does nothing
+// Sessions are not stored. Billing API uses JWT tokens from embedded UI.
+class NoOpSessionStorage {
+  async storeSession(session) {
+    // No-op - sessions not persisted
+  }
+
+  async loadSession(sessionId) {
+    return undefined;
+  }
+
+  async deleteSession(sessionId) {
+    // No-op
+  }
+
+  async deleteSessionsByShop(shop) {
+    // No-op
+  }
+
+  async findSessionsByShop(shop) {
+    return [];
+  }
 }
 
-logger.info("[INIT] Initializing database session storage", {
-  hasDatabaseUrl: !!process.env.DATABASE_URL,
-  databaseUrlLength: process.env.DATABASE_URL?.length || 0,
-  isNeon: process.env.DATABASE_URL?.includes("neon.tech") || false,
+logger.info("[INIT] Using no-op session storage", {
+  storageType: "NoOpSessionStorage",
+  note: "Sessions not stored. Billing API uses JWT from embedded UI.",
 });
 
-const sessionStorage = new DatabaseSessionStorage();
-
-// Test database connection at startup
-const testDatabaseConnection = async () => {
-  const startTime = Date.now();
-  const timeout = 25000; // 25 second timeout for startup test (longer than connection timeout)
-
-  try {
-    logger.info("[INIT] Testing database connection...", {
-      timestamp: new Date().toISOString(),
-      timeout: `${timeout}ms`,
-    });
-
-    // Wrap in Promise.race to add an additional timeout safety net
-    const connectionPromise = sessionStorage.testConnection();
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Connection test timeout")), timeout);
-    });
-
-    const connectionInfo = await Promise.race([
-      connectionPromise,
-      timeoutPromise,
-    ]);
-
-    if (connectionInfo.connected) {
-      const totalDuration = Date.now() - startTime;
-      logger.info("[INIT] Database connection verified successfully", {
-        duration: connectionInfo.duration,
-        totalDuration: `${totalDuration}ms`,
-        databaseName: connectionInfo.databaseName,
-        pgVersion: connectionInfo.pgVersion?.substring(0, 50),
-        poolStats: connectionInfo.poolStats,
-        timestamp: new Date().toISOString(),
-      });
-      return true;
-    } else {
-      const totalDuration = Date.now() - startTime;
-      logger.warn(
-        "[INIT] Database connection test failed (will retry on first use)",
-        null,
-        null,
-        {
-          error: connectionInfo.error,
-          errorCode: connectionInfo.errorCode,
-          duration: connectionInfo.duration,
-          totalDuration: `${totalDuration}ms`,
-          hasDatabaseUrl: !!process.env.DATABASE_URL,
-          databaseUrlPreview: process.env.DATABASE_URL
-            ? `${process.env.DATABASE_URL.substring(0, 20)}...`
-            : "missing",
-          note: "This is non-blocking. Database will be initialized on first use.",
-        }
-      );
-      return false;
-    }
-  } catch (error) {
-    const totalDuration = Date.now() - startTime;
-    // Don't log as ERROR for timeout - it's expected on cold starts
-    const isTimeout =
-      error.message?.includes("timeout") ||
-      error.message?.includes("Connection terminated");
-
-    if (isTimeout) {
-      logger.warn(
-        "[INIT] Database connection test timeout (non-blocking)",
-        null,
-        null,
-        {
-          errorMessage: error.message,
-          totalDuration: `${totalDuration}ms`,
-          hasDatabaseUrl: !!process.env.DATABASE_URL,
-          databaseUrlPreview: process.env.DATABASE_URL
-            ? `${process.env.DATABASE_URL.substring(0, 20)}...`
-            : "missing",
-          note: "Timeout is expected on cold starts. Database will be initialized on first use.",
-        }
-      );
-    } else {
-      logger.error("[INIT] Database connection test error", error, null, {
-        errorMessage: error.message,
-        errorCode: error.code,
-        errorName: error.constructor.name,
-        totalDuration: `${totalDuration}ms`,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-        databaseUrlPreview: process.env.DATABASE_URL
-          ? `${process.env.DATABASE_URL.substring(0, 20)}...`
-          : "missing",
-      });
-    }
-    return false;
-  }
-};
-
-// Test database connection at startup (non-blocking for server startup)
-// In production, we want the server to start even if DB test fails initially
-// The connection will be retried when actually needed (lazy initialization)
-// This is especially important for Vercel serverless cold starts
-testDatabaseConnection().catch((error) => {
-  logger.warn(
-    "[INIT] Database connection test error (non-blocking)",
-    null,
-    null,
-    {
-      error: error.message,
-      note: "Server will continue to start. Database will be initialized on first use.",
-    }
-  );
-});
+const sessionStorage = new NoOpSessionStorage();
 
 const shopify = shopifyApi({
   apiKey: apiKey || "",
@@ -199,11 +100,10 @@ const shopify = shopifyApi({
 });
 
 // Set session storage on the shopify instance
-// This ensures sessions are persisted across server restarts
 if (shopify.session) {
   shopify.session.storage = sessionStorage;
   logger.info("[INIT] Session storage configured on shopify instance", {
-    storageType: sessionStorage.constructor.name,
+    storageType: "NoOpSessionStorage",
   });
 } else {
   logger.warn(
@@ -259,79 +159,6 @@ const normalizeIntervalValue = (interval) => {
     return "EVERY_30_DAYS";
   }
   return normalized;
-};
-
-const getOfflineSession = async (shopDomain) => {
-  const normalizedShop = normalizeShopDomain(shopDomain);
-  if (!normalizedShop) {
-    return null;
-  }
-
-  // Use the configured session storage
-  const storage = shopify.session?.storage;
-
-  if (!storage) {
-    logger.error("[BILLING] Session storage unavailable", {
-      shop: normalizedShop,
-      hasShopifySession: !!shopify.session,
-    });
-    return null;
-  }
-
-  try {
-    // Try to get offline session ID using Shopify's helper
-    const offlineId =
-      typeof shopify.session?.getOfflineId === "function"
-        ? shopify.session.getOfflineId(normalizedShop)
-        : `offline_${normalizedShop}`;
-
-    if (!offlineId) {
-      logger.warn("[BILLING] No offline session id available", {
-        shop: normalizedShop,
-      });
-      return null;
-    }
-
-    // Try to load session by offline ID
-    const storedSession = await storage.loadSession(offlineId);
-    if (storedSession && !storedSession.isOnline) {
-      logger.debug("[BILLING] Offline session loaded by ID", {
-        shop: normalizedShop,
-        sessionId: storedSession.id,
-      });
-      return storedSession;
-    }
-
-    // Fallback: find sessions by shop and filter for offline
-    if (typeof storage.findSessionsByShop === "function") {
-      const shopSessions = await storage.findSessionsByShop(normalizedShop);
-      const offlineSession = shopSessions?.find(
-        (session) => session.isOnline === false
-      );
-      if (offlineSession) {
-        logger.debug(
-          "[BILLING] Offline session resolved via findSessionsByShop",
-          {
-            shop: normalizedShop,
-            sessionId: offlineSession.id,
-          }
-        );
-        return offlineSession;
-      }
-    }
-
-    logger.warn("[BILLING] Offline session not found", {
-      shop: normalizedShop,
-      offlineId,
-      storageType: storage.constructor?.name || "unknown",
-    });
-    return null;
-  } catch (error) {
-    logger.error("[BILLING] Error loading offline session", error, null, {
-      shop: normalizedShop,
-    });
-    return null;
-  }
 };
 
 const findPlanByPricing = (pricingDetails) => {
@@ -406,20 +233,26 @@ const mapSubscriptionToPlan = (appSubscription) => {
   };
 };
 
-const fetchManagedSubscriptionStatus = async (shopDomain) => {
+const fetchManagedSubscriptionStatus = async (shopDomain, requestSession) => {
   const normalizedShop = normalizeShopDomain(shopDomain);
-  const session = await getOfflineSession(normalizedShop);
 
-  if (!session) {
+  if (!requestSession) {
     throw new SubscriptionStatusError(
-      "Unable to load billing session for this shop",
-      409,
+      "JWT session token required for billing API",
+      401,
       {
         resolution:
-          "Ask the merchant to open the app once so we can refresh billing access.",
+          "This endpoint requires authentication from the embedded Shopify admin. Please access it through the app interface.",
       }
     );
   }
+
+  logger.info("[BILLING] Using JWT session from request", {
+    shop: normalizedShop,
+    sessionShop: requestSession.shop,
+  });
+
+  const session = requestSession;
 
   const client = new shopify.clients.Graphql({ session });
   const query = `
@@ -682,15 +515,16 @@ const verifySessionToken = async (req, res, next) => {
       return next();
     }
 
-    // Get session token from Authorization header (optional for now)
-    // App Bridge will send this for authenticated requests
+    // Get session token from Authorization header
+    // App Bridge automatically sends this for authenticated requests
     const authHeader = req.get("Authorization");
 
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const sessionToken = authHeader.replace("Bearer ", "");
 
-      // Verify session token using Shopify API
       try {
+        // Verify and decode session token using Shopify API
+        // This validates signature, expiry, and other claims
         const session = await shopify.session.decodeSessionToken(sessionToken);
         // Attach session info to request
         req.session = session;
@@ -700,22 +534,33 @@ const verifySessionToken = async (req, res, next) => {
           path: req.path,
         });
       } catch (error) {
+        // Invalid session token - reject API requests
         logger.warn("[AUTH] Invalid session token", {
           path: req.path,
           error: error.message,
         });
-        // Don't fail the request, but log the warning
-        // This allows backward compatibility while transitioning to embedded app
+
+        // For API routes, return 401 with retry header
+        if (req.path.startsWith("/api/")) {
+          return res.status(401).json({
+            error: "Unauthorized",
+            message: "Invalid or expired session token",
+          });
+        }
+
+        // For document requests, allow through (frontend will handle)
+        // This allows initial page load before App Bridge loads
       }
     } else {
-      // No session token provided - try to get shop from query params or body
-      // This maintains backward compatibility
-      const shopParam = req.query.shop || req.body?.shop;
-      if (shopParam) {
-        req.shop = shopParam.includes(".myshopify.com")
-          ? shopParam
-          : `${shopParam}.myshopify.com`;
+      // No session token provided
+      // For API routes, require authentication
+      if (req.path.startsWith("/api/")) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Session token required",
+        });
       }
+      // For document requests, allow through
     }
 
     next();
@@ -817,18 +662,18 @@ app.get("/api/logs", (req, res) => {
   }
 });
 
-// Database connection status endpoint
-app.get("/api/database/status", async (req, res) => {
+// Session storage status endpoint
+app.get("/api/session-storage/status", async (req, res) => {
   try {
-    const connectionInfo = await sessionStorage.testConnection();
     res.json({
-      ...connectionInfo,
+      storageType: "NoOpSessionStorage",
+      sessionCount: 0,
       timestamp: new Date().toISOString(),
+      note: "Sessions are not stored. Billing API uses JWT from embedded UI.",
     });
   } catch (error) {
-    logger.error("[API] Failed to get database status", error, req);
+    logger.error("[API] Failed to get session storage status", error, req);
     res.status(500).json({
-      connected: false,
       error: error.message,
       timestamp: new Date().toISOString(),
     });
@@ -846,7 +691,6 @@ app.get("/health/detailed", async (req, res) => {
       hasApiKey: !!process.env.VITE_SHOPIFY_API_KEY,
       hasApiSecret: !!process.env.VITE_SHOPIFY_API_SECRET,
       hasAppUrl: !!process.env.VITE_SHOPIFY_APP_URL,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
     },
     system: {
       nodeVersion: process.version,
@@ -857,40 +701,12 @@ app.get("/health/detailed", async (req, res) => {
         rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + "MB",
       },
     },
-    database: {
-      status: "checking...",
+    sessionStorage: {
+      type: "NoOpSessionStorage",
+      sessionCount: 0,
+      note: "Sessions are not stored. Billing API uses JWT from embedded UI.",
     },
   };
-
-  // Test database connection
-  try {
-    const dbConnectionInfo = await sessionStorage.testConnection();
-    healthCheck.database = {
-      connected: dbConnectionInfo.connected,
-      duration: dbConnectionInfo.duration,
-      databaseName: dbConnectionInfo.databaseName,
-      pgVersion: dbConnectionInfo.pgVersion?.substring(0, 50),
-      poolStats: dbConnectionInfo.poolStats,
-      initialized: dbConnectionInfo.initialized,
-      error: dbConnectionInfo.error || null,
-      errorCode: dbConnectionInfo.errorCode || null,
-    };
-
-    // Update overall status if database is not connected
-    if (!dbConnectionInfo.connected) {
-      healthCheck.status = "degraded";
-      healthCheck.message = "Database connection failed";
-    }
-  } catch (error) {
-    healthCheck.database = {
-      connected: false,
-      error: error.message,
-      errorCode: error.code,
-      errorName: error.constructor.name,
-    };
-    healthCheck.status = "degraded";
-    healthCheck.message = "Database connection check failed";
-  }
 
   res.json(healthCheck);
 });
@@ -913,25 +729,7 @@ app.get("/auth", async (req, res) => {
       ? shop
       : `${shop}.myshopify.com`;
 
-    // Ensure session storage is initialized before OAuth begins
-    // This is critical for storing the OAuth state parameter
-    if (
-      shopify.session?.storage &&
-      typeof shopify.session.storage.initialize === "function"
-    ) {
-      try {
-        await shopify.session.storage.initialize();
-        logger.debug("[OAUTH] Session storage initialized before auth begin", {
-          shop: shopDomain,
-        });
-      } catch (initError) {
-        logger.warn("[OAUTH] Session storage initialization warning", {
-          shop: shopDomain,
-          error: initError.message,
-        });
-        // Continue even if initialization has a warning
-      }
-    }
+    // No-op storage doesn't need initialization
 
     logger.info("[OAUTH] Initiating OAuth flow", {
       shop: shopDomain,
@@ -1003,21 +801,7 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
-    // Ensure session storage is initialized before callback
-    if (
-      shopify.session?.storage &&
-      typeof shopify.session.storage.initialize === "function"
-    ) {
-      try {
-        await shopify.session.storage.initialize();
-        logger.debug("[OAUTH] Session storage initialized before callback");
-      } catch (initError) {
-        logger.warn("[OAUTH] Session storage initialization warning", {
-          error: initError.message,
-        });
-        // Continue even if initialization has a warning
-      }
-    }
+    // No-op storage doesn't need initialization
 
     // Validate API secret is configured
     if (!apiSecret) {
@@ -1055,31 +839,9 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
-    // Explicitly store the session to ensure it's persisted
-    // This is critical for serverless environments like Vercel
+    // Store session (no-op storage - sessions not persisted)
     if (callbackResponse.session && shopify.session?.storage) {
-      try {
-        await shopify.session.storage.storeSession(callbackResponse.session);
-        logger.info("[OAUTH] Session stored successfully", {
-          shop,
-          sessionId: callbackResponse.session.id,
-          isOnline: callbackResponse.session.isOnline,
-        });
-      } catch (storageError) {
-        logger.error("[OAUTH] Failed to store session", storageError, req, {
-          shop,
-          sessionId: callbackResponse.session.id,
-          errorMessage: storageError.message,
-          errorStack: storageError.stack,
-        });
-        // Continue even if storage fails - log the error but don't block OAuth
-      }
-    } else {
-      logger.warn("[OAUTH] Session storage not available or session missing", {
-        shop,
-        hasSession: !!callbackResponse.session,
-        hasStorage: !!shopify.session?.storage,
-      });
+      await shopify.session.storage.storeSession(callbackResponse.session);
     }
 
     logger.info("[OAUTH] OAuth callback completed successfully", {
@@ -1599,8 +1361,7 @@ app.post("/webhooks/shop/redact", verifyWebhookSignature, async (req, res) => {
 });
 
 // Billing API Routes
-// Get current subscription status
-// Uses Managed App Pricing approach: checks cache first (populated by webhooks), falls back to GraphQL if needed
+// Get current subscription status using JWT from embedded UI
 app.get("/api/billing/subscription", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random()
     .toString(36)
@@ -1647,10 +1408,15 @@ app.get("/api/billing/subscription", async (req, res) => {
       {
         requestId,
         shop: shopDomain,
+        hasRequestSession: !!req.session,
       }
     );
 
-    const subscriptionStatus = await fetchManagedSubscriptionStatus(shopDomain);
+    // Use JWT session from request for GraphQL API call
+    const subscriptionStatus = await fetchManagedSubscriptionStatus(
+      shopDomain,
+      req.session
+    );
     const duration = Date.now() - startTime;
 
     logger.info("[BILLING] [GET_SUBSCRIPTION] GraphQL subscription resolved", {
@@ -1753,10 +1519,15 @@ app.get("/api/billing/check-installation", async (req, res) => {
       {
         requestId,
         shop: shopDomain,
+        hasRequestSession: !!req.session,
       }
     );
 
-    const subscriptionStatus = await fetchManagedSubscriptionStatus(shopDomain);
+    // Use JWT session from request for GraphQL API call
+    const subscriptionStatus = await fetchManagedSubscriptionStatus(
+      shopDomain,
+      req.session
+    );
     const duration = Date.now() - startTime;
 
     // Check if a plan is selected (has plan handle)
