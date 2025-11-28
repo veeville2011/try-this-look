@@ -714,6 +714,31 @@ app.get("/auth", async (req, res) => {
       ? shop
       : `${shop}.myshopify.com`;
 
+    // Ensure session storage is initialized before OAuth begins
+    // This is critical for storing the OAuth state parameter
+    if (
+      shopify.session?.storage &&
+      typeof shopify.session.storage.initialize === "function"
+    ) {
+      try {
+        await shopify.session.storage.initialize();
+        logger.debug("[OAUTH] Session storage initialized before auth begin", {
+          shop: shopDomain,
+        });
+      } catch (initError) {
+        logger.warn("[OAUTH] Session storage initialization warning", {
+          shop: shopDomain,
+          error: initError.message,
+        });
+        // Continue even if initialization has a warning
+      }
+    }
+
+    logger.info("[OAUTH] Initiating OAuth flow", {
+      shop: shopDomain,
+      hasSessionStorage: !!shopify.session?.storage,
+    });
+
     const authRoute = await shopify.auth.begin({
       shop: shopDomain,
       callbackPath: "/auth/callback",
@@ -722,8 +747,20 @@ app.get("/auth", async (req, res) => {
       rawResponse: res,
     });
 
+    logger.info("[OAUTH] OAuth flow initiated successfully", {
+      shop: shopDomain,
+      authRoute,
+    });
+
     res.redirect(authRoute);
   } catch (error) {
+    logger.error("[OAUTH] Failed to initiate OAuth", error, req, {
+      shop: req.query.shop,
+      errorMessage: error.message,
+      errorStack: error.stack,
+      hasSessionStorage: !!shopify.session?.storage,
+    });
+
     if (!res.headersSent) {
       res.status(500).json({
         error: "Failed to initiate OAuth",
@@ -735,11 +772,65 @@ app.get("/auth", async (req, res) => {
 
 app.get("/auth/callback", async (req, res) => {
   try {
+    // Log callback details for debugging
     logger.info("[OAUTH] OAuth callback received", {
       query: req.query,
+      hasCode: !!req.query.code,
+      hasHmac: !!req.query.hmac,
+      hasState: !!req.query.state,
+      hasShop: !!req.query.shop,
+      hasHost: !!req.query.host,
       timestamp: new Date().toISOString(),
     });
 
+    // Validate required query parameters
+    if (!req.query.code) {
+      logger.error("[OAUTH] Missing code parameter", null, req, {
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Invalid OAuth callback",
+        message: "Missing authorization code",
+      });
+    }
+
+    if (!req.query.shop) {
+      logger.error("[OAUTH] Missing shop parameter", null, req, {
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Invalid OAuth callback",
+        message: "Missing shop parameter",
+      });
+    }
+
+    // Ensure session storage is initialized before callback
+    if (
+      shopify.session?.storage &&
+      typeof shopify.session.storage.initialize === "function"
+    ) {
+      try {
+        await shopify.session.storage.initialize();
+        logger.debug("[OAUTH] Session storage initialized before callback");
+      } catch (initError) {
+        logger.warn("[OAUTH] Session storage initialization warning", {
+          error: initError.message,
+        });
+        // Continue even if initialization has a warning
+      }
+    }
+
+    // Validate API secret is configured
+    if (!apiSecret) {
+      logger.error("[OAUTH] API secret not configured", null, req);
+      return res.status(500).json({
+        error: "Server configuration error",
+        message: "API secret not configured",
+      });
+    }
+
+    // Call Shopify auth callback
+    // This validates HMAC, state, and exchanges code for access token
     const callbackResponse = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
@@ -756,6 +847,7 @@ app.get("/auth/callback", async (req, res) => {
         {
           shop: shop || "unknown",
           hasApiKey: !!apiKey,
+          hasSession: !!callbackResponse.session,
         }
       );
       return res.status(500).json({
@@ -778,6 +870,8 @@ app.get("/auth/callback", async (req, res) => {
         logger.error("[OAUTH] Failed to store session", storageError, req, {
           shop,
           sessionId: callbackResponse.session.id,
+          errorMessage: storageError.message,
+          errorStack: storageError.stack,
         });
         // Continue even if storage fails - log the error but don't block OAuth
       }
@@ -804,21 +898,60 @@ app.get("/auth/callback", async (req, res) => {
       const redirectUrl = `${
         process.env.VITE_SHOPIFY_APP_URL || appUrl
       }/?shop=${shop}&host=${encodeURIComponent(host)}`;
+      logger.info("[OAUTH] Redirecting to embedded app", {
+        shop,
+        redirectUrl,
+      });
       res.redirect(redirectUrl);
     } else {
       // Fallback for non-embedded or legacy redirect
       // Correct format: https://admin.shopify.com/store/{store_handle}/apps/{app_id}
       const storeHandle = shop.replace(".myshopify.com", "");
       const redirectUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${apiKey}`;
+      logger.info("[OAUTH] Redirecting to admin (fallback)", {
+        shop,
+        redirectUrl,
+      });
       res.redirect(redirectUrl);
     }
   } catch (error) {
-    logger.error("[OAUTH] OAuth callback failed", error, req);
+    // Enhanced error logging with full details
+    logger.error("[OAUTH] OAuth callback failed", error, req, {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      errorName: error.constructor.name,
+      query: req.query,
+      hasCode: !!req.query.code,
+      hasHmac: !!req.query.hmac,
+      hasState: !!req.query.state,
+      hasShop: !!req.query.shop,
+      hasSessionStorage: !!shopify.session?.storage,
+      hasApiSecret: !!apiSecret,
+    });
 
     if (!res.headersSent) {
+      // Provide more specific error message based on error type
+      let errorMessage = "An error occurred during the OAuth callback";
+
+      if (error.message?.includes("Invalid OAuth callback")) {
+        errorMessage =
+          "OAuth callback validation failed. This may be due to: state mismatch, expired callback, or invalid HMAC signature.";
+      } else if (error.message?.includes("state")) {
+        errorMessage =
+          "OAuth state validation failed. Please try installing the app again.";
+      } else if (
+        error.message?.includes("HMAC") ||
+        error.message?.includes("signature")
+      ) {
+        errorMessage =
+          "OAuth signature validation failed. Please check your API secret configuration.";
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
       res.status(500).json({
         error: "OAuth callback failed",
-        message: error.message || "An error occurred during the OAuth callback",
+        message: errorMessage,
       });
     }
   }
