@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
+import DatabaseSessionStorage from "./utils/databaseSessionStorage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,6 +55,18 @@ if (appUrl) {
   }
 }
 
+// Initialize database session storage (required for Vercel deployment)
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL environment variable is required. Please set up a PostgreSQL database for session storage."
+  );
+}
+
+const sessionStorage = new DatabaseSessionStorage();
+logger.info("[INIT] Database session storage initialized", {
+  type: "postgresql",
+});
+
 const shopify = shopifyApi({
   apiKey: apiKey || "",
   apiSecretKey: apiSecret || "",
@@ -66,6 +79,19 @@ const shopify = shopifyApi({
   isEmbeddedApp: true,
   restResources,
 });
+
+// Set session storage on the shopify instance
+// This ensures sessions are persisted across server restarts
+if (shopify.session) {
+  shopify.session.storage = sessionStorage;
+  logger.info("[INIT] Session storage configured on shopify instance", {
+    storageType: sessionStorage.constructor.name,
+  });
+} else {
+  logger.warn(
+    "[INIT] shopify.session not available, session storage may not work"
+  );
+}
 
 class SubscriptionStatusError extends Error {
   constructor(message, status = 500, details = {}) {
@@ -123,54 +149,71 @@ const getOfflineSession = async (shopDomain) => {
     return null;
   }
 
-  const offlineId =
-    typeof shopify.session.getOfflineId === "function"
-      ? shopify.session.getOfflineId(normalizedShop)
-      : `${normalizedShop}`;
+  // Use the configured session storage
+  const storage = shopify.session?.storage;
 
-  if (!offlineId) {
-    logger.warn("[BILLING] No offline session id available", {
+  if (!storage) {
+    logger.error("[BILLING] Session storage unavailable", {
       shop: normalizedShop,
+      hasShopifySession: !!shopify.session,
     });
     return null;
   }
 
-  const sessionStorage = shopify.session.storage;
-  if (!sessionStorage) {
-    logger.error("[BILLING] Session storage unavailable");
-    return null;
-  }
+  try {
+    // Try to get offline session ID using Shopify's helper
+    const offlineId =
+      typeof shopify.session?.getOfflineId === "function"
+        ? shopify.session.getOfflineId(normalizedShop)
+        : `offline_${normalizedShop}`;
 
-  const storedSession = await sessionStorage.loadSession(offlineId);
-  if (storedSession) {
-    logger.debug("[BILLING] Offline session loaded", {
-      shop: normalizedShop,
-    });
-    return storedSession;
-  }
-
-  if (typeof sessionStorage.findSessionsByShop === "function") {
-    const shopSessions = await sessionStorage.findSessionsByShop(
-      normalizedShop
-    );
-    const offlineSession = shopSessions?.find(
-      (session) => session.isOnline === false
-    );
-    if (offlineSession) {
-      logger.debug(
-        "[BILLING] Offline session resolved via findSessionsByShop",
-        {
-          shop: normalizedShop,
-        }
-      );
-      return offlineSession;
+    if (!offlineId) {
+      logger.warn("[BILLING] No offline session id available", {
+        shop: normalizedShop,
+      });
+      return null;
     }
-  }
 
-  logger.warn("[BILLING] Offline session not found", {
-    shop: normalizedShop,
-  });
-  return null;
+    // Try to load session by offline ID
+    const storedSession = await storage.loadSession(offlineId);
+    if (storedSession && !storedSession.isOnline) {
+      logger.debug("[BILLING] Offline session loaded by ID", {
+        shop: normalizedShop,
+        sessionId: storedSession.id,
+      });
+      return storedSession;
+    }
+
+    // Fallback: find sessions by shop and filter for offline
+    if (typeof storage.findSessionsByShop === "function") {
+      const shopSessions = await storage.findSessionsByShop(normalizedShop);
+      const offlineSession = shopSessions?.find(
+        (session) => session.isOnline === false
+      );
+      if (offlineSession) {
+        logger.debug(
+          "[BILLING] Offline session resolved via findSessionsByShop",
+          {
+            shop: normalizedShop,
+            sessionId: offlineSession.id,
+          }
+        );
+        return offlineSession;
+      }
+    }
+
+    logger.warn("[BILLING] Offline session not found", {
+      shop: normalizedShop,
+      offlineId,
+      storageType: storage.constructor?.name || "unknown",
+    });
+    return null;
+  } catch (error) {
+    logger.error("[BILLING] Error loading offline session", error, null, {
+      shop: normalizedShop,
+    });
+    return null;
+  }
 };
 
 const findPlanByPricing = (pricingDetails) => {
