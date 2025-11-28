@@ -764,6 +764,31 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
+    // Explicitly store the session to ensure it's persisted
+    // This is critical for serverless environments like Vercel
+    if (callbackResponse.session && shopify.session?.storage) {
+      try {
+        await shopify.session.storage.storeSession(callbackResponse.session);
+        logger.info("[OAUTH] Session stored successfully", {
+          shop,
+          sessionId: callbackResponse.session.id,
+          isOnline: callbackResponse.session.isOnline,
+        });
+      } catch (storageError) {
+        logger.error("[OAUTH] Failed to store session", storageError, req, {
+          shop,
+          sessionId: callbackResponse.session.id,
+        });
+        // Continue even if storage fails - log the error but don't block OAuth
+      }
+    } else {
+      logger.warn("[OAUTH] Session storage not available or session missing", {
+        shop,
+        hasSession: !!callbackResponse.session,
+        hasStorage: !!shopify.session?.storage,
+      });
+    }
+
     logger.info("[OAUTH] OAuth callback completed successfully", {
       shop,
       hasSession: !!callbackResponse.session,

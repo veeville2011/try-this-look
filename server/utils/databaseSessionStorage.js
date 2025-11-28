@@ -89,6 +89,14 @@ class DatabaseSessionStorage {
     await this.initialize();
 
     try {
+      if (!session || !session.id) {
+        logger.error("[SESSION_STORAGE] Invalid session object", {
+          hasSession: !!session,
+          hasId: !!session?.id,
+        });
+        throw new Error("Invalid session: missing id");
+      }
+
       await this.pool.query(
         `
         INSERT INTO shopify_sessions (id, shop, session_data, updated_at)
@@ -101,8 +109,17 @@ class DatabaseSessionStorage {
         `,
         [session.id, session.shop, JSON.stringify(session)]
       );
+
+      logger.debug("[SESSION_STORAGE] Session stored successfully", {
+        sessionId: session.id,
+        shop: session.shop,
+        isOnline: session.isOnline,
+      });
     } catch (error) {
-      logger.error("[SESSION_STORAGE] Failed to store session:", error);
+      logger.error("[SESSION_STORAGE] Failed to store session:", error, null, {
+        sessionId: session?.id,
+        shop: session?.shop,
+      });
       throw error;
     }
   }
