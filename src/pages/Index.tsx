@@ -71,7 +71,9 @@ const Index = () => {
     guideElement.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleDeepLinkClick = (template: "product" | "index" = "product") => {
+  const handleDeepLinkClick = async (
+    template: "product" | "index" = "product"
+  ) => {
     // Get shop domain from App Bridge or URL params
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
@@ -84,23 +86,84 @@ const Index = () => {
       return;
     }
 
-    // Extract store handle from domain
-    // Note: Shopify always uses myshopify.com domain internally (even for custom domain stores)
-    // App Bridge and URL params will always provide the myshopify.com format
-    // The deep link URLs require the store handle (part before .myshopify.com)
-    let storeHandle = shopDomain;
-    if (shopDomain.includes(".myshopify.com")) {
-      storeHandle = shopDomain.replace(".myshopify.com", "");
+    // Normalize shop domain for API call
+    const normalizedShop = shopDomain.includes(".myshopify.com")
+      ? shopDomain.toLowerCase()
+      : `${shopDomain.toLowerCase()}.myshopify.com`;
+
+    // Show loading toast
+    const loadingToast = toast.loading("Vérification en cours...", {
+      description: "Vérification de votre plan tarifaire depuis Shopify.",
+    });
+
+    try {
+      // Check from Shopify server-side if plan is selected
+      const response = await fetch(
+        `/api/billing/check-installation?shop=${encodeURIComponent(
+          normalizedShop
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          credentials: "same-origin",
+        }
+      );
+
+      const data = await response.json();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+
+      if (!response.ok) {
+        toast.error("Erreur de vérification", {
+          description:
+            data.message || "Impossible de vérifier votre plan tarifaire.",
+        });
+        return;
+      }
+
+      // Check if plan is selected
+      if (!data.canProceed || !data.hasPlanSelected) {
+        // No plan selected - redirect to pricing page
+        toast.info("Sélection d'un plan requise", {
+          description:
+            "Veuillez sélectionner un plan tarifaire avant de continuer l'installation.",
+        });
+        redirectToPlanSelection(shopDomain, APP_HANDLE);
+        return;
+      }
+
+      // Plan is selected - proceed with theme editor
+      // Extract store handle from domain
+      // Note: Shopify always uses myshopify.com domain internally (even for custom domain stores)
+      // App Bridge and URL params will always provide the myshopify.com format
+      // The deep link URLs require the store handle (part before .myshopify.com)
+      let storeHandle = shopDomain;
+      if (shopDomain.includes(".myshopify.com")) {
+        storeHandle = shopDomain.replace(".myshopify.com", "");
+      }
+
+      // Construct deep link URL
+      let deepLinkUrl = "";
+      // App block deep link - opens theme editor without auto-adding the block
+      // User can manually add the block from the app blocks section wherever they want
+      // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
+      deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
+
+      window.location.href = deepLinkUrl;
+    } catch (error) {
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+
+      console.error("Error checking installation:", error);
+      toast.error("Erreur de connexion", {
+        description:
+          "Impossible de vérifier votre plan tarifaire. Veuillez réessayer.",
+      });
     }
-
-    // Construct deep link URL
-    let deepLinkUrl = "";
-    // App block deep link - opens theme editor without auto-adding the block
-    // User can manually add the block from the app blocks section wherever they want
-    // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
-    deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
-
-    window.open(deepLinkUrl, "_blank");
   };
 
   // Check subscription and redirect to pricing page only if no plan is selected

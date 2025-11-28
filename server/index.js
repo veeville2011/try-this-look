@@ -1504,6 +1504,127 @@ app.get("/api/billing/subscription", async (req, res) => {
   }
 });
 
+// Check if installation can proceed (plan selected check)
+// This endpoint verifies from Shopify's side if a plan is selected before allowing theme editor access
+app.get("/api/billing/check-installation", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+  const startTime = Date.now();
+
+  try {
+    logger.info("[BILLING] [CHECK_INSTALLATION] Request received", {
+      requestId,
+      method: req.method,
+      path: req.path,
+      query: req.query,
+      timestamp: new Date().toISOString(),
+    });
+
+    const shop = req.query.shop;
+    if (!shop) {
+      logger.warn("[BILLING] [CHECK_INSTALLATION] Missing shop parameter", {
+        requestId,
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required in query string",
+        requestId,
+        canProceed: false,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      logger.warn("[BILLING] [CHECK_INSTALLATION] Invalid shop parameter", {
+        requestId,
+        originalShop: shop,
+      });
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+        canProceed: false,
+      });
+    }
+
+    logger.info(
+      "[BILLING] [CHECK_INSTALLATION] Checking subscription via GraphQL",
+      {
+        requestId,
+        shop: shopDomain,
+      }
+    );
+
+    const subscriptionStatus = await fetchManagedSubscriptionStatus(shopDomain);
+    const duration = Date.now() - startTime;
+
+    // Check if a plan is selected (has plan handle)
+    const hasPlanSelected =
+      subscriptionStatus &&
+      subscriptionStatus.plan &&
+      subscriptionStatus.plan.handle;
+
+    logger.info("[BILLING] [CHECK_INSTALLATION] Installation check completed", {
+      requestId,
+      shop: shopDomain,
+      hasPlanSelected,
+      planHandle: subscriptionStatus?.plan?.handle,
+      duration: `${duration}ms`,
+    });
+
+    res.json({
+      canProceed: hasPlanSelected,
+      hasPlanSelected,
+      planHandle: subscriptionStatus?.plan?.handle,
+      planName: subscriptionStatus?.plan?.name,
+      requestId,
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    if (error instanceof SubscriptionStatusError) {
+      logger.warn("[BILLING] [CHECK_INSTALLATION] Subscription error", {
+        requestId,
+        duration: `${duration}ms`,
+        error: error.message,
+        details: error.details,
+      });
+
+      return res.status(error.status).json({
+        error: error.message,
+        details: error.details,
+        canProceed: false,
+        hasPlanSelected: false,
+        requestId,
+      });
+    }
+
+    logger.error(
+      "[BILLING] [CHECK_INSTALLATION] Unexpected error",
+      error,
+      req,
+      {
+        requestId,
+        duration: `${duration}ms`,
+        errorType: error.constructor.name,
+        errorCode: error.code,
+      }
+    );
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Internal server error",
+        message: error.message || "An unexpected error occurred",
+        canProceed: false,
+        hasPlanSelected: false,
+        requestId,
+      });
+    }
+  }
+});
+
 // Create subscription - DEPRECATED: Using Managed App Pricing
 // This endpoint is no longer used. The app now redirects to Shopify's plan selection page.
 app.post("/api/billing/subscribe", async (req, res) => {
