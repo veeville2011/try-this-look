@@ -95,13 +95,47 @@ export const useSubscription = (): UseSubscriptionReturn => {
         apiUrl,
       });
 
-      const response = await fetch(apiUrl, {
+      // Get App Bridge instance and use authenticatedFetch to include JWT token
+      const appBridge = (window as any).__APP_BRIDGE;
+      let fetchFn = fetch;
+      let headers: HeadersInit = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+
+      // Try to use authenticatedFetch if App Bridge is available
+      if (appBridge) {
+        try {
+          // Use authenticatedFetch from app-bridge-utils (automatically includes JWT)
+          const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
+          fetchFn = authenticatedFetch(appBridge);
+          console.log("✅ [useSubscription] Using authenticatedFetch with App Bridge");
+        } catch (error) {
+          console.warn("⚠️ [useSubscription] authenticatedFetch failed, trying manual session token", error);
+          
+          // Fallback: try to get session token manually
+          try {
+            const { getSessionToken } = await import("@shopify/app-bridge-utils");
+            const token = await getSessionToken(appBridge);
+            if (token) {
+              headers = {
+                ...headers,
+                Authorization: `Bearer ${token}`,
+              };
+              console.log("✅ [useSubscription] Using manual session token");
+            }
+          } catch (tokenError) {
+            console.warn("⚠️ [useSubscription] Failed to get session token", tokenError);
+          }
+        }
+      } else {
+        console.warn("⚠️ [useSubscription] App Bridge not available, request may fail without JWT");
+      }
+
+      const response = await fetchFn(apiUrl, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "same-origin", // Include cookies if needed
+        headers,
+        credentials: "same-origin",
       });
 
       // Handle non-OK responses

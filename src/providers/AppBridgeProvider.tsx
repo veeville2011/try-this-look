@@ -1,22 +1,19 @@
 import { useEffect, useState, useRef } from "react";
-import { getSessionToken } from "@shopify/app-bridge-utils";
+import createApp from "@shopify/app-bridge";
 import type { AppBridgeConfig } from "@shopify/app-bridge";
 
-// For @shopify/app-bridge-react v4, AppProvider might not be exported
-// We'll make App Bridge optional and work without it if needed
 interface AppBridgeProviderProps {
   children: React.ReactNode;
 }
 
 /**
  * App Bridge Provider for embedded Shopify apps
- * Handles authentication and provides App Bridge context
- * Note: In v4 of @shopify/app-bridge-react, AppProvider may not be available
- * This component will work without AppProvider if needed
+ * Creates App Bridge instance for authenticated requests
  */
 export const AppBridgeProvider = ({ children }: AppBridgeProviderProps) => {
-  const [config, setConfig] = useState<AppBridgeConfig | null>(null);
+  const [app, setApp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const appRef = useRef<any>(null);
 
   useEffect(() => {
     // Get shop and host from URL parameters (provided by Shopify)
@@ -31,25 +28,32 @@ export const AppBridgeProvider = ({ children }: AppBridgeProviderProps) => {
       "f8de7972ae23d3484581d87137829385";
 
     if (shop && host) {
-      setConfig({
+      // Create App Bridge instance
+      const appBridgeInstance = createApp({
         apiKey,
         host,
         forceRedirect: true,
       });
+      appRef.current = appBridgeInstance;
+      setApp(appBridgeInstance);
+      
+      // Store in window for global access
+      (window as any).__APP_BRIDGE = appBridgeInstance;
     } else {
-      // If not in embedded context, try to get from localStorage or use defaults
+      // If not in embedded context, try to get from localStorage
       const storedShop = localStorage.getItem("shop");
       const storedHost = localStorage.getItem("host");
 
       if (storedShop && storedHost) {
-        setConfig({
+        const appBridgeInstance = createApp({
           apiKey,
           host: storedHost,
           forceRedirect: true,
         });
+        appRef.current = appBridgeInstance;
+        setApp(appBridgeInstance);
+        (window as any).__APP_BRIDGE = appBridgeInstance;
       } else {
-        // Fallback for development or standalone mode
-        // Only log in development
         if (import.meta.env.DEV) {
           console.warn(
             "[AppBridge] Missing shop or host parameters. App may not work correctly in embedded mode."
@@ -79,11 +83,14 @@ export const AppBridgeProvider = ({ children }: AppBridgeProviderProps) => {
     );
   }
 
-  // Render children without AppProvider wrapper
-  // App Bridge v4 may not export AppProvider, so we work without it
-  // The app will still function, just without App Bridge context
-  // Session tokens and shop info are handled via URL params and localStorage
   return <>{children}</>;
+};
+
+/**
+ * Hook to get App Bridge instance
+ */
+export const useAppBridge = () => {
+  return (window as any).__APP_BRIDGE || null;
 };
 
 /**
