@@ -1,6 +1,10 @@
 import "@shopify/shopify-api/adapters/node";
 import express from "express";
-import { shopifyApi, LATEST_API_VERSION } from "@shopify/shopify-api";
+import {
+  shopifyApi,
+  LATEST_API_VERSION,
+  RequestedTokenType,
+} from "@shopify/shopify-api";
 import { restResources } from "@shopify/shopify-api/rest/admin/2024-01";
 import { join } from "path";
 import { fileURLToPath } from "url";
@@ -233,10 +237,14 @@ const mapSubscriptionToPlan = (appSubscription) => {
   };
 };
 
-const fetchManagedSubscriptionStatus = async (shopDomain, requestSession) => {
+const fetchManagedSubscriptionStatus = async (
+  shopDomain,
+  requestSession,
+  encodedSessionToken
+) => {
   const normalizedShop = normalizeShopDomain(shopDomain);
 
-  if (!requestSession) {
+  if (!requestSession || !encodedSessionToken) {
     throw new SubscriptionStatusError(
       "JWT session token required for billing API",
       401,
@@ -252,9 +260,50 @@ const fetchManagedSubscriptionStatus = async (shopDomain, requestSession) => {
     sessionShop: requestSession.shop,
   });
 
-  const session = requestSession;
+  // Exchange JWT session token for an access token
+  // JWT session tokens don't contain access tokens - we need to exchange them
+  let sessionWithAccessToken;
+  try {
+    logger.info("[BILLING] Exchanging session token for access token", {
+      shop: normalizedShop,
+    });
 
-  const client = new shopify.clients.Graphql({ session });
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: normalizedShop,
+      sessionToken: encodedSessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken, // Use offline token for billing API
+    });
+
+    // Create a session object with the access token
+    sessionWithAccessToken = {
+      shop: normalizedShop,
+      accessToken: tokenResult.accessToken,
+      scope: tokenResult.scope,
+      isOnline: false, // Offline token
+    };
+
+    logger.info("[BILLING] Token exchange successful", {
+      shop: normalizedShop,
+      hasAccessToken: !!sessionWithAccessToken.accessToken,
+    });
+  } catch (tokenError) {
+    logger.error("[BILLING] Token exchange failed", tokenError, null, {
+      shop: normalizedShop,
+      errorMessage: tokenError.message,
+    });
+    throw new SubscriptionStatusError(
+      "Failed to exchange session token for access token",
+      500,
+      {
+        resolution: "Please try again. If the issue persists, contact support.",
+        error: tokenError.message,
+      }
+    );
+  }
+
+  const client = new shopify.clients.Graphql({
+    session: sessionWithAccessToken,
+  });
   const query = `
     query ManagedPricingSubscription {
       currentAppInstallation {
@@ -528,6 +577,7 @@ const verifySessionToken = async (req, res, next) => {
         const session = await shopify.session.decodeSessionToken(sessionToken);
         // Attach session info to request
         req.session = session;
+        req.sessionToken = sessionToken; // Store original encoded token for token exchange
         req.shop = session.shop;
         logger.info("[AUTH] Session token verified", {
           shop: session.shop,
@@ -1413,9 +1463,11 @@ app.get("/api/billing/subscription", async (req, res) => {
     );
 
     // Use JWT session from request for GraphQL API call
+    // Pass both decoded session and encoded token for token exchange
     const subscriptionStatus = await fetchManagedSubscriptionStatus(
       shopDomain,
-      req.session
+      req.session,
+      req.sessionToken
     );
     const duration = Date.now() - startTime;
 
@@ -1524,9 +1576,11 @@ app.get("/api/billing/check-installation", async (req, res) => {
     );
 
     // Use JWT session from request for GraphQL API call
+    // Pass both decoded session and encoded token for token exchange
     const subscriptionStatus = await fetchManagedSubscriptionStatus(
       shopDomain,
-      req.session
+      req.session,
+      req.sessionToken
     );
     const duration = Date.now() - startTime;
 
