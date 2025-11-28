@@ -2,7 +2,7 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "installCommand": "npm install && cd server && npm install",
   "functions": {
     "api/index.js": {
       "maxDuration": 60
