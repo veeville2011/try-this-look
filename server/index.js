@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import dotenv from "dotenv";
 import crypto from "crypto";
+import axios from "axios";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
 
@@ -721,6 +722,112 @@ app.get("/auth/callback", async (req, res) => {
     logger.info("[OAUTH] OAuth callback completed successfully", {
       shop,
     });
+
+    // Call /api/stores/install to save store data
+    // This must be done before redirecting to ensure store is registered
+    try {
+      const session = callbackResponse.session;
+      if (!session) {
+        logger.warn("[OAUTH] No session data available for store installation");
+      } else {
+        // Determine the API base URL
+        // Check for environment variable first, then use same server
+        let storesApiBaseUrl = process.env.VITE_API_ENDPOINT;
+
+        // Construct the full API URL
+        // If storesApiBaseUrl is set, use it; otherwise construct from request
+        let installApiUrl;
+        if (storesApiBaseUrl) {
+          installApiUrl = `${storesApiBaseUrl.replace(
+            /\/$/,
+            ""
+          )}/api/stores/install`;
+        } else {
+          // Fallback: construct from request (for same server)
+          const protocol = req.protocol || "https";
+          const host = req.get("host") || `localhost:${PORT}`;
+          installApiUrl = `${protocol}://${host}/api/stores/install`;
+        }
+
+        // Prepare installation data from session
+        const installData = {
+          shop: session.shop,
+          accessToken: session.accessToken,
+          scope: session.scope,
+          isOnline: session.isOnline || false,
+          expires: session.expires
+            ? new Date(session.expires).toISOString()
+            : undefined,
+          sessionId: session.id,
+          state: session.state,
+          apiKey: apiKey,
+          appUrl: process.env.VITE_SHOPIFY_APP_URL || appUrl,
+          installedAt: new Date().toISOString(),
+        };
+
+        logger.info("[OAUTH] Calling /api/stores/install", {
+          shop: session.shop,
+          apiUrl: installApiUrl,
+          hasAccessToken: !!session.accessToken,
+          hasScope: !!session.scope,
+        });
+
+        // Make the API call using axios
+        try {
+          const installResponse = await axios.post(installApiUrl, installData, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            timeout: 10000, // 10 second timeout
+          });
+
+          const installResult = installResponse.data;
+          if (installResult.success) {
+            logger.info("[OAUTH] Store installation successful", {
+              shop: session.shop,
+              savedAt: installResult.savedAt,
+            });
+          } else {
+            logger.warn("[OAUTH] Store installation returned non-success", {
+              shop: session.shop,
+              message: installResult.message,
+            });
+          }
+        } catch (axiosError) {
+          // Axios throws errors for non-2xx responses
+          const status = axiosError.response?.status;
+          const statusText = axiosError.response?.statusText;
+          const errorText = axiosError.response?.data
+            ? JSON.stringify(axiosError.response.data).substring(0, 500)
+            : axiosError.message || "Unknown error";
+
+          logger.error(
+            "[OAUTH] Failed to call /api/stores/install",
+            axiosError,
+            req,
+            {
+              shop: session.shop,
+              status: status,
+              statusText: statusText,
+              errorText: errorText,
+            }
+          );
+          // Don't fail OAuth flow if store installation fails
+          // Log error but continue with redirect
+        }
+      }
+    } catch (installError) {
+      // Log error but don't fail OAuth flow
+      // Store installation failure shouldn't prevent app from working
+      logger.error(
+        "[OAUTH] Error calling /api/stores/install (non-blocking)",
+        installError,
+        req,
+        {
+          shop: callbackResponse.session?.shop,
+        }
+      );
+    }
 
     // For embedded apps, redirect with host parameter
     // Get host from query params (provided by Shopify during OAuth)
