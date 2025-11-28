@@ -26,7 +26,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import SubscriptionManagement from "@/components/SubscriptionManagement";
 import ShopifyManagedPricing from "@/components/ShopifyManagedPricing";
 import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
@@ -118,15 +117,9 @@ const Index = () => {
     // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
     deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
 
-    // For embedded apps, redirect to top-level window to break out of iframe
-    // This is required because Shopify admin pages set X-Frame-Options to 'deny'
-    if (window.top && window.top !== window.self) {
-      // We're in an iframe (embedded app)
-      window.top.location.href = deepLinkUrl;
-    } else {
-      // Not in iframe, direct redirect
-      window.location.href = deepLinkUrl;
-    }
+    // Open in a new tab to avoid X-Frame-Options issues and keep the app open
+    // This works whether we're in an iframe or not
+    window.open(deepLinkUrl, "_blank", "noopener,noreferrer");
   };
 
   // Check subscription and redirect to pricing page if subscription is null
@@ -421,7 +414,8 @@ const Index = () => {
                       <div className="pt-3">
                         <Button
                           size="sm"
-                          className="w-full border border-border bg-background hover:bg-accent hover:text-accent-foreground"
+                          variant="default"
+                          className="w-full"
                           onClick={() => {
                             const shopDomain =
                               shop ||
@@ -995,21 +989,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Subscription Management Section */}
-      {currentPlan && currentPlan !== "free" && (
-        <section
-          id="subscription-section"
-          className="py-12 sm:py-16 bg-background border-b border-border"
-        >
-          <div className="container mx-auto px-4 sm:px-6 md:px-8">
-            <div className="max-w-6xl mx-auto">
-              <SubscriptionManagement
-                onSubscriptionUpdate={refreshSubscription}
-              />
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Shopify Managed Pricing Section */}
       <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
