@@ -266,12 +266,12 @@ const fetchManagedSubscriptionStatus = async (shopDomain) => {
       currentAppInstallation {
         activeSubscriptions {
           id
+          name
           status
           currentPeriodEnd
           createdAt
           lineItems {
             plan {
-              name
               pricingDetails {
                 __typename
                 ... on AppRecurringPricing {

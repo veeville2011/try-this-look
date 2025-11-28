@@ -47,11 +47,18 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
   const fetchSubscription = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
+
       // Get shop from App Bridge hook or URL params (fallback)
       const shopDomain =
         shop || new URLSearchParams(window.location.search).get("shop");
       
       if (!shopDomain) {
+        console.warn("⚠️ [useSubscription] No shop domain available", {
+          shopFromHook: shop,
+          urlParams: window.location.search,
+        });
         setLoading(false);
         return;
       }
@@ -61,11 +68,10 @@ export const useSubscription = (): UseSubscriptionReturn => {
         ? shopDomain.toLowerCase()
         : `${shopDomain.toLowerCase()}.myshopify.com`;
 
-      // Check localStorage cache only (API calls removed)
+      // Check localStorage cache first for quick initial render
       const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
       const cachedData = localStorage.getItem(storageKey);
 
-      // If cache exists, use it
       if (cachedData) {
         try {
           const parsed = JSON.parse(cachedData);
@@ -74,26 +80,118 @@ export const useSubscription = (): UseSubscriptionReturn => {
             planHandle: parsed.plan?.handle,
           });
           setSubscription(parsed);
-          setLoading(false);
-          return;
+          // Continue to fetch fresh data in background
         } catch (parseError) {
           console.error("❌ [useSubscription] Failed to parse cached data", parseError);
-          // Clear invalid cache
           localStorage.removeItem(storageKey);
         }
       }
 
-      // No cache available - return null (no subscription)
-      console.log("ℹ️ [useSubscription] No cached subscription found", {
+      // Fetch fresh subscription data from API
+      const apiUrl = `/api/billing/subscription?shop=${encodeURIComponent(normalizedShop)}`;
+      
+      console.log("🔄 [useSubscription] Fetching subscription from API", {
         shop: normalizedShop,
+        apiUrl,
       });
-      setSubscription(null);
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        credentials: "same-origin", // Include cookies if needed
+      });
+
+      // Handle non-OK responses
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          
+          console.error("❌ [useSubscription] API error response", {
+            shop: normalizedShop,
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+        } catch (parseError) {
+          // If JSON parsing fails, try to get text
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText.substring(0, 200); // Limit error text length
+            }
+          } catch (textError) {
+            // Ignore text parsing errors
+          }
+          
+          console.error("❌ [useSubscription] Failed to parse error response", {
+            shop: normalizedShop,
+            status: response.status,
+            parseError,
+          });
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      // Parse successful response
+      let subscriptionData: SubscriptionStatus;
+      try {
+        subscriptionData = await response.json();
+      } catch (parseError) {
+        console.error("❌ [useSubscription] Failed to parse API response", {
+          shop: normalizedShop,
+          parseError,
+        });
+        throw new Error("Invalid response format from server");
+      }
+
+      // Validate response structure
+      if (!subscriptionData || typeof subscriptionData !== "object") {
+        console.error("❌ [useSubscription] Invalid response structure", {
+          shop: normalizedShop,
+          data: subscriptionData,
+        });
+        throw new Error("Invalid subscription data received");
+      }
+      
+      console.log("✅ [useSubscription] Successfully fetched subscription from API", {
+        shop: normalizedShop,
+        planHandle: subscriptionData.plan?.handle,
+        planName: subscriptionData.plan?.name,
+        hasActiveSubscription: subscriptionData.hasActiveSubscription,
+        isFree: subscriptionData.isFree,
+        subscriptionStatus: subscriptionData.subscription?.status,
+      });
+
+      // Update state with fresh data
+      setSubscription(subscriptionData);
+      
+      // Update localStorage cache
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(subscriptionData));
+        console.log("💾 [useSubscription] Updated localStorage cache", {
+          shop: normalizedShop,
+        });
+      } catch (storageError) {
+        console.warn("⚠️ [useSubscription] Failed to update cache", {
+          shop: normalizedShop,
+          error: storageError,
+        });
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load subscription information";
       setError(errorMessage);
       console.error("❌ [useSubscription] Error loading subscription:", err);
-      setSubscription(null);
+      
+      // If we have cached data, keep using it even if API call failed
+      // (subscription state will remain from cache if it was set earlier)
     } finally {
       setLoading(false);
     }

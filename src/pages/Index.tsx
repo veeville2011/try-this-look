@@ -41,8 +41,27 @@ const Index = () => {
   const {
     subscription,
     loading: subscriptionLoading,
+    error: subscriptionError,
     refresh: refreshSubscription,
   } = useSubscription();
+
+  // Debug logging for subscription API call
+  useEffect(() => {
+    if (subscriptionLoading) {
+      console.log("🔄 [Index] Subscription loading...", { shop });
+    } else if (subscriptionError) {
+      console.error("❌ [Index] Subscription error:", subscriptionError);
+    } else if (subscription) {
+      console.log("✅ [Index] Subscription loaded successfully", {
+        shop,
+        planHandle: subscription.plan?.handle,
+        planName: subscription.plan?.name,
+        hasActiveSubscription: subscription.hasActiveSubscription,
+        isFree: subscription.isFree,
+        subscriptionStatus: subscription.subscription?.status,
+      });
+    }
+  }, [subscription, subscriptionLoading, subscriptionError, shop]);
 
   const scrollToInstallationGuide = () => {
     const guideElement = document.getElementById("installation-guide");
