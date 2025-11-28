@@ -266,6 +266,8 @@ const fetchManagedSubscriptionStatus = async (
   try {
     logger.info("[BILLING] Exchanging session token for access token", {
       shop: normalizedShop,
+      hasEncodedToken: !!encodedSessionToken,
+      tokenLength: encodedSessionToken?.length,
     });
 
     const tokenResult = await shopify.auth.tokenExchange({
@@ -274,10 +276,45 @@ const fetchManagedSubscriptionStatus = async (
       requestedTokenType: RequestedTokenType.OfflineAccessToken, // Use offline token for billing API
     });
 
+    // Log the token result structure for debugging
+    logger.info("[BILLING] Token exchange result received", {
+      shop: normalizedShop,
+      hasAccessToken: !!(tokenResult?.accessToken || tokenResult?.access_token),
+      hasScope: !!tokenResult?.scope,
+      tokenResultKeys: tokenResult ? Object.keys(tokenResult) : [],
+    });
+
+    // Token exchange returns access_token (snake_case) or accessToken (camelCase)
+    // Check both to handle different response formats
+    const accessToken = tokenResult?.accessToken || tokenResult?.access_token;
+
+    // Verify accessToken exists
+    if (!tokenResult || !accessToken) {
+      logger.error(
+        "[BILLING] Token exchange returned invalid result",
+        null,
+        null,
+        {
+          shop: normalizedShop,
+          tokenResult: tokenResult,
+        }
+      );
+      throw new SubscriptionStatusError(
+        "Token exchange did not return a valid access token",
+        500,
+        {
+          resolution:
+            "Please try again. If the issue persists, contact support.",
+          error: "Invalid token exchange response",
+        }
+      );
+    }
+
     // Create a session object with the access token
+    // Shopify API library expects accessToken (camelCase)
     sessionWithAccessToken = {
       shop: normalizedShop,
-      accessToken: tokenResult.accessToken,
+      accessToken: accessToken,
       scope: tokenResult.scope,
       isOnline: false, // Offline token
     };
@@ -285,11 +322,15 @@ const fetchManagedSubscriptionStatus = async (
     logger.info("[BILLING] Token exchange successful", {
       shop: normalizedShop,
       hasAccessToken: !!sessionWithAccessToken.accessToken,
+      accessTokenLength: sessionWithAccessToken.accessToken?.length,
+      scope: sessionWithAccessToken.scope,
     });
   } catch (tokenError) {
     logger.error("[BILLING] Token exchange failed", tokenError, null, {
       shop: normalizedShop,
       errorMessage: tokenError.message,
+      errorStack: tokenError.stack,
+      errorName: tokenError.name,
     });
     throw new SubscriptionStatusError(
       "Failed to exchange session token for access token",
@@ -300,6 +341,35 @@ const fetchManagedSubscriptionStatus = async (
       }
     );
   }
+
+  // Verify session has accessToken before creating GraphQL client
+  if (!sessionWithAccessToken || !sessionWithAccessToken.accessToken) {
+    logger.error(
+      "[BILLING] Session missing access token before GraphQL client creation",
+      null,
+      null,
+      {
+        shop: normalizedShop,
+        hasSession: !!sessionWithAccessToken,
+        sessionKeys: sessionWithAccessToken
+          ? Object.keys(sessionWithAccessToken)
+          : [],
+      }
+    );
+    throw new SubscriptionStatusError(
+      "Missing access token when creating GraphQL client",
+      500,
+      {
+        resolution: "Please try again. If the issue persists, contact support.",
+        error: "Session object missing accessToken",
+      }
+    );
+  }
+
+  logger.info("[BILLING] Creating GraphQL client", {
+    shop: normalizedShop,
+    hasAccessToken: !!sessionWithAccessToken.accessToken,
+  });
 
   const client = new shopify.clients.Graphql({
     session: sessionWithAccessToken,
