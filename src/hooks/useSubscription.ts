@@ -63,6 +63,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
       return;
     }
 
+    // Declare normalizedShop outside try block so it's accessible in catch/finally
+    let normalizedShop: string | null = null;
+    
     try {
       isFetchingRef.current = true;
       lastFetchTimeRef.current = now;
@@ -77,7 +80,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
         return;
       }
 
-      const normalizedShop = shopDomain.includes(".myshopify.com")
+      normalizedShop = shopDomain.includes(".myshopify.com")
         ? shopDomain.toLowerCase()
         : `${shopDomain.toLowerCase()}.myshopify.com`;
 
@@ -190,10 +193,20 @@ export const useSubscription = (): UseSubscriptionReturn => {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load subscription information";
+      console.error("[useSubscription] Error fetching subscription", {
+        error: errorMessage,
+        shop: normalizedShop || "unknown",
+      });
       setError(errorMessage);
+      // Even on error, set subscription to null to indicate no subscription
+      // This prevents infinite loading
+      setSubscription({ subscription: null, plan: null, hasActiveSubscription: false, isFree: false });
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
+      console.log("[useSubscription] Fetch completed, loading set to false", {
+        shop: normalizedShop || "unknown",
+      });
     }
   }, [shop]);
 
@@ -265,19 +278,34 @@ export const useSubscription = (): UseSubscriptionReturn => {
         if (cachedData) {
           try {
             const parsed = JSON.parse(cachedData);
-            // Only use cache if it has subscription data
-            if (parsed && parsed.subscription !== null) {
+            // Use cache regardless of subscription status (null or not)
+            // This prevents infinite loading when subscription is cancelled
+            if (parsed && typeof parsed === "object") {
               setSubscription(parsed);
               setLoading(false);
               console.log("[useSubscription] Using cached subscription data", {
                 shop: normalizedShop,
+                hasSubscription: !!parsed.subscription,
                 subscriptionId: parsed.subscription?.id,
               });
+            } else {
+              // Invalid cache data, remove it
+              localStorage.removeItem(storageKey);
+              setLoading(false);
             }
           } catch {
             localStorage.removeItem(storageKey);
+            setLoading(false);
           }
+        } else {
+          // No cache available, but we're skipping fetch
+          // Set loading to false to prevent infinite loading
+          setLoading(false);
         }
+      } else {
+        // Payment success - don't use cache, but still set loading to false
+        // The fetch will happen and set loading to true
+        setLoading(false);
       }
       return;
     }
@@ -292,21 +320,26 @@ export const useSubscription = (): UseSubscriptionReturn => {
     // This prevents race conditions if component re-renders before fetch completes
     
     // Don't use cache if payment_success is detected - always fetch fresh
-    // But if we have cached data and it shows a subscription exists, use it temporarily
-    // while we fetch fresh data (optimistic update)
+    // But if we have cached data, use it temporarily while we fetch fresh data (optimistic update)
+    // This includes null subscriptions to prevent infinite loading
     if (!isPaymentSuccess) {
       const cachedData = localStorage.getItem(storageKey);
       if (cachedData) {
         try {
           const parsed = JSON.parse(cachedData);
-          // Only use cache if it has subscription data
-          if (parsed && parsed.subscription !== null) {
+          // Use cache regardless of subscription status (null or not)
+          // This provides immediate UI feedback while fetching fresh data
+          if (parsed && typeof parsed === "object") {
             setSubscription(parsed);
             setLoading(false);
             console.log("[useSubscription] Using cached subscription data while fetching fresh", {
               shop: normalizedShop,
+              hasSubscription: !!parsed.subscription,
               subscriptionId: parsed.subscription?.id,
             });
+          } else {
+            // Invalid cache data, remove it
+            localStorage.removeItem(storageKey);
           }
         } catch {
           localStorage.removeItem(storageKey);

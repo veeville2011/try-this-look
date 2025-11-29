@@ -370,6 +370,7 @@ const Index = () => {
   const lastSubscriptionRef = useRef<typeof subscription>(null);
   const paymentSuccessTimeRef = useRef<number | null>(null);
   const paymentSuccessRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // State to track payment success for reactive UI updates
   const [isWaitingForPaymentSuccess, setIsWaitingForPaymentSuccess] =
@@ -405,12 +406,16 @@ const Index = () => {
       }, 100);
     }
 
-    // Wait for subscription to load
+    // Wait for subscription to load, but don't wait forever
+    // If loading takes too long (>10s), we'll show plan selection anyway (handled by timeout effect)
     if (subscriptionLoading) {
       console.log(
         "🔍 [Redirect Debug] Still loading subscription, skipping..."
       );
-      return;
+      // Don't return if we're waiting for payment success - let that logic handle it
+      if (!isWaitingForPaymentSuccess) {
+        return;
+      }
     }
 
     // If plan selection is showing but we now have a subscription, hide it
@@ -541,11 +546,27 @@ const Index = () => {
 
     // Redirect to billing flow if no subscription is configured
     // BUT only if we're NOT waiting for payment success to process
-    if (!subscription || subscription.subscription === null) {
+    // AND only if loading is complete (to prevent showing plan selection while still loading)
+    // Also ensure we have a valid subscription object (even if null) to avoid undefined issues
+    const hasNoSubscription =
+      !subscription ||
+      subscription.subscription === null ||
+      (typeof subscription === "object" && subscription.subscription === null);
+
+    if (
+      hasNoSubscription &&
+      !subscriptionLoading &&
+      !isWaitingForPaymentSuccess
+    ) {
       // Only trigger billing flow once per subscription state
       if (!billingTriggeredRef.current) {
         console.log(
-          "🚨 [Redirect Debug] Triggering billing flow - subscription is null"
+          "🚨 [Redirect Debug] Triggering billing flow - subscription is null and loading complete",
+          {
+            subscription: subscription ? "exists but null" : "does not exist",
+            subscriptionLoading,
+            isWaitingForPaymentSuccess,
+          }
         );
         billingTriggeredRef.current = true;
         handleRequireBilling();
@@ -686,12 +707,69 @@ const Index = () => {
     }
   }, [subscription, subscriptionLoading, isWaitingForPaymentSuccess]);
 
+  // Add timeout to prevent infinite loading (max 10 seconds)
+  // This is a safety net in case the subscription hook gets stuck
+  useEffect(() => {
+    if (subscriptionLoading) {
+      // Clear any existing timeout
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+
+      // Set a timeout to force showing plan selection after 10 seconds
+      // This handles cases where loading gets stuck
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.warn(
+          "[Index] Loading timeout after 10s - forcing plan selection display",
+          {
+            subscriptionLoading,
+            hasSubscription: !!subscription?.subscription,
+            subscription: subscription ? "exists" : "null",
+          }
+        );
+
+        // If still loading after timeout, force show plan selection
+        // This prevents infinite loading when subscription is null
+        if (subscriptionLoading) {
+          const hasNoSubscription =
+            !subscription || subscription.subscription === null;
+
+          if (hasNoSubscription) {
+            console.log(
+              "[Index] Timeout reached with null subscription - showing plan selection"
+            );
+            setShowPlanSelection(true);
+            billingTriggeredRef.current = false; // Reset to allow retry
+          }
+        }
+        loadingTimeoutRef.current = null;
+      }, 10000); // 10 seconds max
+    } else {
+      // Clear timeout if loading is false
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    }
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
+  }, [subscriptionLoading, subscription]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (paymentSuccessRetryTimeoutRef.current) {
         clearTimeout(paymentSuccessRetryTimeoutRef.current);
         paymentSuccessRetryTimeoutRef.current = null;
+      }
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
       }
     };
   }, []);
@@ -734,8 +812,14 @@ const Index = () => {
     !hasSubscription &&
     paymentSuccessElapsedTime < maxWaitTime;
 
-  // Don't show loading if we have a subscription (even if paymentSuccessTimeRef is set)
-  if (subscriptionLoading || shouldShowPaymentLoading) {
+  // Show loading only if:
+  // 1. Subscription is actively loading, OR
+  // 2. We're waiting for payment success (with valid conditions)
+  // The subscription hook ensures loading is set to false when fetch completes,
+  // even if subscription is null (cancelled), so we can trust subscriptionLoading
+  const shouldShowLoading = subscriptionLoading || shouldShowPaymentLoading;
+
+  if (shouldShowLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
