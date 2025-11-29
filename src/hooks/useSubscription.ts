@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 
 interface SubscriptionStatus {
@@ -41,8 +41,27 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Refs to prevent infinite loops
+  const isFetchingRef = useRef(false);
+  const urlParamsProcessedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const lastFetchedShopRef = useRef<string | null>(null);
+
   const fetchSubscription = useCallback(async () => {
+    // Prevent concurrent calls
+    if (isFetchingRef.current) {
+      console.log("⏸️ [useSubscription] Fetch already in progress, skipping...");
+      return;
+    }
+
+    // Check if component is still mounted
+    if (!mountedRef.current) {
+      console.log("⏸️ [useSubscription] Component unmounted, skipping...");
+      return;
+    }
+
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -56,6 +75,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
           urlParams: window.location.search,
         });
         setLoading(false);
+        isFetchingRef.current = false;
         return;
       }
 
@@ -198,6 +218,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
         subscriptionStatus: subscriptionData.subscription?.status,
       });
 
+      // Update last fetched shop
+      lastFetchedShopRef.current = normalizedShop;
+
       // Update state with fresh data
       setSubscription(subscriptionData);
       
@@ -222,14 +245,80 @@ export const useSubscription = (): UseSubscriptionReturn => {
       // If we have cached data, keep using it even if API call failed
       // (subscription state will remain from cache if it was set earlier)
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      isFetchingRef.current = false;
     }
   }, [shop]);
 
-  // Initial load on mount
+  // Cleanup on unmount
   useEffect(() => {
-    fetchSubscription();
-  }, [fetchSubscription]);
+    mountedRef.current = true;
+    urlParamsProcessedRef.current = false;
+    isFetchingRef.current = false;
+    lastFetchedShopRef.current = null;
+    return () => {
+      mountedRef.current = false;
+      isFetchingRef.current = false;
+    };
+  }, []);
+
+  // Initial load: check URL params and fetch subscription - only once per shop
+  useEffect(() => {
+    // Skip if already processing or fetching
+    if (urlParamsProcessedRef.current && isFetchingRef.current) {
+      return;
+    }
+
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+    
+    if (!shopDomain) {
+      return;
+    }
+
+    const normalizedShop = shopDomain.includes(".myshopify.com")
+      ? shopDomain.toLowerCase()
+      : `${shopDomain.toLowerCase()}.myshopify.com`;
+
+    // Check URL params first (only on first mount, not on shop change)
+    if (!urlParamsProcessedRef.current) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const subscriptionUpdated =
+        urlParams.get("subscription_updated") === "true" ||
+        urlParams.get("subscription_status") ||
+        urlParams.get("plan_changed") === "true";
+
+      if (subscriptionUpdated) {
+        console.log("🔄 [useSubscription] URL params detected, fetching subscription...");
+        
+        // Reset last fetched shop to force a fetch
+        lastFetchedShopRef.current = null;
+        
+        // Clean up URL parameters immediately
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("subscription_updated");
+        newUrl.searchParams.delete("subscription_status");
+        newUrl.searchParams.delete("plan_changed");
+        window.history.replaceState({}, "", newUrl.toString());
+      }
+      
+      urlParamsProcessedRef.current = true;
+    }
+
+    // Fetch subscription if:
+    // 1. We haven't fetched for this shop yet
+    // 2. Not currently fetching
+    if (
+      lastFetchedShopRef.current !== normalizedShop &&
+      !isFetchingRef.current
+    ) {
+      console.log("🔄 [useSubscription] Fetching subscription for shop:", normalizedShop);
+      fetchSubscription();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop]); // Only depend on shop, not fetchSubscription to avoid loops
 
   // Listen for storage events (when webhook updates cache via server)
   useEffect(() => {
@@ -245,7 +334,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
       const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
       
-      if (e.key === storageKey) {
+      if (e.key === storageKey && !isFetchingRef.current) {
+        console.log("🔄 [useSubscription] Storage event detected, fetching subscription...");
         fetchSubscription();
       }
     };
@@ -254,31 +344,21 @@ export const useSubscription = (): UseSubscriptionReturn => {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [shop, fetchSubscription]);
 
-  // Check for subscription update in URL parameters
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const subscriptionUpdated =
-      urlParams.get("subscription_updated") === "true" ||
-      urlParams.get("subscription_status") ||
-      urlParams.get("plan_changed") === "true";
-
-    if (subscriptionUpdated) {
-      // Reload from cache (API calls removed)
-      fetchSubscription();
-
-      // Clean up URL parameters
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete("subscription_updated");
-      newUrl.searchParams.delete("subscription_status");
-      newUrl.searchParams.delete("plan_changed");
-      window.history.replaceState({}, "", newUrl.toString());
-    }
-  }, [fetchSubscription]);
-
   const refresh = useCallback(async () => {
+    // Reset last fetched shop to force a refresh
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+    
+    if (shopDomain) {
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
+      lastFetchedShopRef.current = null;
+    }
+    
     setLoading(true);
     await fetchSubscription();
-  }, [fetchSubscription]);
+  }, [fetchSubscription, shop]);
 
   return {
     subscription,
