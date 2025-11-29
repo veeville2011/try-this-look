@@ -510,14 +510,25 @@ const createAppSubscription = async (
       : null;
 
     if (validatedPromo) {
+      // Build discount config - only include durationLimitInIntervals if it's a valid number > 0
+      // For indefinite discounts (null), omit the field entirely per Shopify API requirements
       discountConfig = {
         value:
           validatedPromo.type === "percentage"
             ? { percentage: validatedPromo.value }
             : { amount: validatedPromo.value },
-        durationLimitInIntervals:
-          validatedPromo.durationLimitInIntervals || null,
       };
+
+      // Only add durationLimitInIntervals if it's a valid number > 0
+      // Shopify API: "Must be greater than 0. The discount will be applied to an indefinite number of billing intervals if this value is left blank."
+      if (
+        validatedPromo.durationLimitInIntervals != null &&
+        typeof validatedPromo.durationLimitInIntervals === "number" &&
+        validatedPromo.durationLimitInIntervals > 0
+      ) {
+        discountConfig.durationLimitInIntervals =
+          validatedPromo.durationLimitInIntervals;
+      }
       logger.info("[BILLING] Promo code applied", {
         shop: normalizedShop,
         planHandle,
