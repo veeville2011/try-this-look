@@ -386,10 +386,11 @@ const Index = () => {
   // Show plan selection UI if needed
   if (showPlanSelection) {
     return (
-      <div className="min-h-screen bg-background py-12">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <PlanSelection
           plans={availablePlans}
           onSelectPlan={handleSelectPlan}
+          onBack={() => setShowPlanSelection(false)}
           loading={billingLoading}
         />
       </div>
