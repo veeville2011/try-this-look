@@ -40,7 +40,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const [error, setError] = useState<string | null>(null);
 
   const isFetchingRef = useRef(false);
-  const hasInitializedRef = useRef(false);
+  const fetchedShopRef = useRef<string | null>(null);
 
   const fetchSubscription = useCallback(async () => {
     if (isFetchingRef.current) {
@@ -135,12 +135,22 @@ export const useSubscription = (): UseSubscriptionReturn => {
         throw new Error("Invalid subscription data received");
       }
 
-      setSubscription(subscriptionData);
+      // Only update if shop hasn't changed
+      const currentShop = shop || new URLSearchParams(window.location.search).get("shop");
+      const currentNormalizedShop = currentShop
+        ? (currentShop.includes(".myshopify.com")
+            ? currentShop.toLowerCase()
+            : `${currentShop.toLowerCase()}.myshopify.com`)
+        : null;
       
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(subscriptionData));
-      } catch {
-        // Ignore storage errors
+      if (currentNormalizedShop === normalizedShop) {
+        setSubscription(subscriptionData);
+        
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(subscriptionData));
+        } catch {
+          // Ignore storage errors
+        }
       }
     } catch (err) {
       const errorMessage =
@@ -153,21 +163,23 @@ export const useSubscription = (): UseSubscriptionReturn => {
   }, [shop]);
 
   useEffect(() => {
-    if (hasInitializedRef.current || isFetchingRef.current) {
-      return;
-    }
-
     const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
     
     if (!shopDomain) {
+      setLoading(false);
       return;
     }
-
-    hasInitializedRef.current = true;
 
     const normalizedShop = shopDomain.includes(".myshopify.com")
       ? shopDomain.toLowerCase()
       : `${shopDomain.toLowerCase()}.myshopify.com`;
+
+    // Only fetch if we haven't fetched for this shop yet
+    if (fetchedShopRef.current === normalizedShop || isFetchingRef.current) {
+      return;
+    }
+
+    fetchedShopRef.current = normalizedShop;
 
     const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
     const cachedData = localStorage.getItem(storageKey);
@@ -198,7 +210,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
     fetchSubscription();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shop]); // Only depend on shop - fetchSubscription is stable
+  }, [shop]); // Depend on shop, but fetchedShopRef prevents duplicate fetches
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -222,6 +234,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   }, [shop]); // Only depend on shop - fetchSubscription is stable
 
   const refresh = useCallback(async () => {
+    fetchedShopRef.current = null;
     setLoading(true);
     await fetchSubscription();
   }, [fetchSubscription]);
