@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import {
@@ -365,6 +365,10 @@ const Index = () => {
     }
   }, []);
 
+  // Track if billing flow has been triggered to prevent infinite loops
+  const billingTriggeredRef = useRef(false);
+  const lastSubscriptionRef = useRef<typeof subscription>(null);
+
   // Check subscription and redirect to pricing page if subscription is null
   useEffect(() => {
     console.log("🔍 [Redirect Debug] useEffect triggered");
@@ -382,8 +386,24 @@ const Index = () => {
       return;
     }
 
-    // Don't redirect if plan selection is already showing
-    if (showPlanSelection) {
+    // If plan selection is showing but we now have a subscription, hide it
+    if (
+      showPlanSelection &&
+      subscription &&
+      subscription.subscription !== null
+    ) {
+      console.log(
+        "🔍 [Redirect Debug] Subscription now available, hiding plan selection"
+      );
+      setShowPlanSelection(false);
+      billingTriggeredRef.current = false;
+    }
+
+    // Don't redirect if plan selection is already showing (and subscription is still null)
+    if (
+      showPlanSelection &&
+      (!subscription || subscription.subscription === null)
+    ) {
       console.log(
         "🔍 [Redirect Debug] Plan selection already showing, skipping redirect"
       );
@@ -403,12 +423,37 @@ const Index = () => {
       return;
     }
 
+    // Check if subscription has actually changed
+    const subscriptionChanged =
+      lastSubscriptionRef.current !== subscription &&
+      (lastSubscriptionRef.current?.subscription?.id !==
+        subscription?.subscription?.id ||
+        lastSubscriptionRef.current === null);
+
+    // Reset billing trigger flag if subscription changed from null to non-null
+    if (
+      subscriptionChanged &&
+      subscription &&
+      subscription.subscription !== null
+    ) {
+      billingTriggeredRef.current = false;
+    }
+
     // Redirect to billing flow if no subscription is configured
     if (!subscription || subscription.subscription === null) {
-      console.log(
-        "🚨 [Redirect Debug] Triggering billing flow - subscription is null"
-      );
-      handleRequireBilling();
+      // Only trigger billing flow once per subscription state
+      if (!billingTriggeredRef.current) {
+        console.log(
+          "🚨 [Redirect Debug] Triggering billing flow - subscription is null"
+        );
+        billingTriggeredRef.current = true;
+        handleRequireBilling();
+      } else {
+        console.log(
+          "🔍 [Redirect Debug] Billing flow already triggered, skipping"
+        );
+      }
+      lastSubscriptionRef.current = subscription;
       return;
     }
 
@@ -425,6 +470,9 @@ const Index = () => {
       "✅ [Redirect Debug] subscription.isFree:",
       subscription.isFree
     );
+
+    // Reset billing trigger flag since we have a subscription
+    billingTriggeredRef.current = false;
 
     // Update current plan state
     if (subscription.hasActiveSubscription && !subscription.isFree) {
@@ -443,7 +491,9 @@ const Index = () => {
       );
       setCurrentPlan(subscription.plan?.name || "inactive");
     }
-  }, [subscription, subscriptionLoading, shop, showPlanSelection]);
+
+    lastSubscriptionRef.current = subscription;
+  }, [subscription, subscriptionLoading, shop]); // Removed showPlanSelection from dependencies
 
   // Show loading state while checking subscription
   if (subscriptionLoading) {

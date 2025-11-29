@@ -13,11 +13,11 @@ const PaymentSuccess = () => {
       // Redirect to embedded app URL format
       const storeHandle = shop.replace(".myshopify.com", "");
       const appId = "f8de7972ae23d3484581d87137829385";
-      const embeddedAppUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${appId}`;
+      const embeddedAppUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${appId}?payment_success=true`;
       window.location.href = embeddedAppUrl;
     } else {
-      // Fallback to home
-      navigate("/");
+      // Fallback to home with payment_success parameter to trigger subscription refresh
+      navigate("/?payment_success=true");
     }
   };
 
