@@ -138,6 +138,26 @@ const normalizeShopDomain = (shopDomain) => {
   return normalized;
 };
 
+/**
+ * Check if a shop is the specific demo store that should use test mode
+ * @param {string} shopDomain - The shop domain
+ * @returns {boolean} True if it's the demo store
+ */
+const isDemoStore = (shopDomain) => {
+  if (!shopDomain) {
+    return false;
+  }
+
+  const normalized = normalizeShopDomain(shopDomain);
+  if (!normalized) {
+    return false;
+  }
+
+  // Only enable test mode for this specific demo store
+  const demoStore = "vto-demo.myshopify.com";
+  return normalized === demoStore;
+};
+
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
 
 const mapSubscriptionToPlan = (appSubscription) => {
@@ -563,7 +583,21 @@ const createAppSubscription = async (
         },
       ],
       trialDays: planConfig.trialDays || null,
-      test: process.env.SHOPIFY_BILLING_TEST === "true",
+      // Enable test mode only for vto-demo.myshopify.com
+      // Test charges don't require actual payment and can be approved without payment method
+      // All other stores will use real billing (test: false)
+      test: (() => {
+        const isDemo = isDemoStore(normalizedShop);
+        logger.info("[BILLING] Store billing mode", {
+          shop: normalizedShop,
+          isDemoStore: isDemo,
+          testMode: isDemo,
+          note: isDemo
+            ? "Test mode enabled for demo store"
+            : "Real billing mode for production store",
+        });
+        return isDemo;
+      })(),
     };
 
     const response = await client.query({
