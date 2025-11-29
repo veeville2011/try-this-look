@@ -219,7 +219,16 @@ const Index = () => {
       console.log("[Billing] Redirecting to confirmation URL", {
         confirmationUrl: data.confirmationUrl,
       });
-      window.location.href = data.confirmationUrl as string;
+
+      // For embedded apps, redirect to top-level window to break out of iframe
+      // This prevents X-Frame-Options errors when redirecting to Shopify admin pages
+      if (window.top && window.top !== window.self) {
+        // We're in an iframe (embedded app) - redirect parent window
+        window.top.location.href = data.confirmationUrl as string;
+      } else {
+        // Not in iframe, direct redirect
+        window.location.href = data.confirmationUrl as string;
+      }
     } catch (error: any) {
       console.error("[Billing] Failed to create subscription", error);
       toast.error("Erreur lors de la création de l'abonnement", {
