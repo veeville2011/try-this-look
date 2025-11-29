@@ -52,7 +52,61 @@ const Index = () => {
 
   const fetchAvailablePlans = async () => {
     try {
-      const response = await fetch("/api/billing/plans");
+      // Use authenticated fetch with App Bridge to include JWT like /api/billing/subscription
+      const appBridge = (window as any).__APP_BRIDGE;
+      let fetchFn = fetch;
+      let headers: HeadersInit = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+
+      if (appBridge) {
+        try {
+          const { authenticatedFetch } = await import(
+            "@shopify/app-bridge-utils"
+          );
+          fetchFn = authenticatedFetch(appBridge);
+          console.log(
+            "✅ [Billing] Using authenticatedFetch for /api/billing/plans"
+          );
+        } catch (error) {
+          console.warn(
+            "⚠️ [Billing] authenticatedFetch failed for /api/billing/plans, trying manual session token",
+            error
+          );
+
+          try {
+            const { getSessionToken } = await import(
+              "@shopify/app-bridge-utils"
+            );
+            const token = await getSessionToken(appBridge);
+            if (token) {
+              headers = {
+                ...headers,
+                Authorization: `Bearer ${token}`,
+              };
+              console.log(
+                "✅ [Billing] Using manual session token for /api/billing/plans"
+              );
+            }
+          } catch (tokenError) {
+            console.warn(
+              "⚠️ [Billing] Failed to get session token for /api/billing/plans",
+              tokenError
+            );
+          }
+        }
+      } else {
+        console.warn(
+          "⚠️ [Billing] App Bridge not available for /api/billing/plans, request may fail without JWT"
+        );
+      }
+
+      const response = await fetchFn("/api/billing/plans", {
+        method: "GET",
+        headers,
+        credentials: "same-origin",
+      });
       if (!response.ok) {
         throw new Error("Impossible de récupérer les plans disponibles");
       }
@@ -126,8 +180,7 @@ const Index = () => {
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            "Impossible de créer l'abonnement. Veuillez réessayer."
+          data?.error || "Impossible de créer l'abonnement. Veuillez réessayer."
         );
       }
 
@@ -1039,7 +1092,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
 
       {/* Footer */}
       <footer className="bg-card border-t-2 border-border py-10 sm:py-12 md:py-16">
