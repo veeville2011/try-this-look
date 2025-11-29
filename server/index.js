@@ -2039,20 +2039,20 @@ app.get("/api/billing/return", async (req, res) => {
       return res.status(400).send("Invalid shop parameter");
     }
 
-    // Redirect to embedded app URL format to ensure proper authentication
-    // Format: https://admin.shopify.com/store/{store_handle}/apps/{app_id}
-    // This ensures the app loads in the embedded context with session tokens
-    const storeHandle = shopDomain.replace(".myshopify.com", "");
-    const redirectUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${apiKey}`;
+    // Redirect to payment success page first to show congratulations message
+    // The success page will then redirect to the embedded app URL after showing the message
+    const appBaseUrl = appUrl || `https://${shopDomain}`;
+    const successPageUrl = `${appBaseUrl}/payment-success?shop=${encodeURIComponent(
+      shopDomain
+    )}`;
 
-    logger.info("[BILLING] [RETURN] Redirecting to embedded app", {
+    logger.info("[BILLING] [RETURN] Redirecting to payment success page", {
       requestId,
       shop: shopDomain,
-      storeHandle,
-      redirectUrl,
+      successPageUrl,
     });
 
-    return res.redirect(302, redirectUrl);
+    return res.redirect(302, successPageUrl);
   } catch (error) {
     logger.error("[BILLING] [RETURN] Unexpected error", error, req, {
       requestId,
