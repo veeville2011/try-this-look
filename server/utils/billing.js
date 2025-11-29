@@ -82,3 +82,108 @@ export const getAvailablePlans = () => {
 export const getPlan = (planHandle) => {
   return PLANS[planHandle] || null;
 };
+
+/**
+ * Promotional codes configuration
+ * Format: {
+ *   "CODE": {
+ *     type: "percentage" | "fixed",
+ *     value: number, // percentage (0.1 = 10%) or fixed amount
+ *     currencyCode: "USD", // only for fixed type
+ *     durationLimitInIntervals: number | null, // null = indefinite
+ *     validForIntervals: ["EVERY_30_DAYS", "ANNUAL"] | null, // null = all intervals
+ *     active: boolean,
+ *     description: string
+ *   }
+ * }
+ */
+export const PROMO_CODES = {
+  WELCOME10: {
+    type: "percentage",
+    value: 0.1, // 10% off
+    durationLimitInIntervals: 3, // First 3 billing cycles
+    validForIntervals: null, // Valid for all intervals
+    active: true,
+    description: "10% off for first 3 months",
+  },
+  SAVE20: {
+    type: "percentage",
+    value: 0.2, // 20% off
+    durationLimitInIntervals: null, // Indefinite
+    validForIntervals: ["ANNUAL"], // Only for annual plans
+    active: true,
+    description: "20% off annual plans",
+  },
+  FLAT5: {
+    type: "fixed",
+    value: 5.0, // $5 off
+    currencyCode: "USD",
+    durationLimitInIntervals: 1, // First billing cycle only
+    validForIntervals: null, // Valid for all intervals
+    active: true,
+    description: "$5 off first month",
+  },
+};
+
+/**
+ * Validate and get promotional code
+ * @param {string} code - Promotional code
+ * @param {string} interval - Plan interval (EVERY_30_DAYS or ANNUAL)
+ * @returns {Object|null} Promo code config or null if invalid
+ */
+export const validatePromoCode = (code, interval) => {
+  if (!code) return null;
+
+  const promoCode = PROMO_CODES[code.toUpperCase()];
+  if (!promoCode || !promoCode.active) return null;
+
+  // Check if valid for this interval
+  if (
+    promoCode.validForIntervals &&
+    !promoCode.validForIntervals.includes(interval)
+  ) {
+    return null;
+  }
+
+  return promoCode;
+};
+
+/**
+ * Calculate discounted price
+ * @param {number} originalPrice - Original plan price
+ * @param {string} currencyCode - Currency code
+ * @param {Object} promoCode - Promo code config from validatePromoCode
+ * @returns {Object} { discountedPrice, discountValue, discountType }
+ */
+export const calculateDiscount = (originalPrice, currencyCode, promoCode) => {
+  if (!promoCode) {
+    return {
+      discountedPrice: originalPrice,
+      discountValue: null,
+      discountType: null,
+    };
+  }
+
+  if (promoCode.type === "percentage") {
+    const discountAmount = originalPrice * promoCode.value;
+    const discountedPrice = originalPrice - discountAmount;
+    return {
+      discountedPrice: Math.max(0, discountedPrice), // Ensure non-negative
+      discountValue: promoCode.value, // percentage as decimal
+      discountType: "percentage",
+    };
+  } else if (promoCode.type === "fixed") {
+    const discountedPrice = originalPrice - promoCode.value;
+    return {
+      discountedPrice: Math.max(0, discountedPrice), // Ensure non-negative
+      discountValue: promoCode.value, // fixed amount
+      discountType: "fixed",
+    };
+  }
+
+  return {
+    discountedPrice: originalPrice,
+    discountValue: null,
+    discountType: null,
+  };
+};

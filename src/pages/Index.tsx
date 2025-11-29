@@ -99,7 +99,10 @@ const Index = () => {
     setShowPlanSelection(true);
   };
 
-  const handleSelectPlan = async (planHandle: string) => {
+  const handleSelectPlan = async (
+    planHandle: string,
+    promoCode?: string | null
+  ) => {
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
 
@@ -121,6 +124,7 @@ const Index = () => {
       console.log("[Billing] Creating subscription request", {
         shop: shopDomain,
         planHandle,
+        promoCode: promoCode || null,
       });
 
       const response = await fetchFn("/api/billing/subscribe", {
@@ -132,6 +136,7 @@ const Index = () => {
         body: JSON.stringify({
           shop: shopDomain,
           planHandle,
+          promoCode: promoCode || null,
         }),
       });
 
@@ -390,7 +395,6 @@ const Index = () => {
         <PlanSelection
           plans={availablePlans}
           onSelectPlan={handleSelectPlan}
-          onBack={() => setShowPlanSelection(false)}
           loading={billingLoading}
         />
       </div>

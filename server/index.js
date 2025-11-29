@@ -471,7 +471,8 @@ const fetchManagedSubscriptionStatus = async (
 const createAppSubscription = async (
   shopDomain,
   planHandle,
-  encodedSessionToken
+  encodedSessionToken,
+  promoCode = null
 ) => {
   const normalizedShop = normalizeShopDomain(shopDomain);
 
@@ -499,6 +500,39 @@ const createAppSubscription = async (
       resolution:
         "Provide a valid planHandle defined in server/utils/billing.js.",
     });
+  }
+
+  // Validate promo code if provided
+  let discountConfig = null;
+  if (promoCode) {
+    const validatedPromo = billing.validatePromoCode
+      ? billing.validatePromoCode(promoCode, planConfig.interval)
+      : null;
+
+    if (validatedPromo) {
+      discountConfig = {
+        value:
+          validatedPromo.type === "percentage"
+            ? { percentage: validatedPromo.value }
+            : { amount: validatedPromo.value },
+        durationLimitInIntervals:
+          validatedPromo.durationLimitInIntervals || null,
+      };
+      logger.info("[BILLING] Promo code applied", {
+        shop: normalizedShop,
+        planHandle,
+        promoCode: promoCode.toUpperCase(),
+        discountType: validatedPromo.type,
+        discountValue: validatedPromo.value,
+        durationLimitInIntervals: validatedPromo.durationLimitInIntervals,
+      });
+    } else {
+      logger.warn("[BILLING] Invalid promo code provided", {
+        shop: normalizedShop,
+        planHandle,
+        promoCode: promoCode.toUpperCase(),
+      });
+    }
   }
 
   try {
@@ -566,19 +600,26 @@ const createAppSubscription = async (
       }
     `;
 
+    const lineItemPlan = {
+      interval: planConfig.interval,
+      price: {
+        amount: planConfig.price,
+        currencyCode: planConfig.currencyCode,
+      },
+    };
+
+    // Add discount if promo code is valid
+    if (discountConfig) {
+      lineItemPlan.discount = discountConfig;
+    }
+
     const variables = {
       name: planConfig.name,
       returnUrl,
       lineItems: [
         {
           plan: {
-            appRecurringPricingDetails: {
-              interval: planConfig.interval,
-              price: {
-                amount: planConfig.price,
-                currencyCode: planConfig.currencyCode,
-              },
-            },
+            appRecurringPricingDetails: lineItemPlan,
           },
         },
       ],
@@ -2009,7 +2050,7 @@ app.post("/api/billing/subscribe", async (req, res) => {
     .substr(2, 9)}`;
 
   try {
-    const { shop, planHandle } = req.body || {};
+    const { shop, planHandle, promoCode } = req.body || {};
 
     logger.info("[API] [SUBSCRIBE] Request received", {
       requestId,
@@ -2037,7 +2078,8 @@ app.post("/api/billing/subscribe", async (req, res) => {
     const result = await createAppSubscription(
       shopDomain,
       planHandle,
-      req.sessionToken
+      req.sessionToken,
+      promoCode || null
     );
 
     logger.info("[API] [SUBSCRIBE] Subscription created", {
@@ -2076,6 +2118,102 @@ app.post("/api/billing/subscribe", async (req, res) => {
       requestId,
     });
 
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message || "An unexpected error occurred",
+      requestId,
+    });
+  }
+});
+
+// Validate promotional code
+app.post("/api/billing/validate-promo", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
+  try {
+    const { code, planHandle } = req.body || {};
+
+    logger.info("[API] [VALIDATE-PROMO] Request received", {
+      requestId,
+      code: code ? code.toUpperCase() : null,
+      planHandle,
+    });
+
+    if (!code || !planHandle) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+        message: "Both code and planHandle are required.",
+        requestId,
+      });
+    }
+
+    const planConfig = billing.getPlan ? billing.getPlan(planHandle) : null;
+    if (!planConfig) {
+      return res.status(400).json({
+        error: "Invalid plan handle",
+        message: "Provide a valid planHandle.",
+        requestId,
+      });
+    }
+
+    const promoCode = billing.validatePromoCode
+      ? billing.validatePromoCode(code, planConfig.interval)
+      : null;
+
+    if (!promoCode) {
+      logger.info("[API] [VALIDATE-PROMO] Invalid code", {
+        requestId,
+        code: code.toUpperCase(),
+        planHandle,
+        interval: planConfig.interval,
+      });
+      return res.status(200).json({
+        valid: false,
+        message: "Code promotionnel invalide ou expiré",
+        requestId,
+      });
+    }
+
+    const discount = billing.calculateDiscount
+      ? billing.calculateDiscount(
+          planConfig.price,
+          planConfig.currencyCode,
+          promoCode
+        )
+      : null;
+
+    logger.info("[API] [VALIDATE-PROMO] Valid code", {
+      requestId,
+      code: code.toUpperCase(),
+      planHandle,
+      discountType: promoCode.type,
+      discountValue: promoCode.value,
+      originalPrice: planConfig.price,
+      discountedPrice: discount?.discountedPrice,
+    });
+
+    return res.status(200).json({
+      valid: true,
+      code: code.toUpperCase(),
+      discount: {
+        type: promoCode.type,
+        value: discount.discountValue,
+        durationLimitInIntervals: promoCode.durationLimitInIntervals,
+        description: promoCode.description,
+      },
+      pricing: {
+        original: planConfig.price,
+        discounted: discount.discountedPrice,
+        savings: planConfig.price - discount.discountedPrice,
+      },
+      requestId,
+    });
+  } catch (error) {
+    logger.error("[API] [VALIDATE-PROMO] Unexpected error", error, req, {
+      requestId,
+    });
     return res.status(500).json({
       error: "Internal server error",
       message: error.message || "An unexpected error occurred",
