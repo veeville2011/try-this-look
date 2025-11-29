@@ -154,10 +154,47 @@ const mapSubscriptionToPlan = (appSubscription) => {
   const pricingDetails = lineItem?.plan?.pricingDetails;
   const hasActiveSubscription = appSubscription.status === "ACTIVE";
 
-  // Only return data from Shopify API - no hardcoded plan details
+  // Map pricing details to a configured plan using local billing configuration.
+  // This does not use any database; it simply matches by price, currency, and interval.
+  let matchedPlanHandle = null;
+  let matchedPlan = null;
+  if (
+    pricingDetails &&
+    pricingDetails.price?.amount &&
+    pricingDetails.price.currencyCode
+  ) {
+    const amountNumber = Number.parseFloat(pricingDetails.price.amount);
+    const currencyCode = pricingDetails.price.currencyCode;
+    const interval = pricingDetails.interval || null;
+
+    try {
+      const availablePlans = billing ? billing.PLANS || {} : {};
+      for (const planKey of Object.keys(availablePlans)) {
+        const candidate = availablePlans[planKey];
+        if (
+          typeof candidate.price === "number" &&
+          candidate.price === amountNumber &&
+          candidate.currencyCode === currencyCode &&
+          candidate.interval === interval
+        ) {
+          matchedPlanHandle = candidate.handle || planKey;
+          matchedPlan = candidate;
+          break;
+        }
+      }
+    } catch (planMatchError) {
+      logger.error(
+        "[BILLING] Failed to match subscription pricing to local plan config",
+        planMatchError,
+        null
+      );
+    }
+  }
+
   const plan = pricingDetails
     ? {
-        name: appSubscription.name || null,
+        name: appSubscription.name || matchedPlan?.name || null,
+        handle: matchedPlanHandle || null,
         price: pricingDetails.price?.amount
           ? Number.parseFloat(pricingDetails.price.amount)
           : null,
@@ -407,6 +444,188 @@ const fetchManagedSubscriptionStatus = async (
   })();
 
   return subscriptionStatus;
+};
+
+// Create a new app subscription using the GraphQL Admin API and JWT token exchange.
+// This uses the billing resources (appSubscriptionCreate) without any database storage.
+const createAppSubscription = async (
+  shopDomain,
+  planHandle,
+  encodedSessionToken
+) => {
+  const normalizedShop = normalizeShopDomain(shopDomain);
+
+  if (!normalizedShop) {
+    throw new SubscriptionStatusError("Invalid shop domain", 400, {
+      resolution: "Provide a valid .myshopify.com domain or shop handle.",
+    });
+  }
+
+  if (!encodedSessionToken) {
+    throw new SubscriptionStatusError(
+      "JWT session token required for billing API",
+      401,
+      {
+        resolution:
+          "This endpoint requires authentication from the embedded Shopify admin. Please access it through the app interface.",
+      }
+    );
+  }
+
+  const planConfig = billing.getPlan ? billing.getPlan(planHandle) : null;
+
+  if (!planConfig) {
+    throw new SubscriptionStatusError("Invalid plan handle", 400, {
+      resolution:
+        "Provide a valid planHandle defined in server/utils/billing.js.",
+    });
+  }
+
+  try {
+    // Exchange JWT session token for an offline access token for billing
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: normalizedShop,
+      sessionToken: encodedSessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      throw new SubscriptionStatusError(
+        "Token exchange did not return a valid session with access token",
+        500,
+        {
+          resolution:
+            "Please try again. If the issue persists, contact support.",
+        }
+      );
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || normalizedShop,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    const appBaseUrl = appUrl || `https://${normalizedShop}`;
+    const returnUrl = `${appBaseUrl}/api/billing/return?shop=${encodeURIComponent(
+      normalizedShop
+    )}`;
+
+    const mutation = `
+      mutation AppSubscriptionCreate(
+        $name: String!
+        $returnUrl: URL!
+        $lineItems: [AppSubscriptionLineItemInput!]!
+        $trialDays: Int
+        $test: Boolean
+      ) {
+        appSubscriptionCreate(
+          name: $name
+          returnUrl: $returnUrl
+          lineItems: $lineItems
+          trialDays: $trialDays
+          test: $test
+        ) {
+          userErrors {
+            field
+            message
+          }
+          confirmationUrl
+          appSubscription {
+            id
+            status
+            name
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      name: planConfig.name,
+      returnUrl,
+      lineItems: [
+        {
+          plan: {
+            appRecurringPricingDetails: {
+              interval: planConfig.interval,
+              price: {
+                amount: planConfig.price,
+                currencyCode: planConfig.currencyCode,
+              },
+            },
+          },
+        },
+      ],
+      trialDays: planConfig.trialDays || null,
+      test: process.env.SHOPIFY_BILLING_TEST === "true",
+    };
+
+    const response = await client.query({
+      data: {
+        query: mutation,
+        variables,
+      },
+    });
+
+    const payload = response?.body?.data?.appSubscriptionCreate;
+
+    if (!payload) {
+      throw new SubscriptionStatusError(
+        "Unexpected response from appSubscriptionCreate",
+        500,
+        {
+          resolution:
+            "Please try again. If the issue persists, contact support.",
+        }
+      );
+    }
+
+    const userErrors = payload.userErrors || [];
+    if (userErrors.length > 0) {
+      throw new SubscriptionStatusError("Failed to create subscription", 400, {
+        resolution:
+          "Review the error details and plan configuration, then try again.",
+        userErrors,
+      });
+    }
+
+    if (!payload.confirmationUrl) {
+      throw new SubscriptionStatusError(
+        "Missing confirmationUrl in subscription response",
+        500,
+        {
+          resolution:
+            "Please try again. If the issue persists, contact support.",
+        }
+      );
+    }
+
+    return {
+      confirmationUrl: payload.confirmationUrl,
+      appSubscription: payload.appSubscription,
+      plan: planConfig,
+    };
+  } catch (error) {
+    if (error instanceof SubscriptionStatusError) {
+      throw error;
+    }
+
+    logger.error("[BILLING] Failed to create app subscription", error, null, {
+      shop: normalizedShop,
+      planHandle,
+    });
+
+    throw new SubscriptionStatusError("Failed to create subscription", 500, {
+      resolution: "Please try again. If the issue persists, contact support.",
+      error: error.message,
+    });
+  }
 };
 
 const app = express();
@@ -1711,23 +1930,121 @@ app.get("/api/billing/check-installation", async (req, res) => {
   }
 });
 
-// Create subscription - DEPRECATED: Using Managed App Pricing
-// This endpoint is no longer used. The app now redirects to Shopify's plan selection page.
-app.post("/api/billing/subscribe", async (req, res) => {
-  logger.warn(
-    "[API] [SUBSCRIBE] Deprecated endpoint called - using Managed App Pricing",
-    {
-      shop: req.body?.shop || req.query?.shop,
-      planHandle: req.body?.planHandle,
-    }
-  );
+// Billing return URL - called by Shopify after merchant approves or declines the charge
+// This endpoint does not use any database; it simply redirects back to the app,
+// and the frontend can call /api/billing/subscription to get the latest status.
+app.get("/api/billing/return", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
 
-  return res.status(410).json({
-    error: "Deprecated",
-    message:
-      "This app now uses Shopify Managed App Pricing. Please use the plan selection page in the Shopify admin.",
-    managedPricing: true,
-  });
+  try {
+    const shop = req.query.shop;
+
+    logger.info("[BILLING] [RETURN] Request received", {
+      requestId,
+      shop,
+      query: req.query,
+    });
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).send("Invalid shop parameter");
+    }
+
+    const redirectBase = appUrl || `https://${shopDomain}`;
+    const redirectUrl = `${redirectBase}/?shop=${encodeURIComponent(
+      shopDomain
+    )}`;
+
+    return res.redirect(302, redirectUrl);
+  } catch (error) {
+    logger.error("[BILLING] [RETURN] Unexpected error", error, req, {
+      requestId,
+    });
+
+    if (!res.headersSent) {
+      res.status(500).send("An unexpected error occurred.");
+    }
+  }
+});
+
+app.post("/api/billing/subscribe", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
+  try {
+    const { shop, planHandle } = req.body || {};
+
+    logger.info("[API] [SUBSCRIBE] Request received", {
+      requestId,
+      shop,
+      planHandle,
+    });
+
+    if (!shop || !planHandle) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+        message: "Both shop and planHandle are required.",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    const result = await createAppSubscription(
+      shopDomain,
+      planHandle,
+      req.sessionToken
+    );
+
+    logger.info("[API] [SUBSCRIBE] Subscription created", {
+      requestId,
+      shop: shopDomain,
+      planHandle,
+      appSubscriptionId: result.appSubscription?.id,
+      appSubscriptionStatus: result.appSubscription?.status,
+    });
+
+    return res.json({
+      requestId,
+      confirmationUrl: result.confirmationUrl,
+      appSubscription: result.appSubscription,
+      plan: result.plan,
+    });
+  } catch (error) {
+    if (error instanceof SubscriptionStatusError) {
+      logger.warn("[API] [SUBSCRIBE] Subscription error", {
+        requestId,
+        error: error.message,
+        details: error.details,
+      });
+
+      return res.status(error.status).json({
+        error: error.message,
+        details: error.details,
+        requestId,
+      });
+    }
+
+    logger.error("[API] [SUBSCRIBE] Unexpected error", error, req, {
+      requestId,
+    });
+
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message || "An unexpected error occurred",
+      requestId,
+    });
+  }
 });
 
 // Get available plans

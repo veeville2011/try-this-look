@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
-import { redirectToPlanSelection } from "@/utils/managedPricing";
 import {
   Card,
   CardContent,
@@ -26,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import ShopifyManagedPricing from "@/components/ShopifyManagedPricing";
 import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
 
@@ -41,6 +39,8 @@ const Index = () => {
 
   // Subscription state
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -49,6 +49,106 @@ const Index = () => {
     error: subscriptionError,
     refresh: refreshSubscription,
   } = useSubscription();
+
+  const fetchAvailablePlans = async () => {
+    try {
+      const response = await fetch("/api/billing/plans");
+      if (!response.ok) {
+        throw new Error("Impossible de récupérer les plans disponibles");
+      }
+      const data = await response.json();
+      setAvailablePlans(Array.isArray(data.plans) ? data.plans : []);
+    } catch (error: any) {
+      console.error("[Billing] Failed to load plans", error);
+      toast.error("Erreur lors du chargement des plans", {
+        description:
+          error?.message ||
+          "Veuillez actualiser la page ou réessayer dans quelques instants.",
+      });
+    }
+  };
+
+  const getDefaultPlanHandle = () => {
+    if (!availablePlans || availablePlans.length === 0) {
+      return null;
+    }
+    const paidPlan = availablePlans.find(
+      (plan) => typeof plan.price === "number" && plan.price > 0
+    );
+    if (paidPlan?.handle) {
+      return paidPlan.handle as string;
+    }
+    const firstPlan = availablePlans[0];
+    return firstPlan?.handle || null;
+  };
+
+  const handleRequireBilling = async () => {
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+
+    if (!shopDomain) {
+      toast.error("Impossible de détecter votre boutique", {
+        description:
+          "Veuillez accéder à l'application depuis votre admin Shopify.",
+      });
+      return;
+    }
+
+    if (!availablePlans.length) {
+      await fetchAvailablePlans();
+    }
+
+    const planHandle = getDefaultPlanHandle();
+
+    if (!planHandle) {
+      toast.error("Aucun plan disponible", {
+        description:
+          "Aucun plan tarifaire n'est configuré. Veuillez contacter le support.",
+      });
+      return;
+    }
+
+    try {
+      setBillingLoading(true);
+
+      const response = await fetch("/api/billing/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          shop: shopDomain,
+          planHandle,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Impossible de créer l'abonnement. Veuillez réessayer."
+        );
+      }
+
+      if (!data.confirmationUrl) {
+        throw new Error(
+          "URL de confirmation manquante. Veuillez réessayer plus tard."
+        );
+      }
+
+      window.location.href = data.confirmationUrl as string;
+    } catch (error: any) {
+      console.error("[Billing] Failed to create subscription", error);
+      toast.error("Erreur lors de la création de l'abonnement", {
+        description:
+          error?.message ||
+          "Veuillez réessayer ou contacter le support si le problème persiste.",
+      });
+    } finally {
+      setBillingLoading(false);
+    }
+  };
 
   // Debug logging for subscription API call
   useEffect(() => {
@@ -96,7 +196,7 @@ const Index = () => {
         description:
           "Veuillez sélectionner un plan tarifaire avant de continuer l'installation.",
       });
-      redirectToPlanSelection(shopDomain, APP_HANDLE);
+      await handleRequireBilling();
       return;
     }
 
@@ -152,20 +252,12 @@ const Index = () => {
       return;
     }
 
-    // Redirect to pricing gate if subscription is null (not subscribed)
-    // Check if subscription object exists and if subscription.subscription is null
+    // Redirect to billing flow if no subscription is configured
     if (!subscription || subscription.subscription === null) {
-      // No subscription - redirect to pricing page
       console.log(
-        "🚨 [Redirect Debug] REDIRECTING to pricing page - subscription is null"
+        "🚨 [Redirect Debug] Triggering billing flow - subscription is null"
       );
-      console.log(
-        "🚨 [Redirect Debug] Redirect params - shopDomain:",
-        shopDomain,
-        "APP_HANDLE:",
-        APP_HANDLE
-      );
-      redirectToPlanSelection(shopDomain, APP_HANDLE);
+      handleRequireBilling();
       return;
     }
 
@@ -261,14 +353,7 @@ const Index = () => {
                     <Button
                       size="lg"
                       onClick={() => {
-                        const shopDomain =
-                          shop ||
-                          new URLSearchParams(window.location.search).get(
-                            "shop"
-                          );
-                        if (shopDomain) {
-                          redirectToPlanSelection(shopDomain);
-                        }
+                        handleRequireBilling();
                       }}
                       className="px-6"
                     >
@@ -417,14 +502,7 @@ const Index = () => {
                           variant="default"
                           className="w-full"
                           onClick={() => {
-                            const shopDomain =
-                              shop ||
-                              new URLSearchParams(window.location.search).get(
-                                "shop"
-                              );
-                            if (shopDomain) {
-                              redirectToPlanSelection(shopDomain, APP_HANDLE);
-                            }
+                            handleRequireBilling();
                           }}
                         >
                           <CreditCard className="w-4 h-4 mr-2" />
@@ -454,14 +532,7 @@ const Index = () => {
                           size="sm"
                           className="w-full"
                           onClick={() => {
-                            const shopDomain =
-                              shop ||
-                              new URLSearchParams(window.location.search).get(
-                                "shop"
-                              );
-                            if (shopDomain) {
-                              redirectToPlanSelection(shopDomain, APP_HANDLE);
-                            }
+                            handleRequireBilling();
                           }}
                         >
                           <Sparkle className="w-4 h-4 mr-2" />
@@ -720,17 +791,7 @@ const Index = () => {
                                     </div>
                                     <Button
                                       onClick={() => {
-                                        const shopDomain =
-                                          shop ||
-                                          new URLSearchParams(
-                                            window.location.search
-                                          ).get("shop");
-                                        if (shopDomain) {
-                                          redirectToPlanSelection(
-                                            shopDomain,
-                                            APP_HANDLE
-                                          );
-                                        }
+                                        handleRequireBilling();
                                       }}
                                       className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                                       size="sm"
@@ -884,17 +945,7 @@ const Index = () => {
                                     </div>
                                     <Button
                                       onClick={() => {
-                                        const shopDomain =
-                                          shop ||
-                                          new URLSearchParams(
-                                            window.location.search
-                                          ).get("shop");
-                                        if (shopDomain) {
-                                          redirectToPlanSelection(
-                                            shopDomain,
-                                            APP_HANDLE
-                                          );
-                                        }
+                                        handleRequireBilling();
                                       }}
                                       className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                                       size="sm"
@@ -989,15 +1040,6 @@ const Index = () => {
         </div>
       </section>
 
-
-      {/* Shopify Managed Pricing Section */}
-      <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-background via-background to-muted">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            <ShopifyManagedPricing />
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="bg-card border-t-2 border-border py-10 sm:py-12 md:py-16">

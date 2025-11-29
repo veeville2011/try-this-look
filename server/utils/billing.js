@@ -15,7 +15,6 @@
  * These should match the plan handles created in Shopify Partners Dashboard
  */
 export const PLAN_HANDLES = {
-  FREE: "free",
   PRO_ANNUAL: "pro-annual",
 };
 
@@ -24,36 +23,25 @@ export const PLAN_HANDLES = {
  * Define your pricing plans here
  */
 export const PLANS = {
-  [PLAN_HANDLES.FREE]: {
-    name: "Plan Gratuit",
-    handle: PLAN_HANDLES.FREE,
-    price: 0,
-    currencyCode: "EUR",
-    interval: "EVERY_30_DAYS",
-    description: "Parfait pour tester notre technologie",
-    features: ["Essayage virtuel par IA", "Widget intégré facilement"],
-    limits: {
-      monthlyTryOns: 10,
-      processingPriority: "standard",
-    },
-  },
   [PLAN_HANDLES.PRO_ANNUAL]: {
-    name: "Plan Pro (Annuel)",
+    name: "Plan Standard",
     handle: PLAN_HANDLES.PRO_ANNUAL,
-    price: 180.0, // 15 €/mois × 12 mois
-    currencyCode: "EUR",
+    // $20/month or $180/year, 15-day trial
+    price: 180.0,
+    currencyCode: "USD",
     interval: "ANNUAL",
-    description: "Solution complète avec économie de 25%",
-    monthlyEquivalent: 15.0, // Pour l'affichage
+    trialDays: 15,
+    description:
+      "100 crédits inclus avec possibilité de recharge après dépassement.",
+    monthlyEquivalent: 20.0,
     features: [
-      "Essayages illimités",
-      "10 vidéos publicitaires/mois",
-      "Personnalisation complète du widget",
-      "Économisez 25%",
+      "100 crédits inclus",
+      "(1 utilisation = 1 crédit)",
+      "Recharge possible après dépassement.",
     ],
     limits: {
-      monthlyVideoGenerations: 10,
-      processingPriority: "priority",
+      includedCredits: 100,
+      processingPriority: "standard",
     },
   },
 };

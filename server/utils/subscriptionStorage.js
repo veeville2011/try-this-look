@@ -153,7 +153,7 @@ export const processWebhookSubscription = (appSubscription, shopDomain) => {
   const lineItem = appSubscription.lineItems?.[0];
   const pricingDetails = lineItem?.plan?.pricingDetails;
   
-  let planHandle = PLAN_HANDLES.FREE;
+  let planHandle = null;
   let price = 0;
   let currencyCode = "EUR";
   let interval = "EVERY_30_DAYS";
