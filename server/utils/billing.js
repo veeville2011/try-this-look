@@ -15,6 +15,7 @@
  * These should match the plan handles created in Shopify Partners Dashboard
  */
 export const PLAN_HANDLES = {
+  PRO_MONTHLY: "pro-monthly",
   PRO_ANNUAL: "pro-annual",
 };
 
@@ -23,6 +24,25 @@ export const PLAN_HANDLES = {
  * Define your pricing plans here
  */
 export const PLANS = {
+  [PLAN_HANDLES.PRO_MONTHLY]: {
+    name: "Plan Standard",
+    handle: PLAN_HANDLES.PRO_MONTHLY,
+    price: 20.0,
+    currencyCode: "USD",
+    interval: "EVERY_30_DAYS",
+    trialDays: 15,
+    description:
+      "100 crédits inclus avec possibilité de recharge après dépassement.",
+    features: [
+      "100 crédits inclus",
+      "(1 utilisation = 1 crédit)",
+      "Recharge possible après dépassement.",
+    ],
+    limits: {
+      includedCredits: 100,
+      processingPriority: "standard",
+    },
+  },
   [PLAN_HANDLES.PRO_ANNUAL]: {
     name: "Plan Standard",
     handle: PLAN_HANDLES.PRO_ANNUAL,

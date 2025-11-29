@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
+import PlanSelection from "@/components/PlanSelection";
 
 const Index = () => {
   // Deep linking configuration
@@ -41,6 +42,7 @@ const Index = () => {
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [showPlanSelection, setShowPlanSelection] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -81,20 +83,6 @@ const Index = () => {
     }
   };
 
-  const getDefaultPlanHandle = () => {
-    if (!availablePlans || availablePlans.length === 0) {
-      return null;
-    }
-    const paidPlan = availablePlans.find(
-      (plan) => typeof plan.price === "number" && plan.price > 0
-    );
-    if (paidPlan?.handle) {
-      return paidPlan.handle as string;
-    }
-    const firstPlan = availablePlans[0];
-    return firstPlan?.handle || null;
-  };
-
   const handleRequireBilling = async () => {
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
@@ -107,9 +95,15 @@ const Index = () => {
       await fetchAvailablePlans();
     }
 
-    const planHandle = getDefaultPlanHandle();
+    // Show plan selection UI instead of auto-selecting
+    setShowPlanSelection(true);
+  };
 
-    if (!planHandle) {
+  const handleSelectPlan = async (planHandle: string) => {
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+
+    if (!shopDomain) {
       return;
     }
 
@@ -293,6 +287,13 @@ const Index = () => {
     window.open(deepLinkUrl, "_blank", "noopener,noreferrer");
   };
 
+  // Fetch plans on mount
+  useEffect(() => {
+    if (availablePlans.length === 0) {
+      fetchAvailablePlans();
+    }
+  }, []);
+
   // Check subscription and redirect to pricing page if subscription is null
   useEffect(() => {
     console.log("🔍 [Redirect Debug] useEffect triggered");
@@ -306,6 +307,14 @@ const Index = () => {
     if (subscriptionLoading) {
       console.log(
         "🔍 [Redirect Debug] Still loading subscription, skipping..."
+      );
+      return;
+    }
+
+    // Don't redirect if plan selection is already showing
+    if (showPlanSelection) {
+      console.log(
+        "🔍 [Redirect Debug] Plan selection already showing, skipping redirect"
       );
       return;
     }
@@ -363,13 +372,26 @@ const Index = () => {
       );
       setCurrentPlan(subscription.plan?.name || "inactive");
     }
-  }, [subscription, subscriptionLoading, shop]);
+  }, [subscription, subscriptionLoading, shop, showPlanSelection]);
 
   // Show loading state while checking subscription
   if (subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show plan selection UI if needed
+  if (showPlanSelection) {
+    return (
+      <div className="min-h-screen bg-background py-12">
+        <PlanSelection
+          plans={availablePlans}
+          onSelectPlan={handleSelectPlan}
+          loading={billingLoading}
+        />
       </div>
     );
   }
