@@ -456,66 +456,63 @@ const Index = () => {
         subscription?.subscription?.id ||
         lastSubscriptionRef.current === null);
 
-    // Reset billing trigger flag if subscription changed from null to non-null
-    if (
-      subscriptionChanged &&
-      subscription &&
-      subscription.subscription !== null
-    ) {
-      billingTriggeredRef.current = false;
-      // Clear payment success tracking since we have subscription
+    // If we have a subscription, clear all payment success tracking immediately
+    // This check happens FIRST to ensure we clear tracking as soon as subscription is found
+    if (subscription && subscription.subscription !== null) {
+      // We have a subscription - clear all payment success tracking
       if (paymentSuccessTimeRef.current !== null) {
+        console.log(
+          "[Index] Subscription found - clearing payment success tracking",
+          {
+            subscriptionId: subscription.subscription.id,
+            status: subscription.subscription.status,
+          }
+        );
         paymentSuccessTimeRef.current = null;
         if (paymentSuccessRetryTimeoutRef.current) {
           clearTimeout(paymentSuccessRetryTimeoutRef.current);
           paymentSuccessRetryTimeoutRef.current = null;
         }
       }
-    }
 
-    // If we just came from payment success, give webhook time to process
-    if (paymentSuccessTimeRef.current !== null) {
+      // Clear billing trigger if subscription changed
+      if (subscriptionChanged) {
+        billingTriggeredRef.current = false;
+      }
+
+      // Continue to normal flow - update plan state, etc.
+      // Don't return here - let the flow continue to update currentPlan
+    } else if (paymentSuccessTimeRef.current !== null) {
+      // No subscription yet, but we're waiting after payment success
       const timeSincePaymentSuccess =
         Date.now() - paymentSuccessTimeRef.current;
       const maxWaitTime = 15000; // 15 seconds max wait
 
       if (timeSincePaymentSuccess < maxWaitTime) {
         // Still waiting for subscription to update after payment
-        if (!subscription || subscription.subscription === null) {
-          console.log(
-            `⏳ [Redirect Debug] Waiting for subscription after payment success (${Math.round(
-              timeSincePaymentSuccess / 1000
-            )}s / ${maxWaitTime / 1000}s)...`
-          );
+        console.log(
+          `⏳ [Redirect Debug] Waiting for subscription after payment success (${Math.round(
+            timeSincePaymentSuccess / 1000
+          )}s / ${maxWaitTime / 1000}s)...`
+        );
 
-          // Schedule a refresh if not already scheduled
-          if (!paymentSuccessRetryTimeoutRef.current) {
-            const retryDelay = Math.min(
-              2000,
-              maxWaitTime - timeSincePaymentSuccess
-            ); // Retry every 2 seconds
-            paymentSuccessRetryTimeoutRef.current = setTimeout(() => {
-              console.log(
-                "🔄 [Redirect Debug] Retrying subscription fetch after payment success"
-              );
-              paymentSuccessRetryTimeoutRef.current = null;
-              refreshSubscription();
-            }, retryDelay);
-          }
-
-          lastSubscriptionRef.current = subscription;
-          return; // Don't redirect to pricing yet
-        } else {
-          // Subscription is now available! Clear the tracking
-          console.log(
-            "✅ [Redirect Debug] Subscription found after payment success!"
-          );
-          paymentSuccessTimeRef.current = null;
-          if (paymentSuccessRetryTimeoutRef.current) {
-            clearTimeout(paymentSuccessRetryTimeoutRef.current);
+        // Schedule a refresh if not already scheduled
+        if (!paymentSuccessRetryTimeoutRef.current) {
+          const retryDelay = Math.min(
+            2000,
+            maxWaitTime - timeSincePaymentSuccess
+          ); // Retry every 2 seconds
+          paymentSuccessRetryTimeoutRef.current = setTimeout(() => {
+            console.log(
+              "🔄 [Redirect Debug] Retrying subscription fetch after payment success"
+            );
             paymentSuccessRetryTimeoutRef.current = null;
-          }
+            refreshSubscription();
+          }, retryDelay);
         }
+
+        lastSubscriptionRef.current = subscription;
+        return; // Don't redirect to pricing yet - keep showing loading
       } else {
         // Max wait time exceeded, proceed normally
         console.log(
@@ -526,6 +523,7 @@ const Index = () => {
           clearTimeout(paymentSuccessRetryTimeoutRef.current);
           paymentSuccessRetryTimeoutRef.current = null;
         }
+        // Continue to check if subscription exists or redirect to pricing
       }
     }
 
@@ -584,34 +582,96 @@ const Index = () => {
     }
 
     lastSubscriptionRef.current = subscription;
+  }, [subscription, subscriptionLoading, shop, refreshSubscription]);
 
-    // Cleanup timeout on unmount
+  // Separate effect to handle subscription updates from other tabs
+  useEffect(() => {
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+    if (!shopDomain) return;
+
+    const handleSubscriptionUpdate = (e: CustomEvent) => {
+      const updatedSubscription = e.detail?.subscription;
+      if (updatedSubscription && updatedSubscription.subscription !== null) {
+        console.log("[Index] Subscription updated from another tab", {
+          subscriptionId: updatedSubscription.subscription.id,
+        });
+
+        // Clear payment success tracking if subscription is found
+        if (paymentSuccessTimeRef.current !== null) {
+          paymentSuccessTimeRef.current = null;
+          if (paymentSuccessRetryTimeoutRef.current) {
+            clearTimeout(paymentSuccessRetryTimeoutRef.current);
+            paymentSuccessRetryTimeoutRef.current = null;
+          }
+        }
+
+        // Hide plan selection if showing
+        if (showPlanSelection) {
+          setShowPlanSelection(false);
+        }
+
+        billingTriggeredRef.current = false;
+      }
+    };
+
+    window.addEventListener(
+      "subscriptionUpdated",
+      handleSubscriptionUpdate as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "subscriptionUpdated",
+        handleSubscriptionUpdate as EventListener
+      );
+    };
+  }, [shop, showPlanSelection]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
     return () => {
       if (paymentSuccessRetryTimeoutRef.current) {
         clearTimeout(paymentSuccessRetryTimeoutRef.current);
         paymentSuccessRetryTimeoutRef.current = null;
       }
     };
-  }, [subscription, subscriptionLoading, shop, refreshSubscription]); // Added refreshSubscription
+  }, []);
 
   // Show loading state while checking subscription or waiting after payment success
-  const isWaitingForPaymentSuccess =
-    paymentSuccessTimeRef.current !== null &&
-    (!subscription || subscription.subscription === null);
+  // Only show loading if:
+  // 1. Subscription is actively loading, OR
+  // 2. We're waiting for payment success AND subscription is null AND we haven't exceeded max wait time
+  const isWaitingForPaymentSuccess = paymentSuccessTimeRef.current !== null;
+  const timeSincePaymentSuccess = isWaitingForPaymentSuccess
+    ? Date.now() - (paymentSuccessTimeRef.current || 0)
+    : 0;
+  const maxWaitTime = 15000; // 15 seconds
+  const shouldShowPaymentLoading =
+    isWaitingForPaymentSuccess &&
+    (!subscription || subscription.subscription === null) &&
+    timeSincePaymentSuccess < maxWaitTime;
 
-  if (subscriptionLoading || isWaitingForPaymentSuccess) {
+  // Don't show loading if we have a subscription (even if paymentSuccessTimeRef is set)
+  // Also don't show loading if subscription exists (from any source)
+  const hasSubscription = subscription && subscription.subscription !== null;
+  if (subscriptionLoading || (shouldShowPaymentLoading && !hasSubscription)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          {isWaitingForPaymentSuccess && (
+          {shouldShowPaymentLoading && (
             <div className="space-y-2">
               <p className="text-lg font-semibold text-foreground">
                 Traitement de votre paiement...
               </p>
-              <p className="text-sm text-muted-foreground max-w-md">
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
                 Veuillez patienter pendant que nous vérifions votre abonnement.
                 Cela peut prendre quelques secondes.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {Math.round(timeSincePaymentSuccess / 1000)}s /{" "}
+                {maxWaitTime / 1000}s
               </p>
             </div>
           )}

@@ -78,16 +78,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
         : `${shopDomain.toLowerCase()}.myshopify.com`;
 
       const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
-      const cachedData = localStorage.getItem(storageKey);
-
-      if (cachedData) {
-        try {
-          const parsed = JSON.parse(cachedData);
-          setSubscription(parsed);
-        } catch (parseError) {
-          localStorage.removeItem(storageKey);
-        }
-      }
+      
+      // Don't use cache during fetch - we want fresh data from API
+      // Cache is only used in the useEffect before fetch starts
 
       const apiUrl = `/api/billing/subscription?shop=${encodeURIComponent(normalizedShop)}`;
       
@@ -160,7 +153,20 @@ export const useSubscription = (): UseSubscriptionReturn => {
         setSubscription(subscriptionData);
         
         try {
+          // Store in localStorage for persistence and cross-tab sync
           localStorage.setItem(storageKey, JSON.stringify(subscriptionData));
+          
+          // Broadcast to other tabs that subscription was updated
+          // This helps sync state across multiple tabs
+          const updateEvent = new CustomEvent('subscriptionUpdated', {
+            detail: { shop: normalizedShop, subscription: subscriptionData }
+          });
+          window.dispatchEvent(updateEvent);
+          
+          // Also use storage event for cross-tab communication
+          // Note: storage event only fires in OTHER tabs, not the current one
+          // So we dispatch a custom event for the current tab
+          localStorage.setItem(`${storageKey}_updated`, Date.now().toString());
         } catch {
           // Ignore storage errors
         }
@@ -206,27 +212,57 @@ export const useSubscription = (): UseSubscriptionReturn => {
       window.history.replaceState({}, "", newUrl.toString());
     }
 
+    const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+
     // If payment success, clear cache and force fresh fetch
     if (isPaymentSuccess) {
-      fetchedShopRef.current = null;
+      fetchedShopRef.current = null; // Clear to force fresh fetch
       lastFetchTimeRef.current = 0; // Reset throttle to allow immediate fetch
       // Clear localStorage cache for this shop to force fresh API call
-      const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
       try {
         localStorage.removeItem(storageKey);
+        localStorage.removeItem(`${storageKey}_updated`); // Also clear update marker
         console.log("[useSubscription] Cleared cache for payment success", { shop: normalizedShop });
       } catch {
         // Ignore storage errors
       }
+      // Set loading immediately for payment success
+      setLoading(true);
     }
 
     // Only fetch if we haven't fetched for this shop yet and not currently fetching
-    if (fetchedShopRef.current === normalizedShop || isFetchingRef.current) {
+    // BUT: if payment_success, always fetch (fetchedShopRef was cleared above)
+    const shouldSkipFetch = !isPaymentSuccess && 
+      (fetchedShopRef.current === normalizedShop || isFetchingRef.current);
+    
+    if (shouldSkipFetch) {
       console.log("[useSubscription] Skipping fetch - already fetched or fetching", {
         fetchedShop: fetchedShopRef.current,
         currentShop: normalizedShop,
         isFetching: isFetchingRef.current,
+        isPaymentSuccess,
       });
+      
+      // If skipping fetch, try to use cache (only if not payment success)
+      if (!isPaymentSuccess) {
+        const cachedData = localStorage.getItem(storageKey);
+        if (cachedData) {
+          try {
+            const parsed = JSON.parse(cachedData);
+            // Only use cache if it has subscription data
+            if (parsed && parsed.subscription !== null) {
+              setSubscription(parsed);
+              setLoading(false);
+              console.log("[useSubscription] Using cached subscription data", {
+                shop: normalizedShop,
+                subscriptionId: parsed.subscription?.id,
+              });
+            }
+          } catch {
+            localStorage.removeItem(storageKey);
+          }
+        }
+      }
       return;
     }
 
@@ -236,29 +272,43 @@ export const useSubscription = (): UseSubscriptionReturn => {
       fetchTimeoutRef.current = null;
     }
 
-    fetchedShopRef.current = normalizedShop;
-
-    const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+    // Mark that we're about to fetch for this shop (but don't set until fetch starts)
+    // This prevents race conditions if component re-renders before fetch completes
     
     // Don't use cache if payment_success is detected - always fetch fresh
+    // But if we have cached data and it shows a subscription exists, use it temporarily
+    // while we fetch fresh data (optimistic update)
     if (!isPaymentSuccess) {
       const cachedData = localStorage.getItem(storageKey);
       if (cachedData) {
         try {
           const parsed = JSON.parse(cachedData);
-          setSubscription(parsed);
-          setLoading(false);
+          // Only use cache if it has subscription data
+          if (parsed && parsed.subscription !== null) {
+            setSubscription(parsed);
+            setLoading(false);
+            console.log("[useSubscription] Using cached subscription data while fetching fresh", {
+              shop: normalizedShop,
+              subscriptionId: parsed.subscription?.id,
+            });
+          }
         } catch {
           localStorage.removeItem(storageKey);
         }
       }
     }
 
+    // Set fetchedShopRef AFTER we've decided to fetch, but BEFORE the timeout
+    // This prevents duplicate fetches if component re-renders
+    fetchedShopRef.current = normalizedShop;
+
     // Debounce the fetch slightly to prevent rapid successive calls
+    // For payment success, use shorter delay to fetch faster
+    const debounceDelay = isPaymentSuccess ? 50 : 100;
     fetchTimeoutRef.current = setTimeout(() => {
       fetchSubscription();
       fetchTimeoutRef.current = null;
-    }, 100);
+    }, debounceDelay);
 
     return () => {
       if (fetchTimeoutRef.current) {
@@ -270,23 +320,105 @@ export const useSubscription = (): UseSubscriptionReturn => {
   }, [shop]); // Depend on shop, but fetchedShopRef prevents duplicate fetches
 
   useEffect(() => {
+    const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+    if (!shopDomain) return;
+
+    const normalizedShop = shopDomain.includes(".myshopify.com")
+      ? shopDomain.toLowerCase()
+      : `${shopDomain.toLowerCase()}.myshopify.com`;
+
+    const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+
+    // Handle cross-tab synchronization via storage events
     const handleStorageChange = (e: StorageEvent) => {
-      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
-      if (!shopDomain) return;
-
-      const normalizedShop = shopDomain.includes(".myshopify.com")
-        ? shopDomain.toLowerCase()
-        : `${shopDomain.toLowerCase()}.myshopify.com`;
-
-      const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+      // Listen for subscription data updates from other tabs
+      if (e.key === storageKey && e.newValue && !isFetchingRef.current) {
+        try {
+          const updatedSubscription = JSON.parse(e.newValue);
+          console.log("[useSubscription] Subscription updated from another tab", {
+            shop: normalizedShop,
+            hasSubscription: !!updatedSubscription.subscription,
+          });
+          setSubscription(updatedSubscription);
+          setLoading(false);
+        } catch (parseError) {
+          // If parse fails, fetch fresh data
+          if (!isFetchingRef.current) {
+            fetchSubscription();
+          }
+        }
+      }
       
-      if (e.key === storageKey && !isFetchingRef.current) {
-        fetchSubscription();
+      // Listen for update notifications
+      if (e.key === `${storageKey}_updated` && e.newValue) {
+        // Another tab updated subscription, refresh from localStorage
+        const cachedData = localStorage.getItem(storageKey);
+        if (cachedData && !isFetchingRef.current) {
+          try {
+            const parsed = JSON.parse(cachedData);
+            setSubscription(parsed);
+            setLoading(false);
+          } catch {
+            // If parse fails, fetch fresh
+            fetchSubscription();
+          }
+        }
       }
     };
 
+    // Handle custom events for same-tab updates
+    const handleSubscriptionUpdate = (e: CustomEvent) => {
+      if (e.detail?.shop === normalizedShop && e.detail?.subscription) {
+        console.log("[useSubscription] Subscription updated via custom event", {
+          shop: normalizedShop,
+          hasSubscription: !!e.detail.subscription.subscription,
+          subscriptionId: e.detail.subscription.subscription?.id,
+        });
+        setSubscription(e.detail.subscription);
+        setLoading(false);
+        
+        // Also update localStorage to keep it in sync
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(e.detail.subscription));
+        } catch {
+          // Ignore storage errors
+        }
+      }
+    };
+
+    // Set up listeners immediately
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("subscriptionUpdated", handleSubscriptionUpdate as EventListener);
+    
+    // Check if there's a recent update marker (from another tab or same tab)
+    // This handles the case where an update happened before the listener was set up
+    const updateMarker = localStorage.getItem(`${storageKey}_updated`);
+    if (updateMarker) {
+      const updateTime = parseInt(updateMarker, 10);
+      const timeSinceUpdate = Date.now() - updateTime;
+      // If update happened in last 5 seconds, refresh from localStorage
+      if (timeSinceUpdate < 5000) {
+        const cachedData = localStorage.getItem(storageKey);
+        if (cachedData && !isFetchingRef.current) {
+          try {
+            const parsed = JSON.parse(cachedData);
+            setSubscription(parsed);
+            setLoading(false);
+            console.log("[useSubscription] Found recent update marker, synced from localStorage", {
+              shop: normalizedShop,
+              timeSinceUpdate: `${Math.round(timeSinceUpdate / 1000)}s`,
+            });
+          } catch {
+            // If parse fails, ignore
+          }
+        }
+      }
+    }
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("subscriptionUpdated", handleSubscriptionUpdate as EventListener);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shop]); // Only depend on shop - fetchSubscription is stable
 
