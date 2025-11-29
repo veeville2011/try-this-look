@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Sparkles, ArrowRight, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,26 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [countdown, setCountdown] = useState(5);
   const shop = searchParams.get("shop");
 
-  useEffect(() => {
-    // Auto-redirect after 5 seconds
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          redirectToApp();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const redirectToApp = () => {
+  const handleRedirectToApp = () => {
     if (shop) {
       // Redirect to embedded app URL format
       const storeHandle = shop.replace(".myshopify.com", "");
@@ -112,20 +94,13 @@ const PaymentSuccess = () => {
             {/* Action Button */}
             <div className="flex flex-col items-center gap-4">
               <Button
-                onClick={redirectToApp}
+                onClick={handleRedirectToApp}
                 size="lg"
                 className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
               >
                 <span>Continuer vers l'application</span>
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-
-              {countdown > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Redirection automatique dans {countdown} seconde
-                  {countdown > 1 ? "s" : ""}...
-                </p>
-              )}
             </div>
           </CardContent>
         </Card>
