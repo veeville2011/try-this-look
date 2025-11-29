@@ -2012,9 +2012,12 @@ app.post("/api/billing/subscribe", async (req, res) => {
       planHandle,
       appSubscriptionId: result.appSubscription?.id,
       appSubscriptionStatus: result.appSubscription?.status,
+      hasConfirmationUrl: !!result.confirmationUrl,
     });
 
-    return res.json({
+    // Ensure Content-Type is set explicitly
+    res.setHeader("Content-Type", "application/json");
+    return res.status(200).json({
       requestId,
       confirmationUrl: result.confirmationUrl,
       appSubscription: result.appSubscription,

@@ -137,6 +137,11 @@ const Index = () => {
       const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
       const fetchFn = authenticatedFetch(appBridge);
 
+      console.log("[Billing] Creating subscription request", {
+        shop: shopDomain,
+        planHandle,
+      });
+
       const response = await fetchFn("/api/billing/subscribe", {
         method: "POST",
         headers: {
@@ -149,20 +154,71 @@ const Index = () => {
         }),
       });
 
-      const data = await response.json();
+      console.log("[Billing] Subscription response received", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
 
+      // Check response status before parsing
       if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData?.error || errorData?.message || errorMessage;
+        } catch (parseError) {
+          // If JSON parsing fails, try to get text
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText.substring(0, 200);
+            }
+          } catch (textError) {
+            // Ignore text parsing errors
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse successful response
+      let data: any;
+      try {
+        const responseText = await response.text();
+        console.log("[Billing] Response text received", {
+          length: responseText?.length,
+          preview: responseText?.substring(0, 200),
+        });
+
+        if (!responseText || responseText.trim() === "") {
+          throw new Error("Empty response from server");
+        }
+        data = JSON.parse(responseText);
+        console.log("[Billing] Response parsed successfully", {
+          hasConfirmationUrl: !!data?.confirmationUrl,
+          requestId: data?.requestId,
+        });
+      } catch (parseError: any) {
+        console.error("[Billing] Failed to parse response", {
+          error: parseError,
+          message: parseError?.message,
+          stack: parseError?.stack,
+        });
         throw new Error(
-          data?.error || "Impossible de créer l'abonnement. Veuillez réessayer."
+          "Invalid response format from server. Please try again."
         );
       }
 
-      if (!data.confirmationUrl) {
+      if (!data || !data.confirmationUrl) {
+        console.error("[Billing] Missing confirmationUrl in response", data);
         throw new Error(
           "URL de confirmation manquante. Veuillez réessayer plus tard."
         );
       }
 
+      console.log("[Billing] Redirecting to confirmation URL", {
+        confirmationUrl: data.confirmationUrl,
+      });
       window.location.href = data.confirmationUrl as string;
     } catch (error: any) {
       console.error("[Billing] Failed to create subscription", error);
