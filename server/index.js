@@ -2146,6 +2146,187 @@ app.post("/api/billing/subscribe", async (req, res) => {
   }
 });
 
+// Cancel subscription
+app.post("/api/billing/cancel", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
+  try {
+    const { shop, subscriptionId, prorate } = req.body || {};
+
+    logger.info("[API] [CANCEL] Request received", {
+      requestId,
+      shop,
+      subscriptionId,
+      prorate: prorate || false,
+    });
+
+    if (!shop || !subscriptionId) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+        message: "Both shop and subscriptionId are required.",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    if (!req.sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required for billing API",
+        requestId,
+      });
+    }
+
+    try {
+      // Exchange JWT session token for an offline access token for billing
+      const tokenResult = await shopify.auth.tokenExchange({
+        shop: shopDomain,
+        sessionToken: req.sessionToken,
+        requestedTokenType: RequestedTokenType.OfflineAccessToken,
+      });
+
+      const session = tokenResult?.session;
+      const accessToken = session?.accessToken || session?.access_token;
+
+      if (!session || !accessToken) {
+        throw new SubscriptionStatusError(
+          "Token exchange did not return a valid session with access token",
+          500,
+          {
+            resolution:
+              "Please try again. If the issue persists, contact support.",
+          }
+        );
+      }
+
+      const client = new shopify.clients.Graphql({
+        session: {
+          shop: session.shop || shopDomain,
+          accessToken,
+          scope: session.scope,
+          isOnline: session.isOnline || false,
+        },
+      });
+
+      const mutation = `
+        mutation AppSubscriptionCancel($id: ID!, $prorate: Boolean) {
+          appSubscriptionCancel(id: $id, prorate: $prorate) {
+            userErrors {
+              field
+              message
+            }
+            appSubscription {
+              id
+              status
+              name
+              currentPeriodEnd
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        id: subscriptionId,
+        prorate: prorate === true,
+      };
+
+      const response = await client.query({
+        data: {
+          query: mutation,
+          variables,
+        },
+      });
+
+      const payload = response?.body?.data?.appSubscriptionCancel;
+
+      if (!payload) {
+        throw new SubscriptionStatusError(
+          "Unexpected response from appSubscriptionCancel",
+          500,
+          {
+            resolution:
+              "Please try again. If the issue persists, contact support.",
+          }
+        );
+      }
+
+      const userErrors = payload.userErrors || [];
+      if (userErrors.length > 0) {
+        throw new SubscriptionStatusError(
+          "Failed to cancel subscription",
+          400,
+          {
+            resolution: "Review the error details and try again.",
+            userErrors,
+          }
+        );
+      }
+
+      logger.info("[API] [CANCEL] Subscription cancelled", {
+        requestId,
+        shop: shopDomain,
+        subscriptionId,
+        appSubscriptionStatus: payload.appSubscription?.status,
+      });
+
+      res.setHeader("Content-Type", "application/json");
+      return res.status(200).json({
+        requestId,
+        appSubscription: payload.appSubscription,
+        success: true,
+      });
+    } catch (error) {
+      if (error instanceof SubscriptionStatusError) {
+        throw error;
+      }
+
+      logger.error("[BILLING] Failed to cancel app subscription", error, null, {
+        shop: shopDomain,
+        subscriptionId,
+      });
+
+      throw new SubscriptionStatusError("Failed to cancel subscription", 500, {
+        resolution: "Please try again. If the issue persists, contact support.",
+        error: error.message,
+      });
+    }
+  } catch (error) {
+    if (error instanceof SubscriptionStatusError) {
+      logger.warn("[API] [CANCEL] Subscription error", {
+        requestId,
+        error: error.message,
+        details: error.details,
+      });
+
+      return res.status(error.status).json({
+        error: error.message,
+        details: error.details,
+        requestId,
+      });
+    }
+
+    logger.error("[API] [CANCEL] Unexpected error", error, req, {
+      requestId,
+    });
+
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message || "An unexpected error occurred",
+      requestId,
+    });
+  }
+});
+
 // Validate promotional code
 app.post("/api/billing/validate-promo", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random()

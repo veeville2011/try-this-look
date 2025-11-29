@@ -43,6 +43,7 @@ const Index = () => {
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -97,6 +98,71 @@ const Index = () => {
 
     // Show plan selection UI instead of auto-selecting
     setShowPlanSelection(true);
+  };
+
+  const handleCancelSubscription = async () => {
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+
+    if (!shopDomain || !subscription?.subscription?.id) {
+      return;
+    }
+
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      "Êtes-vous sûr de vouloir annuler votre abonnement ? Votre accès continuera jusqu'à la fin de la période de facturation actuelle."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCancelling(true);
+
+      const appBridge = (window as any).__APP_BRIDGE;
+      if (!appBridge) {
+        throw new Error("App Bridge not available");
+      }
+
+      const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
+      const fetchFn = authenticatedFetch(appBridge);
+
+      const response = await fetchFn("/api/billing/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          shop: shopDomain,
+          subscriptionId: subscription.subscription.id,
+          prorate: false, // Don't prorate - let subscription continue until period end
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Échec de l'annulation de l'abonnement"
+        );
+      }
+
+      const data = await response.json();
+
+      // Refresh subscription status
+      await refreshSubscription();
+
+      console.log("[Billing] Subscription cancelled successfully", data);
+    } catch (error: any) {
+      console.error("[Billing] Failed to cancel subscription", error);
+      alert(
+        error.message ||
+          "Une erreur s'est produite lors de l'annulation. Veuillez réessayer."
+      );
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const handleSelectPlan = async (
@@ -593,8 +659,8 @@ const Index = () => {
                         </ul>
                       </div>
 
-                      {/* Action Button */}
-                      <div className="pt-3">
+                      {/* Action Buttons */}
+                      <div className="pt-3 space-y-2">
                         <Button
                           size="sm"
                           className="w-full"
@@ -607,6 +673,19 @@ const Index = () => {
                             ? "Passer à un plan premium"
                             : "Gérer mon abonnement"}
                         </Button>
+                        {subscription.hasActiveSubscription &&
+                          subscription.subscription?.status === "ACTIVE" && (
+                            <Button
+                              size="sm"
+                              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={handleCancelSubscription}
+                              disabled={cancelling}
+                            >
+                              {cancelling
+                                ? "Annulation..."
+                                : "Annuler l'abonnement"}
+                            </Button>
+                          )}
                       </div>
                     </CardContent>
                   </Card>
