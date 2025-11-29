@@ -1674,6 +1674,43 @@ app.post(
             })),
           }
         );
+
+        // Process and store subscription data for immediate availability
+        try {
+          const { processWebhookSubscription, setSubscription } = await import(
+            "./utils/subscriptionStorage.js"
+          );
+          const processedData = processWebhookSubscription(
+            app_subscription,
+            shop
+          );
+
+          if (processedData) {
+            setSubscription(shop, processedData);
+            logger.info("[WEBHOOK] Subscription data stored successfully", {
+              shop,
+              status: processedData.subscription?.status,
+              hasActiveSubscription: processedData.hasActiveSubscription,
+            });
+          } else {
+            logger.warn("[WEBHOOK] Failed to process subscription data", {
+              shop,
+              subscriptionId: app_subscription?.id,
+            });
+          }
+        } catch (storageError) {
+          // Log error but don't fail webhook - Shopify will retry if we return error
+          logger.error(
+            "[WEBHOOK] Failed to store subscription data",
+            storageError,
+            null,
+            {
+              shop,
+              subscriptionId: app_subscription?.id,
+              errorMessage: storageError.message,
+            }
+          );
+        }
       } else {
         logger.warn(
           "[WEBHOOK] app/subscriptions/update - payload missing subscription data",

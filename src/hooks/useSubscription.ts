@@ -192,18 +192,32 @@ export const useSubscription = (): UseSubscriptionReturn => {
     const subscriptionUpdated =
       urlParams.get("subscription_updated") === "true" ||
       urlParams.get("subscription_status") ||
-      urlParams.get("plan_changed") === "true" ||
-      urlParams.get("payment_success") === "true";
+      urlParams.get("plan_changed") === "true";
+    const isPaymentSuccess = urlParams.get("payment_success") === "true";
 
     // If subscription was updated, clear the fetched shop ref to force a fresh fetch
     if (subscriptionUpdated) {
       fetchedShopRef.current = null;
+      lastFetchTimeRef.current = 0; // Reset throttle
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("subscription_updated");
       newUrl.searchParams.delete("subscription_status");
       newUrl.searchParams.delete("plan_changed");
-      newUrl.searchParams.delete("payment_success");
       window.history.replaceState({}, "", newUrl.toString());
+    }
+
+    // If payment success, clear cache and force fresh fetch
+    if (isPaymentSuccess) {
+      fetchedShopRef.current = null;
+      lastFetchTimeRef.current = 0; // Reset throttle to allow immediate fetch
+      // Clear localStorage cache for this shop to force fresh API call
+      const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
+      try {
+        localStorage.removeItem(storageKey);
+        console.log("[useSubscription] Cleared cache for payment success", { shop: normalizedShop });
+      } catch {
+        // Ignore storage errors
+      }
     }
 
     // Only fetch if we haven't fetched for this shop yet and not currently fetching
@@ -225,15 +239,18 @@ export const useSubscription = (): UseSubscriptionReturn => {
     fetchedShopRef.current = normalizedShop;
 
     const storageKey = `${STORAGE_KEY_PREFIX}${normalizedShop}`;
-    const cachedData = localStorage.getItem(storageKey);
-
-    if (cachedData) {
-      try {
-        const parsed = JSON.parse(cachedData);
-        setSubscription(parsed);
-        setLoading(false);
-      } catch {
-        localStorage.removeItem(storageKey);
+    
+    // Don't use cache if payment_success is detected - always fetch fresh
+    if (!isPaymentSuccess) {
+      const cachedData = localStorage.getItem(storageKey);
+      if (cachedData) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          setSubscription(parsed);
+          setLoading(false);
+        } catch {
+          localStorage.removeItem(storageKey);
+        }
       }
     }
 
