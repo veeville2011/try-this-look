@@ -371,6 +371,11 @@ const Index = () => {
   const paymentSuccessTimeRef = useRef<number | null>(null);
   const paymentSuccessRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // State to track payment success for reactive UI updates
+  const [isWaitingForPaymentSuccess, setIsWaitingForPaymentSuccess] =
+    useState(false);
+  const [paymentSuccessElapsedTime, setPaymentSuccessElapsedTime] = useState(0);
+
   // Check subscription and redirect to pricing page if subscription is null
   useEffect(() => {
     console.log("🔍 [Redirect Debug] useEffect triggered");
@@ -386,14 +391,18 @@ const Index = () => {
 
     if (isPaymentSuccess && paymentSuccessTimeRef.current === null) {
       paymentSuccessTimeRef.current = Date.now();
+      setIsWaitingForPaymentSuccess(true); // Trigger re-render
       console.log(
         "✅ [Redirect Debug] Payment success detected - will wait for subscription to update"
       );
 
-      // Clear the parameter from URL
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete("payment_success");
-      window.history.replaceState({}, "", newUrl.toString());
+      // Don't remove URL parameter immediately - let useSubscription hook detect it first
+      // We'll remove it after a short delay to ensure the hook processes it
+      setTimeout(() => {
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("payment_success");
+        window.history.replaceState({}, "", newUrl.toString());
+      }, 100);
     }
 
     // Wait for subscription to load
@@ -418,6 +427,7 @@ const Index = () => {
       // Clear payment success tracking since we have subscription
       if (paymentSuccessTimeRef.current !== null) {
         paymentSuccessTimeRef.current = null;
+        setIsWaitingForPaymentSuccess(false); // Trigger re-render
         if (paymentSuccessRetryTimeoutRef.current) {
           clearTimeout(paymentSuccessRetryTimeoutRef.current);
           paymentSuccessRetryTimeoutRef.current = null;
@@ -469,6 +479,7 @@ const Index = () => {
           }
         );
         paymentSuccessTimeRef.current = null;
+        setIsWaitingForPaymentSuccess(false); // Trigger re-render
         if (paymentSuccessRetryTimeoutRef.current) {
           clearTimeout(paymentSuccessRetryTimeoutRef.current);
           paymentSuccessRetryTimeoutRef.current = null;
@@ -519,6 +530,7 @@ const Index = () => {
           "⏰ [Redirect Debug] Max wait time exceeded, proceeding normally"
         );
         paymentSuccessTimeRef.current = null;
+        setIsWaitingForPaymentSuccess(false); // Trigger re-render
         if (paymentSuccessRetryTimeoutRef.current) {
           clearTimeout(paymentSuccessRetryTimeoutRef.current);
           paymentSuccessRetryTimeoutRef.current = null;
@@ -600,6 +612,7 @@ const Index = () => {
         // Clear payment success tracking if subscription is found
         if (paymentSuccessTimeRef.current !== null) {
           paymentSuccessTimeRef.current = null;
+          setIsWaitingForPaymentSuccess(false); // Trigger re-render
           if (paymentSuccessRetryTimeoutRef.current) {
             clearTimeout(paymentSuccessRetryTimeoutRef.current);
             paymentSuccessRetryTimeoutRef.current = null;
@@ -628,6 +641,51 @@ const Index = () => {
     };
   }, [shop, showPlanSelection]);
 
+  // Clear waiting state immediately when subscription is found
+  // OR if subscription fetch completes but subscription is still null (after a short delay)
+  useEffect(() => {
+    if (
+      subscription &&
+      subscription.subscription !== null &&
+      isWaitingForPaymentSuccess
+    ) {
+      console.log("[Index] Subscription found - clearing waiting state", {
+        subscriptionId: subscription.subscription.id,
+        status: subscription.subscription.status,
+      });
+      setIsWaitingForPaymentSuccess(false);
+      setPaymentSuccessElapsedTime(0);
+      paymentSuccessTimeRef.current = null;
+      if (paymentSuccessRetryTimeoutRef.current) {
+        clearTimeout(paymentSuccessRetryTimeoutRef.current);
+        paymentSuccessRetryTimeoutRef.current = null;
+      }
+    } else if (
+      !subscriptionLoading &&
+      isWaitingForPaymentSuccess &&
+      (!subscription || subscription.subscription === null) &&
+      paymentSuccessTimeRef.current &&
+      Date.now() - paymentSuccessTimeRef.current > 3000 // Wait at least 3 seconds for webhook
+    ) {
+      // Subscription fetch completed but no subscription found
+      // Wait at least 3 seconds for webhook, then check if we should stop waiting
+      // If we've waited more than 5 seconds and still no subscription, stop waiting
+      const elapsed = Date.now() - paymentSuccessTimeRef.current;
+      if (elapsed > 5000) {
+        console.log(
+          "[Index] Subscription fetch completed but no subscription found after 5s - stopping wait"
+        );
+        setIsWaitingForPaymentSuccess(false);
+        setPaymentSuccessElapsedTime(0);
+        paymentSuccessTimeRef.current = null;
+        if (paymentSuccessRetryTimeoutRef.current) {
+          clearTimeout(paymentSuccessRetryTimeoutRef.current);
+          paymentSuccessRetryTimeoutRef.current = null;
+        }
+      }
+    }
+  }, [subscription, subscriptionLoading, isWaitingForPaymentSuccess]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -638,24 +696,46 @@ const Index = () => {
     };
   }, []);
 
-  // Show loading state while checking subscription or waiting after payment success
-  // Only show loading if:
-  // 1. Subscription is actively loading, OR
-  // 2. We're waiting for payment success AND subscription is null AND we haven't exceeded max wait time
-  const isWaitingForPaymentSuccess = paymentSuccessTimeRef.current !== null;
-  const timeSincePaymentSuccess = isWaitingForPaymentSuccess
-    ? Date.now() - (paymentSuccessTimeRef.current || 0)
-    : 0;
+  // Update elapsed time timer when waiting for payment success
   const maxWaitTime = 15000; // 15 seconds
+  const hasSubscription = subscription && subscription.subscription !== null;
+
+  useEffect(() => {
+    if (!isWaitingForPaymentSuccess || !paymentSuccessTimeRef.current) {
+      setPaymentSuccessElapsedTime(0);
+      return;
+    }
+
+    // Update elapsed time immediately
+    const updateElapsed = () => {
+      if (paymentSuccessTimeRef.current) {
+        const elapsed = Date.now() - paymentSuccessTimeRef.current;
+        setPaymentSuccessElapsedTime(elapsed);
+
+        if (elapsed >= maxWaitTime) {
+          // Max time exceeded
+          setIsWaitingForPaymentSuccess(false);
+          paymentSuccessTimeRef.current = null;
+          setPaymentSuccessElapsedTime(0);
+        }
+      }
+    };
+
+    // Update immediately
+    updateElapsed();
+
+    // Then update every second
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [isWaitingForPaymentSuccess, maxWaitTime]);
+
   const shouldShowPaymentLoading =
     isWaitingForPaymentSuccess &&
-    (!subscription || subscription.subscription === null) &&
-    timeSincePaymentSuccess < maxWaitTime;
+    !hasSubscription &&
+    paymentSuccessElapsedTime < maxWaitTime;
 
   // Don't show loading if we have a subscription (even if paymentSuccessTimeRef is set)
-  // Also don't show loading if subscription exists (from any source)
-  const hasSubscription = subscription && subscription.subscription !== null;
-  if (subscriptionLoading || (shouldShowPaymentLoading && !hasSubscription)) {
+  if (subscriptionLoading || shouldShowPaymentLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -670,7 +750,7 @@ const Index = () => {
                 Cela peut prendre quelques secondes.
               </p>
               <p className="text-xs text-muted-foreground">
-                {Math.round(timeSincePaymentSuccess / 1000)}s /{" "}
+                {Math.round(paymentSuccessElapsedTime / 1000)}s /{" "}
                 {maxWaitTime / 1000}s
               </p>
             </div>

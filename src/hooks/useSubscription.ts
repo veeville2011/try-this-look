@@ -44,7 +44,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
 
-  const fetchSubscription = useCallback(async () => {
+  const fetchSubscription = useCallback(async (force = false) => {
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
       console.log("[useSubscription] Already fetching, skipping...");
@@ -52,10 +52,14 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
 
     // Throttle fetches - don't fetch more than once per second
+    // But allow forced fetches (e.g., for payment success)
     const now = Date.now();
     const timeSinceLastFetch = now - lastFetchTimeRef.current;
-    if (timeSinceLastFetch < 1000 && lastFetchTimeRef.current > 0) {
-      console.log("[useSubscription] Throttling fetch, too soon since last fetch");
+    if (!force && timeSinceLastFetch < 1000 && lastFetchTimeRef.current > 0) {
+      console.log("[useSubscription] Throttling fetch, too soon since last fetch", {
+        timeSinceLastFetch,
+        force,
+      });
       return;
     }
 
@@ -141,6 +145,13 @@ export const useSubscription = (): UseSubscriptionReturn => {
         throw new Error("Invalid subscription data received");
       }
 
+      console.log("[useSubscription] Subscription data received", {
+        shop: normalizedShop,
+        hasSubscription: !!subscriptionData.subscription,
+        subscriptionId: subscriptionData.subscription?.id,
+        status: subscriptionData.subscription?.status,
+      });
+
       // Only update if shop hasn't changed
       const currentShop = shop || new URLSearchParams(window.location.search).get("shop");
       const currentNormalizedShop = currentShop
@@ -167,6 +178,11 @@ export const useSubscription = (): UseSubscriptionReturn => {
           // Note: storage event only fires in OTHER tabs, not the current one
           // So we dispatch a custom event for the current tab
           localStorage.setItem(`${storageKey}_updated`, Date.now().toString());
+          
+          console.log("[useSubscription] Subscription state updated and broadcasted", {
+            shop: normalizedShop,
+            hasSubscription: !!subscriptionData.subscription,
+          });
         } catch {
           // Ignore storage errors
         }
@@ -303,10 +319,10 @@ export const useSubscription = (): UseSubscriptionReturn => {
     fetchedShopRef.current = normalizedShop;
 
     // Debounce the fetch slightly to prevent rapid successive calls
-    // For payment success, use shorter delay to fetch faster
+    // For payment success, use shorter delay to fetch faster and force the fetch
     const debounceDelay = isPaymentSuccess ? 50 : 100;
     fetchTimeoutRef.current = setTimeout(() => {
-      fetchSubscription();
+      fetchSubscription(isPaymentSuccess); // Force fetch for payment success
       fetchTimeoutRef.current = null;
     }, debounceDelay);
 
@@ -427,7 +443,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     fetchedShopRef.current = null;
     lastFetchTimeRef.current = 0; // Reset throttle
     setLoading(true);
-    await fetchSubscription();
+    await fetchSubscription(true); // Force fetch
   }, [fetchSubscription]);
 
   return {
