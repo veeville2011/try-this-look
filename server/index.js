@@ -2019,6 +2019,7 @@ app.get("/api/billing/check-installation", async (req, res) => {
 // Billing return URL - called by Shopify after merchant approves or declines the charge
 // This endpoint does not use any database; it simply redirects back to the app,
 // and the frontend can call /api/billing/subscription to get the latest status.
+// IMPORTANT: Must redirect to embedded app URL format to ensure proper authentication
 app.get("/api/billing/return", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random()
     .toString(36)
@@ -2038,10 +2039,18 @@ app.get("/api/billing/return", async (req, res) => {
       return res.status(400).send("Invalid shop parameter");
     }
 
-    const redirectBase = appUrl || `https://${shopDomain}`;
-    const redirectUrl = `${redirectBase}/?shop=${encodeURIComponent(
-      shopDomain
-    )}`;
+    // Redirect to embedded app URL format to ensure proper authentication
+    // Format: https://admin.shopify.com/store/{store_handle}/apps/{app_id}
+    // This ensures the app loads in the embedded context with session tokens
+    const storeHandle = shopDomain.replace(".myshopify.com", "");
+    const redirectUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${apiKey}`;
+
+    logger.info("[BILLING] [RETURN] Redirecting to embedded app", {
+      requestId,
+      shop: shopDomain,
+      storeHandle,
+      redirectUrl,
+    });
 
     return res.redirect(302, redirectUrl);
   } catch (error) {
