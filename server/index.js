@@ -915,14 +915,18 @@ const verifyAppProxySignature = (req, res, next) => {
 // This validates requests from the embedded app frontend
 const verifySessionToken = async (req, res, next) => {
   try {
-    // Skip verification for webhooks, app proxy, and public routes
+    // Skip verification for webhooks, app proxy, billing return, and public routes
+    // /api/billing/return is a public endpoint called by Shopify after payment approval
+    // It doesn't have a JWT session token because it's a redirect from Shopify, not from the embedded app
     if (
       req.path.startsWith("/webhooks/") ||
       req.path.startsWith("/apps/apps/a/") ||
       req.path.startsWith("/auth") ||
       req.path === "/" ||
       req.path.startsWith("/widget") ||
-      req.path.startsWith("/demo")
+      req.path.startsWith("/demo") ||
+      req.path === "/api/billing/return" ||
+      req.path.startsWith("/payment-success")
     ) {
       return next();
     }
