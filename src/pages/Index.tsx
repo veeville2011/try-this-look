@@ -78,11 +78,6 @@ const Index = () => {
       setAvailablePlans(Array.isArray(data.plans) ? data.plans : []);
     } catch (error: any) {
       console.error("[Billing] Failed to load plans", error);
-      toast.error("Erreur lors du chargement des plans", {
-        description:
-          error?.message ||
-          "Veuillez actualiser la page ou réessayer dans quelques instants.",
-      });
     }
   };
 
@@ -105,10 +100,6 @@ const Index = () => {
       shop || new URLSearchParams(window.location.search).get("shop");
 
     if (!shopDomain) {
-      toast.error("Impossible de détecter votre boutique", {
-        description:
-          "Veuillez accéder à l'application depuis votre admin Shopify.",
-      });
       return;
     }
 
@@ -119,10 +110,6 @@ const Index = () => {
     const planHandle = getDefaultPlanHandle();
 
     if (!planHandle) {
-      toast.error("Aucun plan disponible", {
-        description:
-          "Aucun plan tarifaire n'est configuré. Veuillez contacter le support.",
-      });
       return;
     }
 
@@ -220,22 +207,23 @@ const Index = () => {
         confirmationUrl: data.confirmationUrl,
       });
 
-      // For embedded apps, redirect to top-level window to break out of iframe
-      // This prevents X-Frame-Options errors when redirecting to Shopify admin pages
-      if (window.top && window.top !== window.self) {
-        // We're in an iframe (embedded app) - redirect parent window
-        window.top.location.href = data.confirmationUrl as string;
-      } else {
-        // Not in iframe, direct redirect
-        window.location.href = data.confirmationUrl as string;
+      // Use App Bridge Redirect action for safe navigation from embedded app
+      // This properly handles cross-origin navigation without security errors
+      if (!appBridge) {
+        throw new Error("App Bridge not available");
       }
+
+      const { Redirect } = await import("@shopify/app-bridge/actions");
+      const redirect = Redirect.create(appBridge);
+      // Use REMOTE action to navigate to external URL (Shopify admin billing page)
+      // This breaks out of the iframe safely
+      redirect.dispatch(Redirect.Action.REMOTE, {
+        url: data.confirmationUrl as string,
+        newContext: true, // Open in new context/window to break out of iframe
+      });
+      console.log("[Billing] App Bridge Redirect dispatched successfully");
     } catch (error: any) {
       console.error("[Billing] Failed to create subscription", error);
-      toast.error("Erreur lors de la création de l'abonnement", {
-        description:
-          error?.message ||
-          "Veuillez réessayer ou contacter le support si le problème persiste.",
-      });
     } finally {
       setBillingLoading(false);
     }
@@ -274,19 +262,11 @@ const Index = () => {
       shop || new URLSearchParams(window.location.search).get("shop");
 
     if (!shopDomain) {
-      toast.error("Impossible de détecter votre boutique", {
-        description:
-          "Veuillez vous assurer que vous accédez à cette application depuis votre admin Shopify.",
-      });
       return;
     }
 
     // Check subscription status - gate feature if subscription is null
     if (!subscription || subscription.subscription === null) {
-      toast.info("Sélection d'un plan requise", {
-        description:
-          "Veuillez sélectionner un plan tarifaire avant de continuer l'installation.",
-      });
       await handleRequireBilling();
       return;
     }
