@@ -30,7 +30,7 @@ export const PLANS = {
     price: 23.0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
-    trialDays: 15,
+    trialDays: 0,
     description:
       "100 crédits inclus avec possibilité de recharge après dépassement.",
     features: [
@@ -50,7 +50,7 @@ export const PLANS = {
     price: 180.0,
     currencyCode: "USD",
     interval: "ANNUAL",
-    trialDays: 15,
+    trialDays: 0,
     description:
       "100 crédits inclus avec possibilité de recharge après dépassement.",
     monthlyEquivalent: 20.0,
@@ -199,7 +199,7 @@ export const CREDIT_PACKAGES = {
     credits: 50,
     price: 10.0,
     currencyCode: "USD",
-    valuePerCredit: 0.20,
+    valuePerCredit: 0.2,
     recommended: false,
     description: "Perfect for testing",
   },
@@ -273,7 +273,7 @@ export const COUPON_CODES = {
  * For overage billing after included credits
  */
 export const USAGE_PRICING = {
-  pricePerCredit: 0.20,
+  pricePerCredit: 0.2,
   currencyCode: "USD",
   cappedAmount: 50.0, // $50 per billing period
   terms: "$0.20 per try-on after included 100 credits",
