@@ -30,7 +30,7 @@ export const PLANS = {
     price: 23.0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
-    trialDays: 0,
+    trialDays: 15,
     description:
       "100 crédits inclus avec possibilité de recharge après dépassement.",
     features: [
@@ -50,7 +50,7 @@ export const PLANS = {
     price: 180.0,
     currencyCode: "USD",
     interval: "ANNUAL",
-    trialDays: 0,
+    trialDays: 15,
     description:
       "100 crédits inclus avec possibilité de recharge après dépassement.",
     monthlyEquivalent: 20.0,
