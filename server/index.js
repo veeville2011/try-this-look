@@ -2033,10 +2033,22 @@ app.post(
 
                     // Initialize credits if this is a new subscription
                     const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
-                    if (!metafields.credit_balance && metafields.credit_balance !== 0) {
+                    // Check if credit_balance metafield exists (null/undefined means not initialized)
+                    // Note: credit_balance can be 0 (used up), so we check for null/undefined specifically
+                    if (metafields.credit_balance == null) {
                       // New subscription - initialize credits
                       const plan = processedData.plan;
                       const includedCredits = plan?.limits?.includedCredits || 100;
+                      
+                      logger.info("[WEBHOOK] Initializing credits for new subscription", {
+                        shop,
+                        appInstallationId,
+                        planHandle: plan?.handle,
+                        includedCredits,
+                        isAnnual,
+                        currentCreditBalance: metafields.credit_balance,
+                        note: "credit_balance metafield is null/undefined - initializing",
+                      });
                       
                       // Find usage pricing line item
                       const usageLineItem = app_subscription.lineItems?.find(
@@ -2055,6 +2067,7 @@ app.post(
 
                       logger.info("[WEBHOOK] Credits initialized for new subscription", {
                         shop,
+                        appInstallationId,
                         includedCredits,
                         periodEnd: isAnnual
                           ? "Monthly period (30 days from now)"
@@ -2065,6 +2078,13 @@ app.post(
                           : "Monthly subscription: 100 credits per billing cycle",
                       });
                     } else {
+                      logger.info("[WEBHOOK] Credits already initialized, skipping initialization", {
+                        shop,
+                        appInstallationId,
+                        currentCreditBalance: metafields.credit_balance,
+                        creditsIncluded: metafields.credits_included,
+                        note: "credit_balance metafield exists - subscription already has credits",
+                      });
                       // Existing subscription - sync data
                       // For annual subscriptions, check monthly period renewal
                       if (isAnnual) {
@@ -3262,7 +3282,23 @@ app.get("/api/credits/balance", async (req, res) => {
     }
 
     // Get credit balance
+    logger.info("[CREDITS] Fetching credit balance", {
+      shop: shopDomain,
+      appInstallationId,
+    });
+
     const creditData = await creditManager.getTotalCreditsAvailable(client, appInstallationId);
+
+    logger.info("[CREDITS] Credit balance retrieved successfully", {
+      shop: shopDomain,
+      appInstallationId,
+      balance: creditData.balance,
+      included: creditData.included,
+      used: creditData.used,
+      isOverage: creditData.isOverage || false,
+      periodEnd: creditData.periodEnd,
+      hasSubscriptionLineItemId: !!creditData.subscriptionLineItemId,
+    });
 
     res.json({
       balance: creditData.balance,

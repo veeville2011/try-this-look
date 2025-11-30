@@ -14,18 +14,39 @@ import * as usageRecordService from "./usageRecordService.js";
  */
 export const getCreditBalance = async (client, appInstallationId) => {
   try {
+    logger.info("[CREDIT_MANAGER] Getting credit balance from metafields", {
+      appInstallationId,
+    });
+
     const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
     
+    const balance = metafields.credit_balance ?? 0;
+    const included = metafields.credits_included ?? 100;
+    const used = metafields.credits_used_this_period ?? 0;
+
+    logger.info("[CREDIT_MANAGER] Credit balance retrieved from metafields", {
+      appInstallationId,
+      balance,
+      included,
+      used,
+      periodEnd: metafields.current_period_end,
+      hasLastReset: !!metafields.last_credit_reset,
+      hasSubscriptionLineItemId: !!metafields.subscription_line_item_id,
+      metafieldKeysFound: Object.keys(metafields),
+    });
+    
     return {
-      balance: metafields.credit_balance || 0,
-      included: metafields.credits_included || 100,
-      used: metafields.credits_used_this_period || 0,
+      balance,
+      included,
+      used,
       periodEnd: metafields.current_period_end,
       lastReset: metafields.last_credit_reset,
       subscriptionLineItemId: metafields.subscription_line_item_id,
     };
   } catch (error) {
-    logger.error("[CREDIT_MANAGER] Failed to get credit balance", error);
+    logger.error("[CREDIT_MANAGER] Failed to get credit balance", error, null, {
+      appInstallationId,
+    });
     throw error;
   }
 };
@@ -35,10 +56,22 @@ export const getCreditBalance = async (client, appInstallationId) => {
  */
 export const getTotalCreditsAvailable = async (client, appInstallationId) => {
   try {
+    logger.info("[CREDIT_MANAGER] Getting total credits available", {
+      appInstallationId,
+    });
+
     const balance = await getCreditBalance(client, appInstallationId);
     
     // If we have metafield balance, that's what's available
     if (balance.balance > 0) {
+      logger.info("[CREDIT_MANAGER] Credits available from metafield balance", {
+        appInstallationId,
+        balance: balance.balance,
+        included: balance.included,
+        used: balance.used,
+        isOverage: false,
+      });
+
       return {
         ...balance,
         isOverage: false,
@@ -48,6 +81,11 @@ export const getTotalCreditsAvailable = async (client, appInstallationId) => {
 
     // If metafield is 0, check usage records capacity
     if (balance.subscriptionLineItemId) {
+      logger.info("[CREDIT_MANAGER] Metafield balance is 0, checking usage records capacity", {
+        appInstallationId,
+        subscriptionLineItemId: balance.subscriptionLineItemId,
+      });
+
       const usage = await usageRecordService.getCurrentUsage(
         client,
         balance.subscriptionLineItemId
@@ -56,6 +94,15 @@ export const getTotalCreditsAvailable = async (client, appInstallationId) => {
       const remainingCapacity = usage.cappedAmount 
         ? Math.max(0, usage.cappedAmount - usage.totalUsage)
         : null;
+
+      logger.info("[CREDIT_MANAGER] Usage records capacity retrieved", {
+        appInstallationId,
+        isOverage: true,
+        totalAvailable: 0,
+        usageCapacity: remainingCapacity,
+        currentUsage: usage.totalUsage,
+        cappedAmount: usage.cappedAmount,
+      });
 
       return {
         ...balance,
@@ -67,13 +114,24 @@ export const getTotalCreditsAvailable = async (client, appInstallationId) => {
       };
     }
 
+    logger.info("[CREDIT_MANAGER] No usage records available, returning metafield balance", {
+      appInstallationId,
+      balance: balance.balance,
+      included: balance.included,
+      used: balance.used,
+      isOverage: false,
+      note: balance.balance === 0 ? "Balance is 0 and no usage records found" : "Using metafield balance",
+    });
+
     return {
       ...balance,
       isOverage: false,
       totalAvailable: balance.balance,
     };
   } catch (error) {
-    logger.error("[CREDIT_MANAGER] Failed to get total credits available", error);
+    logger.error("[CREDIT_MANAGER] Failed to get total credits available", error, null, {
+      appInstallationId,
+    });
     throw error;
   }
 };

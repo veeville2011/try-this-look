@@ -77,6 +77,11 @@ export const getCreditMetafields = async (client, appInstallationId) => {
   `;
 
   try {
+    logger.info("[CREDIT_METAFIELD] Fetching credit metafields from Shopify", {
+      appInstallationId,
+      namespace: METAFIELD_NAMESPACE,
+    });
+
     const response = await client.query({
       data: {
         query,
@@ -106,9 +111,22 @@ export const getCreditMetafields = async (client, appInstallationId) => {
       }
     });
 
+    logger.info("[CREDIT_METAFIELD] Credit metafields retrieved", {
+      appInstallationId,
+      totalMetafieldsFound: metafields.length,
+      creditMetafieldsFound: Object.keys(result).length,
+      creditMetafieldKeys: Object.keys(result),
+      creditBalance: result.credit_balance,
+      creditsIncluded: result.credits_included,
+      creditsUsed: result.credits_used_this_period,
+      hasPeriodEnd: !!result.current_period_end || !!result.monthly_period_end,
+    });
+
     return result;
   } catch (error) {
-    logger.error("[CREDIT_METAFIELD] Failed to get credit metafields", error);
+    logger.error("[CREDIT_METAFIELD] Failed to get credit metafields", error, null, {
+      appInstallationId,
+    });
     throw error;
   }
 };
