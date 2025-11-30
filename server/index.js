@@ -14,6 +14,12 @@ import crypto from "crypto";
 import * as logger from "./utils/logger.js";
 import * as billing from "./utils/billing.js";
 import * as subscriptionMetafield from "./utils/subscriptionMetafield.js";
+import * as creditManager from "./utils/creditManager.js";
+import * as creditMetafield from "./utils/creditMetafield.js";
+import * as creditDeduction from "./utils/creditDeduction.js";
+import * as creditReset from "./utils/creditReset.js";
+import * as couponService from "./utils/couponService.js";
+import * as creditPurchase from "./utils/creditPurchase.js";
 // No database - using no-op session storage (sessions not persisted)
 
 const __filename = fileURLToPath(import.meta.url);
@@ -606,6 +612,30 @@ const createAppSubscription = async (
             id
             status
             name
+            currentPeriodEnd
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  __typename
+                  ... on AppRecurringPricing {
+                    interval
+                    price {
+                      amount
+                      currencyCode
+                    }
+                  }
+                  ... on AppUsagePricing {
+                    terms
+                    cappedAmount {
+                      amount
+                      currencyCode
+                    }
+                    interval
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -624,6 +654,15 @@ const createAppSubscription = async (
       lineItemPlan.discount = discountConfig;
     }
 
+    // Usage pricing configuration for overage billing
+    const usagePricing = {
+      terms: billing.USAGE_PRICING.terms,
+      cappedAmount: {
+        amount: billing.USAGE_PRICING.cappedAmount,
+        currencyCode: billing.USAGE_PRICING.currencyCode,
+      },
+    };
+
     const variables = {
       name: planConfig.name,
       returnUrl,
@@ -631,6 +670,11 @@ const createAppSubscription = async (
         {
           plan: {
             appRecurringPricingDetails: lineItemPlan,
+          },
+        },
+        {
+          plan: {
+            appUsagePricingDetails: usagePricing,
           },
         },
       ],
@@ -691,6 +735,10 @@ const createAppSubscription = async (
         }
       );
     }
+
+    // Initialize credits after subscription creation
+    // Note: This will be done after merchant approves the subscription
+    // We'll initialize credits in the webhook handler when subscription becomes ACTIVE
 
     return {
       confirmationUrl: payload.confirmationUrl,
@@ -1692,6 +1740,130 @@ app.post(
               status: processedData.subscription?.status,
               hasActiveSubscription: processedData.hasActiveSubscription,
             });
+
+            // Handle credit reset on billing cycle renewal
+            if (app_subscription.status === "ACTIVE" && app_subscription.currentPeriodEnd) {
+              try {
+                // Get offline access token for the shop
+                // Note: In production, you'd get this from your session storage
+                // For now, we'll use the webhook shop domain
+                const tokenResult = await shopify.auth.tokenExchange({
+                  shop,
+                  sessionToken: null, // Webhooks don't have session tokens
+                  requestedTokenType: RequestedTokenType.OfflineAccessToken,
+                });
+
+                const session = tokenResult?.session;
+                const accessToken = session?.accessToken || session?.access_token;
+
+                if (session && accessToken) {
+                  const client = new shopify.clients.Graphql({
+                    session: {
+                      shop: session.shop || shop,
+                      accessToken,
+                      scope: session.scope,
+                      isOnline: session.isOnline || false,
+                    },
+                  });
+
+                  const appInstallationQuery = `
+                    query GetAppInstallation {
+                      currentAppInstallation {
+                        id
+                      }
+                    }
+                  `;
+                  const appInstallationResponse = await client.query({ 
+                    data: { query: appInstallationQuery } 
+                  });
+                  const appInstallationId = appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+
+                  if (appInstallationId) {
+                    // Check if period has renewed
+                    const periodCheck = await creditReset.checkPeriodRenewal(
+                      client,
+                      appInstallationId,
+                      app_subscription.currentPeriodEnd
+                    );
+
+                    if (periodCheck.isNewPeriod) {
+                      // Reset credits for new period
+                      const plan = processedData.plan;
+                      const includedCredits = plan?.limits?.includedCredits || 100;
+                      
+                      await creditReset.resetCreditsForNewPeriod(
+                        client,
+                        appInstallationId,
+                        app_subscription.currentPeriodEnd,
+                        includedCredits
+                      );
+
+                      logger.info("[WEBHOOK] Credits reset for new billing period", {
+                        shop,
+                        periodEnd: app_subscription.currentPeriodEnd,
+                        includedCredits,
+                      });
+                    }
+
+                    // Initialize credits if this is a new subscription
+                    const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
+                    if (!metafields.credit_balance && metafields.credit_balance !== 0) {
+                      // New subscription - initialize credits
+                      const plan = processedData.plan;
+                      const includedCredits = plan?.limits?.includedCredits || 100;
+                      
+                      // Find usage pricing line item
+                      const usageLineItem = app_subscription.lineItems?.find(
+                        item => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+                      );
+                      
+                      await creditMetafield.initializeCredits(
+                        client,
+                        appInstallationId,
+                        plan?.handle,
+                        includedCredits,
+                        app_subscription.currentPeriodEnd,
+                        usageLineItem?.id || null
+                      );
+
+                      logger.info("[WEBHOOK] Credits initialized for new subscription", {
+                        shop,
+                        includedCredits,
+                        periodEnd: app_subscription.currentPeriodEnd,
+                      });
+                    } else {
+                      // Existing subscription - sync data
+                      await creditReset.syncWithSubscription(client, appInstallationId, {
+                        id: app_subscription.id,
+                        currentPeriodEnd: app_subscription.currentPeriodEnd,
+                        lineItems: app_subscription.lineItems,
+                      });
+
+                      // Store subscription line item ID for usage pricing if available
+                      if (app_subscription.lineItems) {
+                        const usageLineItem = app_subscription.lineItems.find(
+                          item => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+                        );
+                        
+                        if (usageLineItem?.id) {
+                          if (!metafields.subscription_line_item_id) {
+                            await creditMetafield.batchUpdateMetafields(client, appInstallationId, {
+                              subscription_line_item_id: usageLineItem.id,
+                            });
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (creditError) {
+                logger.error("[WEBHOOK] Failed to handle credit reset", creditError, null, {
+                  shop,
+                  subscriptionId: app_subscription?.id,
+                });
+                // Don't fail webhook - log error and continue
+              }
+            }
           } else {
             logger.warn("[WEBHOOK] Failed to process subscription data", {
               shop,
@@ -1743,6 +1915,126 @@ app.post(
 
       // Always return 200 to Shopify to prevent retries for processing errors
       // But log the error for debugging
+      res.status(200).json({
+        received: true,
+        error: "Webhook processed but encountered an error",
+      });
+    }
+  }
+);
+
+// One-time purchase update webhook - for credit purchases
+app.post(
+  "/webhooks/app/purchases/one_time/update",
+  verifyWebhookSignature,
+  async (req, res) => {
+    try {
+      logger.info("[WEBHOOK] app/purchases/one_time/update - raw payload received", {
+        shop: req.webhookShop,
+        topic: req.webhookTopic,
+        payloadKeys: Object.keys(req.webhookData || {}),
+      });
+
+      let app_purchase_one_time = null;
+
+      if (req.webhookData) {
+        if (req.webhookData.app_purchase_one_time) {
+          app_purchase_one_time = req.webhookData.app_purchase_one_time;
+        } else if (req.webhookData.id && req.webhookData.status) {
+          app_purchase_one_time = req.webhookData;
+        }
+      }
+
+      const shop = req.webhookShop;
+
+      if (!shop) {
+        logger.error("[WEBHOOK] app/purchases/one_time/update - missing shop domain");
+        return res.status(400).json({
+          error: "Missing shop domain",
+          received: true,
+        });
+      }
+
+      logger.info("[WEBHOOK] app/purchases/one_time/update received", {
+        shop,
+        purchaseId: app_purchase_one_time?.id,
+        status: app_purchase_one_time?.status,
+      });
+
+      // Handle credit purchase completion
+      if (app_purchase_one_time && app_purchase_one_time.status === "ACTIVE") {
+        try {
+          // Extract package ID from purchase name or return URL
+          const purchaseName = app_purchase_one_time.name || "";
+          const packageIdMatch = purchaseName.match(/Credit Package - (\w+)/);
+          const packageId = packageIdMatch ? packageIdMatch[1].toLowerCase() : null;
+
+          if (packageId) {
+            // Get offline access token
+            const tokenResult = await shopify.auth.tokenExchange({
+              shop,
+              sessionToken: null,
+              requestedTokenType: RequestedTokenType.OfflineAccessToken,
+            });
+
+            const session = tokenResult?.session;
+            const accessToken = session?.accessToken || session?.access_token;
+
+            if (session && accessToken) {
+              const client = new shopify.clients.Graphql({
+                session: {
+                  shop: session.shop || shop,
+                  accessToken,
+                  scope: session.scope,
+                  isOnline: session.isOnline || false,
+                },
+              });
+
+              const appInstallationQuery = `
+                query GetAppInstallation {
+                  appInstallation {
+                    id
+                  }
+                }
+              `;
+              const appInstallationResponse = await client.query({ 
+                data: { query: appInstallationQuery } 
+              });
+              const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+              if (appInstallationId) {
+                // Add credits to balance
+                await creditPurchase.handlePurchaseSuccess(
+                  client,
+                  appInstallationId,
+                  app_purchase_one_time.id,
+                  packageId
+                );
+
+                logger.info("[WEBHOOK] Credits added after purchase", {
+                  shop,
+                  purchaseId: app_purchase_one_time.id,
+                  packageId,
+                });
+              }
+            }
+          }
+        } catch (creditError) {
+          logger.error("[WEBHOOK] Failed to handle credit purchase", creditError, null, {
+            shop,
+            purchaseId: app_purchase_one_time?.id,
+          });
+          // Don't fail webhook
+        }
+      }
+
+      res.status(200).json({ received: true });
+    } catch (error) {
+      logger.error("[WEBHOOK ERROR] app/purchases/one_time/update failed", error, req, {
+        shop: req.webhookShop,
+        errorMessage: error.message,
+      });
+
       res.status(200).json({
         received: true,
         error: "Webhook processed but encountered an error",
@@ -2538,14 +2830,503 @@ app.post("/api/billing/change-plan", async (req, res) => {
   });
 });
 
+// Credit API Routes
+// Get credit balance
+app.get("/api/credits/balance", async (req, res) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain",
+      });
+    }
+
+    // Get session token from request
+    const sessionToken = req.sessionToken;
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+      });
+    }
+
+    // Exchange token for access token
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Failed to get access token",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    // Get app installation ID
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        appInstallation {
+          id
+        }
+      }
+    `;
+    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
+    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+      });
+    }
+
+    // Get credit balance
+    const creditData = await creditManager.getTotalCreditsAvailable(client, appInstallationId);
+
+    res.json({
+      balance: creditData.balance,
+      included: creditData.included,
+      used: creditData.used,
+      isOverage: creditData.isOverage || false,
+      periodEnd: creditData.periodEnd,
+      subscriptionLineItemId: creditData.subscriptionLineItemId,
+      canPurchase: true,
+    });
+  } catch (error) {
+    logger.error("[CREDITS] Failed to get credit balance", error, req);
+    res.status(500).json({
+      error: "Failed to get credit balance",
+      message: error.message,
+    });
+  }
+});
+
+// Deduct credit (internal endpoint)
+app.post("/api/credits/deduct", async (req, res) => {
+  try {
+    const { shop, amount = 1, tryonId, description } = req.body;
+
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    const sessionToken = req.sessionToken;
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        appInstallation {
+          id
+        }
+      }
+    `;
+    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
+    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+      });
+    }
+
+    const result = await creditDeduction.deductCreditForTryOn(
+      client,
+      appInstallationId,
+      shopDomain,
+      tryonId || `tryon-${Date.now()}`
+    );
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    logger.error("[CREDITS] Failed to deduct credit", error, req);
+    res.status(500).json({
+      error: "Failed to deduct credit",
+      message: error.message,
+    });
+  }
+});
+
+// Reset credits (webhook/internal)
+app.post("/api/credits/reset", async (req, res) => {
+  try {
+    const { shop, periodEnd } = req.body;
+
+    if (!shop || !periodEnd) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    const sessionToken = req.sessionToken;
+
+    // For webhook calls, sessionToken might not be available
+    // In that case, we need to use the shop's offline access token
+    let client;
+    if (sessionToken) {
+      const tokenResult = await shopify.auth.tokenExchange({
+        shop: shopDomain,
+        sessionToken,
+        requestedTokenType: RequestedTokenType.OfflineAccessToken,
+      });
+      const session = tokenResult?.session;
+      const accessToken = session?.accessToken || session?.access_token;
+      client = new shopify.clients.Graphql({
+        session: {
+          shop: session.shop || shopDomain,
+          accessToken,
+          scope: session.scope,
+          isOnline: session.isOnline || false,
+        },
+      });
+    } else {
+      // For webhook calls, we'd need to get the offline token from storage
+      // This is a simplified version - in production, you'd get it from your session storage
+      return res.status(401).json({
+        error: "Authentication required",
+      });
+    }
+
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        appInstallation {
+          id
+        }
+      }
+    `;
+    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
+    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+      });
+    }
+
+    const result = await creditReset.resetCreditsForNewPeriod(
+      client,
+      appInstallationId,
+      periodEnd
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error("[CREDITS] Failed to reset credits", error, req);
+    res.status(500).json({
+      error: "Failed to reset credits",
+      message: error.message,
+    });
+  }
+});
+
+// Get credit packages
+app.get("/api/credits/packages", (req, res) => {
+  try {
+    const packages = creditPurchase.getCreditPackages();
+    res.json({ packages });
+  } catch (error) {
+    logger.error("[CREDITS] Failed to get credit packages", error, req);
+    res.status(500).json({
+      error: "Failed to get credit packages",
+      message: error.message,
+    });
+  }
+});
+
+// Purchase credits
+app.post("/api/credits/purchase", async (req, res) => {
+  try {
+    const { shop, packageId, couponCode } = req.body;
+
+    if (!shop || !packageId) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    const sessionToken = req.sessionToken;
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    const result = await creditPurchase.createCreditPurchase(
+      client,
+      shopDomain,
+      packageId,
+      couponCode
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error("[CREDITS] Failed to create credit purchase", error, req);
+    res.status(500).json({
+      error: "Failed to create credit purchase",
+      message: error.message,
+    });
+  }
+});
+
+// Redeem coupon code
+app.post("/api/credits/redeem-coupon", async (req, res) => {
+  try {
+    const { shop, code } = req.body;
+
+    if (!shop || !code) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    const sessionToken = req.sessionToken;
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        appInstallation {
+          id
+        }
+      }
+    `;
+    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
+    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+      });
+    }
+
+    const result = await couponService.redeemCouponCode(client, appInstallationId, code);
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    logger.error("[CREDITS] Failed to redeem coupon", error, req);
+    res.status(500).json({
+      error: "Failed to redeem coupon",
+      message: error.message,
+    });
+  }
+});
+
+// Get coupon status
+app.get("/api/credits/coupon-status", async (req, res) => {
+  try {
+    const { shop, code } = req.query;
+
+    if (!shop || !code) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    const sessionToken = req.sessionToken;
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        appInstallation {
+          id
+        }
+      }
+    `;
+    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
+    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+      });
+    }
+
+    const validation = await couponService.validateCouponCode(client, appInstallationId, code);
+    const alreadyUsed = await couponService.checkCouponUsage(client, appInstallationId, code);
+    const config = couponService.getCouponConfig(code);
+
+    res.json({
+      valid: validation.valid,
+      code: code.toUpperCase(),
+      credits: config?.credits || null,
+      alreadyUsed,
+      expiresAt: config?.expiresAt || null,
+      usageLimit: config?.usageLimit?.perShop || null,
+    });
+  } catch (error) {
+    logger.error("[CREDITS] Failed to get coupon status", error, req);
+    res.status(500).json({
+      error: "Failed to get coupon status",
+      message: error.message,
+    });
+  }
+});
+
 // API Routes
 app.post("/api/tryon/generate", async (req, res) => {
+  const startTime = Date.now();
+  let tryonId = null;
+  let creditDeductionResult = null;
+  let shopDomain = null;
+
   try {
     const { personImage, clothingImage, storeName, clothingKey, personKey } =
       req.body;
 
+    shopDomain = storeName ? normalizeShopDomain(storeName) : null;
+    tryonId = `tryon-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
     logger.info("[API] Try-on generation request received", {
       storeName,
+      shopDomain,
+      tryonId,
       hasPersonImage: !!personImage,
       hasClothingImage: !!clothingImage,
       hasClothingKey: !!clothingKey,
@@ -2558,6 +3339,115 @@ app.post("/api/tryon/generate", async (req, res) => {
         hasClothingImage: !!clothingImage,
       });
       return res.status(400).json({ error: "Missing required images" });
+    }
+
+    // Check subscription and credits if shop is provided
+    if (shopDomain) {
+      const sessionToken = req.sessionToken;
+      
+      if (sessionToken) {
+        try {
+          // Exchange token for access token
+          const tokenResult = await shopify.auth.tokenExchange({
+            shop: shopDomain,
+            sessionToken,
+            requestedTokenType: RequestedTokenType.OfflineAccessToken,
+          });
+
+          const session = tokenResult?.session;
+          const accessToken = session?.accessToken || session?.access_token;
+
+          if (session && accessToken) {
+            const client = new shopify.clients.Graphql({
+              session: {
+                shop: session.shop || shopDomain,
+                accessToken,
+                scope: session.scope,
+                isOnline: session.isOnline || false,
+              },
+            });
+
+            // Get app installation ID
+            const appInstallationQuery = `
+              query GetAppInstallation {
+                currentAppInstallation {
+                  id
+                }
+              }
+            `;
+            const appInstallationResponse = await client.query({ 
+              data: { query: appInstallationQuery } 
+            });
+            const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+            if (appInstallationId) {
+              // Check subscription status
+              const subscriptionStatus = await fetchManagedSubscriptionStatus(
+                shopDomain,
+                session,
+                sessionToken
+              );
+
+              if (!subscriptionStatus.hasActiveSubscription) {
+                return res.status(403).json({
+                  error: "No active subscription",
+                  message: "Please subscribe to a plan to use try-on generation",
+                });
+              }
+
+              // Check credit availability
+              const creditAvailability = await creditManager.checkCreditAvailability(
+                client,
+                appInstallationId,
+                1
+              );
+
+              if (!creditAvailability.available) {
+                return res.status(403).json({
+                  error: "Insufficient credits",
+                  message: "You have no credits remaining. Please purchase more credits.",
+                  creditsRemaining: creditAvailability.remaining,
+                });
+              }
+
+              // Deduct credit
+              creditDeductionResult = await creditDeduction.deductCreditForTryOn(
+                client,
+                appInstallationId,
+                shopDomain,
+                tryonId
+              );
+
+              if (!creditDeductionResult.success) {
+                if (creditDeductionResult.error === "CAPPED_AMOUNT_EXCEEDED") {
+                  return res.status(403).json({
+                    error: "Credit limit exceeded",
+                    message: creditDeductionResult.message,
+                  });
+                }
+                return res.status(400).json({
+                  error: "Credit deduction failed",
+                  message: creditDeductionResult.message || "Failed to deduct credit",
+                });
+              }
+
+              logger.info("[API] Credit deducted for try-on", {
+                shopDomain,
+                tryonId,
+                source: creditDeductionResult.source,
+                creditsRemaining: creditDeductionResult.creditsRemaining,
+              });
+            }
+          }
+        } catch (creditError) {
+          logger.error("[API] Credit check/deduction failed", creditError, req, {
+            shopDomain,
+            tryonId,
+          });
+          // Continue with generation but log the error
+          // In production, you might want to block generation if credit check fails
+        }
+      }
     }
 
     // Convert base64 to Blob for FormData
@@ -2617,18 +3507,90 @@ app.post("/api/tryon/generate", async (req, res) => {
     const duration = Date.now() - startTime;
 
     logger.info("[API] Try-on generation completed successfully", {
-      storeName,
+      storeName: shopDomain || storeName,
+      tryonId,
       duration: `${duration}ms`,
       hasResult: !!data,
+      creditDeducted: !!creditDeductionResult,
     });
 
-    res.json(data);
+    // Return result with credit information
+    res.json({
+      ...data,
+      creditInfo: creditDeductionResult ? {
+        source: creditDeductionResult.source,
+        creditsRemaining: creditDeductionResult.creditsRemaining,
+      } : null,
+    });
   } catch (error) {
     const duration = Date.now() - startTime;
     logger.error("[API] Try-on generation failed", error, req, {
-      storeName,
+      storeName: shopDomain || storeName,
+      tryonId,
       duration: `${duration}ms`,
     });
+
+    // Refund credit if deduction was successful but generation failed
+    if (creditDeductionResult && creditDeductionResult.success && shopDomain) {
+      try {
+        const sessionToken = req.sessionToken;
+        if (sessionToken) {
+          const tokenResult = await shopify.auth.tokenExchange({
+            shop: shopDomain,
+            sessionToken,
+            requestedTokenType: RequestedTokenType.OfflineAccessToken,
+          });
+
+          const session = tokenResult?.session;
+          const accessToken = session?.accessToken || session?.access_token;
+
+          if (session && accessToken) {
+            const client = new shopify.clients.Graphql({
+              session: {
+                shop: session.shop || shopDomain,
+                accessToken,
+                scope: session.scope,
+                isOnline: session.isOnline || false,
+              },
+            });
+
+            const appInstallationQuery = `
+              query GetAppInstallation {
+                currentAppInstallation {
+                  id
+                }
+              }
+            `;
+            const appInstallationResponse = await client.query({ 
+              data: { query: appInstallationQuery } 
+            });
+            const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+
+            if (appInstallationId) {
+              await creditDeduction.refundCredit(
+                client,
+                appInstallationId,
+                shopDomain,
+                tryonId,
+                "Generation failed",
+                creditDeductionResult.source
+              );
+
+              logger.info("[API] Credit refunded due to generation failure", {
+                shopDomain,
+                tryonId,
+                source: creditDeductionResult.source,
+              });
+            }
+          }
+        }
+      } catch (refundError) {
+        logger.error("[API] Failed to refund credit", refundError, req, {
+          shopDomain,
+          tryonId,
+        });
+      }
+    }
 
     res.status(500).json({
       error: "Failed to generate try-on image",

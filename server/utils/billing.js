@@ -187,3 +187,95 @@ export const calculateDiscount = (originalPrice, currencyCode, promoCode) => {
     discountType: null,
   };
 };
+
+/**
+ * Credit Packages Configuration
+ * Available credit packages for purchase
+ */
+export const CREDIT_PACKAGES = {
+  SMALL: {
+    id: "small",
+    name: "50 Credits",
+    credits: 50,
+    price: 10.0,
+    currencyCode: "USD",
+    valuePerCredit: 0.20,
+    recommended: false,
+    description: "Perfect for testing",
+  },
+  MEDIUM: {
+    id: "medium",
+    name: "100 Credits",
+    credits: 100,
+    price: 18.0,
+    currencyCode: "USD",
+    valuePerCredit: 0.18,
+    recommended: true,
+    description: "Best value",
+  },
+  LARGE: {
+    id: "large",
+    name: "200 Credits",
+    credits: 200,
+    price: 32.0,
+    currencyCode: "USD",
+    valuePerCredit: 0.16,
+    recommended: false,
+    description: "For high-volume users",
+  },
+};
+
+/**
+ * Coupon Codes Configuration for Promotional Credits
+ * These are different from subscription promo codes - they add credits directly
+ */
+export const COUPON_CODES = {
+  WELCOME50: {
+    code: "WELCOME50",
+    credits: 50,
+    type: "fixed",
+    usageLimit: {
+      perShop: 1,
+      global: 1000,
+    },
+    expiresAt: "2024-12-31T23:59:59Z",
+    active: true,
+    description: "Welcome bonus - 50 free credits",
+  },
+  REFERRAL100: {
+    code: "REFERRAL100",
+    credits: 100,
+    type: "fixed",
+    usageLimit: {
+      perShop: 1,
+      global: null, // Unlimited
+    },
+    expiresAt: null, // No expiration
+    active: true,
+    description: "Referral bonus - 100 free credits",
+  },
+  HOLIDAY25: {
+    code: "HOLIDAY25",
+    credits: 25,
+    type: "fixed",
+    usageLimit: {
+      perShop: 3,
+      global: 5000,
+    },
+    expiresAt: "2024-12-25T23:59:59Z",
+    active: true,
+    description: "Holiday special - 25 credits (3 uses per shop)",
+  },
+};
+
+/**
+ * Usage Pricing Configuration
+ * For overage billing after included credits
+ */
+export const USAGE_PRICING = {
+  pricePerCredit: 0.20,
+  currencyCode: "USD",
+  cappedAmount: 50.0, // $50 per billing period
+  terms: "$0.20 per try-on after included 100 credits",
+  description: "Overage billing for try-on generations",
+};
