@@ -14,8 +14,12 @@ interface SubscriptionStatus {
     id: string;
     status: string;
     currentPeriodEnd: string;
+    currentPeriodStart: string;
     createdAt: string;
     name: string;
+    trialDays: number | null;
+    trialDaysRemaining: number | null;
+    isInTrial: boolean;
   } | null;
   requestId?: string;
 }

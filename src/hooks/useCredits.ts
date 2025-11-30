@@ -38,7 +38,38 @@ export const useCredits = (): UseCreditsReturn => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/credits/balance?shop=${encodeURIComponent(shop)}`);
+      const appBridge = (window as any).__APP_BRIDGE;
+      let fetchFn = fetch;
+      let headers: HeadersInit = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+
+      if (appBridge) {
+        try {
+          const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
+          fetchFn = authenticatedFetch(appBridge);
+        } catch (error) {
+          try {
+            const { getSessionToken } = await import("@shopify/app-bridge-utils");
+            const token = await getSessionToken(appBridge);
+            if (token) {
+              headers = {
+                ...headers,
+                Authorization: `Bearer ${token}`,
+              };
+            }
+          } catch (tokenError) {
+            // Ignore
+          }
+        }
+      }
+
+      const response = await fetchFn(`/api/credits/balance?shop=${encodeURIComponent(shop)}`, {
+        method: "GET",
+        headers,
+        credentials: "same-origin",
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch credits: ${response.statusText}`);

@@ -229,6 +229,25 @@ const mapSubscriptionToPlan = (appSubscription) => {
       }
     : null;
 
+  // Calculate trial information
+  // Get trialDays from matched plan config (since it's not always in subscription response)
+  const trialDays = matchedPlan?.trialDays || appSubscription.trialDays || null;
+  let trialDaysRemaining = null;
+  let isInTrial = false;
+  
+  if (trialDays && appSubscription.createdAt) {
+    const createdAt = new Date(appSubscription.createdAt);
+    const trialEndDate = new Date(createdAt);
+    trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+    const now = new Date();
+    
+    if (now < trialEndDate) {
+      isInTrial = true;
+      const daysRemaining = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      trialDaysRemaining = Math.max(0, daysRemaining);
+    }
+  }
+
   return {
     hasActiveSubscription,
     isFree: !hasActiveSubscription,
@@ -237,8 +256,12 @@ const mapSubscriptionToPlan = (appSubscription) => {
       id: appSubscription.id,
       status: appSubscription.status,
       currentPeriodEnd: appSubscription.currentPeriodEnd,
+      currentPeriodStart: appSubscription.createdAt, // Use createdAt as plan start date (currentPeriodStart is not available in GraphQL schema)
       createdAt: appSubscription.createdAt,
       name: appSubscription.name || null,
+      trialDays: trialDays,
+      trialDaysRemaining,
+      isInTrial,
     },
   };
 };
@@ -406,6 +429,7 @@ const fetchManagedSubscriptionStatus = async (
           status
           currentPeriodEnd
           createdAt
+          trialDays
           lineItems {
             plan {
               pricingDetails {

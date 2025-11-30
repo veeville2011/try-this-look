@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useCredits } from "@/hooks/useCredits";
 import {
   Card,
   CardContent,
@@ -52,6 +53,14 @@ const Index = () => {
     error: subscriptionError,
     refresh: refreshSubscription,
   } = useSubscription();
+
+  // Use credits hook to get credit information
+  const {
+    credits,
+    loading: creditsLoading,
+    error: creditsError,
+    refresh: refreshCredits,
+  } = useCredits();
 
   const fetchAvailablePlans = async () => {
     try {
@@ -364,6 +373,13 @@ const Index = () => {
       fetchAvailablePlans();
     }
   }, []);
+
+  // Refresh credits when subscription changes
+  useEffect(() => {
+    if (subscription && subscription.subscription !== null && !subscription.isFree) {
+      refreshCredits();
+    }
+  }, [subscription?.subscription?.id, refreshCredits]);
 
   // Track if billing flow has been triggered to prevent infinite loops
   const billingTriggeredRef = useRef(false);
@@ -957,27 +973,96 @@ const Index = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {/* Plan Pricing */}
-                      {subscription.plan && !subscription.isFree && (
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-3xl font-bold text-foreground">
-                            ${subscription.plan.price}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            /
-                            {subscription.plan.interval === "ANNUAL"
-                              ? "an"
-                              : "mois"}
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {subscription.plan.currencyCode}
-                          </span>
+                      {/* Credits Tracking */}
+                      {credits && !subscription.isFree && (
+                        <div className="space-y-3 pt-2 border-t border-border">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              <Sparkle className="w-4 h-4 text-primary" />
+                              Crédits disponibles
+                            </span>
+                            {creditsLoading && (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Disponibles:
+                              </span>
+                              <span className="font-bold text-foreground">
+                                {credits.balance || 0}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Total inclus:
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {credits.included || 100}
+                              </span>
+                            </div>
+                            {credits.used !== undefined && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Utilisés:
+                                </span>
+                                <span className="font-medium text-foreground">
+                                  {credits.used || 0}
+                                </span>
+                              </div>
+                            )}
+                            {credits.isOverage && (
+                              <div className="mt-2 p-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+                                Mode dépassement activé
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Trial Days Remaining */}
+                      {subscription.subscription?.isInTrial && 
+                       subscription.subscription?.trialDaysRemaining !== null && (
+                        <div className="pt-2 border-t border-border">
+                          <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Sparkle className="w-4 h-4 text-primary" />
+                                <span className="text-sm font-semibold text-foreground">
+                                  Période d'essai
+                                </span>
+                              </div>
+                              <span className="text-sm font-bold text-primary">
+                                {subscription.subscription.trialDaysRemaining}{" "}
+                                {subscription.subscription.trialDaysRemaining === 1
+                                  ? "jour restant"
+                                  : "jours restants"}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       )}
 
                       {/* Subscription Status */}
                       {subscription.subscription && (
                         <div className="space-y-2 pt-2 border-t border-border">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              Début du plan:
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {new Date(
+                                subscription.subscription.currentPeriodStart ||
+                                  subscription.subscription.createdAt
+                              ).toLocaleDateString("fr-FR", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
                           <div className="flex items-center gap-2 text-sm">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span className="text-muted-foreground">
@@ -1005,47 +1090,62 @@ const Index = () => {
                         </div>
                       )}
 
-                      {/* Plan Benefits */}
+                      {/* Plan Benefits - From Pricing Page */}
                       <div className="pt-3 border-t border-border">
                         <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                           <Sparkle className="w-4 h-4 text-primary" />
                           Avantages inclus
                         </p>
                         <ul className="space-y-2">
-                          <li className="flex items-start gap-2 text-sm">
-                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                            <span className="text-muted-foreground">
-                              Essayage virtuel illimité
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-2 text-sm">
-                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                            <span className="text-muted-foreground">
-                              Support technique prioritaire
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-2 text-sm">
-                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                            <span className="text-muted-foreground">
-                              Intégration Shopify complète
-                            </span>
-                          </li>
-                          {!subscription.isFree && (
-                            <>
-                              <li className="flex items-start gap-2 text-sm">
-                                <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                <span className="text-muted-foreground">
-                                  Personnalisation avancée
-                                </span>
-                              </li>
-                              <li className="flex items-start gap-2 text-sm">
-                                <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                <span className="text-muted-foreground">
-                                  Analytics et rapports détaillés
-                                </span>
-                              </li>
-                            </>
-                          )}
+                          {(() => {
+                            // Find the plan from availablePlans by handle
+                            const planHandle = subscription.plan?.handle;
+                            const matchedPlan = availablePlans.find(
+                              (p) => p.handle === planHandle
+                            );
+                            const planFeatures =
+                              matchedPlan?.features ||
+                              subscription.plan?.features || [];
+
+                            // If we have features from the pricing page, use those
+                            if (planFeatures.length > 0) {
+                              return planFeatures.map((feature: string, index: number) => (
+                                <li
+                                  key={index}
+                                  className="flex items-start gap-2 text-sm"
+                                >
+                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                  <span className="text-muted-foreground">
+                                    {feature}
+                                  </span>
+                                </li>
+                              ));
+                            }
+
+                            // Fallback to default features if no plan found
+                            return (
+                              <>
+                                <li className="flex items-start gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                  <span className="text-muted-foreground">
+                                    Essayage virtuel illimité
+                                  </span>
+                                </li>
+                                <li className="flex items-start gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                  <span className="text-muted-foreground">
+                                    Support technique prioritaire
+                                  </span>
+                                </li>
+                                <li className="flex items-start gap-2 text-sm">
+                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                  <span className="text-muted-foreground">
+                                    Intégration Shopify complète
+                                  </span>
+                                </li>
+                              </>
+                            );
+                          })()}
                         </ul>
                       </div>
 
