@@ -3068,12 +3068,16 @@ app.post("/api/billing/validate-promo", async (req, res) => {
 app.get("/api/billing/plans", (req, res) => {
   try {
     const plans = billing.getAvailablePlans();
-    res.json({ plans });
+    
+    // Ensure plans is always an array
+    const plansArray = Array.isArray(plans) ? plans : [];
+    
+    res.json({ plans: plansArray });
   } catch (error) {
-    logger.error("[BILLING] Failed to get plans", error, req);
+    console.error("[BILLING] Failed to get plans:", error.message);
     res.status(500).json({
       error: "Failed to get plans",
-      message: error.message,
+      message: error.message || "An unexpected error occurred",
     });
   }
 });
