@@ -899,22 +899,6 @@ const createUsageSubscription = async (client, shopDomain, returnUrl) => {
     throw error;
   }
 };
-  } catch (error) {
-    if (error instanceof SubscriptionStatusError) {
-      throw error;
-    }
-
-    logger.error("[BILLING] Failed to create app subscription", error, null, {
-      shop: normalizedShop,
-      planHandle,
-    });
-
-    throw new SubscriptionStatusError("Failed to create subscription", 500, {
-      resolution: "Please try again. If the issue persists, contact support.",
-      error: error.message,
-    });
-  }
-};
 
 const app = express();
 
@@ -2310,6 +2294,7 @@ app.post(
               }
             }
           }
+        }
         } catch (creditError) {
           logger.error("[WEBHOOK] Failed to handle credit purchase", creditError, null, {
             shop,
