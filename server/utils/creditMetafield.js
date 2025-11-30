@@ -14,9 +14,14 @@ const METAFIELD_KEYS = {
   CREDITS_USED_THIS_PERIOD: "credits_used_this_period",
   LAST_CREDIT_RESET: "last_credit_reset",
   CURRENT_PERIOD_END: "current_period_end",
+  MONTHLY_PERIOD_END: "monthly_period_end", // For annual subscriptions that reset monthly
   SUBSCRIPTION_LINE_ITEM_ID: "subscription_line_item_id",
   COUPON_REDEMPTIONS: "coupon_redemptions",
   CREDIT_TRANSACTIONS: "credit_transactions",
+  // Overage tracking for annual subscriptions
+  OVERAGE_COUNT: "overage_count", // Number of overage credits used this month
+  OVERAGE_AMOUNT: "overage_amount", // Total amount accumulated for overage this month (in cents/dollars)
+  LAST_OVERAGE_BILLED: "last_overage_billed", // Date when last overage was billed
 };
 
 /**
@@ -93,6 +98,8 @@ export const getCreditMetafields = async (client, appInstallationId) => {
           }
         } else if (node.type === "number_integer") {
           result[node.key] = parseInt(node.value, 10);
+        } else if (node.type === "number_decimal") {
+          result[node.key] = parseFloat(node.value);
         } else {
           result[node.key] = node.value;
         }
@@ -169,12 +176,24 @@ export const updateCreditBalance = async (client, appInstallationId, newBalance)
 /**
  * Initialize credits for new subscription
  */
-export const initializeCredits = async (client, appInstallationId, planHandle, includedCredits = 100, periodEnd, subscriptionLineItemId = null) => {
+export const initializeCredits = async (client, appInstallationId, planHandle, includedCredits = 100, periodEnd, subscriptionLineItemId = null, isAnnual = false) => {
   if (!appInstallationId) {
     appInstallationId = await getAppInstallationId(client);
   }
 
   const now = new Date().toISOString();
+  
+  // For annual subscriptions, calculate first monthly period end (first day of next month)
+  // For monthly subscriptions, use the billing period end
+  let actualPeriodEnd = periodEnd;
+  if (isAnnual) {
+    const nextMonth = new Date();
+    // Set to first day of next month
+    nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+    nextMonth.setHours(0, 0, 0, 0); // Start of day
+    actualPeriodEnd = nextMonth.toISOString();
+  }
+
   const metafields = [
     {
       ownerId: appInstallationId,
@@ -207,18 +226,31 @@ export const initializeCredits = async (client, appInstallationId, planHandle, i
     {
       ownerId: appInstallationId,
       namespace: METAFIELD_NAMESPACE,
-      key: METAFIELD_KEYS.CURRENT_PERIOD_END,
-      type: "date_time",
-      value: periodEnd,
-    },
-    {
-      ownerId: appInstallationId,
-      namespace: METAFIELD_NAMESPACE,
       key: METAFIELD_KEYS.COUPON_REDEMPTIONS,
       type: "json",
       value: JSON.stringify([]),
     },
   ];
+
+  // For annual subscriptions, store monthly period end
+  // For monthly subscriptions, store billing period end
+  if (isAnnual) {
+    metafields.push({
+      ownerId: appInstallationId,
+      namespace: METAFIELD_NAMESPACE,
+      key: METAFIELD_KEYS.MONTHLY_PERIOD_END,
+      type: "date_time",
+      value: actualPeriodEnd,
+    });
+  } else {
+    metafields.push({
+      ownerId: appInstallationId,
+      namespace: METAFIELD_NAMESPACE,
+      key: METAFIELD_KEYS.CURRENT_PERIOD_END,
+      type: "date_time",
+      value: actualPeriodEnd,
+    });
+  }
 
   if (subscriptionLineItemId) {
     metafields.push({
@@ -274,8 +306,9 @@ export const initializeCredits = async (client, appInstallationId, planHandle, i
 
 /**
  * Reset credits for new billing period
+ * @param {boolean} isAnnual - If true, stores monthly_period_end instead of current_period_end
  */
-export const resetCreditsForPeriod = async (client, appInstallationId, periodEnd, includedCredits = 100) => {
+export const resetCreditsForPeriod = async (client, appInstallationId, periodEnd, includedCredits = 100, isAnnual = false) => {
   if (!appInstallationId) {
     appInstallationId = await getAppInstallationId(client);
   }
@@ -303,14 +336,27 @@ export const resetCreditsForPeriod = async (client, appInstallationId, periodEnd
       type: "date_time",
       value: now,
     },
-    {
+  ];
+
+  // For annual subscriptions, store monthly period end
+  // For monthly subscriptions, store billing period end
+  if (isAnnual) {
+    metafields.push({
+      ownerId: appInstallationId,
+      namespace: METAFIELD_NAMESPACE,
+      key: METAFIELD_KEYS.MONTHLY_PERIOD_END,
+      type: "date_time",
+      value: periodEnd,
+    });
+  } else {
+    metafields.push({
       ownerId: appInstallationId,
       namespace: METAFIELD_NAMESPACE,
       key: METAFIELD_KEYS.CURRENT_PERIOD_END,
       type: "date_time",
       value: periodEnd,
-    },
-  ];
+    });
+  }
 
   const mutation = `
     mutation ResetCreditsForPeriod($metafields: [MetafieldsSetInput!]!) {
@@ -455,11 +501,17 @@ export const batchUpdateMetafields = async (client, appInstallationId, updates) 
     // Determine type based on key
     if (metafieldKey === METAFIELD_KEYS.CREDIT_BALANCE || 
         metafieldKey === METAFIELD_KEYS.CREDITS_INCLUDED ||
-        metafieldKey === METAFIELD_KEYS.CREDITS_USED_THIS_PERIOD) {
+        metafieldKey === METAFIELD_KEYS.CREDITS_USED_THIS_PERIOD ||
+        metafieldKey === METAFIELD_KEYS.OVERAGE_COUNT) {
       type = "number_integer";
       stringValue = String(value);
+    } else if (metafieldKey === METAFIELD_KEYS.OVERAGE_AMOUNT) {
+      type = "number_decimal";
+      stringValue = String(value);
     } else if (metafieldKey === METAFIELD_KEYS.LAST_CREDIT_RESET ||
-               metafieldKey === METAFIELD_KEYS.CURRENT_PERIOD_END) {
+               metafieldKey === METAFIELD_KEYS.CURRENT_PERIOD_END ||
+               metafieldKey === METAFIELD_KEYS.MONTHLY_PERIOD_END ||
+               metafieldKey === METAFIELD_KEYS.LAST_OVERAGE_BILLED) {
       type = "date_time";
       stringValue = value instanceof Date ? value.toISOString() : value;
     } else if (metafieldKey === METAFIELD_KEYS.COUPON_REDEMPTIONS ||

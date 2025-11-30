@@ -27,7 +27,7 @@ export const PLANS = {
   [PLAN_HANDLES.PRO_MONTHLY]: {
     name: "Plan Standard",
     handle: PLAN_HANDLES.PRO_MONTHLY,
-    price: 20.0,
+    price: 23.0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
     trialDays: 15,

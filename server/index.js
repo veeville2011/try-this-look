@@ -654,30 +654,52 @@ const createAppSubscription = async (
       lineItemPlan.discount = discountConfig;
     }
 
-    // Usage pricing configuration for overage billing
-    const usagePricing = {
-      terms: billing.USAGE_PRICING.terms,
-      cappedAmount: {
-        amount: billing.USAGE_PRICING.cappedAmount,
-        currencyCode: billing.USAGE_PRICING.currencyCode,
+    // Build line items array
+    // Note: Shopify doesn't allow usage-based pricing with annual subscriptions
+    // For annual plans, we'll create a separate usage subscription after the recurring one
+    const lineItems = [
+      {
+        plan: {
+          appRecurringPricingDetails: lineItemPlan,
+        },
       },
-    };
+    ];
+
+    // Only add usage pricing for monthly plans (EVERY_30_DAYS)
+    // Annual plans cannot have usage pricing in the same subscription
+    if (planConfig.interval === "EVERY_30_DAYS") {
+      const usagePricing = {
+        terms: billing.USAGE_PRICING.terms,
+        cappedAmount: {
+          amount: billing.USAGE_PRICING.cappedAmount,
+          currencyCode: billing.USAGE_PRICING.currencyCode,
+        },
+      };
+
+      lineItems.push({
+        plan: {
+          appUsagePricingDetails: usagePricing,
+        },
+      });
+
+      logger.info("[BILLING] Adding usage pricing for monthly plan", {
+        shop: normalizedShop,
+        planHandle,
+        interval: planConfig.interval,
+      });
+    } else {
+      logger.info("[BILLING] Skipping usage pricing for annual plan", {
+        shop: normalizedShop,
+        planHandle,
+        interval: planConfig.interval,
+        note: "Annual subscriptions don't support usage billing. Overage must be handled through alternative billing methods (one-time charges, manual billing, etc.)",
+      });
+    }
 
     const variables = {
       name: planConfig.name,
       returnUrl,
-      lineItems: [
-        {
-          plan: {
-            appRecurringPricingDetails: lineItemPlan,
-          },
-        },
-        {
-          plan: {
-            appUsagePricingDetails: usagePricing,
-          },
-        },
-      ],
+      lineItems,
       trialDays: planConfig.trialDays || null,
       // Enable test mode only for vto-demo.myshopify.com
       // Test charges don't require actual payment and can be approved without payment method
@@ -745,6 +767,138 @@ const createAppSubscription = async (
       appSubscription: payload.appSubscription,
       plan: planConfig,
     };
+  } catch (error) {
+    if (error instanceof SubscriptionStatusError) {
+      throw error;
+    }
+
+    logger.error("[BILLING] Failed to create app subscription", error, null, {
+      shop: normalizedShop,
+      planHandle,
+    });
+
+    throw new SubscriptionStatusError("Failed to create subscription", 500, {
+      resolution: "Please try again. If the issue persists, contact support.",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Create a separate usage-based subscription for annual plans
+ * This is needed because Shopify doesn't allow usage pricing in annual subscriptions
+ * @param {Object} client - GraphQL client with authenticated session
+ * @param {string} shopDomain - Shop domain
+ * @param {string} returnUrl - Return URL after subscription approval
+ * @returns {Promise<Object>} Subscription creation result
+ */
+const createUsageSubscription = async (client, shopDomain, returnUrl) => {
+  try {
+    const usagePricing = {
+      terms: billing.USAGE_PRICING.terms,
+      cappedAmount: {
+        amount: billing.USAGE_PRICING.cappedAmount,
+        currencyCode: billing.USAGE_PRICING.currencyCode,
+      },
+    };
+
+    const mutation = `
+      mutation AppSubscriptionCreate(
+        $name: String!
+        $returnUrl: URL!
+        $lineItems: [AppSubscriptionLineItemInput!]!
+        $test: Boolean
+      ) {
+        appSubscriptionCreate(
+          name: $name
+          returnUrl: $returnUrl
+          lineItems: $lineItems
+          test: $test
+        ) {
+          userErrors {
+            field
+            message
+          }
+          confirmationUrl
+          appSubscription {
+            id
+            status
+            name
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  __typename
+                  ... on AppUsagePricing {
+                    terms
+                    cappedAmount {
+                      amount
+                      currencyCode
+                    }
+                    interval
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      name: "Usage-based Overage Billing",
+      returnUrl,
+      lineItems: [
+        {
+          plan: {
+            appUsagePricingDetails: usagePricing,
+          },
+        },
+      ],
+      test: isDemoStore(shopDomain),
+    };
+
+    const response = await client.query({
+      data: {
+        query: mutation,
+        variables,
+      },
+    });
+
+    const payload = response?.body?.data?.appSubscriptionCreate;
+
+    if (!payload) {
+      throw new Error("Unexpected response from appSubscriptionCreate");
+    }
+
+    const userErrors = payload.userErrors || [];
+    if (userErrors.length > 0) {
+      logger.error("[BILLING] Failed to create usage subscription", null, null, {
+        shop: shopDomain,
+        userErrors,
+      });
+      throw new Error(
+        `Failed to create usage subscription: ${userErrors.map((e) => e.message).join(", ")}`
+      );
+    }
+
+    logger.info("[BILLING] Usage subscription created successfully", {
+      shop: shopDomain,
+      subscriptionId: payload.appSubscription?.id,
+      confirmationUrl: payload.confirmationUrl,
+    });
+
+    return {
+      confirmationUrl: payload.confirmationUrl,
+      appSubscription: payload.appSubscription,
+    };
+  } catch (error) {
+    logger.error("[BILLING] Failed to create usage subscription", error, null, {
+      shop: shopDomain,
+    });
+    throw error;
+  }
+};
   } catch (error) {
     if (error instanceof SubscriptionStatusError) {
       throw error;
@@ -1766,6 +1920,33 @@ app.post(
                     },
                   });
 
+                  // Check if this is an annual subscription
+                  // Note: Shopify doesn't allow usage billing with annual subscriptions
+                  // and only allows one active subscription per merchant
+                  // For annual plans, overage billing must be handled through alternative means
+                  // (e.g., one-time charges, manual billing, or tracking for next billing cycle)
+                  const recurringLineItem = app_subscription.lineItems?.find(
+                    (item) =>
+                      item.plan?.pricingDetails?.__typename === "AppRecurringPricing"
+                  );
+                  const usageLineItem = app_subscription.lineItems?.find(
+                    (item) =>
+                      item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+                  );
+                  const isAnnual =
+                    recurringLineItem?.plan?.pricingDetails?.interval === "ANNUAL";
+
+                  if (isAnnual && !usageLineItem) {
+                    logger.info(
+                      "[WEBHOOK] Annual subscription detected without usage pricing",
+                      {
+                        shop,
+                        recurringSubscriptionId: app_subscription.id,
+                        note: "Overage billing for annual plans must be handled through alternative billing methods (one-time charges, manual billing, etc.)",
+                      }
+                    );
+                  }
+
                   const appInstallationQuery = `
                     query GetAppInstallation {
                       currentAppInstallation {
@@ -1780,13 +1961,45 @@ app.post(
 
                   if (appInstallationId) {
                     // Check if period has renewed
+                    // For annual subscriptions, use monthly period checking
                     const periodCheck = await creditReset.checkPeriodRenewal(
                       client,
                       appInstallationId,
-                      app_subscription.currentPeriodEnd
+                      app_subscription.currentPeriodEnd,
+                      isAnnual
                     );
 
                     if (periodCheck.isNewPeriod) {
+                      // For annual subscriptions, bill accumulated overage before resetting credits
+                      if (isAnnual) {
+                        try {
+                          const { billAccumulatedOverage } = await import("./utils/annualOverageBilling.js");
+                          const isDemo = isDemoStore(shop);
+                          const overageResult = await billAccumulatedOverage(
+                            client,
+                            shop,
+                            appInstallationId,
+                            isDemo
+                          );
+                          
+                          if (overageResult.billed) {
+                            logger.info("[WEBHOOK] Overage billed for annual subscription", {
+                              shop,
+                              amount: overageResult.amount,
+                              overageCount: overageResult.overageCount,
+                              purchaseId: overageResult.purchaseId,
+                              note: "Merchant will need to approve the one-time charge",
+                            });
+                          }
+                        } catch (overageError) {
+                          // Log error but don't fail credit reset
+                          logger.error("[WEBHOOK] Failed to bill overage for annual subscription", overageError, null, {
+                            shop,
+                            appInstallationId,
+                          });
+                        }
+                      }
+                      
                       // Reset credits for new period
                       const plan = processedData.plan;
                       const includedCredits = plan?.limits?.includedCredits || 100;
@@ -1795,13 +2008,18 @@ app.post(
                         client,
                         appInstallationId,
                         app_subscription.currentPeriodEnd,
-                        includedCredits
+                        includedCredits,
+                        isAnnual
                       );
 
                       logger.info("[WEBHOOK] Credits reset for new billing period", {
                         shop,
-                        periodEnd: app_subscription.currentPeriodEnd,
+                        periodEnd: periodCheck.newPeriodEnd,
                         includedCredits,
+                        isAnnual,
+                        note: isAnnual
+                          ? "Monthly reset for annual subscription (100 credits per month)"
+                          : "Billing cycle reset",
                       });
                     }
 
@@ -1823,21 +2041,81 @@ app.post(
                         plan?.handle,
                         includedCredits,
                         app_subscription.currentPeriodEnd,
-                        usageLineItem?.id || null
+                        usageLineItem?.id || null,
+                        isAnnual
                       );
 
                       logger.info("[WEBHOOK] Credits initialized for new subscription", {
                         shop,
                         includedCredits,
-                        periodEnd: app_subscription.currentPeriodEnd,
+                        periodEnd: isAnnual
+                          ? "Monthly period (30 days from now)"
+                          : app_subscription.currentPeriodEnd,
+                        isAnnual,
+                        note: isAnnual
+                          ? "Annual subscription: 100 credits per month"
+                          : "Monthly subscription: 100 credits per billing cycle",
                       });
                     } else {
                       // Existing subscription - sync data
-                      await creditReset.syncWithSubscription(client, appInstallationId, {
-                        id: app_subscription.id,
-                        currentPeriodEnd: app_subscription.currentPeriodEnd,
-                        lineItems: app_subscription.lineItems,
-                      });
+                      // For annual subscriptions, check monthly period renewal
+                      if (isAnnual) {
+                        const monthlyCheck = await creditReset.checkMonthlyPeriodRenewal(
+                          client,
+                          appInstallationId
+                        );
+                        if (monthlyCheck.isNewPeriod) {
+                          // Bill accumulated overage before resetting credits
+                          try {
+                            const { billAccumulatedOverage } = await import("./utils/annualOverageBilling.js");
+                            const isDemo = isDemoStore(shop);
+                            const overageResult = await billAccumulatedOverage(
+                              client,
+                              shop,
+                              appInstallationId,
+                              isDemo
+                            );
+                            
+                            if (overageResult.billed) {
+                              logger.info("[WEBHOOK] Overage billed for annual subscription", {
+                                shop,
+                                amount: overageResult.amount,
+                                overageCount: overageResult.overageCount,
+                                purchaseId: overageResult.purchaseId,
+                                note: "Merchant will need to approve the one-time charge",
+                              });
+                            }
+                          } catch (overageError) {
+                            // Log error but don't fail credit reset
+                            logger.error("[WEBHOOK] Failed to bill overage for annual subscription", overageError, null, {
+                              shop,
+                              appInstallationId,
+                            });
+                          }
+                          
+                          const plan = processedData.plan;
+                          const includedCredits = plan?.limits?.includedCredits || 100;
+                          await creditReset.resetCreditsForNewPeriod(
+                            client,
+                            appInstallationId,
+                            monthlyCheck.newPeriodEnd,
+                            includedCredits,
+                            true
+                          );
+                          logger.info("[WEBHOOK] Monthly credits reset for annual subscription", {
+                            shop,
+                            includedCredits,
+                            periodEnd: monthlyCheck.newPeriodEnd,
+                          });
+                        }
+                      } else {
+                        // Monthly subscription - sync with billing period
+                        await creditReset.syncWithSubscription(client, appInstallationId, {
+                          id: app_subscription.id,
+                          currentPeriodEnd: app_subscription.currentPeriodEnd,
+                          lineItems: app_subscription.lineItems,
+                        }, false); // Explicitly pass isAnnual = false
+                      }
 
                       // Store subscription line item ID for usage pricing if available
                       if (app_subscription.lineItems) {
@@ -1961,17 +2239,30 @@ app.post(
         status: app_purchase_one_time?.status,
       });
 
-      // Handle credit purchase completion
+      // Handle one-time purchase completion
       if (app_purchase_one_time && app_purchase_one_time.status === "ACTIVE") {
         try {
-          // Extract package ID from purchase name or return URL
           const purchaseName = app_purchase_one_time.name || "";
-          const packageIdMatch = purchaseName.match(/Credit Package - (\w+)/);
-          const packageId = packageIdMatch ? packageIdMatch[1].toLowerCase() : null;
+          
+          // Check if this is an overage billing charge
+          const isOverageBilling = purchaseName.includes("Monthly Overage Billing");
+          
+          if (isOverageBilling) {
+            // Overage billing charge was approved - tracking was already reset when charge was created
+            logger.info("[WEBHOOK] Overage billing charge approved", {
+              shop,
+              purchaseId: app_purchase_one_time.id,
+              purchaseName,
+              note: "Overage tracking was reset when charge was created",
+            });
+          } else {
+            // Handle credit package purchase
+            const packageIdMatch = purchaseName.match(/Credit Package - (\w+)/);
+            const packageId = packageIdMatch ? packageIdMatch[1].toLowerCase() : null;
 
-          if (packageId) {
-            // Get offline access token
-            const tokenResult = await shopify.auth.tokenExchange({
+            if (packageId) {
+              // Get offline access token
+              const tokenResult = await shopify.auth.tokenExchange({
               shop,
               sessionToken: null,
               requestedTokenType: RequestedTokenType.OfflineAccessToken,
@@ -2025,6 +2316,23 @@ app.post(
             purchaseId: app_purchase_one_time?.id,
           });
           // Don't fail webhook
+        }
+      } else if (app_purchase_one_time && app_purchase_one_time.status === "DECLINED") {
+        // Handle declined charges
+        const purchaseName = app_purchase_one_time.name || "";
+        const isOverageBilling = purchaseName.includes("Monthly Overage Billing");
+        
+        if (isOverageBilling) {
+          // If overage charge was declined, we should restore the overage tracking
+          // so it can be billed again later
+          logger.warn("[WEBHOOK] Overage billing charge declined", {
+            shop,
+            purchaseId: app_purchase_one_time.id,
+            purchaseName,
+            note: "Overage tracking was already reset. Manual intervention may be required if merchant wants to pay later.",
+          });
+          // Note: We don't restore tracking here because it was already reset when the charge was created.
+          // If the merchant wants to pay later, they can contact support or we can implement a retry mechanism.
         }
       }
 
