@@ -512,9 +512,18 @@ export const batchUpdateMetafields = async (client, appInstallationId, updates) 
   }
 
   const metafields = Object.entries(updates).map(([key, value]) => {
-    const metafieldKey = METAFIELD_KEYS[key.toUpperCase()] || key;
+    // Map key to metafield key (handle both snake_case and UPPER_CASE)
+    const upperKey = key.toUpperCase();
+    const metafieldKey = METAFIELD_KEYS[upperKey] || key;
     let type = "single_line_text_field";
     let stringValue = String(value);
+    
+    logger.info("[CREDIT_METAFIELD] Mapping update key to metafield key", {
+      originalKey: key,
+      upperKey,
+      metafieldKey,
+      value,
+    });
 
     // Determine type based on key
     if (metafieldKey === METAFIELD_KEYS.CREDIT_BALANCE || 
@@ -578,6 +587,8 @@ export const batchUpdateMetafields = async (client, appInstallationId, updates) 
     logger.info("[CREDIT_METAFIELD] Batch update completed", {
       appInstallationId,
       updatedKeys: Object.keys(updates),
+      updates: updates,
+      metafieldsUpdated: result?.metafields?.length || 0,
     });
 
     return result;

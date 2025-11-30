@@ -69,7 +69,18 @@ export const deductCreditForTryOn = async (client, appInstallationId, shopDomain
     // Scenario A: Metafield balance > 0
     if (currentBalance > 0) {
       const newBalance = currentBalance - 1;
-      const usedThisPeriod = (metafields.credits_used_this_period || 0) + 1;
+      const previousUsed = metafields.credits_used_this_period || 0;
+      const usedThisPeriod = previousUsed + 1;
+
+      logger.info("[CREDIT_DEDUCTION] Deducting credit from metafield", {
+        shopDomain,
+        tryonId,
+        previousBalance: currentBalance,
+        newBalance,
+        previousUsed,
+        usedThisPeriod,
+        source: "metafield",
+      });
 
       // Update metafield balance
       await creditMetafield.batchUpdateMetafields(client, appInstallationId, {
@@ -77,11 +88,13 @@ export const deductCreditForTryOn = async (client, appInstallationId, shopDomain
         credits_used_this_period: usedThisPeriod,
       });
 
-      logger.info("[CREDIT_DEDUCTION] Credit deducted from metafield", {
+      logger.info("[CREDIT_DEDUCTION] Credit deducted from metafield successfully", {
         shopDomain,
         tryonId,
         previousBalance: currentBalance,
         newBalance,
+        previousUsed,
+        usedThisPeriod,
         source: "metafield",
       });
 
