@@ -3287,6 +3287,109 @@ app.get("/api/credits/balance", async (req, res) => {
       appInstallationId,
     });
 
+    // First, check if credits exist
+    const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
+    
+    // If credits don't exist but subscription is active, initialize them
+    if (metafields.credit_balance == null) {
+      logger.info("[CREDITS] Credits not initialized, checking for active subscription", {
+        shop: shopDomain,
+        appInstallationId,
+      });
+
+      // Query subscription directly (no need for full subscription status check)
+      const subscriptionQuery = `
+        query GetActiveSubscription {
+          currentAppInstallation {
+            activeSubscriptions {
+              id
+              status
+              currentPeriodEnd
+              createdAt
+              lineItems {
+                id
+                plan {
+                  pricingDetails {
+                    __typename
+                    ... on AppRecurringPricing {
+                      interval
+                      price {
+                        amount
+                        currencyCode
+                      }
+                    }
+                    ... on AppUsagePricing {
+                      terms
+                      cappedAmount {
+                        amount
+                        currencyCode
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const subscriptionResponse = await client.query({
+        data: { query: subscriptionQuery },
+      });
+
+      const subscriptions = subscriptionResponse?.body?.data?.currentAppInstallation?.activeSubscriptions || [];
+      const activeSubscription = subscriptions.find((sub) => sub.status === "ACTIVE") || null;
+
+      if (activeSubscription) {
+        // Map subscription to plan to get plan handle and credits
+        const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+        const planHandle = subscriptionStatus.plan?.handle;
+        const planConfig = planHandle ? billing?.PLANS?.[planHandle] : null;
+        const includedCredits = planConfig?.limits?.includedCredits || 100;
+        const isAnnual = subscriptionStatus.plan?.interval === "ANNUAL";
+
+        logger.info("[CREDITS] Active subscription found, initializing credits", {
+          shop: shopDomain,
+          appInstallationId,
+          subscriptionId: activeSubscription.id,
+          planHandle,
+          includedCredits,
+          isAnnual,
+        });
+
+        // Find usage pricing line item
+        const usageLineItem = activeSubscription.lineItems?.find(
+          item => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+        );
+
+        // Initialize credits
+        await creditMetafield.initializeCredits(
+          client,
+          appInstallationId,
+          planHandle,
+          includedCredits,
+          activeSubscription.currentPeriodEnd,
+          usageLineItem?.id || null,
+          isAnnual
+        );
+
+        logger.info("[CREDITS] Credits initialized successfully", {
+          shop: shopDomain,
+          appInstallationId,
+          includedCredits,
+          isAnnual,
+          planHandle,
+        });
+      } else {
+        logger.info("[CREDITS] No active subscription found, skipping credit initialization", {
+          shop: shopDomain,
+          appInstallationId,
+          subscriptionsFound: subscriptions.length,
+        });
+      }
+    }
+
+    // Get credit balance (after potential initialization)
     const creditData = await creditManager.getTotalCreditsAvailable(client, appInstallationId);
 
     logger.info("[CREDITS] Credit balance retrieved successfully", {
