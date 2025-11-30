@@ -3067,18 +3067,56 @@ app.post("/api/billing/validate-promo", async (req, res) => {
 // Get available plans
 app.get("/api/billing/plans", (req, res) => {
   try {
+    // Validate billing module exists
+    if (!billing || typeof billing.getAvailablePlans !== "function") {
+      const errorMsg = !billing 
+        ? "Billing module not loaded" 
+        : "getAvailablePlans function not available";
+      console.error("[BILLING]", errorMsg, {
+        billingExists: !!billing,
+        billingKeys: billing ? Object.keys(billing) : []
+      });
+      return res.status(500).json({
+        error: {
+          code: "500",
+          message: errorMsg
+        }
+      });
+    }
+
+    // Get plans
     const plans = billing.getAvailablePlans();
     
-    // Ensure plans is always an array
-    const plansArray = Array.isArray(plans) ? plans : [];
+    // Validate and return
+    if (!Array.isArray(plans)) {
+      console.error("[BILLING] getAvailablePlans did not return an array", {
+        type: typeof plans,
+        value: plans
+      });
+      return res.status(500).json({
+        error: {
+          code: "500",
+          message: "Invalid plans data format"
+        }
+      });
+    }
     
-    res.json({ plans: plansArray });
+    return res.json({ plans });
   } catch (error) {
-    console.error("[BILLING] Failed to get plans:", error.message);
-    res.status(500).json({
-      error: "Failed to get plans",
-      message: error.message || "An unexpected error occurred",
+    console.error("[BILLING] Unexpected error:", {
+      message: error?.message,
+      stack: error?.stack?.split('\n').slice(0, 5).join('\n'),
+      name: error?.name
     });
+    
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: {
+          code: "500",
+          message: error?.message || "A server error has occurred"
+        }
+      });
+    }
   }
 });
 
