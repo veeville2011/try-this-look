@@ -4089,8 +4089,8 @@ app.post("/api/stores/sync", async (req, res) => {
     };
 
     // Send to remote backend (blocking - wait for response)
-    // const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
-    const remoteBackendUrl = "http://localhost:3000";
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    // const remoteBackendUrl = "http://localhost:3000";
     if (!remoteBackendUrl) {
       logger.warn(
         "[STORES] VITE_API_ENDPOINT not configured, skipping store info sync",
