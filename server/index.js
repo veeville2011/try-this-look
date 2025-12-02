@@ -4088,94 +4088,10 @@ app.post("/api/stores/sync", async (req, res) => {
       host: req.query.host || null,
     };
 
-    // Send to remote backend (non-blocking)
+    // Send to remote backend (blocking - wait for response)
     // const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
     const remoteBackendUrl = "http://localhost:3000";
-    if (remoteBackendUrl) {
-      // Generate unique request ID for tracking
-      const syncRequestId = `sync-${Date.now()}-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      const remoteBackendEndpoint = `${remoteBackendUrl}/api/stores/install`;
-
-      // Log request initiation
-      logger.info("[STORES] Initiating store info sync to remote backend", {
-        shop: shopDomain,
-        backendUrl: remoteBackendUrl,
-        endpoint: remoteBackendEndpoint,
-        requestId: syncRequestId,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Fire and forget - don't block the response
-      fetch(remoteBackendEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      })
-        .then(async (response) => {
-          const responseText = await response.text().catch(() => "");
-          if (!response.ok) {
-            logger.error("[STORES] Remote backend returned error", null, req, {
-              shop: shopDomain,
-              requestId: syncRequestId,
-              status: response.status,
-              statusText: response.statusText,
-              error: responseText,
-              endpoint: remoteBackendEndpoint,
-              timestamp: new Date().toISOString(),
-              shopInfo: shopData,
-            });
-          } else {
-            logger.info(
-              "[STORES] Store info sent to remote backend successfully",
-              {
-                shop: shopDomain,
-                requestId: syncRequestId,
-                backendUrl: remoteBackendUrl,
-                endpoint: remoteBackendEndpoint,
-                status: response.status,
-                responsePreview: responseText.substring(0, 200),
-                timestamp: new Date().toISOString(),
-                shopInfo: shopData,
-              }
-            );
-          }
-        })
-        .catch((error) => {
-          // Log error but don't block the response
-          logger.error(
-            "[STORES] Failed to send store info to remote backend",
-            error,
-            req,
-            {
-              shop: shopDomain,
-              requestId: syncRequestId,
-              endpoint: remoteBackendEndpoint,
-              errorMessage: error.message,
-              errorStack: error.stack,
-              timestamp: new Date().toISOString(),
-            }
-          );
-        });
-
-      // Return response with tracking info
-      return res.status(200).json({
-        success: true,
-        message: "Store information sync initiated",
-        shop: shopDomain,
-        syncRequestId: syncRequestId,
-        remoteBackendUrl: remoteBackendUrl,
-        endpoint: remoteBackendEndpoint,
-        status: "initiated",
-        note:
-          "Check server logs for sync completion status. Search for requestId: " +
-          syncRequestId,
-        shopInfo: shopData,
-      });
-    } else {
+    if (!remoteBackendUrl) {
       logger.warn(
         "[STORES] VITE_API_ENDPOINT not configured, skipping store info sync",
         {
@@ -4188,6 +4104,170 @@ app.post("/api/stores/sync", async (req, res) => {
         shop: shopDomain,
         status: "skipped",
         reason: "VITE_API_ENDPOINT not configured",
+      });
+    }
+
+    // Generate unique request ID for tracking
+    const syncRequestId = `sync-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/stores/install`;
+
+    // Log request initiation
+    logger.info("[STORES] Initiating store info sync to remote backend", {
+      shop: shopDomain,
+      backendUrl: remoteBackendUrl,
+      endpoint: remoteBackendEndpoint,
+      requestId: syncRequestId,
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      // Send request and wait for response (with timeout)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error(
+          "[STORES] Failed to send request to remote backend",
+          fetchError,
+          req,
+          {
+            shop: shopDomain,
+            requestId: syncRequestId,
+            endpoint: remoteBackendEndpoint,
+            errorMessage: fetchError.message,
+            errorName: fetchError.name,
+            errorCode: fetchError.code,
+            errorStack: fetchError.stack,
+            isTimeout,
+            timestamp: new Date().toISOString(),
+          }
+        );
+
+        return res.status(502).json({
+          success: false,
+          error: isTimeout ? "Request timeout" : "Network error",
+          message: isTimeout
+            ? "Remote backend did not respond within 30 seconds"
+            : `Failed to connect to remote backend: ${fetchError.message}`,
+          shop: shopDomain,
+          syncRequestId: syncRequestId,
+          remoteBackendUrl: remoteBackendUrl,
+          endpoint: remoteBackendEndpoint,
+          status: "failed",
+          errorType: fetchError.name,
+        });
+      }
+
+      // Parse response text
+      let responseText = "";
+      try {
+        responseText = await response.text();
+      } catch (textError) {
+        logger.error(
+          "[STORES] Failed to parse response text from remote backend",
+          textError,
+          req,
+          {
+            shop: shopDomain,
+            requestId: syncRequestId,
+            endpoint: remoteBackendEndpoint,
+            status: response.status,
+            statusText: response.statusText,
+            errorMessage: textError.message,
+            timestamp: new Date().toISOString(),
+          }
+        );
+        // Continue with empty responseText
+      }
+
+      if (!response.ok) {
+        // Remote backend returned error status
+        logger.error("[STORES] Remote backend returned error", null, req, {
+          shop: shopDomain,
+          requestId: syncRequestId,
+          status: response.status,
+          statusText: response.statusText,
+          error: responseText,
+          endpoint: remoteBackendEndpoint,
+          timestamp: new Date().toISOString(),
+        });
+
+        return res.status(502).json({
+          success: false,
+          error: "Remote backend error",
+          message: `Remote backend returned ${response.status}: ${response.statusText}`,
+          shop: shopDomain,
+          syncRequestId: syncRequestId,
+          remoteBackendUrl: remoteBackendUrl,
+          endpoint: remoteBackendEndpoint,
+          status: "failed",
+          remoteError: responseText.substring(0, 500),
+        });
+      }
+
+      // Success - remote backend received and processed the request
+      logger.info("[STORES] Store info sent to remote backend successfully", {
+        shop: shopDomain,
+        requestId: syncRequestId,
+        backendUrl: remoteBackendUrl,
+        endpoint: remoteBackendEndpoint,
+        status: response.status,
+        responsePreview: responseText.substring(0, 200),
+        timestamp: new Date().toISOString(),
+      });
+
+      // Return success response only after remote backend confirms
+      return res.status(200).json({
+        success: true,
+        message: "Store information synced successfully",
+        shop: shopDomain,
+        syncRequestId: syncRequestId,
+        remoteBackendUrl: remoteBackendUrl,
+        endpoint: remoteBackendEndpoint,
+        status: "completed",
+        remoteResponse: responseText.substring(0, 500),
+      });
+    } catch (error) {
+      // Handle any unexpected errors
+      logger.error(
+        "[STORES] Unexpected error during store info sync",
+        error,
+        req,
+        {
+          shop: shopDomain,
+          requestId: syncRequestId,
+          endpoint: remoteBackendEndpoint,
+          errorMessage: error.message,
+          errorName: error.name,
+          errorStack: error.stack,
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        message: `An unexpected error occurred: ${error.message}`,
+        shop: shopDomain,
+        syncRequestId: syncRequestId,
+        remoteBackendUrl: remoteBackendUrl,
+        endpoint: remoteBackendEndpoint,
+        status: "failed",
       });
     }
   } catch (error) {
