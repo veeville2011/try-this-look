@@ -3807,6 +3807,198 @@ app.get("/api/credits/coupon-status", async (req, res) => {
   }
 });
 
+// Store information sync endpoint
+// Syncs store information to remote backend when app loads in embedded context
+app.post("/api/stores/sync", async (req, res) => {
+  try {
+    // Get shop from request (from session token middleware or query param)
+    const shop = req.shop || req.query.shop;
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain",
+      });
+    }
+
+    // Get session token from request (already extracted by verifySessionToken middleware)
+    const sessionToken = req.sessionToken;
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+      });
+    }
+
+    logger.info("[STORES] Starting store information sync", {
+      shop: shopDomain,
+    });
+
+    // Exchange JWT session token for offline access token
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      logger.error("[STORES] Token exchange failed", null, req, {
+        shop: shopDomain,
+      });
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Failed to get access token",
+      });
+    }
+
+    // Create GraphQL client with access token
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    // Query shop information
+    const shopInfoQuery = `
+      query GetShopInfo {
+        shop {
+          id
+          name
+          email
+          currencyCode
+          timezoneAbbreviation
+          ianaTimezone
+          myshopifyDomain
+          primaryDomain {
+            host
+            url
+          }
+          plan {
+            publicDisplayName
+            partnerDevelopment
+          }
+          contactEmail
+          shopOwnerName
+        }
+      }
+    `;
+
+    const shopInfoResponse = await client.query({ data: { query: shopInfoQuery } });
+    const shopData = shopInfoResponse?.body?.data?.shop;
+
+    if (!shopData) {
+      logger.error("[STORES] Failed to fetch shop information", null, req, {
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to fetch shop information",
+        message: "Shop data not available",
+      });
+    }
+
+    // Prepare payload for remote backend
+    const payload = {
+      shopDomain: shopDomain,
+      accessToken: accessToken,
+      scope: session.scope,
+      shopInfo: {
+        id: shopData.id,
+        name: shopData.name,
+        email: shopData.email || shopData.contactEmail,
+        currencyCode: shopData.currencyCode,
+        timezone: shopData.ianaTimezone || shopData.timezoneAbbreviation,
+        myshopifyDomain: shopData.myshopifyDomain,
+        primaryDomain: shopData.primaryDomain?.host,
+        planName: shopData.plan?.publicDisplayName,
+        ownerName: shopData.shopOwnerName,
+      },
+      installedAt: new Date().toISOString(),
+      host: req.query.host || null,
+    };
+
+    // Send to remote backend (non-blocking)
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (remoteBackendUrl) {
+      // Fire and forget - don't block the response
+      fetch(`${remoteBackendUrl}/api/stores/install`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            logger.error(
+              "[STORES] Remote backend returned error",
+              null,
+              req,
+              {
+                shop: shopDomain,
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText,
+              }
+            );
+          } else {
+            logger.info("[STORES] Store info sent to remote backend successfully", {
+              shop: shopDomain,
+              backendUrl: remoteBackendUrl,
+            });
+          }
+        })
+        .catch((error) => {
+          // Log error but don't block the response
+          logger.error(
+            "[STORES] Failed to send store info to remote backend",
+            error,
+            req,
+            {
+              shop: shopDomain,
+              errorMessage: error.message,
+            }
+          );
+        });
+
+      logger.info("[STORES] Store info sync initiated", {
+        shop: shopDomain,
+        backendUrl: remoteBackendUrl,
+      });
+    } else {
+      logger.warn("[STORES] VITE_API_ENDPOINT not configured, skipping store info sync", {
+        shop: shopDomain,
+      });
+    }
+
+    // Return success response immediately (non-blocking)
+    res.json({
+      success: true,
+      message: "Store information sync initiated",
+      shop: shopDomain,
+    });
+  } catch (error) {
+    logger.error("[STORES] Store information sync failed", error, req);
+    res.status(500).json({
+      error: "Failed to sync store information",
+      message: error.message,
+    });
+  }
+});
+
 // API Routes
 app.post("/api/tryon/generate", async (req, res) => {
   const startTime = Date.now();

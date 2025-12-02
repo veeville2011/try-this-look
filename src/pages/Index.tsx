@@ -62,6 +62,62 @@ const Index = () => {
     refresh: refreshCredits,
   } = useCredits();
 
+  // Sync store information to remote backend on first load
+  useEffect(() => {
+    const syncStoreInfo = async () => {
+      try {
+        // Check if we're in embedded context
+        const urlParams = new URLSearchParams(window.location.search);
+        const shopParam = urlParams.get("shop");
+        const hostParam = urlParams.get("host");
+
+        if (!shopParam || !hostParam) {
+          // Not in embedded context, skip sync
+          return;
+        }
+
+        // Wait for AppBridge to be available
+        const appBridge = (window as any).__APP_BRIDGE;
+        if (!appBridge) {
+          // AppBridge not ready yet, skip sync
+          return;
+        }
+
+        // Get JWT session token using authenticated fetch
+        const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
+        const fetchFn = authenticatedFetch(appBridge);
+
+        // Call backend API to sync store information
+        const response = await fetchFn("/api/stores/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          credentials: "same-origin",
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn("[STORES] Store sync failed:", errorData);
+        } else {
+          const data = await response.json();
+          if (import.meta.env.DEV) {
+            console.info("[STORES] Store sync initiated:", data);
+          }
+        }
+      } catch (error) {
+        // Log error but don't block app functionality
+        if (import.meta.env.DEV) {
+          console.warn("[STORES] Store sync error:", error);
+        }
+      }
+    };
+
+    // Run sync once on component mount
+    syncStoreInfo();
+  }, []); // Empty dependency array - run only once on mount
+
   const fetchAvailablePlans = async () => {
     try {
       // Use authenticated fetch with App Bridge to include JWT
