@@ -1155,9 +1155,17 @@ const verifySessionToken = async (req, res, next) => {
         // Attach session info to request
         req.session = session;
         req.sessionToken = sessionToken; // Store original encoded token for token exchange
-        req.shop = session.shop;
+        // Extract shop from dest field (decoded session token has dest, not shop)
+        if (session.dest) {
+          try {
+            const dest = new URL(session.dest);
+            req.shop = dest.hostname;
+          } catch (error) {
+            // Invalid dest URL format
+          }
+        }
         logger.info("[AUTH] Session token verified", {
-          shop: session.shop,
+          shop: req.shop,
           path: req.path,
         });
       } catch (error) {
@@ -3811,7 +3819,7 @@ app.get("/api/credits/coupon-status", async (req, res) => {
 // Syncs store information to remote backend when app loads in embedded context
 app.post("/api/stores/sync", async (req, res) => {
   try {
-    // Get shop from request (from session token middleware or query param)
+    // Get shop from request (from middleware or query param, same pattern as other endpoints)
     const shop = req.shop || req.query.shop;
     if (!shop) {
       return res.status(400).json({
