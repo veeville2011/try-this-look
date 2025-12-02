@@ -234,16 +234,18 @@ const mapSubscriptionToPlan = (appSubscription) => {
   const trialDays = matchedPlan?.trialDays || appSubscription.trialDays || null;
   let trialDaysRemaining = null;
   let isInTrial = false;
-  
+
   if (trialDays && appSubscription.createdAt) {
     const createdAt = new Date(appSubscription.createdAt);
     const trialEndDate = new Date(createdAt);
     trialEndDate.setDate(trialEndDate.getDate() + trialDays);
     const now = new Date();
-    
+
     if (now < trialEndDate) {
       isInTrial = true;
-      const daysRemaining = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysRemaining = Math.ceil(
+        (trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
       trialDaysRemaining = Math.max(0, daysRemaining);
     }
   }
@@ -897,12 +899,19 @@ const createUsageSubscription = async (client, shopDomain, returnUrl) => {
 
     const userErrors = payload.userErrors || [];
     if (userErrors.length > 0) {
-      logger.error("[BILLING] Failed to create usage subscription", null, null, {
-        shop: shopDomain,
-        userErrors,
-      });
+      logger.error(
+        "[BILLING] Failed to create usage subscription",
+        null,
+        null,
+        {
+          shop: shopDomain,
+          userErrors,
+        }
+      );
       throw new Error(
-        `Failed to create usage subscription: ${userErrors.map((e) => e.message).join(", ")}`
+        `Failed to create usage subscription: ${userErrors
+          .map((e) => e.message)
+          .join(", ")}`
       );
     }
 
@@ -1912,7 +1921,10 @@ app.post(
             });
 
             // Handle credit reset on billing cycle renewal
-            if (app_subscription.status === "ACTIVE" && app_subscription.currentPeriodEnd) {
+            if (
+              app_subscription.status === "ACTIVE" &&
+              app_subscription.currentPeriodEnd
+            ) {
               try {
                 // Get offline access token for the shop
                 // Note: In production, you'd get this from your session storage
@@ -1924,7 +1936,8 @@ app.post(
                 });
 
                 const session = tokenResult?.session;
-                const accessToken = session?.accessToken || session?.access_token;
+                const accessToken =
+                  session?.accessToken || session?.access_token;
 
                 if (session && accessToken) {
                   const client = new shopify.clients.Graphql({
@@ -1943,14 +1956,17 @@ app.post(
                   // (e.g., one-time charges, manual billing, or tracking for next billing cycle)
                   const recurringLineItem = app_subscription.lineItems?.find(
                     (item) =>
-                      item.plan?.pricingDetails?.__typename === "AppRecurringPricing"
+                      item.plan?.pricingDetails?.__typename ===
+                      "AppRecurringPricing"
                   );
                   const usageLineItem = app_subscription.lineItems?.find(
                     (item) =>
-                      item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+                      item.plan?.pricingDetails?.__typename ===
+                      "AppUsagePricing"
                   );
                   const isAnnual =
-                    recurringLineItem?.plan?.pricingDetails?.interval === "ANNUAL";
+                    recurringLineItem?.plan?.pricingDetails?.interval ===
+                    "ANNUAL";
 
                   if (isAnnual && !usageLineItem) {
                     logger.info(
@@ -1970,10 +1986,12 @@ app.post(
                       }
                     }
                   `;
-                  const appInstallationResponse = await client.query({ 
-                    data: { query: appInstallationQuery } 
+                  const appInstallationResponse = await client.query({
+                    data: { query: appInstallationQuery },
                   });
-                  const appInstallationId = appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+                  const appInstallationId =
+                    appInstallationResponse?.body?.data?.currentAppInstallation
+                      ?.id;
 
                   if (appInstallationId) {
                     // Check if period has renewed
@@ -1989,7 +2007,9 @@ app.post(
                       // For annual subscriptions, bill accumulated overage before resetting credits
                       if (isAnnual) {
                         try {
-                          const { billAccumulatedOverage } = await import("./utils/annualOverageBilling.js");
+                          const { billAccumulatedOverage } = await import(
+                            "./utils/annualOverageBilling.js"
+                          );
                           const isDemo = isDemoStore(shop);
                           const overageResult = await billAccumulatedOverage(
                             client,
@@ -1997,29 +2017,38 @@ app.post(
                             appInstallationId,
                             isDemo
                           );
-                          
+
                           if (overageResult.billed) {
-                            logger.info("[WEBHOOK] Overage billed for annual subscription", {
-                              shop,
-                              amount: overageResult.amount,
-                              overageCount: overageResult.overageCount,
-                              purchaseId: overageResult.purchaseId,
-                              note: "Merchant will need to approve the one-time charge",
-                            });
+                            logger.info(
+                              "[WEBHOOK] Overage billed for annual subscription",
+                              {
+                                shop,
+                                amount: overageResult.amount,
+                                overageCount: overageResult.overageCount,
+                                purchaseId: overageResult.purchaseId,
+                                note: "Merchant will need to approve the one-time charge",
+                              }
+                            );
                           }
                         } catch (overageError) {
                           // Log error but don't fail credit reset
-                          logger.error("[WEBHOOK] Failed to bill overage for annual subscription", overageError, null, {
-                            shop,
-                            appInstallationId,
-                          });
+                          logger.error(
+                            "[WEBHOOK] Failed to bill overage for annual subscription",
+                            overageError,
+                            null,
+                            {
+                              shop,
+                              appInstallationId,
+                            }
+                          );
                         }
                       }
-                      
+
                       // Reset credits for new period
                       const plan = processedData.plan;
-                      const includedCredits = plan?.limits?.includedCredits || 100;
-                      
+                      const includedCredits =
+                        plan?.limits?.includedCredits || 100;
+
                       await creditReset.resetCreditsForNewPeriod(
                         client,
                         appInstallationId,
@@ -2028,41 +2057,54 @@ app.post(
                         isAnnual
                       );
 
-                      logger.info("[WEBHOOK] Credits reset for new billing period", {
-                        shop,
-                        periodEnd: periodCheck.newPeriodEnd,
-                        includedCredits,
-                        isAnnual,
-                        note: isAnnual
-                          ? "Monthly reset for annual subscription (100 credits per month)"
-                          : "Billing cycle reset",
-                      });
+                      logger.info(
+                        "[WEBHOOK] Credits reset for new billing period",
+                        {
+                          shop,
+                          periodEnd: periodCheck.newPeriodEnd,
+                          includedCredits,
+                          isAnnual,
+                          note: isAnnual
+                            ? "Monthly reset for annual subscription (100 credits per month)"
+                            : "Billing cycle reset",
+                        }
+                      );
                     }
 
                     // Initialize credits if this is a new subscription
-                    const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
+                    const metafields =
+                      await creditMetafield.getCreditMetafields(
+                        client,
+                        appInstallationId
+                      );
                     // Check if credit_balance metafield exists (null/undefined means not initialized)
                     // Note: credit_balance can be 0 (used up), so we check for null/undefined specifically
                     if (metafields.credit_balance == null) {
                       // New subscription - initialize credits
                       const plan = processedData.plan;
-                      const includedCredits = plan?.limits?.includedCredits || 100;
-                      
-                      logger.info("[WEBHOOK] Initializing credits for new subscription", {
-                        shop,
-                        appInstallationId,
-                        planHandle: plan?.handle,
-                        includedCredits,
-                        isAnnual,
-                        currentCreditBalance: metafields.credit_balance,
-                        note: "credit_balance metafield is null/undefined - initializing",
-                      });
-                      
+                      const includedCredits =
+                        plan?.limits?.includedCredits || 100;
+
+                      logger.info(
+                        "[WEBHOOK] Initializing credits for new subscription",
+                        {
+                          shop,
+                          appInstallationId,
+                          planHandle: plan?.handle,
+                          includedCredits,
+                          isAnnual,
+                          currentCreditBalance: metafields.credit_balance,
+                          note: "credit_balance metafield is null/undefined - initializing",
+                        }
+                      );
+
                       // Find usage pricing line item
                       const usageLineItem = app_subscription.lineItems?.find(
-                        item => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+                        (item) =>
+                          item.plan?.pricingDetails?.__typename ===
+                          "AppUsagePricing"
                       );
-                      
+
                       await creditMetafield.initializeCredits(
                         client,
                         appInstallationId,
@@ -2073,37 +2115,46 @@ app.post(
                         isAnnual
                       );
 
-                      logger.info("[WEBHOOK] Credits initialized for new subscription", {
-                        shop,
-                        appInstallationId,
-                        includedCredits,
-                        periodEnd: isAnnual
-                          ? "Monthly period (30 days from now)"
-                          : app_subscription.currentPeriodEnd,
-                        isAnnual,
-                        note: isAnnual
-                          ? "Annual subscription: 100 credits per month"
-                          : "Monthly subscription: 100 credits per billing cycle",
-                      });
+                      logger.info(
+                        "[WEBHOOK] Credits initialized for new subscription",
+                        {
+                          shop,
+                          appInstallationId,
+                          includedCredits,
+                          periodEnd: isAnnual
+                            ? "Monthly period (30 days from now)"
+                            : app_subscription.currentPeriodEnd,
+                          isAnnual,
+                          note: isAnnual
+                            ? "Annual subscription: 100 credits per month"
+                            : "Monthly subscription: 100 credits per billing cycle",
+                        }
+                      );
                     } else {
-                      logger.info("[WEBHOOK] Credits already initialized, skipping initialization", {
-                        shop,
-                        appInstallationId,
-                        currentCreditBalance: metafields.credit_balance,
-                        creditsIncluded: metafields.credits_included,
-                        note: "credit_balance metafield exists - subscription already has credits",
-                      });
+                      logger.info(
+                        "[WEBHOOK] Credits already initialized, skipping initialization",
+                        {
+                          shop,
+                          appInstallationId,
+                          currentCreditBalance: metafields.credit_balance,
+                          creditsIncluded: metafields.credits_included,
+                          note: "credit_balance metafield exists - subscription already has credits",
+                        }
+                      );
                       // Existing subscription - sync data
                       // For annual subscriptions, check monthly period renewal
                       if (isAnnual) {
-                        const monthlyCheck = await creditReset.checkMonthlyPeriodRenewal(
-                          client,
-                          appInstallationId
-                        );
+                        const monthlyCheck =
+                          await creditReset.checkMonthlyPeriodRenewal(
+                            client,
+                            appInstallationId
+                          );
                         if (monthlyCheck.isNewPeriod) {
                           // Bill accumulated overage before resetting credits
                           try {
-                            const { billAccumulatedOverage } = await import("./utils/annualOverageBilling.js");
+                            const { billAccumulatedOverage } = await import(
+                              "./utils/annualOverageBilling.js"
+                            );
                             const isDemo = isDemoStore(shop);
                             const overageResult = await billAccumulatedOverage(
                               client,
@@ -2111,26 +2162,35 @@ app.post(
                               appInstallationId,
                               isDemo
                             );
-                            
+
                             if (overageResult.billed) {
-                              logger.info("[WEBHOOK] Overage billed for annual subscription", {
-                                shop,
-                                amount: overageResult.amount,
-                                overageCount: overageResult.overageCount,
-                                purchaseId: overageResult.purchaseId,
-                                note: "Merchant will need to approve the one-time charge",
-                              });
+                              logger.info(
+                                "[WEBHOOK] Overage billed for annual subscription",
+                                {
+                                  shop,
+                                  amount: overageResult.amount,
+                                  overageCount: overageResult.overageCount,
+                                  purchaseId: overageResult.purchaseId,
+                                  note: "Merchant will need to approve the one-time charge",
+                                }
+                              );
                             }
                           } catch (overageError) {
                             // Log error but don't fail credit reset
-                            logger.error("[WEBHOOK] Failed to bill overage for annual subscription", overageError, null, {
-                              shop,
-                              appInstallationId,
-                            });
+                            logger.error(
+                              "[WEBHOOK] Failed to bill overage for annual subscription",
+                              overageError,
+                              null,
+                              {
+                                shop,
+                                appInstallationId,
+                              }
+                            );
                           }
-                          
+
                           const plan = processedData.plan;
-                          const includedCredits = plan?.limits?.includedCredits || 100;
+                          const includedCredits =
+                            plan?.limits?.includedCredits || 100;
                           await creditReset.resetCreditsForNewPeriod(
                             client,
                             appInstallationId,
@@ -2138,32 +2198,46 @@ app.post(
                             includedCredits,
                             true
                           );
-                          logger.info("[WEBHOOK] Monthly credits reset for annual subscription", {
-                            shop,
-                            includedCredits,
-                            periodEnd: monthlyCheck.newPeriodEnd,
-                          });
+                          logger.info(
+                            "[WEBHOOK] Monthly credits reset for annual subscription",
+                            {
+                              shop,
+                              includedCredits,
+                              periodEnd: monthlyCheck.newPeriodEnd,
+                            }
+                          );
                         }
                       } else {
                         // Monthly subscription - sync with billing period
-                        await creditReset.syncWithSubscription(client, appInstallationId, {
-                          id: app_subscription.id,
-                          currentPeriodEnd: app_subscription.currentPeriodEnd,
-                          lineItems: app_subscription.lineItems,
-                        }, false); // Explicitly pass isAnnual = false
+                        await creditReset.syncWithSubscription(
+                          client,
+                          appInstallationId,
+                          {
+                            id: app_subscription.id,
+                            currentPeriodEnd: app_subscription.currentPeriodEnd,
+                            lineItems: app_subscription.lineItems,
+                          },
+                          false
+                        ); // Explicitly pass isAnnual = false
                       }
 
                       // Store subscription line item ID for usage pricing if available
                       if (app_subscription.lineItems) {
                         const usageLineItem = app_subscription.lineItems.find(
-                          item => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+                          (item) =>
+                            item.plan?.pricingDetails?.__typename ===
+                            "AppUsagePricing"
                         );
-                        
+
                         if (usageLineItem?.id) {
                           if (!metafields.subscription_line_item_id) {
-                            await creditMetafield.batchUpdateMetafields(client, appInstallationId, {
-                              subscription_line_item_id: usageLineItem.id,
-                            });
+                            await creditMetafield.batchUpdateMetafields(
+                              client,
+                              appInstallationId,
+                              {
+                                subscription_line_item_id: usageLineItem.id,
+                              }
+                            );
                           }
                         }
                       }
@@ -2171,10 +2245,15 @@ app.post(
                   }
                 }
               } catch (creditError) {
-                logger.error("[WEBHOOK] Failed to handle credit reset", creditError, null, {
-                  shop,
-                  subscriptionId: app_subscription?.id,
-                });
+                logger.error(
+                  "[WEBHOOK] Failed to handle credit reset",
+                  creditError,
+                  null,
+                  {
+                    shop,
+                    subscriptionId: app_subscription?.id,
+                  }
+                );
                 // Don't fail webhook - log error and continue
               }
             }
@@ -2243,11 +2322,14 @@ app.post(
   verifyWebhookSignature,
   async (req, res) => {
     try {
-      logger.info("[WEBHOOK] app/purchases/one_time/update - raw payload received", {
-        shop: req.webhookShop,
-        topic: req.webhookTopic,
-        payloadKeys: Object.keys(req.webhookData || {}),
-      });
+      logger.info(
+        "[WEBHOOK] app/purchases/one_time/update - raw payload received",
+        {
+          shop: req.webhookShop,
+          topic: req.webhookTopic,
+          payloadKeys: Object.keys(req.webhookData || {}),
+        }
+      );
 
       let app_purchase_one_time = null;
 
@@ -2262,7 +2344,9 @@ app.post(
       const shop = req.webhookShop;
 
       if (!shop) {
-        logger.error("[WEBHOOK] app/purchases/one_time/update - missing shop domain");
+        logger.error(
+          "[WEBHOOK] app/purchases/one_time/update - missing shop domain"
+        );
         return res.status(400).json({
           error: "Missing shop domain",
           received: true,
@@ -2279,10 +2363,12 @@ app.post(
       if (app_purchase_one_time && app_purchase_one_time.status === "ACTIVE") {
         try {
           const purchaseName = app_purchase_one_time.name || "";
-          
+
           // Check if this is an overage billing charge
-          const isOverageBilling = purchaseName.includes("Monthly Overage Billing");
-          
+          const isOverageBilling = purchaseName.includes(
+            "Monthly Overage Billing"
+          );
+
           if (isOverageBilling) {
             // Overage billing charge was approved - tracking was already reset when charge was created
             logger.info("[WEBHOOK] Overage billing charge approved", {
@@ -2294,71 +2380,84 @@ app.post(
           } else {
             // Handle credit package purchase
             const packageIdMatch = purchaseName.match(/Credit Package - (\w+)/);
-            const packageId = packageIdMatch ? packageIdMatch[1].toLowerCase() : null;
+            const packageId = packageIdMatch
+              ? packageIdMatch[1].toLowerCase()
+              : null;
 
             if (packageId) {
               // Get offline access token
               const tokenResult = await shopify.auth.tokenExchange({
-              shop,
-              sessionToken: null,
-              requestedTokenType: RequestedTokenType.OfflineAccessToken,
-            });
-
-            const session = tokenResult?.session;
-            const accessToken = session?.accessToken || session?.access_token;
-
-            if (session && accessToken) {
-              const client = new shopify.clients.Graphql({
-                session: {
-                  shop: session.shop || shop,
-                  accessToken,
-                  scope: session.scope,
-                  isOnline: session.isOnline || false,
-                },
+                shop,
+                sessionToken: null,
+                requestedTokenType: RequestedTokenType.OfflineAccessToken,
               });
 
-              const appInstallationQuery = `
+              const session = tokenResult?.session;
+              const accessToken = session?.accessToken || session?.access_token;
+
+              if (session && accessToken) {
+                const client = new shopify.clients.Graphql({
+                  session: {
+                    shop: session.shop || shop,
+                    accessToken,
+                    scope: session.scope,
+                    isOnline: session.isOnline || false,
+                  },
+                });
+
+                const appInstallationQuery = `
                 query GetAppInstallation {
                   appInstallation {
                     id
                   }
                 }
               `;
-              const appInstallationResponse = await client.query({ 
-                data: { query: appInstallationQuery } 
-              });
-              const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
-
-              if (appInstallationId) {
-                // Add credits to balance
-                await creditPurchase.handlePurchaseSuccess(
-                  client,
-                  appInstallationId,
-                  app_purchase_one_time.id,
-                  packageId
-                );
-
-                logger.info("[WEBHOOK] Credits added after purchase", {
-                  shop,
-                  purchaseId: app_purchase_one_time.id,
-                  packageId,
+                const appInstallationResponse = await client.query({
+                  data: { query: appInstallationQuery },
                 });
+                const appInstallationId =
+                  appInstallationResponse?.body?.data?.appInstallation?.id;
+
+                if (appInstallationId) {
+                  // Add credits to balance
+                  await creditPurchase.handlePurchaseSuccess(
+                    client,
+                    appInstallationId,
+                    app_purchase_one_time.id,
+                    packageId
+                  );
+
+                  logger.info("[WEBHOOK] Credits added after purchase", {
+                    shop,
+                    purchaseId: app_purchase_one_time.id,
+                    packageId,
+                  });
+                }
               }
             }
           }
-        }
         } catch (creditError) {
-          logger.error("[WEBHOOK] Failed to handle credit purchase", creditError, null, {
-            shop,
-            purchaseId: app_purchase_one_time?.id,
-          });
+          logger.error(
+            "[WEBHOOK] Failed to handle credit purchase",
+            creditError,
+            null,
+            {
+              shop,
+              purchaseId: app_purchase_one_time?.id,
+            }
+          );
           // Don't fail webhook
         }
-      } else if (app_purchase_one_time && app_purchase_one_time.status === "DECLINED") {
+      } else if (
+        app_purchase_one_time &&
+        app_purchase_one_time.status === "DECLINED"
+      ) {
         // Handle declined charges
         const purchaseName = app_purchase_one_time.name || "";
-        const isOverageBilling = purchaseName.includes("Monthly Overage Billing");
-        
+        const isOverageBilling = purchaseName.includes(
+          "Monthly Overage Billing"
+        );
+
         if (isOverageBilling) {
           // If overage charge was declined, we should restore the overage tracking
           // so it can be billed again later
@@ -2375,10 +2474,15 @@ app.post(
 
       res.status(200).json({ received: true });
     } catch (error) {
-      logger.error("[WEBHOOK ERROR] app/purchases/one_time/update failed", error, req, {
-        shop: req.webhookShop,
-        errorMessage: error.message,
-      });
+      logger.error(
+        "[WEBHOOK ERROR] app/purchases/one_time/update failed",
+        error,
+        req,
+        {
+          shop: req.webhookShop,
+          errorMessage: error.message,
+        }
+      );
 
       res.status(200).json({
         received: true,
@@ -3106,52 +3210,52 @@ app.get("/api/billing/plans", (req, res) => {
   try {
     // Validate billing module exists
     if (!billing || typeof billing.getAvailablePlans !== "function") {
-      const errorMsg = !billing 
-        ? "Billing module not loaded" 
+      const errorMsg = !billing
+        ? "Billing module not loaded"
         : "getAvailablePlans function not available";
       console.error("[BILLING]", errorMsg, {
         billingExists: !!billing,
-        billingKeys: billing ? Object.keys(billing) : []
+        billingKeys: billing ? Object.keys(billing) : [],
       });
       return res.status(500).json({
         error: {
           code: "500",
-          message: errorMsg
-        }
+          message: errorMsg,
+        },
       });
     }
 
     // Get plans
     const plans = billing.getAvailablePlans();
-    
+
     // Validate and return
     if (!Array.isArray(plans)) {
       console.error("[BILLING] getAvailablePlans did not return an array", {
         type: typeof plans,
-        value: plans
+        value: plans,
       });
       return res.status(500).json({
         error: {
           code: "500",
-          message: "Invalid plans data format"
-        }
+          message: "Invalid plans data format",
+        },
       });
     }
-    
+
     return res.json({ plans });
   } catch (error) {
     console.error("[BILLING] Unexpected error:", {
       message: error?.message,
-      stack: error?.stack?.split('\n').slice(0, 5).join('\n'),
-      name: error?.name
+      stack: error?.stack?.split("\n").slice(0, 5).join("\n"),
+      name: error?.name,
     });
-    
+
     if (!res.headersSent) {
       return res.status(500).json({
         error: {
           code: "500",
-          message: error?.message || "A server error has occurred"
-        }
+          message: error?.message || "A server error has occurred",
+        },
       });
     }
   }
@@ -3280,8 +3384,11 @@ app.get("/api/credits/balance", async (req, res) => {
         }
       }
     `;
-    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
-    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.appInstallation?.id;
 
     if (!appInstallationId) {
       return res.status(404).json({
@@ -3296,14 +3403,20 @@ app.get("/api/credits/balance", async (req, res) => {
     });
 
     // First, check if credits exist
-    const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
-    
+    const metafields = await creditMetafield.getCreditMetafields(
+      client,
+      appInstallationId
+    );
+
     // If credits don't exist but subscription is active, initialize them
     if (metafields.credit_balance == null) {
-      logger.info("[CREDITS] Credits not initialized, checking for active subscription", {
-        shop: shopDomain,
-        appInstallationId,
-      });
+      logger.info(
+        "[CREDITS] Credits not initialized, checking for active subscription",
+        {
+          shop: shopDomain,
+          appInstallationId,
+        }
+      );
 
       // Query subscription directly (no need for full subscription status check)
       const subscriptionQuery = `
@@ -3345,8 +3458,11 @@ app.get("/api/credits/balance", async (req, res) => {
         data: { query: subscriptionQuery },
       });
 
-      const subscriptions = subscriptionResponse?.body?.data?.currentAppInstallation?.activeSubscriptions || [];
-      const activeSubscription = subscriptions.find((sub) => sub.status === "ACTIVE") || null;
+      const subscriptions =
+        subscriptionResponse?.body?.data?.currentAppInstallation
+          ?.activeSubscriptions || [];
+      const activeSubscription =
+        subscriptions.find((sub) => sub.status === "ACTIVE") || null;
 
       if (activeSubscription) {
         // Map subscription to plan to get plan handle and credits
@@ -3356,18 +3472,21 @@ app.get("/api/credits/balance", async (req, res) => {
         const includedCredits = planConfig?.limits?.includedCredits || 100;
         const isAnnual = subscriptionStatus.plan?.interval === "ANNUAL";
 
-        logger.info("[CREDITS] Active subscription found, initializing credits", {
-          shop: shopDomain,
-          appInstallationId,
-          subscriptionId: activeSubscription.id,
-          planHandle,
-          includedCredits,
-          isAnnual,
-        });
+        logger.info(
+          "[CREDITS] Active subscription found, initializing credits",
+          {
+            shop: shopDomain,
+            appInstallationId,
+            subscriptionId: activeSubscription.id,
+            planHandle,
+            includedCredits,
+            isAnnual,
+          }
+        );
 
         // Find usage pricing line item
         const usageLineItem = activeSubscription.lineItems?.find(
-          item => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
+          (item) => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
         );
 
         // Initialize credits
@@ -3389,16 +3508,22 @@ app.get("/api/credits/balance", async (req, res) => {
           planHandle,
         });
       } else {
-        logger.info("[CREDITS] No active subscription found, skipping credit initialization", {
-          shop: shopDomain,
-          appInstallationId,
-          subscriptionsFound: subscriptions.length,
-        });
+        logger.info(
+          "[CREDITS] No active subscription found, skipping credit initialization",
+          {
+            shop: shopDomain,
+            appInstallationId,
+            subscriptionsFound: subscriptions.length,
+          }
+        );
       }
     }
 
     // Get credit balance (after potential initialization)
-    const creditData = await creditManager.getTotalCreditsAvailable(client, appInstallationId);
+    const creditData = await creditManager.getTotalCreditsAvailable(
+      client,
+      appInstallationId
+    );
 
     logger.info("[CREDITS] Credit balance retrieved successfully", {
       shop: shopDomain,
@@ -3480,8 +3605,11 @@ app.post("/api/credits/deduct", async (req, res) => {
         }
       }
     `;
-    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
-    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.appInstallation?.id;
 
     if (!appInstallationId) {
       return res.status(404).json({
@@ -3558,8 +3686,11 @@ app.post("/api/credits/reset", async (req, res) => {
         }
       }
     `;
-    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
-    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.appInstallation?.id;
 
     if (!appInstallationId) {
       return res.status(404).json({
@@ -3709,8 +3840,11 @@ app.post("/api/credits/redeem-coupon", async (req, res) => {
         }
       }
     `;
-    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
-    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.appInstallation?.id;
 
     if (!appInstallationId) {
       return res.status(404).json({
@@ -3718,7 +3852,11 @@ app.post("/api/credits/redeem-coupon", async (req, res) => {
       });
     }
 
-    const result = await couponService.redeemCouponCode(client, appInstallationId, code);
+    const result = await couponService.redeemCouponCode(
+      client,
+      appInstallationId,
+      code
+    );
 
     if (!result.success) {
       return res.status(400).json(result);
@@ -3785,8 +3923,11 @@ app.get("/api/credits/coupon-status", async (req, res) => {
         }
       }
     `;
-    const appInstallationResponse = await client.query({ data: { query: appInstallationQuery } });
-    const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.appInstallation?.id;
 
     if (!appInstallationId) {
       return res.status(404).json({
@@ -3794,8 +3935,16 @@ app.get("/api/credits/coupon-status", async (req, res) => {
       });
     }
 
-    const validation = await couponService.validateCouponCode(client, appInstallationId, code);
-    const alreadyUsed = await couponService.checkCouponUsage(client, appInstallationId, code);
+    const validation = await couponService.validateCouponCode(
+      client,
+      appInstallationId,
+      code
+    );
+    const alreadyUsed = await couponService.checkCouponUsage(
+      client,
+      appInstallationId,
+      code
+    );
     const config = couponService.getCouponConfig(code);
 
     res.json({
@@ -3904,7 +4053,9 @@ app.post("/api/stores/sync", async (req, res) => {
       }
     `;
 
-    const shopInfoResponse = await client.query({ data: { query: shopInfoQuery } });
+    const shopInfoResponse = await client.query({
+      data: { query: shopInfoQuery },
+    });
     const shopData = shopInfoResponse?.body?.data?.shop;
 
     if (!shopData) {
@@ -3940,8 +4091,23 @@ app.post("/api/stores/sync", async (req, res) => {
     // Send to remote backend (non-blocking)
     const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
     if (remoteBackendUrl) {
+      // Generate unique request ID for tracking
+      const syncRequestId = `sync-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      const remoteBackendEndpoint = `${remoteBackendUrl}/api/stores/install`;
+
+      // Log request initiation
+      logger.info("[STORES] Initiating store info sync to remote backend", {
+        shop: shopDomain,
+        backendUrl: remoteBackendUrl,
+        endpoint: remoteBackendEndpoint,
+        requestId: syncRequestId,
+        timestamp: new Date().toISOString(),
+      });
+
       // Fire and forget - don't block the response
-      fetch(`${remoteBackendUrl}/api/stores/install`, {
+      fetch(remoteBackendEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -3949,24 +4115,30 @@ app.post("/api/stores/sync", async (req, res) => {
         body: JSON.stringify(payload),
       })
         .then(async (response) => {
+          const responseText = await response.text().catch(() => "");
           if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            logger.error(
-              "[STORES] Remote backend returned error",
-              null,
-              req,
+            logger.error("[STORES] Remote backend returned error", null, req, {
+              shop: shopDomain,
+              requestId: syncRequestId,
+              status: response.status,
+              statusText: response.statusText,
+              error: responseText,
+              endpoint: remoteBackendEndpoint,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            logger.info(
+              "[STORES] Store info sent to remote backend successfully",
               {
                 shop: shopDomain,
+                requestId: syncRequestId,
+                backendUrl: remoteBackendUrl,
+                endpoint: remoteBackendEndpoint,
                 status: response.status,
-                statusText: response.statusText,
-                error: errorText,
+                responsePreview: responseText.substring(0, 200),
+                timestamp: new Date().toISOString(),
               }
             );
-          } else {
-            logger.info("[STORES] Store info sent to remote backend successfully", {
-              shop: shopDomain,
-              backendUrl: remoteBackendUrl,
-            });
           }
         })
         .catch((error) => {
@@ -3977,27 +4149,43 @@ app.post("/api/stores/sync", async (req, res) => {
             req,
             {
               shop: shopDomain,
+              requestId: syncRequestId,
+              endpoint: remoteBackendEndpoint,
               errorMessage: error.message,
+              errorStack: error.stack,
+              timestamp: new Date().toISOString(),
             }
           );
         });
 
-      logger.info("[STORES] Store info sync initiated", {
+      // Return response with tracking info
+      return res.status(200).json({
+        success: true,
+        message: "Store information sync initiated",
         shop: shopDomain,
-        backendUrl: remoteBackendUrl,
+        syncRequestId: syncRequestId,
+        remoteBackendUrl: remoteBackendUrl,
+        endpoint: remoteBackendEndpoint,
+        status: "initiated",
+        note:
+          "Check server logs for sync completion status. Search for requestId: " +
+          syncRequestId,
       });
     } else {
-      logger.warn("[STORES] VITE_API_ENDPOINT not configured, skipping store info sync", {
+      logger.warn(
+        "[STORES] VITE_API_ENDPOINT not configured, skipping store info sync",
+        {
+          shop: shopDomain,
+        }
+      );
+      return res.status(200).json({
+        success: true,
+        message: "Store information sync skipped",
         shop: shopDomain,
+        status: "skipped",
+        reason: "VITE_API_ENDPOINT not configured",
       });
     }
-
-    // Return success response immediately (non-blocking)
-    res.json({
-      success: true,
-      message: "Store information sync initiated",
-      shop: shopDomain,
-    });
   } catch (error) {
     logger.error("[STORES] Store information sync failed", error, req);
     res.status(500).json({
@@ -4042,7 +4230,7 @@ app.post("/api/tryon/generate", async (req, res) => {
     // Check subscription and credits if shop is provided
     if (shopDomain) {
       const sessionToken = req.sessionToken;
-      
+
       if (sessionToken) {
         try {
           // Exchange token for access token
@@ -4073,10 +4261,11 @@ app.post("/api/tryon/generate", async (req, res) => {
                 }
               }
             `;
-            const appInstallationResponse = await client.query({ 
-              data: { query: appInstallationQuery } 
+            const appInstallationResponse = await client.query({
+              data: { query: appInstallationQuery },
             });
-            const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+            const appInstallationId =
+              appInstallationResponse?.body?.data?.appInstallation?.id;
 
             if (appInstallationId) {
               // Check subscription status
@@ -4089,32 +4278,36 @@ app.post("/api/tryon/generate", async (req, res) => {
               if (!subscriptionStatus.hasActiveSubscription) {
                 return res.status(403).json({
                   error: "No active subscription",
-                  message: "Please subscribe to a plan to use try-on generation",
+                  message:
+                    "Please subscribe to a plan to use try-on generation",
                 });
               }
 
               // Check credit availability
-              const creditAvailability = await creditManager.checkCreditAvailability(
-                client,
-                appInstallationId,
-                1
-              );
+              const creditAvailability =
+                await creditManager.checkCreditAvailability(
+                  client,
+                  appInstallationId,
+                  1
+                );
 
               if (!creditAvailability.available) {
                 return res.status(403).json({
                   error: "Insufficient credits",
-                  message: "You have no credits remaining. Please purchase more credits.",
+                  message:
+                    "You have no credits remaining. Please purchase more credits.",
                   creditsRemaining: creditAvailability.remaining,
                 });
               }
 
               // Deduct credit
-              creditDeductionResult = await creditDeduction.deductCreditForTryOn(
-                client,
-                appInstallationId,
-                shopDomain,
-                tryonId
-              );
+              creditDeductionResult =
+                await creditDeduction.deductCreditForTryOn(
+                  client,
+                  appInstallationId,
+                  shopDomain,
+                  tryonId
+                );
 
               if (!creditDeductionResult.success) {
                 if (creditDeductionResult.error === "CAPPED_AMOUNT_EXCEEDED") {
@@ -4125,7 +4318,8 @@ app.post("/api/tryon/generate", async (req, res) => {
                 }
                 return res.status(400).json({
                   error: "Credit deduction failed",
-                  message: creditDeductionResult.message || "Failed to deduct credit",
+                  message:
+                    creditDeductionResult.message || "Failed to deduct credit",
                 });
               }
 
@@ -4138,10 +4332,15 @@ app.post("/api/tryon/generate", async (req, res) => {
             }
           }
         } catch (creditError) {
-          logger.error("[API] Credit check/deduction failed", creditError, req, {
-            shopDomain,
-            tryonId,
-          });
+          logger.error(
+            "[API] Credit check/deduction failed",
+            creditError,
+            req,
+            {
+              shopDomain,
+              tryonId,
+            }
+          );
           // Continue with generation but log the error
           // In production, you might want to block generation if credit check fails
         }
@@ -4215,10 +4414,12 @@ app.post("/api/tryon/generate", async (req, res) => {
     // Return result with credit information
     res.json({
       ...data,
-      creditInfo: creditDeductionResult ? {
-        source: creditDeductionResult.source,
-        creditsRemaining: creditDeductionResult.creditsRemaining,
-      } : null,
+      creditInfo: creditDeductionResult
+        ? {
+            source: creditDeductionResult.source,
+            creditsRemaining: creditDeductionResult.creditsRemaining,
+          }
+        : null,
     });
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -4259,10 +4460,11 @@ app.post("/api/tryon/generate", async (req, res) => {
                 }
               }
             `;
-            const appInstallationResponse = await client.query({ 
-              data: { query: appInstallationQuery } 
+            const appInstallationResponse = await client.query({
+              data: { query: appInstallationQuery },
             });
-            const appInstallationId = appInstallationResponse?.body?.data?.appInstallation?.id;
+            const appInstallationId =
+              appInstallationResponse?.body?.data?.appInstallation?.id;
 
             if (appInstallationId) {
               await creditDeduction.refundCredit(
