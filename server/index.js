@@ -4089,7 +4089,8 @@ app.post("/api/stores/sync", async (req, res) => {
     };
 
     // Send to remote backend (non-blocking)
-    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    // const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    const remoteBackendUrl = "http://localhost:3000";
     if (remoteBackendUrl) {
       // Generate unique request ID for tracking
       const syncRequestId = `sync-${Date.now()}-${Math.random()
@@ -4125,6 +4126,7 @@ app.post("/api/stores/sync", async (req, res) => {
               error: responseText,
               endpoint: remoteBackendEndpoint,
               timestamp: new Date().toISOString(),
+              shopInfo: shopData,
             });
           } else {
             logger.info(
@@ -4137,6 +4139,7 @@ app.post("/api/stores/sync", async (req, res) => {
                 status: response.status,
                 responsePreview: responseText.substring(0, 200),
                 timestamp: new Date().toISOString(),
+                shopInfo: shopData,
               }
             );
           }
@@ -4170,6 +4173,7 @@ app.post("/api/stores/sync", async (req, res) => {
         note:
           "Check server logs for sync completion status. Search for requestId: " +
           syncRequestId,
+        shopInfo: shopData,
       });
     } else {
       logger.warn(
