@@ -1,9 +1,11 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, Sparkles, ArrowRight, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const PaymentSuccess = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const shop = searchParams.get("shop");
@@ -42,50 +44,48 @@ const PaymentSuccess = () => {
               <div className="flex items-center justify-center gap-2 mb-2">
                 <PartyPopper className="w-6 h-6 text-primary animate-bounce" />
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-                  Félicitations !
+                  {t("paymentSuccess.title")}
                 </h1>
                 <Sparkles className="w-6 h-6 text-primary animate-pulse" />
               </div>
 
               <p className="text-xl sm:text-2xl font-semibold text-success">
-                Paiement réussi
+                {t("paymentSuccess.successMessage")}
               </p>
 
               <p className="text-base sm:text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Votre abonnement a été activé avec succès. Vous pouvez
-                maintenant profiter de toutes les fonctionnalités premium de
-                l'application.
+                {t("paymentSuccess.description")}
               </p>
             </div>
 
             {/* Features Highlight */}
             <div className="bg-primary/5 rounded-lg p-6 mb-8 border border-primary/10">
               <h2 className="text-lg font-semibold text-foreground mb-4 text-center">
-                Ce qui vous attend maintenant :
+                {t("paymentSuccess.featuresTitle")}
               </h2>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-muted-foreground">
-                    Accès complet à toutes les fonctionnalités premium
+                    {t("paymentSuccess.feature1")}
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-muted-foreground">
-                    Support prioritaire pour toutes vos questions
+                    {t("paymentSuccess.feature2")}
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-muted-foreground">
-                    Mises à jour régulières et nouvelles fonctionnalités
+                    {t("paymentSuccess.feature3")}
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-muted-foreground">
-                    Gestion de votre abonnement depuis votre admin Shopify
+                    {t("paymentSuccess.feature4")}
                   </span>
                 </li>
               </ul>
@@ -98,7 +98,7 @@ const PaymentSuccess = () => {
                 size="lg"
                 className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
               >
-                <span>Continuer vers l'application</span>
+                <span>{t("paymentSuccess.continueButton")}</span>
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>

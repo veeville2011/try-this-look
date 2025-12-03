@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ interface CreditPackage {
 
 export const CreditPurchase = () => {
   const shop = useShop();
+  const { subscription } = useSubscription();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export const CreditPurchase = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <CouponRedemption onRedeemed={() => {}} />
+        <CouponRedemption onRedeemed={() => {}} subscription={subscription} />
 
         <div className="space-y-3">
           <Label>Select Package</Label>

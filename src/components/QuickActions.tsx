@@ -5,12 +5,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Settings, CreditCard } from "lucide-react";
-import { useShop } from "@/providers/AppBridgeProvider";
-import { redirectToPlanSelection } from "@/utils/managedPricing";
 
 interface QuickActionsProps {
   onInstallClick?: () => void;
   onConfigureClick?: () => void;
+  onPricingClick?: () => void;
   showInstall?: boolean;
   showConfigure?: boolean;
 }
@@ -18,18 +17,10 @@ interface QuickActionsProps {
 const QuickActions = ({
   onInstallClick,
   onConfigureClick,
+  onPricingClick,
   showInstall = true,
   showConfigure = false,
 }: QuickActionsProps) => {
-  const shop = useShop();
-
-  const handlePricingClick = () => {
-    const shopDomain =
-      shop || new URLSearchParams(window.location.search).get("shop");
-    if (shopDomain) {
-      redirectToPlanSelection(shopDomain);
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -56,7 +47,7 @@ const QuickActions = ({
       {/* View Pricing Button */}
       <Button
         size="lg"
-        onClick={handlePricingClick}
+        onClick={onPricingClick}
         variant="outline"
         className="h-auto py-6 flex flex-col items-center justify-center gap-2 border-2"
       >

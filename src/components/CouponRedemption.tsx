@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +9,34 @@ import { Gift, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-interface CouponRedemptionProps {
-  onRedeemed?: () => void;
+interface SubscriptionStatus {
+  subscription: {
+    id: string;
+    status: string;
+  } | null;
+  plan: {
+    name: string;
+    price: number;
+    currencyCode: string;
+    interval: string;
+  } | null;
+  hasActiveSubscription: boolean;
+  isFree: boolean;
 }
 
-export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
+interface CouponRedemptionProps {
+  onRedeemed?: () => void;
+  subscription?: SubscriptionStatus | null;
+}
+
+export const CouponRedemption = ({ onRedeemed, subscription }: CouponRedemptionProps) => {
+  const { t } = useTranslation();
   const shop = useShop();
+
+  // Only allow coupon redemption for subscribed users
+  const isSubscribed = subscription?.subscription !== null && 
+                      subscription?.hasActiveSubscription && 
+                      !subscription?.isFree;
   const [code, setCode] = useState("");
   const [validating, setValidating] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
@@ -25,8 +48,12 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
   } | null>(null);
 
   const validateCoupon = async () => {
+    if (!isSubscribed) {
+      toast.error(t("coupon.subscriptionRequired"));
+      return;
+    }
     if (!code.trim() || !shop) {
-      toast.error("Please enter a coupon code");
+      toast.error(t("coupon.enterCodeError"));
       return;
     }
 
@@ -46,19 +73,23 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
       setCouponStatus(data);
 
       if (!data.valid) {
-        toast.error("Invalid coupon code");
+        toast.error(t("coupon.invalid"));
       } else if (data.alreadyUsed) {
-        toast.warning("This coupon has already been used");
+        toast.warning(t("coupon.alreadyUsed"));
       }
     } catch (error) {
       console.error("[CouponRedemption] Validation error:", error);
-      toast.error("Failed to validate coupon code");
+      toast.error(t("coupon.validateError"));
     } finally {
       setValidating(false);
     }
   };
 
   const redeemCoupon = async () => {
+    if (!isSubscribed) {
+      toast.error(t("coupon.subscriptionRequired"));
+      return;
+    }
     if (!code.trim() || !shop || !couponStatus?.valid || couponStatus.alreadyUsed) {
       return;
     }
@@ -85,23 +116,23 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
       const data = await response.json();
 
       if (data.success) {
-        toast.success(`${data.creditsAdded} credits added successfully!`);
+        toast.success(t("coupon.success", { credits: data.creditsAdded }));
         setCode("");
         setCouponStatus(null);
         onRedeemed?.();
       } else {
-        toast.error(data.message || "Failed to redeem coupon");
+        toast.error(data.message || t("coupon.redeemError"));
       }
     } catch (error) {
       console.error("[CouponRedemption] Redemption error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to redeem coupon");
+      toast.error(error instanceof Error ? error.message : t("coupon.redeemError"));
     } finally {
       setRedeeming(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && isSubscribed) {
       if (couponStatus?.valid && !couponStatus.alreadyUsed) {
         redeemCoupon();
       } else {
@@ -110,15 +141,20 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
     }
   };
 
+  // Don't render coupon redemption for non-subscribed users
+  if (!isSubscribed) {
+    return null;
+  }
+
   return (
     <div className="space-y-3">
-      <Label>Redeem Coupon Code</Label>
+      <Label>{t("coupon.redeemTitle")}</Label>
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Gift className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Enter coupon code"
+            placeholder={t("coupon.enterCode")}
             value={code}
             onChange={(e) => {
               setCode(e.target.value.toUpperCase());
@@ -138,12 +174,12 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
             {redeeming ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Redeeming...
+                {t("coupon.redeeming")}
               </>
             ) : (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Redeem
+                {t("coupon.redeem")}
               </>
             )}
           </Button>
@@ -156,10 +192,10 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
             {validating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Validating...
+                {t("coupon.validating")}
               </>
             ) : (
-              "Validate"
+              t("coupon.validate")
             )}
           </Button>
         )}
@@ -173,11 +209,11 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
               <AlertDescription>
                 <div className="flex items-center justify-between">
                   <span>
-                    Valid coupon! {couponStatus.credits} credits will be added.
+                    {t("coupon.valid", { credits: couponStatus.credits })}
                   </span>
                   <Badge variant="default">
                     <Check className="h-3 w-3 mr-1" />
-                    Valid
+                    {t("common.success")}
                   </Badge>
                 </div>
               </AlertDescription>
@@ -186,14 +222,14 @@ export const CouponRedemption = ({ onRedeemed }: CouponRedemptionProps) => {
             <Alert variant="destructive">
               <X className="h-4 w-4" />
               <AlertDescription>
-                This coupon has already been used.
+                {t("coupon.alreadyUsed")}
               </AlertDescription>
             </Alert>
           ) : (
             <Alert variant="destructive">
               <X className="h-4 w-4" />
               <AlertDescription>
-                Invalid or expired coupon code.
+                {t("coupon.invalid")}
               </AlertDescription>
             </Alert>
           )}

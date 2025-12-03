@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
@@ -29,8 +30,10 @@ import { toast } from "sonner";
 import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const Index = () => {
+  const { t, i18n } = useTranslation();
   // Deep linking configuration
   const API_KEY = "f8de7972ae23d3484581d87137829385"; // From shopify.app.toml client_id
   const APP_BLOCK_HANDLE = "nusense-tryon-button";
@@ -141,7 +144,7 @@ const Index = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Impossible de récupérer les plans disponibles");
+        throw new Error(t("index.errors.cannotFetchPlans"));
       }
 
       const data = await response.json();
@@ -176,9 +179,7 @@ const Index = () => {
     }
 
     // Confirmation dialog
-    const confirmed = window.confirm(
-      "Êtes-vous sûr de vouloir annuler votre abonnement ? Votre accès continuera jusqu'à la fin de la période de facturation actuelle."
-    );
+    const confirmed = window.confirm(t("index.errors.confirmCancel"));
 
     if (!confirmed) {
       return;
@@ -210,9 +211,7 @@ const Index = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Échec de l'annulation de l'abonnement"
-        );
+        throw new Error(errorData.message || t("index.errors.cancelFailed"));
       }
 
       const data = await response.json();
@@ -223,19 +222,13 @@ const Index = () => {
       console.log("[Billing] Subscription cancelled successfully", data);
     } catch (error: any) {
       console.error("[Billing] Failed to cancel subscription", error);
-      alert(
-        error.message ||
-          "Une erreur s'est produite lors de l'annulation. Veuillez réessayer."
-      );
+      alert(error.message || t("index.errors.cancelError"));
     } finally {
       setCancelling(false);
     }
   };
 
-  const handleSelectPlan = async (
-    planHandle: string,
-    promoCode?: string | null
-  ) => {
+  const handleSelectPlan = async (planHandle: string) => {
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
 
@@ -257,7 +250,6 @@ const Index = () => {
       console.log("[Billing] Creating subscription request", {
         shop: shopDomain,
         planHandle,
-        promoCode: promoCode || null,
       });
 
       const response = await fetchFn("/api/billing/subscribe", {
@@ -269,7 +261,7 @@ const Index = () => {
         body: JSON.stringify({
           shop: shopDomain,
           planHandle,
-          promoCode: promoCode || null,
+          promoCode: null,
         }),
       });
 
@@ -330,9 +322,7 @@ const Index = () => {
 
       if (!data || !data.confirmationUrl) {
         console.error("[Billing] Missing confirmationUrl in response", data);
-        throw new Error(
-          "URL de confirmation manquante. Veuillez réessayer plus tard."
-        );
+        throw new Error(t("index.errors.missingConfirmationUrl"));
       }
 
       console.log("[Billing] Redirecting to confirmation URL", {
@@ -905,15 +895,15 @@ const Index = () => {
           {shouldShowPaymentLoading && (
             <div className="space-y-2">
               <p className="text-lg font-semibold text-foreground">
-                Traitement de votre paiement...
+                {t("index.loading.processingPayment")}
               </p>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Veuillez patienter pendant que nous vérifions votre abonnement.
-                Cela peut prendre quelques secondes.
+                {t("index.loading.pleaseWait")}
               </p>
               <p className="text-xs text-muted-foreground">
-                {Math.round(paymentSuccessElapsedTime / 1000)}s /{" "}
-                {maxWaitTime / 1000}s
+                {Math.round(paymentSuccessElapsedTime / 1000)}
+                {t("index.loading.seconds")} / {maxWaitTime / 1000}
+                {t("index.loading.seconds")}
               </p>
             </div>
           )}
@@ -930,6 +920,8 @@ const Index = () => {
           plans={availablePlans}
           onSelectPlan={handleSelectPlan}
           loading={billingLoading}
+          subscription={subscription}
+          onBack={() => setShowPlanSelection(false)}
         />
       </div>
     );
@@ -940,6 +932,10 @@ const Index = () => {
       {/* Main Content */}
       {/* Enhanced Hero Section */}
       <header className="relative overflow-hidden bg-card border-b border-border">
+        {/* Language Switcher - Fixed top right */}
+        <div className="absolute top-4 right-4 z-50">
+          <LanguageSwitcher />
+        </div>
         <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20 relative">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
@@ -965,11 +961,10 @@ const Index = () => {
                       </span>
                     </h1>
                     <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium no-orphans mt-2">
-                      Essayage virtuel pour&nbsp;Shopify
+                      {t("index.hero.title")}
                     </p>
                     <p className="text-base sm:text-lg text-muted-foreground mt-3 max-w-2xl">
-                      Transformez l'expérience d'achat de vos clients avec notre
-                      technologie d'essayage virtuel alimentée par l'IA
+                      {t("index.hero.subtitle")}
                     </p>
                   </div>
                   {/* Primary CTA */}
@@ -980,7 +975,7 @@ const Index = () => {
                       className="px-6"
                     >
                       <Zap className="w-4 h-4 mr-2" />
-                      Commencer l'installation
+                      {t("index.hero.startInstallation")}
                     </Button>
                     <Button
                       size="lg"
@@ -989,7 +984,7 @@ const Index = () => {
                       }}
                       className="px-6"
                     >
-                      Voir les tarifs
+                      {t("index.hero.viewPricing")}
                     </Button>
                   </div>
                 </div>
@@ -1002,7 +997,7 @@ const Index = () => {
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between mb-2">
                         <CardTitle className="text-lg font-bold text-foreground">
-                          Votre plan
+                          {t("index.planCard.title")}
                         </CardTitle>
                         {subscription.hasActiveSubscription && (
                           <Badge
@@ -1010,7 +1005,7 @@ const Index = () => {
                             className="gap-1.5 bg-success/20 text-success border-success/30"
                           >
                             <CheckCircle2 className="w-3 h-3" />
-                            Actif
+                            {t("index.planCard.active")}
                           </Badge>
                         )}
                       </div>
@@ -1021,7 +1016,7 @@ const Index = () => {
                             className="gap-1.5 text-sm px-3 py-1"
                           >
                             <Zap className="w-3.5 h-3.5" />
-                            Plan Gratuit
+                            {t("index.planCard.freePlan")}
                           </Badge>
                         ) : (
                           <Badge
@@ -1029,7 +1024,8 @@ const Index = () => {
                             className="gap-1.5 bg-primary text-primary-foreground text-sm px-3 py-1"
                           >
                             <Crown className="w-3.5 h-3.5" />
-                            {subscription.plan?.name || "Plan Premium"}
+                            {subscription.plan?.name ||
+                              t("index.planCard.premiumPlan")}
                           </Badge>
                         )}
                       </div>
@@ -1041,7 +1037,7 @@ const Index = () => {
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                               <Sparkle className="w-4 h-4 text-primary" />
-                              Crédits disponibles
+                              {t("index.planCard.availableCredits")}
                             </span>
                             {creditsLoading && (
                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
@@ -1050,7 +1046,7 @@ const Index = () => {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">
-                                Disponibles:
+                                {t("index.planCard.available")}
                               </span>
                               <span className="font-bold text-foreground">
                                 {credits.balance || 0}
@@ -1058,7 +1054,7 @@ const Index = () => {
                             </div>
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">
-                                Total inclus:
+                                {t("index.planCard.totalIncluded")}
                               </span>
                               <span className="font-medium text-foreground">
                                 {credits.included || 100}
@@ -1067,7 +1063,7 @@ const Index = () => {
                             {credits.used !== undefined && (
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                  Utilisés:
+                                  {t("index.planCard.used")}
                                 </span>
                                 <span className="font-medium text-foreground">
                                   {credits.used || 0}
@@ -1076,7 +1072,7 @@ const Index = () => {
                             )}
                             {credits.isOverage && (
                               <div className="mt-2 p-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
-                                Mode dépassement activé
+                                {t("index.planCard.overageMode")}
                               </div>
                             )}
                           </div>
@@ -1093,15 +1089,15 @@ const Index = () => {
                                 <div className="flex items-center gap-2">
                                   <Sparkle className="w-4 h-4 text-primary" />
                                   <span className="text-sm font-semibold text-foreground">
-                                    Période d'essai
+                                    {t("index.planCard.trialPeriod")}
                                   </span>
                                 </div>
                                 <span className="text-sm font-bold text-primary">
                                   {subscription.subscription.trialDaysRemaining}{" "}
                                   {subscription.subscription
                                     .trialDaysRemaining === 1
-                                    ? "jour restant"
-                                    : "jours restants"}
+                                    ? t("index.planCard.trialDayRemaining")
+                                    : t("index.planCard.trialDaysRemaining")}
                                 </span>
                               </div>
                             </div>
@@ -1114,38 +1110,44 @@ const Index = () => {
                           <div className="flex items-center gap-2 text-sm">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span className="text-muted-foreground">
-                              Début du plan:
+                              {t("index.planCard.planStart")}
                             </span>
                             <span className="font-medium text-foreground">
                               {new Date(
                                 subscription.subscription.currentPeriodStart ||
                                   subscription.subscription.createdAt
-                              ).toLocaleDateString("fr-FR", {
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                              })}
+                              ).toLocaleDateString(
+                                i18n.language === "fr" ? "fr-FR" : "en-US",
+                                {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                }
+                              )}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-sm">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span className="text-muted-foreground">
-                              Renouvellement:
+                              {t("index.planCard.renewal")}
                             </span>
                             <span className="font-medium text-foreground">
                               {new Date(
                                 subscription.subscription.currentPeriodEnd
-                              ).toLocaleDateString("fr-FR", {
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                              })}
+                              ).toLocaleDateString(
+                                i18n.language === "fr" ? "fr-FR" : "en-US",
+                                {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                }
+                              )}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-sm">
                             <CheckCircle2 className="w-4 h-4 text-success" />
                             <span className="text-muted-foreground">
-                              Statut:
+                              {t("index.planCard.status")}
                             </span>
                             <span className="font-medium text-foreground capitalize">
                               {subscription.subscription.status.toLowerCase()}
@@ -1158,7 +1160,7 @@ const Index = () => {
                       <div className="pt-3 border-t border-border">
                         <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                           <Sparkle className="w-4 h-4 text-primary" />
-                          Avantages inclus
+                          {t("index.planCard.featuresTitle")}
                         </p>
                         <ul className="space-y-2">
                           {(() => {
@@ -1192,19 +1194,19 @@ const Index = () => {
                                 <li className="flex items-start gap-2 text-sm">
                                   <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
                                   <span className="text-muted-foreground">
-                                    Essayage virtuel illimité
+                                    {t("index.planCard.unlimitedTryOn")}
                                   </span>
                                 </li>
                                 <li className="flex items-start gap-2 text-sm">
                                   <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
                                   <span className="text-muted-foreground">
-                                    Support technique prioritaire
+                                    {t("index.planCard.prioritySupport")}
                                   </span>
                                 </li>
                                 <li className="flex items-start gap-2 text-sm">
                                   <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
                                   <span className="text-muted-foreground">
-                                    Intégration Shopify complète
+                                    {t("index.planCard.shopifyIntegration")}
                                   </span>
                                 </li>
                               </>
@@ -1224,8 +1226,8 @@ const Index = () => {
                         >
                           <CreditCard className="w-4 h-4 mr-2" />
                           {subscription.isFree
-                            ? "Passer à un plan premium"
-                            : "Gérer mon abonnement"}
+                            ? t("index.planCard.upgradeToPremium")
+                            : t("index.planCard.manageSubscription")}
                         </Button>
                         {subscription.hasActiveSubscription &&
                           subscription.subscription?.status === "ACTIVE" && (
@@ -1236,8 +1238,8 @@ const Index = () => {
                               disabled={cancelling}
                             >
                               {cancelling
-                                ? "Annulation..."
-                                : "Annuler l'abonnement"}
+                                ? t("index.planCard.cancelling")
+                                : t("index.planCard.cancelSubscription")}
                             </Button>
                           )}
                       </div>
@@ -1247,7 +1249,7 @@ const Index = () => {
                   <Card className="border-2 border-dashed border-border bg-muted/30">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg font-bold text-foreground">
-                        Votre plan
+                        {t("index.planCard.title")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1256,7 +1258,7 @@ const Index = () => {
                           <CreditCard className="w-8 h-8 text-muted-foreground" />
                         </div>
                         <p className="text-sm text-muted-foreground mb-4">
-                          Aucun plan sélectionné
+                          {t("index.planCard.noPlanSelected")}
                         </p>
                         <Button
                           size="sm"
@@ -1266,7 +1268,7 @@ const Index = () => {
                           }}
                         >
                           <Sparkle className="w-4 h-4 mr-2" />
-                          Choisir un plan
+                          {t("index.planCard.choosePlan")}
                         </Button>
                       </div>
                     </CardContent>
@@ -1288,6 +1290,7 @@ const Index = () => {
                 showConfigure={currentPlan && currentPlan !== "free"}
                 onInstallClick={scrollToInstallationGuide}
                 onConfigureClick={scrollToInstallationGuide}
+                onPricingClick={handleRequireBilling}
               />
             </div>
           </div>
@@ -1310,23 +1313,17 @@ const Index = () => {
                       className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 text-primary flex-shrink-0"
                       aria-hidden="true"
                     />
-                    Guide d'installation étape&nbsp;par&nbsp;étape
+                    {t("index.installationGuide.title")}
                   </CardTitle>
                   <CardDescription className="text-base sm:text-lg md:text-xl mt-4 sm:mt-5 text-foreground/80 no-orphans">
-                    Installation rapide en&nbsp;quelques&nbsp;minutes
+                    {t("index.installationGuide.subtitle")}
                   </CardDescription>
                   <div className="mt-6 sm:mt-8 bg-info/15 border-2 border-info/30 rounded-lg p-4 sm:p-5">
                     <p className="text-sm sm:text-base text-foreground leading-relaxed no-orphans">
                       <strong className="font-bold text-foreground">
-                        📦 Bloc&nbsp;d'application&nbsp;unique&nbsp;:
-                      </strong>{" "}
-                      NusenseTryOn utilise désormais uniquement un bloc
-                      d'application compatible avec les thèmes{" "}
-                      <strong className="font-bold text-foreground">
-                        Online&nbsp;Store&nbsp;2.0
+                        {t("index.installationGuide.appBlockNote")}{" "}
                       </strong>
-                      . Les thèmes vintage doivent être mis à jour vers un thème
-                      OS&nbsp;2.0 pour profiter de l'expérience complète.
+                      {t("index.installationGuide.appBlockDescription")}
                     </p>
                   </div>
                 </CardHeader>
@@ -1350,35 +1347,17 @@ const Index = () => {
                           />
                           <div className="flex-1">
                             <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              Installez&nbsp;NusenseTryOn
+                              {t("index.installationGuide.step1Title")}
                             </h3>
                             <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              Dans votre admin Shopify, accédez à{" "}
-                              <strong className="font-bold text-foreground">
-                                Apps
-                              </strong>{" "}
-                              dans le menu latéral, puis cliquez sur{" "}
-                              <strong className="font-bold text-foreground">
-                                Boutique&nbsp;d'applications
-                              </strong>
-                              . Recherchez{" "}
-                              <strong className="font-bold text-foreground">
-                                "NusenseTryOn"
-                              </strong>{" "}
-                              et cliquez sur{" "}
-                              <strong className="font-bold text-foreground">
-                                "Ajouter&nbsp;l'application"
-                              </strong>
-                              .
+                              {t("index.installationGuide.step1Description")}
                             </p>
                             <div className="bg-info/20 border-2 border-info/40 rounded-lg p-4 sm:p-5">
                               <p className="text-sm sm:text-base text-foreground leading-relaxed no-orphans">
                                 <strong className="font-bold text-foreground">
-                                  ℹ️ Note&nbsp;:
-                                </strong>{" "}
-                                Autorisez les permissions demandées (lecture et
-                                modification des produits et thèmes) pour que
-                                l'application puisse fonctionner correctement.
+                                  {t("index.installationGuide.step1Note")}{" "}
+                                </strong>
+                                {t("index.installationGuide.step1NoteText")}
                               </p>
                             </div>
                           </div>
@@ -1407,57 +1386,43 @@ const Index = () => {
                           />
                           <div className="flex-1">
                             <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              Ajoutez le bloc&nbsp;d'application
-                              (Thèmes&nbsp;Online&nbsp;Store&nbsp;2.0)
+                              {t("index.installationGuide.step2Title")}
                             </h3>
                             <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              Le bloc d'application se place directement dans
-                              vos sections de page produit. Il est compatible
-                              avec tous les thèmes{" "}
-                              <strong className="font-bold text-foreground">
-                                Online&nbsp;Store&nbsp;2.0
-                              </strong>
-                              .
+                              {t("index.installationGuide.step2Description")}
                             </p>
                             <div className="space-y-4 mb-4 sm:mb-5">
                               <div className="bg-muted rounded-lg p-4 sm:p-5 border-2 border-border">
                                 <p className="text-sm sm:text-base font-semibold text-foreground mb-3 no-orphans">
-                                  Instructions&nbsp;produit&nbsp;:
+                                  {t(
+                                    "index.installationGuide.step2Instructions"
+                                  )}
                                 </p>
                                 <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-foreground/90">
                                   <li className="no-orphans">
-                                    Dans l'éditeur de thème, ouvrez une{" "}
-                                    <strong className="font-bold text-foreground">
-                                      page&nbsp;produit
-                                    </strong>
+                                    {t(
+                                      "index.installationGuide.step2Instruction1"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Cliquez sur{" "}
-                                    <strong className="font-bold text-foreground">
-                                      Ajouter&nbsp;un&nbsp;bloc
-                                    </strong>{" "}
-                                    dans la section souhaitée
+                                    {t(
+                                      "index.installationGuide.step2Instruction2"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Dans la catégorie{" "}
-                                    <strong className="font-bold text-foreground">
-                                      Applications
-                                    </strong>
-                                    , sélectionnez{" "}
-                                    <strong className="font-bold text-foreground">
-                                      "NUSENSE&nbsp;Try-On&nbsp;Button"
-                                    </strong>
+                                    {t(
+                                      "index.installationGuide.step2Instruction3"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Personnalisez le texte du bouton, le style
-                                    et les autres paramètres
+                                    {t(
+                                      "index.installationGuide.step2Instruction4"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Réorganisez le bloc en le faisant glisser si
-                                    nécessaire puis cliquez sur{" "}
-                                    <strong className="font-bold text-foreground">
-                                      Enregistrer
-                                    </strong>
+                                    {t(
+                                      "index.installationGuide.step2Instruction5"
+                                    )}
                                   </li>
                                 </ol>
                               </div>
@@ -1469,12 +1434,13 @@ const Index = () => {
                                   />
                                   <span className="no-orphans">
                                     <strong className="font-bold text-foreground">
-                                      Important&nbsp;:
-                                    </strong>{" "}
-                                    Les blocs d'application sont disponibles
-                                    uniquement sur les thèmes Online Store 2.0
-                                    (modèles JSON). Mettez à jour votre thème si
-                                    nécessaire.
+                                      {t(
+                                        "index.installationGuide.step2Important"
+                                      )}{" "}
+                                    </strong>
+                                    {t(
+                                      "index.installationGuide.step2ImportantText"
+                                    )}
                                   </span>
                                 </p>
                               </div>
@@ -1484,12 +1450,14 @@ const Index = () => {
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div className="flex-1">
                                       <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        🚀 Accès&nbsp;rapide&nbsp;:
+                                        {t(
+                                          "index.installationGuide.step2QuickAccess"
+                                        )}
                                       </p>
                                       <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        Cliquez sur le bouton ci-dessous pour
-                                        ouvrir l'éditeur de thème directement
-                                        sur une page produit.
+                                        {t(
+                                          "index.installationGuide.step2QuickAccessText"
+                                        )}
                                       </p>
                                     </div>
                                     <Button
@@ -1503,7 +1471,7 @@ const Index = () => {
                                         className="w-4 h-4 mr-2"
                                         aria-hidden="true"
                                       />
-                                      Ajouter&nbsp;maintenant
+                                      {t("index.installationGuide.step2AddNow")}
                                     </Button>
                                   </div>
                                 </div>
@@ -1512,11 +1480,14 @@ const Index = () => {
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div className="flex-1">
                                       <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        🔒 Accès&nbsp;restreint&nbsp;:
+                                        {t(
+                                          "index.installationGuide.step2Restricted"
+                                        )}
                                       </p>
                                       <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        Veuillez sélectionner un plan tarifaire
-                                        pour accéder à cette fonctionnalité.
+                                        {t(
+                                          "index.installationGuide.step2RestrictedText"
+                                        )}
                                       </p>
                                     </div>
                                     <Button
@@ -1526,7 +1497,9 @@ const Index = () => {
                                       className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                                       size="sm"
                                     >
-                                      Voir&nbsp;les&nbsp;tarifs
+                                      {t(
+                                        "index.installationGuide.step2ViewPricing"
+                                      )}
                                     </Button>
                                   </div>
                                 </div>
@@ -1558,59 +1531,43 @@ const Index = () => {
                           />
                           <div className="flex-1">
                             <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              Ajoutez la bannière&nbsp;d'application
-                              (Page&nbsp;d'accueil)
+                              {t("index.installationGuide.step3Title")}
                             </h3>
                             <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              La bannière d'application s'affiche
-                              automatiquement sur votre page d'accueil pour
-                              promouvoir la fonctionnalité d'essayage virtuel.
-                              Elle est compatible avec tous les thèmes{" "}
-                              <strong className="font-bold text-foreground">
-                                Online&nbsp;Store&nbsp;2.0
-                              </strong>
-                              .
+                              {t("index.installationGuide.step3Description")}
                             </p>
                             <div className="space-y-4 mb-4 sm:mb-5">
                               <div className="bg-muted rounded-lg p-4 sm:p-5 border-2 border-border">
                                 <p className="text-sm sm:text-base font-semibold text-foreground mb-3 no-orphans">
-                                  Instructions&nbsp;bannière&nbsp;:
+                                  {t(
+                                    "index.installationGuide.step3Instructions"
+                                  )}
                                 </p>
                                 <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-foreground/90">
                                   <li className="no-orphans">
-                                    Dans l'éditeur de thème, ouvrez la{" "}
-                                    <strong className="font-bold text-foreground">
-                                      page&nbsp;d'accueil
-                                    </strong>{" "}
-                                    (template index)
+                                    {t(
+                                      "index.installationGuide.step3Instruction1"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Cliquez sur{" "}
-                                    <strong className="font-bold text-foreground">
-                                      Paramètres&nbsp;du&nbsp;thème
-                                    </strong>{" "}
-                                    (icône d'engrenage) en bas à gauche
+                                    {t(
+                                      "index.installationGuide.step3Instruction2"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Dans la section{" "}
-                                    <strong className="font-bold text-foreground">
-                                      Intégrations&nbsp;d'applications
-                                    </strong>
-                                    , recherchez{" "}
-                                    <strong className="font-bold text-foreground">
-                                      "NUSENSE&nbsp;Try-On&nbsp;Banner"
-                                    </strong>
+                                    {t(
+                                      "index.installationGuide.step3Instruction3"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    Activez la bannière en cochant la case
-                                    correspondante
+                                    {t(
+                                      "index.installationGuide.step3Instruction4"
+                                    )}
                                   </li>
                                   <li className="no-orphans">
-                                    La bannière apparaîtra automatiquement sur
-                                    votre page d'accueil. Cliquez sur{" "}
-                                    <strong className="font-bold text-foreground">
-                                      Enregistrer
-                                    </strong>
+                                    {t(
+                                      "index.installationGuide.step3Instruction5"
+                                    )}
                                   </li>
                                 </ol>
                               </div>
@@ -1622,13 +1579,9 @@ const Index = () => {
                                   />
                                   <span className="no-orphans">
                                     <strong className="font-bold text-foreground">
-                                      Astuce&nbsp;:
-                                    </strong>{" "}
-                                    La bannière peut être désactivée à tout
-                                    moment via les paramètres du thème sans
-                                    supprimer l'intégration. Les visiteurs
-                                    peuvent également la fermer, et leur
-                                    préférence sera mémorisée pour la session.
+                                      {t("index.installationGuide.step3Tip")}{" "}
+                                    </strong>
+                                    {t("index.installationGuide.step3TipText")}
                                   </span>
                                 </p>
                               </div>
@@ -1638,12 +1591,14 @@ const Index = () => {
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div className="flex-1">
                                       <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        🚀 Accès&nbsp;rapide&nbsp;:
+                                        {t(
+                                          "index.installationGuide.step3QuickAccess"
+                                        )}
                                       </p>
                                       <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        Cliquez sur le bouton ci-dessous pour
-                                        ouvrir l'éditeur de thème directement
-                                        sur la page d'accueil.
+                                        {t(
+                                          "index.installationGuide.step3QuickAccessText"
+                                        )}
                                       </p>
                                     </div>
                                     <Button
@@ -1657,7 +1612,7 @@ const Index = () => {
                                         className="w-4 h-4 mr-2"
                                         aria-hidden="true"
                                       />
-                                      Ajouter&nbsp;maintenant
+                                      {t("index.installationGuide.step3AddNow")}
                                     </Button>
                                   </div>
                                 </div>
@@ -1666,11 +1621,14 @@ const Index = () => {
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div className="flex-1">
                                       <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        🔒 Accès&nbsp;restreint&nbsp;:
+                                        {t(
+                                          "index.installationGuide.step3Restricted"
+                                        )}
                                       </p>
                                       <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        Veuillez sélectionner un plan tarifaire
-                                        pour accéder à cette fonctionnalité.
+                                        {t(
+                                          "index.installationGuide.step3RestrictedText"
+                                        )}
                                       </p>
                                     </div>
                                     <Button
@@ -1680,7 +1638,9 @@ const Index = () => {
                                       className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                                       size="sm"
                                     >
-                                      Voir&nbsp;les&nbsp;tarifs
+                                      {t(
+                                        "index.installationGuide.step3ViewPricing"
+                                      )}
                                     </Button>
                                   </div>
                                 </div>
@@ -1712,14 +1672,10 @@ const Index = () => {
                           />
                           <div className="flex-1">
                             <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              Testez votre&nbsp;configuration
+                              {t("index.installationGuide.step4Title")}
                             </h3>
                             <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              Visitez votre page d'accueil et une page produit
-                              de votre boutique pour vérifier que la bannière et
-                              le bouton d'essayage virtuel apparaissent
-                              correctement. Cliquez sur les éléments pour tester
-                              la fonctionnalité.
+                              {t("index.installationGuide.step4Description")}
                             </p>
                             <div className="bg-success/25 border-2 border-success/50 rounded-lg p-4 sm:p-5">
                               <p className="text-sm sm:text-base text-foreground flex items-start gap-3 leading-relaxed">
@@ -1729,14 +1685,13 @@ const Index = () => {
                                 />
                                 <span className="no-orphans">
                                   <strong className="font-bold text-foreground">
-                                    Félicitations&nbsp;!
-                                  </strong>{" "}
-                                  NusenseTryOn est maintenant configuré. Vos
-                                  clients peuvent utiliser la fonctionnalité
-                                  d'essayage virtuel directement sur vos
-                                  pages&nbsp;produits et découvrir la
-                                  fonctionnalité via la bannière sur votre
-                                  page&nbsp;d'accueil.
+                                    {t(
+                                      "index.installationGuide.step4Congratulations"
+                                    )}{" "}
+                                  </strong>
+                                  {t(
+                                    "index.installationGuide.step4CongratulationsText"
+                                  )}
                                 </span>
                               </p>
                             </div>
@@ -1758,11 +1713,10 @@ const Index = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-foreground">
-                Pourquoi choisir NusenseTryOn?
+                {t("index.features.title")}
               </h2>
               <p className="text-lg text-muted-foreground">
-                Des fonctionnalités puissantes pour améliorer l'expérience
-                d'achat
+                {t("index.features.subtitle")}
               </p>
             </div>
             <FeatureHighlights />
@@ -1783,8 +1737,7 @@ const Index = () => {
             </h2>
           </div>
           <p className="text-sm sm:text-base md:text-lg text-foreground/80 no-orphans">
-            © {new Date().getFullYear()} NusenseTryOn.
-            Tous&nbsp;droits&nbsp;réservés.
+            {t("index.footer.copyright", { year: new Date().getFullYear() })}
           </p>
         </div>
       </footer>

@@ -96,34 +96,9 @@ export const getPlan = (planHandle) => {
  *     description: string
  *   }
  * }
+ * Note: All promo codes have been removed. Only coupon code WELCOME50 is available for credits.
  */
-export const PROMO_CODES = {
-  WELCOME10: {
-    type: "percentage",
-    value: 0.1, // 10% off
-    durationLimitInIntervals: 3, // First 3 billing cycles
-    validForIntervals: null, // Valid for all intervals
-    active: true,
-    description: "10% off for first 3 months",
-  },
-  SAVE20: {
-    type: "percentage",
-    value: 0.2, // 20% off
-    durationLimitInIntervals: null, // Indefinite
-    validForIntervals: ["ANNUAL"], // Only for annual plans
-    active: true,
-    description: "20% off annual plans",
-  },
-  FLAT5: {
-    type: "fixed",
-    value: 5.0, // $5 off
-    currencyCode: "USD",
-    durationLimitInIntervals: 1, // First billing cycle only
-    validForIntervals: null, // Valid for all intervals
-    active: true,
-    description: "$5 off first month",
-  },
-};
+export const PROMO_CODES = {};
 
 /**
  * Validate and get promotional code
@@ -228,6 +203,7 @@ export const CREDIT_PACKAGES = {
 /**
  * Coupon Codes Configuration for Promotional Credits
  * These are different from subscription promo codes - they add credits directly
+ * Works for both monthly and annual plans - adds credits in addition to plan credits
  */
 export const COUPON_CODES = {
   WELCOME50: {
@@ -236,35 +212,11 @@ export const COUPON_CODES = {
     type: "fixed",
     usageLimit: {
       perShop: 1,
-      global: 1000,
-    },
-    expiresAt: "2024-12-31T23:59:59Z",
-    active: true,
-    description: "Welcome bonus - 50 free credits",
-  },
-  REFERRAL100: {
-    code: "REFERRAL100",
-    credits: 100,
-    type: "fixed",
-    usageLimit: {
-      perShop: 1,
       global: null, // Unlimited
     },
-    expiresAt: null, // No expiration
+    expiresAt: null, // No expiration - works indefinitely
     active: true,
-    description: "Referral bonus - 100 free credits",
-  },
-  HOLIDAY25: {
-    code: "HOLIDAY25",
-    credits: 25,
-    type: "fixed",
-    usageLimit: {
-      perShop: 3,
-      global: 5000,
-    },
-    expiresAt: "2024-12-25T23:59:59Z",
-    active: true,
-    description: "Holiday special - 25 credits (3 uses per shop)",
+    description: "Welcome bonus - 50 free credits in addition to plan credits",
   },
 };
 
