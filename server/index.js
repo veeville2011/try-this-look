@@ -3999,6 +3999,9 @@ app.post("/api/stores/sync", async (req, res) => {
     });
 
     // Exchange JWT session token for offline access token
+    // CRITICAL: We MUST exchange the JWT session token for an offline access token
+    // Session tokens (JWTs) are temporary and should NEVER be stored in the database
+    // Offline access tokens (shpat_xxxxx) are long-lived and safe for database storage
     const tokenResult = await shopify.auth.tokenExchange({
       shop: shopDomain,
       sessionToken,
@@ -4018,13 +4021,44 @@ app.post("/api/stores/sync", async (req, res) => {
       });
     }
 
-    // Create GraphQL client with access token
+    // SECURITY VALIDATION: Ensure we're NOT accidentally sending a JWT session token
+    // Offline access tokens start with "shpat_" (admin API) or "shpca_" (customer API)
+    // JWT tokens contain dots and can be decoded - we must reject them
+    const isJWT = accessToken.includes(".") && accessToken.split(".").length === 3;
+    const isOfflineToken = accessToken.startsWith("shpat_") || accessToken.startsWith("shpca_");
+    
+    if (isJWT || !isOfflineToken) {
+      logger.error("[STORES] SECURITY ERROR: Attempted to store JWT session token instead of offline access token", null, req, {
+        shop: shopDomain,
+        tokenType: isJWT ? "JWT" : "UNKNOWN",
+        tokenPrefix: accessToken.substring(0, 10),
+        isOnline: session.isOnline,
+      });
+      return res.status(500).json({
+        error: "Security validation failed",
+        message: "Invalid token type - cannot store session token in database",
+      });
+    }
+
+    // Ensure isOnline is false for offline tokens (should already be false, but enforce it)
+    const isOnline = false; // Offline tokens are always false
+
+    logger.info("[STORES] Token exchange successful - offline access token obtained", {
+      shop: shopDomain,
+      tokenType: "offline",
+      tokenPrefix: accessToken.substring(0, 10) + "...",
+      isOnline: false,
+      scope: session.scope,
+    });
+
+    // Create GraphQL client with offline access token
+    // Note: isOnline is always false for offline tokens
     const client = new shopify.clients.Graphql({
       session: {
         shop: session.shop || shopDomain,
         accessToken,
         scope: session.scope,
-        isOnline: session.isOnline || false,
+        isOnline: false, // Offline tokens are always false
       },
     });
 
@@ -4069,10 +4103,15 @@ app.post("/api/stores/sync", async (req, res) => {
     }
 
     // Prepare payload for remote backend
+    // Note: Field names must match API_STORES_INSTALL.md specification
+    // CRITICAL: We're sending an OFFLINE access token (shpat_xxxxx), NOT a JWT session token
+    // Offline tokens are safe for database storage and server-side use
     const payload = {
-      shopDomain: shopDomain,
-      accessToken: accessToken,
-      scope: session.scope,
+      shop: shopDomain, // Required: shop domain (normalized)
+      accessToken: accessToken, // Required: Shopify OAuth OFFLINE access token (shpat_xxxxx)
+      scope: session.scope, // Optional: OAuth scopes
+      isOnline: false, // Required: MUST be false for offline tokens (validated above)
+      installedAt: new Date().toISOString(), // Optional: Installation timestamp
       shopInfo: {
         id: shopData.id,
         name: shopData.name,
@@ -4084,7 +4123,6 @@ app.post("/api/stores/sync", async (req, res) => {
         planName: shopData.plan?.publicDisplayName,
         ownerName: shopData.shopOwnerName,
       },
-      installedAt: new Date().toISOString(),
       host: req.query.host || null,
     };
 

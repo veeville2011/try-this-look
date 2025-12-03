@@ -84,7 +84,9 @@ const Index = () => {
         }
 
         // Get JWT session token using authenticated fetch
-        const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
+        const { authenticatedFetch } = await import(
+          "@shopify/app-bridge-utils"
+        );
         const fetchFn = authenticatedFetch(appBridge);
 
         // Call backend API to sync store information
@@ -432,7 +434,11 @@ const Index = () => {
 
   // Refresh credits when subscription changes
   useEffect(() => {
-    if (subscription && subscription.subscription !== null && !subscription.isFree) {
+    if (
+      subscription &&
+      subscription.subscription !== null &&
+      !subscription.isFree
+    ) {
       refreshCredits();
     }
   }, [subscription?.subscription?.id, refreshCredits]);
@@ -1078,27 +1084,29 @@ const Index = () => {
                       )}
 
                       {/* Trial Days Remaining */}
-                      {subscription.subscription?.isInTrial && 
-                       subscription.subscription?.trialDaysRemaining !== null && (
-                        <div className="pt-2 border-t border-border">
-                          <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Sparkle className="w-4 h-4 text-primary" />
-                                <span className="text-sm font-semibold text-foreground">
-                                  Période d'essai
+                      {subscription.subscription?.isInTrial &&
+                        subscription.subscription?.trialDaysRemaining !==
+                          null && (
+                          <div className="pt-2 border-t border-border">
+                            <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Sparkle className="w-4 h-4 text-primary" />
+                                  <span className="text-sm font-semibold text-foreground">
+                                    Période d'essai
+                                  </span>
+                                </div>
+                                <span className="text-sm font-bold text-primary">
+                                  {subscription.subscription.trialDaysRemaining}{" "}
+                                  {subscription.subscription
+                                    .trialDaysRemaining === 1
+                                    ? "jour restant"
+                                    : "jours restants"}
                                 </span>
                               </div>
-                              <span className="text-sm font-bold text-primary">
-                                {subscription.subscription.trialDaysRemaining}{" "}
-                                {subscription.subscription.trialDaysRemaining === 1
-                                  ? "jour restant"
-                                  : "jours restants"}
-                              </span>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Subscription Status */}
                       {subscription.subscription && (
@@ -1154,28 +1162,28 @@ const Index = () => {
                         </p>
                         <ul className="space-y-2">
                           {(() => {
-                            // Find the plan from availablePlans by handle
-                            const planHandle = subscription.plan?.handle;
+                            // Find the plan from availablePlans by name
+                            const planName = subscription.plan?.name;
                             const matchedPlan = availablePlans.find(
-                              (p) => p.handle === planHandle
+                              (p) => p.name === planName
                             );
-                            const planFeatures =
-                              matchedPlan?.features ||
-                              subscription.plan?.features || [];
+                            const planFeatures = matchedPlan?.features || [];
 
                             // If we have features from the pricing page, use those
                             if (planFeatures.length > 0) {
-                              return planFeatures.map((feature: string, index: number) => (
-                                <li
-                                  key={index}
-                                  className="flex items-start gap-2 text-sm"
-                                >
-                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground">
-                                    {feature}
-                                  </span>
-                                </li>
-                              ));
+                              return planFeatures.map(
+                                (feature: string, index: number) => (
+                                  <li
+                                    key={index}
+                                    className="flex items-start gap-2 text-sm"
+                                  >
+                                    <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+                                    <span className="text-muted-foreground">
+                                      {feature}
+                                    </span>
+                                  </li>
+                                )
+                              );
                             }
 
                             // Fallback to default features if no plan found
