@@ -23,6 +23,7 @@ import { Sparkles, X, RotateCcw, XCircle, CheckCircle } from "lucide-react";
 import StatusBar from "./StatusBar";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
+import { useStoreInfo } from "@/hooks/useStoreInfo";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -41,6 +42,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     clothingKeys,
     personKeys,
   } = useKeyMappings();
+
+  // Redux state for store info
+  const { fetchStoreInfo: fetchStoreInfoFromRedux, storeInfo: reduxStoreInfo } =
+    useStoreInfo();
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -119,7 +124,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
-
+  console.log({ storeInfo });
   // Fetch image generations on component load
   useEffect(() => {
     fetchGenerations({
@@ -181,6 +186,25 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           setStoreInfo(storeInfo);
         }).catch(() => {
           // Failed to get store info from parent
+        });
+      }
+
+      // Fetch store info from API when in iframe mode
+      // Get shop domain from detectedStore or storeInfo state
+      const shopDomain =
+        detectedStore?.shopDomain ||
+        detectedStore?.domain ||
+        storeInfo?.shopDomain ||
+        storeInfo?.domain;
+
+      if (shopDomain) {
+        // Normalize shop domain (remove .myshopify.com if present, API will handle it)
+        const normalizedShop = shopDomain.replace(".myshopify.com", "");
+        fetchStoreInfoFromRedux({ shop: normalizedShop }).catch((error) => {
+          console.warn(
+            "[TryOnWidget] Failed to fetch store info from API:",
+            error
+          );
         });
       }
 
@@ -335,13 +359,46 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           method: "parent-request",
         };
         setStoreInfo(storeInfo);
+
+        // Fetch store info from API when store info is received via postMessage
+        const shopDomain = storeInfo.shopDomain || storeInfo.domain;
+        if (shopDomain) {
+          // Normalize shop domain (remove .myshopify.com if present, API will handle it)
+          const normalizedShop = shopDomain.replace(".myshopify.com", "");
+          fetchStoreInfoFromRedux({ shop: normalizedShop }).catch((error) => {
+            console.warn(
+              "[TryOnWidget] Failed to fetch store info from API:",
+              error
+            );
+          });
+        }
         // Store info will be logged by the useEffect above
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []); // Empty dependency array - listener should persist
+  }, [fetchStoreInfoFromRedux]); // Include fetchStoreInfoFromRedux in dependencies
+
+  // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
+  useEffect(() => {
+    const isInIframe = window.parent !== window;
+    if (!isInIframe) {
+      return; // Only fetch in iframe mode
+    }
+
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain;
+    if (shopDomain && shopDomain !== reduxStoreInfo?.shop) {
+      // Normalize shop domain (remove .myshopify.com if present, API will handle it)
+      const normalizedShop = shopDomain.replace(".myshopify.com", "");
+      fetchStoreInfoFromRedux({ shop: normalizedShop }).catch((error) => {
+        console.warn(
+          "[TryOnWidget] Failed to fetch store info from API:",
+          error
+        );
+      });
+    }
+  }, [storeInfo, reduxStoreInfo, fetchStoreInfoFromRedux]);
 
   const handlePhotoUpload = (
     dataURL: string,
