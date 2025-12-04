@@ -254,12 +254,30 @@ const mapSubscriptionToPlan = (appSubscription, customTrialStatus = null) => {
       trialEndDate.setDate(trialEndDate.getDate() + trialDays);
       const now = new Date();
 
-      if (now < trialEndDate) {
+      // Check if subscription is still in trial period
+      // According to Shopify docs: trialDays delays billing by specified days from createdAt
+      // If currentPeriodEnd exists and is not null, billing has started (trial ended)
+      // Otherwise, check if trial period has expired based on time
+      const currentPeriodEnd = appSubscription.currentPeriodEnd 
+        ? new Date(appSubscription.currentPeriodEnd) 
+        : null;
+      
+      // Trial has ended if:
+      // 1. currentPeriodEnd exists (billing has started - subscription is active and being billed)
+      // 2. OR trial period has expired (now >= trialEndDate)
+      const billingStarted = currentPeriodEnd !== null;
+      
+      if (!billingStarted && now < trialEndDate) {
+        // Still in trial period
         isInTrial = true;
         const daysRemaining = Math.ceil(
           (trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
         );
         trialDaysRemaining = Math.max(0, daysRemaining);
+      } else {
+        // Trial has ended
+        isInTrial = false;
+        trialDaysRemaining = 0;
       }
     }
   }
@@ -4250,8 +4268,26 @@ app.get("/api/credits/balance", async (req, res) => {
         subscriptions.find((sub) => sub.status === "ACTIVE") || null;
 
       if (activeSubscription) {
+        // CRITICAL: Get trial status from metafields (uses our custom 30-day trial logic)
+        // This ensures correct trial status even if metafields don't exist yet
+        let customTrialStatus = null;
+        try {
+          customTrialStatus = await trialManager.getTrialStatus(client, appInstallationId);
+          logger.info("[CREDITS] Fetched custom trial status from metafields", {
+            shop: shopDomain,
+            isTrial: customTrialStatus.isTrial,
+            daysRemaining: customTrialStatus.daysRemaining,
+            note: "Using custom trial logic (30 days OR 100 credits)",
+          });
+        } catch (trialStatusError) {
+          logger.warn("[CREDITS] Failed to fetch custom trial status, will calculate from subscription", {
+            shop: shopDomain,
+            error: trialStatusError.message,
+          });
+        }
+
         // Map subscription to plan to get plan handle and credits
-        const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+        const subscriptionStatus = mapSubscriptionToPlan(activeSubscription, customTrialStatus);
         const planHandle = subscriptionStatus.plan?.handle;
         const planConfig = planHandle ? billing?.PLANS?.[planHandle] : null;
         const includedCredits = planConfig?.limits?.includedCredits || 100;
