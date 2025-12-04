@@ -8,6 +8,7 @@
 import * as logger from "./logger.js";
 import * as creditMetafield from "./creditMetafield.js";
 import * as usageRecordService from "./usageRecordService.js";
+import * as trialManager from "./trialManager.js";
 
 /**
  * Get current credit balance
@@ -20,12 +21,35 @@ export const getCreditBalance = async (client, appInstallationId) => {
 
     const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
     
-    const balance = metafields.credit_balance ?? 0;
-    const included = metafields.credits_included ?? 100;
-    const used = metafields.credits_used_this_period ?? 0;
+    // Check if in trial period
+    const isInTrial = await trialManager.isInTrialPeriod(client, appInstallationId);
+    
+    // Trial credits never expire - include them in total balance
+    const trialCredits = metafields.trial_credits_balance ?? 0;
+    const planCredits = metafields.plan_credits_balance ?? 0;
+    const purchasedCredits = metafields.purchased_credits_balance ?? 0;
+    const couponCredits = metafields.coupon_credits_balance ?? 0;
+    
+    // Total balance includes all credit types (trial credits never expire)
+    const totalBalance = trialCredits + planCredits + purchasedCredits + couponCredits;
+    
+    let balance, included, used;
+    
+    if (isInTrial) {
+      // During trial: show trial credits as primary, but total includes all credits
+      balance = totalBalance; // Total available (trial + plan + purchased + coupon)
+      included = 100; // Trial includes 100 credits
+      used = metafields.trial_credits_used ?? 0;
+    } else {
+      // After trial: show plan credits, but trial credits still available (never expire)
+      balance = totalBalance; // Total available (trial + plan + purchased + coupon)
+      included = metafields.credits_included ?? 100;
+      used = metafields.credits_used_this_period ?? 0;
+    }
 
     logger.info("[CREDIT_MANAGER] Credit balance retrieved from metafields", {
       appInstallationId,
+      isInTrial,
       balance,
       included,
       used,
@@ -42,6 +66,7 @@ export const getCreditBalance = async (client, appInstallationId) => {
       periodEnd: metafields.current_period_end,
       lastReset: metafields.last_credit_reset,
       subscriptionLineItemId: metafields.subscription_line_item_id,
+      isInTrial,
     };
   } catch (error) {
     logger.error("[CREDIT_MANAGER] Failed to get credit balance", error, null, {
@@ -154,25 +179,34 @@ export const deductCredit = async (client, appInstallationId, shopDomain, amount
  */
 export const addCredits = async (client, appInstallationId, amount, source = "manual") => {
   try {
-    const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
-    const currentBalance = metafields.credit_balance || 0;
-    const newBalance = currentBalance + amount;
+    // Determine credit type based on source
+    let creditType = "plan"; // Default to plan credits
+    if (source === "purchase" || source === "credit_package") {
+      creditType = "purchased";
+    } else if (source === "coupon" || source === "promo") {
+      creditType = "coupon";
+    }
+    
+    // Use the new addCreditsByType function
+    const result = await creditMetafield.addCreditsByType(client, appInstallationId, amount, creditType);
 
-    await creditMetafield.updateCreditBalance(client, appInstallationId, newBalance);
-
-    logger.info("[CREDIT_MANAGER] Credits added", {
+    logger.info("[CREDIT_MANAGER] Credits added by type", {
       appInstallationId,
       amount,
       source,
-      previousBalance: currentBalance,
-      newBalance,
+      creditType,
+      previousBalance: result.newTotal - amount,
+      newBalance: result.newTotal,
+      creditTypeBalances: result.creditTypeBalances,
     });
 
     return {
       success: true,
       amount,
-      previousBalance: currentBalance,
-      newBalance,
+      creditType,
+      previousBalance: result.newTotal - amount,
+      newBalance: result.newTotal,
+      creditTypeBalances: result.creditTypeBalances,
     };
   } catch (error) {
     logger.error("[CREDIT_MANAGER] Failed to add credits", error);
@@ -198,8 +232,8 @@ export const checkCreditAvailability = async (client, appInstallationId, require
     // Check usage capacity if in overage
     if (total.isOverage && total.usageCapacity !== null) {
       // For usage records, we can create records up to capped amount
-      // Each try-on costs $0.20, so we can calculate how many credits available
-      const pricePerCredit = 0.20;
+      // Each try-on costs $0.15, so we can calculate how many credits available
+      const pricePerCredit = 0.15;
       const creditsAvailable = Math.floor(total.usageCapacity / pricePerCredit);
       
       return {

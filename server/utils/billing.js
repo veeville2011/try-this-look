@@ -30,7 +30,7 @@ export const PLANS = {
     price: 23.0,
     currencyCode: "USD",
     interval: "EVERY_30_DAYS",
-    trialDays: 15,
+    trialDays: 30,
     description:
       "100 crédits inclus avec possibilité de recharge après dépassement.",
     features: [
@@ -46,11 +46,11 @@ export const PLANS = {
   [PLAN_HANDLES.PRO_ANNUAL]: {
     name: "Plan Standard",
     handle: PLAN_HANDLES.PRO_ANNUAL,
-    // $20/month or $180/year, 15-day trial
+    // $20/month or $180/year, 30-day trial
     price: 180.0,
     currencyCode: "USD",
     interval: "ANNUAL",
-    trialDays: 15,
+    trialDays: 30,
     description:
       "100 crédits inclus avec possibilité de recharge après dépassement.",
     monthlyEquivalent: 20.0,
@@ -172,9 +172,9 @@ export const CREDIT_PACKAGES = {
     id: "small",
     name: "50 Credits",
     credits: 50,
-    price: 10.0,
+    price: 7.5,
     currencyCode: "USD",
-    valuePerCredit: 0.2,
+    valuePerCredit: 0.15,
     recommended: false,
     description: "Perfect for testing",
   },
@@ -182,9 +182,9 @@ export const CREDIT_PACKAGES = {
     id: "medium",
     name: "100 Credits",
     credits: 100,
-    price: 18.0,
+    price: 15.0,
     currencyCode: "USD",
-    valuePerCredit: 0.18,
+    valuePerCredit: 0.15,
     recommended: true,
     description: "Best value",
   },
@@ -192,9 +192,9 @@ export const CREDIT_PACKAGES = {
     id: "large",
     name: "200 Credits",
     credits: 200,
-    price: 32.0,
+    price: 30.0,
     currencyCode: "USD",
-    valuePerCredit: 0.16,
+    valuePerCredit: 0.15,
     recommended: false,
     description: "For high-volume users",
   },
@@ -225,9 +225,9 @@ export const COUPON_CODES = {
  * For overage billing after included credits
  */
 export const USAGE_PRICING = {
-  pricePerCredit: 0.2,
+  pricePerCredit: 0.15,
   currencyCode: "USD",
   cappedAmount: 50.0, // $50 per billing period
-  terms: "$0.20 per try-on after included 100 credits",
+  terms: "$0.15 per try-on after included 100 credits",
   description: "Overage billing for try-on generations",
 };

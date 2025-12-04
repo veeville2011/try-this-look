@@ -186,6 +186,10 @@
     "feature3": "Mises à jour régulières et nouvelles fonctionnalités",
     "feature4": "Gestion de votre abonnement depuis votre admin Shopify",
     "continueButton": "Continuer vers l'application"
+  },
+  "trialNotification": {
+    "approving": "Approbation...",
+    "approvalInitiated": "Approbation de l'abonnement initiée avec succès"
   }
 }
 

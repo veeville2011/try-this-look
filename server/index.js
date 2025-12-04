@@ -20,6 +20,9 @@ import * as creditDeduction from "./utils/creditDeduction.js";
 import * as creditReset from "./utils/creditReset.js";
 import * as couponService from "./utils/couponService.js";
 import * as creditPurchase from "./utils/creditPurchase.js";
+import * as trialManager from "./utils/trialManager.js";
+import * as subscriptionReplacement from "./utils/subscriptionReplacement.js";
+import * as trialNotificationService from "./utils/trialNotificationService.js";
 // No database - using no-op session storage (sessions not persisted)
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1921,26 +1924,31 @@ app.post(
             });
 
             // Handle credit reset on billing cycle renewal
-            if (
-              app_subscription.status === "ACTIVE" &&
-              app_subscription.currentPeriodEnd
-            ) {
+            // CRITICAL: Only process ACTIVE subscriptions to ensure credits are initialized
+            if (app_subscription.status === "ACTIVE") {
               try {
                 // Get offline access token for the shop
                 // Note: In production, you'd get this from your session storage
                 // For now, we'll use the webhook shop domain
-                const tokenResult = await shopify.auth.tokenExchange({
-                  shop,
-                  sessionToken: null, // Webhooks don't have session tokens
-                  requestedTokenType: RequestedTokenType.OfflineAccessToken,
-                });
+                let client = null;
+                let appInstallationId = null;
+                
+                try {
+                  const tokenResult = await shopify.auth.tokenExchange({
+                    shop,
+                    sessionToken: null, // Webhooks don't have session tokens
+                    requestedTokenType: RequestedTokenType.OfflineAccessToken,
+                  });
 
-                const session = tokenResult?.session;
-                const accessToken =
-                  session?.accessToken || session?.access_token;
+                  const session = tokenResult?.session;
+                  const accessToken =
+                    session?.accessToken || session?.access_token;
 
-                if (session && accessToken) {
-                  const client = new shopify.clients.Graphql({
+                  if (!session || !accessToken) {
+                    throw new Error("Failed to get access token from token exchange");
+                  }
+                  
+                  client = new shopify.clients.Graphql({
                     session: {
                       shop: session.shop || shop,
                       accessToken,
@@ -1948,6 +1956,42 @@ app.post(
                       isOnline: session.isOnline || false,
                     },
                   });
+                  
+                  // CRITICAL: Get app installation ID immediately to validate access
+                  const appInstallationQuery = `
+                    query GetAppInstallation {
+                      currentAppInstallation {
+                        id
+                      }
+                    }
+                  `;
+                  const appInstallationResponse = await client.query({
+                    data: { query: appInstallationQuery },
+                  });
+                  appInstallationId =
+                    appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+                  
+                  if (!appInstallationId) {
+                    throw new Error("Failed to get app installation ID - app may not be installed");
+                  }
+                } catch (authError) {
+                  logger.error(
+                    "[WEBHOOK] CRITICAL: Failed to authenticate for credit initialization",
+                    authError,
+                    null,
+                    {
+                      shop,
+                      subscriptionId: app_subscription.id,
+                      status: app_subscription.status,
+                      note: "Credit initialization will be retried via fallback API",
+                    }
+                  );
+                  // Don't throw - let fallback API handle initialization
+                  // But log as critical error for monitoring
+                  throw authError; // Re-throw to skip credit processing
+                }
+
+                if (client && appInstallationId) {
 
                   // Check if this is an annual subscription
                   // Note: Shopify doesn't allow usage billing with annual subscriptions
@@ -1979,19 +2023,8 @@ app.post(
                     );
                   }
 
-                  const appInstallationQuery = `
-                    query GetAppInstallation {
-                      currentAppInstallation {
-                        id
-                      }
-                    }
-                  `;
-                  const appInstallationResponse = await client.query({
-                    data: { query: appInstallationQuery },
-                  });
-                  const appInstallationId =
-                    appInstallationResponse?.body?.data?.currentAppInstallation
-                      ?.id;
+                  // appInstallationId already retrieved above during authentication (line ~1971)
+                  // No need to query again - use the one we already have
 
                   if (appInstallationId) {
                     // Check if period has renewed
@@ -2044,12 +2077,12 @@ app.post(
                         }
                       }
 
-                      // Reset credits for new period
+                      // Add credits for new period (credits never expire, they carry forward)
                       const plan = processedData.plan;
                       const includedCredits =
                         plan?.limits?.includedCredits || 100;
 
-                      await creditReset.resetCreditsForNewPeriod(
+                      const addResult = await creditReset.resetCreditsForNewPeriod(
                         client,
                         appInstallationId,
                         app_subscription.currentPeriodEnd,
@@ -2058,42 +2091,129 @@ app.post(
                       );
 
                       logger.info(
-                        "[WEBHOOK] Credits reset for new billing period",
+                        "[WEBHOOK] Credits added for new billing period (carry forward)",
                         {
                           shop,
                           periodEnd: periodCheck.newPeriodEnd,
-                          includedCredits,
+                          creditsAdded: includedCredits,
+                          previousBalance: addResult.previousBalance,
+                          newBalance: addResult.balance,
                           isAnnual,
                           note: isAnnual
-                            ? "Monthly reset for annual subscription (100 credits per month)"
-                            : "Billing cycle reset",
+                            ? "Monthly credits added for annual subscription (100 credits per month, carry forward)"
+                            : "Billing cycle credits added (carry forward)",
                         }
                       );
                     }
 
-                    // Initialize credits if this is a new subscription
+                    // Check if this is a transition from trial to paid subscription
                     const metafields =
                       await creditMetafield.getCreditMetafields(
                         client,
                         appInstallationId
                       );
+                    
+                    // Check if subscription was in trial and is now becoming ACTIVE (paid)
+                    const wasInTrial = metafields.is_trial_period === true || metafields.is_trial_period === "true";
+                    const isNowActive = app_subscription.status === "ACTIVE";
+                    const hasNoTrialDays = !app_subscription.trialDays || app_subscription.trialDays === 0;
+                    
+                    if (wasInTrial && isNowActive && hasNoTrialDays) {
+                      // This is a transition from trial to paid - end trial and reset to plan credits
+                      logger.info("[WEBHOOK] Transitioning from trial to paid subscription", {
+                        shop,
+                        subscriptionId: app_subscription.id,
+                        note: "Ending trial period and resetting to plan credits",
+                      });
+                      
+                      const plan = processedData.plan;
+                      const includedCredits = plan?.limits?.includedCredits || 100;
+                      
+                      // End trial period and add plan credits (credits carry forward)
+                      const trialEndResult = await trialManager.endTrialPeriod(
+                        client,
+                        appInstallationId,
+                        includedCredits
+                      );
+                      
+                      logger.info("[WEBHOOK] Trial ended, plan credits added (carry forward)", {
+                        shop,
+                        planCreditsAdded: includedCredits,
+                        previousBalance: trialEndResult.previousBalance,
+                        newBalance: trialEndResult.newBalance,
+                        note: "Plan credits added to existing balance (credits never expire)",
+                      });
+                    }
+                    
+                    // Initialize credits if this is a new subscription
                     // Check if credit_balance metafield exists (null/undefined means not initialized)
                     // Note: credit_balance can be 0 (used up), so we check for null/undefined specifically
-                    if (metafields.credit_balance == null) {
-                      // New subscription - initialize credits
+                    // Also check if transitioning from trial (has trial metafields but no plan credits)
+                    const hasTrialMetafields = metafields.trial_start_date != null;
+                    const needsInitialization = metafields.credit_balance == null || (hasTrialMetafields && wasInTrial && isNowActive);
+                    
+                    if (needsInitialization) {
+                      // New subscription or transitioning from trial - initialize credits
+                      // CRITICAL: Ensure all required data is validated before initialization
                       const plan = processedData.plan;
-                      const includedCredits =
-                        plan?.limits?.includedCredits || 100;
+                      
+                      // Validate plan handle - use fallback if mapping failed
+                      let planHandle = plan?.handle;
+                      if (!planHandle) {
+                        // Fallback: Try to determine plan handle from subscription data
+                        const recurringLineItem = app_subscription.lineItems?.find(
+                          (item) =>
+                            item.plan?.pricingDetails?.__typename === "AppRecurringPricing"
+                        );
+                        const recurringInterval = recurringLineItem?.plan?.pricingDetails?.interval;
+                        
+                        if (recurringInterval === "ANNUAL") {
+                          planHandle = "pro-annual";
+                        } else if (recurringInterval === "EVERY_30_DAYS") {
+                          planHandle = "pro-monthly";
+                        } else {
+                          // Default to monthly if cannot determine
+                          planHandle = "pro-monthly";
+                          logger.warn("[WEBHOOK] Could not determine plan handle, defaulting to pro-monthly", {
+                            shop,
+                            subscriptionId: app_subscription.id,
+                            lineItems: app_subscription.lineItems,
+                          });
+                        }
+                      }
+                      
+                      // Validate included credits - always default to 100 if not found
+                      const includedCredits = plan?.limits?.includedCredits || 100;
+                      
+                      // Validate period end - calculate fallback if null
+                      let periodEnd = app_subscription.currentPeriodEnd;
+                      if (!periodEnd) {
+                        // Calculate period end: 30 days from now for monthly, 1 year for annual
+                        const fallbackPeriodEnd = new Date();
+                        if (isAnnual) {
+                          fallbackPeriodEnd.setFullYear(fallbackPeriodEnd.getFullYear() + 1);
+                        } else {
+                          fallbackPeriodEnd.setDate(fallbackPeriodEnd.getDate() + 30);
+                        }
+                        periodEnd = fallbackPeriodEnd.toISOString();
+                        logger.warn("[WEBHOOK] Subscription currentPeriodEnd is null, using calculated fallback", {
+                          shop,
+                          subscriptionId: app_subscription.id,
+                          calculatedPeriodEnd: periodEnd,
+                          isAnnual,
+                        });
+                      }
 
                       logger.info(
                         "[WEBHOOK] Initializing credits for new subscription",
                         {
                           shop,
                           appInstallationId,
-                          planHandle: plan?.handle,
+                          planHandle,
                           includedCredits,
                           isAnnual,
                           currentCreditBalance: metafields.credit_balance,
+                          periodEnd,
                           note: "credit_balance metafield is null/undefined - initializing",
                         }
                       );
@@ -2101,35 +2221,116 @@ app.post(
                       // Find usage pricing line item
                       const usageLineItem = app_subscription.lineItems?.find(
                         (item) =>
-                          item.plan?.pricingDetails?.__typename ===
-                          "AppUsagePricing"
+                          item.plan?.pricingDetails?.__typename === "AppUsagePricing"
                       );
 
-                      await creditMetafield.initializeCredits(
-                        client,
-                        appInstallationId,
-                        plan?.handle,
-                        includedCredits,
-                        app_subscription.currentPeriodEnd,
-                        usageLineItem?.id || null,
-                        isAnnual
-                      );
+                      // Check if subscription is in trial period (only for new subscriptions, not transitions)
+                      const isInTrialForNew = !wasInTrial && app_subscription.trialDays && app_subscription.trialDays > 0;
+                      // Calculate if still in trial based on createdAt + trialDays
+                      let isTrialActive = false;
+                      if (isInTrialForNew && app_subscription.createdAt) {
+                        const createdAt = new Date(app_subscription.createdAt);
+                        const trialEndDate = new Date(createdAt);
+                        trialEndDate.setDate(trialEndDate.getDate() + app_subscription.trialDays);
+                        const now = new Date();
+                        isTrialActive = now < trialEndDate;
+                      }
+                      // If transitioning from trial, isTrialActive should be false (already ended above)
 
-                      logger.info(
-                        "[WEBHOOK] Credits initialized for new subscription",
-                        {
-                          shop,
-                          appInstallationId,
-                          includedCredits,
-                          periodEnd: isAnnual
-                            ? "Monthly period (30 days from now)"
-                            : app_subscription.currentPeriodEnd,
-                          isAnnual,
-                          note: isAnnual
-                            ? "Annual subscription: 100 credits per month"
-                            : "Monthly subscription: 100 credits per billing cycle",
+                      // CRITICAL: Retry logic for credit initialization with exponential backoff
+                      let initializationSuccess = false;
+                      let lastError = null;
+                      const maxRetries = 3;
+                      
+                      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                        try {
+                          await creditMetafield.initializeCredits(
+                            client,
+                            appInstallationId,
+                            planHandle,
+                            includedCredits,
+                            periodEnd,
+                            usageLineItem?.id || null,
+                            isAnnual,
+                            isTrialActive
+                          );
+                          
+                          // Verify initialization succeeded by checking metafields
+                          const verificationMetafields = await creditMetafield.getCreditMetafields(
+                            client,
+                            appInstallationId
+                          );
+                          
+                          if (verificationMetafields.credit_balance != null) {
+                            initializationSuccess = true;
+                            logger.info(
+                              "[WEBHOOK] Credits initialized and verified successfully",
+                              {
+                                shop,
+                                appInstallationId,
+                                attempt,
+                                includedCredits,
+                                verifiedBalance: verificationMetafields.credit_balance,
+                                periodEnd: isAnnual
+                                  ? "Monthly period (30 days from now)"
+                                  : periodEnd,
+                                isAnnual,
+                                note: isAnnual
+                                  ? "Annual subscription: 100 credits per month"
+                                  : "Monthly subscription: 100 credits per billing cycle",
+                              }
+                            );
+                            break;
+                          } else {
+                            throw new Error("Credit initialization verification failed - credit_balance is still null");
+                          }
+                        } catch (initError) {
+                          lastError = initError;
+                          logger.error(
+                            `[WEBHOOK] Credit initialization attempt ${attempt}/${maxRetries} failed`,
+                            initError,
+                            null,
+                            {
+                              shop,
+                              appInstallationId,
+                              planHandle,
+                              includedCredits,
+                              attempt,
+                              maxRetries,
+                            }
+                          );
+                          
+                          // Wait before retry (exponential backoff: 1s, 2s, 4s)
+                          if (attempt < maxRetries) {
+                            const waitTime = Math.pow(2, attempt - 1) * 1000;
+                            logger.info(`[WEBHOOK] Retrying credit initialization in ${waitTime}ms`, {
+                              shop,
+                              appInstallationId,
+                              attempt,
+                              nextAttempt: attempt + 1,
+                            });
+                            await new Promise(resolve => setTimeout(resolve, waitTime));
+                          }
                         }
-                      );
+                      }
+                      
+                      if (!initializationSuccess) {
+                        // Log critical error but don't fail webhook (fallback API will handle it)
+                        logger.error(
+                          "[WEBHOOK] CRITICAL: Credit initialization failed after all retries",
+                          lastError,
+                          null,
+                          {
+                            shop,
+                            appInstallationId,
+                            planHandle,
+                            includedCredits,
+                            maxRetries,
+                            note: "Fallback API (/api/credits/balance) will attempt initialization on next request",
+                          }
+                        );
+                        // Don't throw - let fallback API handle it
+                      }
                     } else {
                       logger.info(
                         "[WEBHOOK] Credits already initialized, skipping initialization",
@@ -2191,7 +2392,7 @@ app.post(
                           const plan = processedData.plan;
                           const includedCredits =
                             plan?.limits?.includedCredits || 100;
-                          await creditReset.resetCreditsForNewPeriod(
+                          const addResult = await creditReset.resetCreditsForNewPeriod(
                             client,
                             appInstallationId,
                             monthlyCheck.newPeriodEnd,
@@ -2199,10 +2400,12 @@ app.post(
                             true
                           );
                           logger.info(
-                            "[WEBHOOK] Monthly credits reset for annual subscription",
+                            "[WEBHOOK] Monthly credits added for annual subscription (carry forward)",
                             {
                               shop,
-                              includedCredits,
+                              creditsAdded: includedCredits,
+                              previousBalance: addResult.previousBalance,
+                              newBalance: addResult.balance,
                               periodEnd: monthlyCheck.newPeriodEnd,
                             }
                           );
@@ -2928,6 +3131,534 @@ app.post("/api/billing/subscribe", async (req, res) => {
   }
 });
 
+// Replace trial subscription with paid subscription
+app.post("/api/billing/replace-trial", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
+  try {
+    const { shop } = req.body || {};
+
+    logger.info("[API] [REPLACE_TRIAL] Request received", {
+      requestId,
+      shop,
+    });
+
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+        message: "Shop parameter is required.",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    if (!req.sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required for billing API",
+        requestId,
+      });
+    }
+
+    try {
+      // Exchange JWT session token for an offline access token for billing
+      const tokenResult = await shopify.auth.tokenExchange({
+        shop: shopDomain,
+        sessionToken: req.sessionToken,
+        requestedTokenType: RequestedTokenType.OfflineAccessToken,
+      });
+
+      const session = tokenResult?.session;
+      const accessToken = session?.accessToken || session?.access_token;
+
+      if (!session || !accessToken) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Token exchange failed",
+          requestId,
+        });
+      }
+
+      const client = new shopify.clients.Graphql({
+        session: {
+          shop: session.shop || shopDomain,
+          accessToken,
+          scope: session.scope,
+          isOnline: session.isOnline || false,
+        },
+      });
+
+      // Get app installation ID and active subscription
+      const appInstallationQuery = `
+        query GetAppInstallation {
+          currentAppInstallation {
+            id
+            activeSubscriptions {
+              id
+              status
+              createdAt
+              trialDays
+              lineItems {
+                id
+                plan {
+                  pricingDetails {
+                    __typename
+                    ... on AppRecurringPricing {
+                      interval
+                      price {
+                        amount
+                        currencyCode
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const appInstallationResponse = await client.query({
+        data: { query: appInstallationQuery },
+      });
+
+      const appInstallationId =
+        appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+      const activeSubscriptions =
+        appInstallationResponse?.body?.data?.currentAppInstallation
+          ?.activeSubscriptions || [];
+      const activeSubscription = activeSubscriptions.find(
+        (sub) => sub.status === "ACTIVE"
+      );
+
+      if (!appInstallationId) {
+        return res.status(404).json({
+          error: "App installation not found",
+          requestId,
+        });
+      }
+
+      if (!activeSubscription) {
+        return res.status(404).json({
+          error: "No active subscription found",
+          message: "Cannot replace trial - no active subscription exists",
+          requestId,
+        });
+      }
+
+      // Map subscription to plan to get plan handle
+      const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+      const planHandle = subscriptionStatus.plan?.handle;
+
+      if (!planHandle) {
+        return res.status(400).json({
+          error: "Invalid subscription",
+          message: "Could not determine plan handle from subscription",
+          requestId,
+        });
+      }
+
+      // Check if subscription is in trial
+      const isInTrial = await trialManager.isInTrialPeriod(
+        client,
+        appInstallationId
+      );
+
+      if (!isInTrial) {
+        return res.status(400).json({
+          error: "Not in trial period",
+          message: "Subscription is not in trial period",
+          requestId,
+        });
+      }
+
+      // Check if trial should end
+      const trialCheck = await trialManager.shouldEndTrial(
+        client,
+        appInstallationId
+      );
+
+      if (!trialCheck.shouldEnd) {
+        return res.status(400).json({
+          error: "Trial not ready to end",
+          message: "Trial period has not ended yet",
+          trialStatus: trialCheck,
+          requestId,
+        });
+      }
+
+      // Get return URL
+      const appBaseUrl = appUrl || `https://${shopDomain}`;
+      const returnUrl = `${appBaseUrl}/api/billing/return?shop=${encodeURIComponent(
+        shopDomain
+      )}`;
+
+      const isDemo = isDemoStore(shopDomain);
+
+      // Replace trial subscription with paid subscription
+      const replacementResult = await subscriptionReplacement.replaceTrialWithPaidSubscription(
+        client,
+        shopDomain,
+        activeSubscription.id,
+        planHandle,
+        returnUrl,
+        isDemo
+      );
+
+      logger.info("[API] [REPLACE_TRIAL] Trial replacement initiated", {
+        requestId,
+        shop: shopDomain,
+        confirmationUrl: replacementResult.confirmationUrl,
+        newSubscriptionId: replacementResult.appSubscription?.id,
+      });
+
+      res.json({
+        success: true,
+        confirmationUrl: replacementResult.confirmationUrl,
+        appSubscription: replacementResult.appSubscription,
+        requestId,
+      });
+    } catch (error) {
+      logger.error("[API] [REPLACE_TRIAL] Failed", error, req, {
+        requestId,
+        shop: shopDomain,
+      });
+
+      if (error instanceof SubscriptionStatusError) {
+        return res.status(error.statusCode || 500).json({
+          error: error.message,
+          details: error.details,
+          requestId,
+        });
+      }
+
+      return res.status(500).json({
+        error: "Failed to replace trial subscription",
+        message: error.message,
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[API] [REPLACE_TRIAL] Unexpected error", error, req, {
+      requestId,
+    });
+
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message,
+      requestId,
+    });
+  }
+});
+
+// Proactive trial replacement approval (user-initiated before reaching 100 credits)
+app.post("/api/billing/approve-trial-replacement", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
+  try {
+    const { shop } = req.body || req.query || {};
+
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required.",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    const sessionToken = req.sessionToken;
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+        requestId,
+      });
+    }
+
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        requestId,
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    // Get app installation and active subscription
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        currentAppInstallation {
+          id
+          activeSubscriptions {
+            id
+            status
+            createdAt
+            trialDays
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  __typename
+                  ... on AppRecurringPricing {
+                    interval
+                    price {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+    const activeSubscriptions =
+      appInstallationResponse?.body?.data?.currentAppInstallation
+        ?.activeSubscriptions || [];
+    const activeSubscription = activeSubscriptions.find(
+      (sub) => sub.status === "ACTIVE"
+    );
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+        requestId,
+      });
+    }
+
+    if (!activeSubscription) {
+      return res.status(404).json({
+        error: "No active subscription found",
+        message: "Cannot approve trial replacement - no active subscription exists",
+        requestId,
+      });
+    }
+
+    // Check if subscription is in trial
+    const isInTrial = await trialManager.isInTrialPeriod(
+      client,
+      appInstallationId
+    );
+
+    if (!isInTrial) {
+      return res.status(400).json({
+        error: "Not in trial period",
+        message: "Subscription is not in trial period",
+        requestId,
+      });
+    }
+
+    // Map subscription to plan to get plan handle
+    const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+    const planHandle = subscriptionStatus.plan?.handle;
+
+    if (!planHandle) {
+      return res.status(400).json({
+        error: "Invalid subscription",
+        message: "Could not determine plan handle from subscription",
+        requestId,
+      });
+    }
+
+    // Get return URL
+    const appBaseUrl = appUrl || `https://${shopDomain}`;
+    const returnUrl = `${appBaseUrl}/api/billing/return?shop=${encodeURIComponent(
+      shopDomain
+    )}`;
+
+    const isDemo = isDemoStore(shopDomain);
+
+    // Create replacement subscription (proactive approval)
+    const replacementResult = await subscriptionReplacement.replaceTrialWithPaidSubscription(
+      client,
+      shopDomain,
+      activeSubscription.id,
+      planHandle,
+      returnUrl,
+      isDemo
+    );
+
+    logger.info("[API] [APPROVE_TRIAL_REPLACEMENT] Proactive trial replacement initiated", {
+      requestId,
+      shop: shopDomain,
+      confirmationUrl: replacementResult.confirmationUrl,
+      newSubscriptionId: replacementResult.appSubscription?.id,
+      note: "User proactively approved before reaching 100 credits",
+    });
+
+    res.json({
+      success: true,
+      confirmationUrl: replacementResult.confirmationUrl,
+      appSubscription: replacementResult.appSubscription,
+      requestId,
+      message: "Please approve the subscription replacement to continue",
+    });
+  } catch (error) {
+    logger.error("[API] [APPROVE_TRIAL_REPLACEMENT] Failed", error, req, {
+      requestId,
+      shop: shopDomain,
+    });
+
+    if (error instanceof SubscriptionStatusError) {
+      return res.status(error.statusCode || 500).json({
+        error: error.message,
+        details: error.details,
+        requestId,
+      });
+    }
+
+    return res.status(500).json({
+      error: "Failed to approve trial replacement",
+      message: error.message,
+      requestId,
+    });
+  }
+});
+
+// Get trial notification status (for in-app display)
+app.get("/api/trial/notifications", async (req, res) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    const sessionToken = req.sessionToken;
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: session.isOnline || false,
+      },
+    });
+
+    const appInstallationQuery = `
+      query GetAppInstallation {
+        currentAppInstallation {
+          id
+        }
+      }
+    `;
+    const appInstallationResponse = await client.query({
+      data: { query: appInstallationQuery },
+    });
+    const appInstallationId =
+      appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+
+    if (!appInstallationId) {
+      return res.status(404).json({
+        error: "App installation not found",
+      });
+    }
+
+    // Check notification status
+    const notificationCheck = await trialNotificationService.checkNotificationThreshold(
+      client,
+      appInstallationId
+    );
+
+    if (notificationCheck.shouldNotify) {
+      const inAppNotification = trialNotificationService.getInAppNotification(
+        notificationCheck.threshold,
+        notificationCheck.creditsUsed,
+        notificationCheck.creditsRemaining
+      );
+
+      return res.json({
+        hasNotification: true,
+        notification: inAppNotification,
+      });
+    }
+
+    // Get trial status
+    const trialStatus = await trialManager.getTrialStatus(client, appInstallationId);
+
+    return res.json({
+      hasNotification: false,
+      trialStatus,
+    });
+  } catch (error) {
+    logger.error("[API] [TRIAL_NOTIFICATIONS] Failed", error, req);
+    return res.status(500).json({
+      error: "Failed to get trial notifications",
+      message: error.message,
+    });
+  }
+});
+
 // Cancel subscription
 app.post("/api/billing/cancel", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random()
@@ -3427,6 +4158,7 @@ app.get("/api/credits/balance", async (req, res) => {
               status
               currentPeriodEnd
               createdAt
+              trialDays
               lineItems {
                 id
                 plan {
@@ -3471,6 +4203,7 @@ app.get("/api/credits/balance", async (req, res) => {
         const planConfig = planHandle ? billing?.PLANS?.[planHandle] : null;
         const includedCredits = planConfig?.limits?.includedCredits || 100;
         const isAnnual = subscriptionStatus.plan?.interval === "ANNUAL";
+        const isInTrial = subscriptionStatus.subscription?.isInTrial || false;
 
         logger.info(
           "[CREDITS] Active subscription found, initializing credits",
@@ -3481,6 +4214,7 @@ app.get("/api/credits/balance", async (req, res) => {
             planHandle,
             includedCredits,
             isAnnual,
+            isInTrial,
           }
         );
 
@@ -3489,7 +4223,7 @@ app.get("/api/credits/balance", async (req, res) => {
           (item) => item.plan?.pricingDetails?.__typename === "AppUsagePricing"
         );
 
-        // Initialize credits
+        // Initialize credits (with trial handling)
         await creditMetafield.initializeCredits(
           client,
           appInstallationId,
@@ -3497,7 +4231,8 @@ app.get("/api/credits/balance", async (req, res) => {
           includedCredits,
           activeSubscription.currentPeriodEnd,
           usageLineItem?.id || null,
-          isAnnual
+          isAnnual,
+          isInTrial
         );
 
         logger.info("[CREDITS] Credits initialized successfully", {
@@ -3598,10 +4333,32 @@ app.post("/api/credits/deduct", async (req, res) => {
       },
     });
 
+    // Get app installation ID and active subscription to check trial status
     const appInstallationQuery = `
       query GetAppInstallation {
-        appInstallation {
+        currentAppInstallation {
           id
+          activeSubscriptions {
+            id
+            status
+            createdAt
+            trialDays
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  __typename
+                  ... on AppRecurringPricing {
+                    interval
+                    price {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     `;
@@ -3609,12 +4366,116 @@ app.post("/api/credits/deduct", async (req, res) => {
       data: { query: appInstallationQuery },
     });
     const appInstallationId =
-      appInstallationResponse?.body?.data?.appInstallation?.id;
+      appInstallationResponse?.body?.data?.currentAppInstallation?.id;
+    const activeSubscriptions =
+      appInstallationResponse?.body?.data?.currentAppInstallation
+        ?.activeSubscriptions || [];
+    const activeSubscription = activeSubscriptions.find(
+      (sub) => sub.status === "ACTIVE"
+    );
 
     if (!appInstallationId) {
       return res.status(404).json({
         error: "App installation not found",
       });
+    }
+
+    // Check if trial should end BEFORE deducting credits
+    // Only trigger replacement for EARLY trial ending (credits exhausted)
+    // If trial ends after 30 days, Shopify handles it automatically via webhook (no replacement needed)
+    const isInTrial = await trialManager.isInTrialPeriod(client, appInstallationId);
+    if (isInTrial && activeSubscription) {
+      const trialCheck = await trialManager.shouldEndTrial(client, appInstallationId);
+      
+      if (trialCheck.shouldEnd) {
+        // Only trigger replacement if trial ended EARLY (credits exhausted before 30 days)
+        // If trial ended after 30 days, Shopify will automatically transition (handled via webhook)
+        const isEarlyEnding = trialCheck.reason === "Trial credits exhausted";
+        
+        if (isEarlyEnding) {
+          // Trial ended EARLY - need to replace subscription for immediate charging
+          logger.info("[CREDITS] Trial ended early (credits exhausted), triggering replacement", {
+            shop: shopDomain,
+            reason: trialCheck.reason,
+            note: "Charging will start immediately after merchant approval",
+          });
+
+          // Map subscription to plan to get plan handle
+          const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+          const planHandle = subscriptionStatus.plan?.handle;
+
+          if (planHandle) {
+            // Get return URL
+            const appBaseUrl = appUrl || `https://${shopDomain}`;
+            const returnUrl = `${appBaseUrl}/api/billing/return?shop=${shopDomain}`;
+            const isDemo = isDemoStore(shopDomain);
+
+            try {
+              // Automatically trigger replacement - this creates a paid subscription with NO trial days
+              // Once merchant approves, charging starts IMMEDIATELY
+              const replacementResult = await subscriptionReplacement.replaceTrialWithPaidSubscription(
+                client,
+                shopDomain,
+                activeSubscription.id,
+                planHandle,
+                returnUrl,
+                isDemo
+              );
+
+              // Mark trial as ended in metafields
+              await creditMetafield.batchUpdateMetafields(client, appInstallationId, {
+                is_trial_period: false,
+              });
+
+              logger.info("[CREDITS] Trial replacement automatically triggered (early ending)", {
+                shop: shopDomain,
+                confirmationUrl: replacementResult.confirmationUrl,
+                note: "Merchant must approve to start immediate charging",
+              });
+
+              // Return confirmation URL so frontend can redirect merchant to approve
+              return res.status(402).json({
+                success: false,
+                error: "TRIAL_REPLACEMENT_NEEDED",
+                message: `Trial period ended early: ${trialCheck.reason}. Subscription replacement required for immediate charging.`,
+                trialEndReason: trialCheck.reason,
+                requiresReplacement: true,
+                confirmationUrl: replacementResult.confirmationUrl,
+                appSubscription: replacementResult.appSubscription,
+                statusCode: 402, // Payment Required
+                note: "Trial credits will remain available after subscription activation. Charging starts immediately after approval.",
+              });
+            } catch (replacementError) {
+              logger.error("[CREDITS] Failed to automatically trigger trial replacement", replacementError, req, {
+                shop: shopDomain,
+              });
+              // Fall through to return TRIAL_REPLACEMENT_NEEDED error
+              return res.status(402).json({
+                success: false,
+                error: "TRIAL_REPLACEMENT_NEEDED",
+                message: `Trial period ended early: ${trialCheck.reason}. Subscription replacement required.`,
+                trialEndReason: trialCheck.reason,
+                requiresReplacement: true,
+                statusCode: 402,
+                note: "Please call /api/billing/replace-trial to complete replacement",
+              });
+            }
+          }
+        } else {
+          // Trial ended after 30 days - Shopify will handle automatically
+          // Just mark trial as ended in metafields, webhook will handle the rest
+          logger.info("[CREDITS] Trial ended after 30 days - Shopify will handle automatic transition", {
+            shop: shopDomain,
+            reason: trialCheck.reason,
+            note: "No replacement needed - Shopify handles automatic transition to paid subscription",
+          });
+          
+          // Mark trial as ended in metafields (Shopify webhook will handle subscription transition)
+          await creditMetafield.batchUpdateMetafields(client, appInstallationId, {
+            is_trial_period: false,
+          });
+        }
+      }
     }
 
     const result = await creditDeduction.deductCreditForTryOn(
@@ -3625,6 +4486,13 @@ app.post("/api/credits/deduct", async (req, res) => {
     );
 
     if (!result.success) {
+      // Check if trial replacement is needed (fallback check)
+      if (result.error === "TRIAL_REPLACEMENT_NEEDED") {
+        return res.status(402).json({
+          ...result,
+          statusCode: 402, // Payment Required
+        });
+      }
       return res.status(400).json(result);
     }
 
@@ -3638,7 +4506,7 @@ app.post("/api/credits/deduct", async (req, res) => {
   }
 });
 
-// Reset credits (webhook/internal)
+// Add credits for new billing period (credits never expire, they carry forward)
 app.post("/api/credits/reset", async (req, res) => {
   try {
     const { shop, periodEnd } = req.body;
@@ -3698,6 +4566,7 @@ app.post("/api/credits/reset", async (req, res) => {
       });
     }
 
+    // Add credits instead of resetting (credits carry forward)
     const result = await creditReset.resetCreditsForNewPeriod(
       client,
       appInstallationId,
@@ -3706,9 +4575,9 @@ app.post("/api/credits/reset", async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    logger.error("[CREDITS] Failed to reset credits", error, req);
+    logger.error("[CREDITS] Failed to add credits", error, req);
     res.status(500).json({
-      error: "Failed to reset credits",
+      error: "Failed to add credits",
       message: error.message,
     });
   }

@@ -9,7 +9,7 @@
 import * as logger from "./logger.js";
 import * as creditMetafield from "./creditMetafield.js";
 
-const USAGE_PRICE_PER_CREDIT = 0.20; // $0.20 per try-on after included credits
+const USAGE_PRICE_PER_CREDIT = 0.15; // $0.15 per try-on after included credits
 
 /**
  * Track overage usage for annual subscriptions
@@ -168,7 +168,7 @@ export const createOverageCharge = async (client, shopDomain, amount, overageCou
 
 /**
  * Bill accumulated overage and reset tracking
- * Called at month end when credits reset for annual subscriptions
+ * Called at month end when credits are added for annual subscriptions (credits carry forward)
  * @param {Object} client - GraphQL client
  * @param {string} shopDomain - Shop domain
  * @param {string} appInstallationId - App installation ID

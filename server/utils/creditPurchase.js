@@ -158,27 +158,40 @@ export const handlePurchaseSuccess = async (client, appInstallationId, purchaseI
   }
 
   try {
-    // Get current credit balance
+    // Get current credit balance and credit type balances
     const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
     const currentBalance = metafields.credit_balance || 0;
+    const currentPurchasedCredits = metafields.purchased_credits_balance ?? 0;
+    const currentPlanCredits = metafields.plan_credits_balance ?? 0;
+    const currentCouponCredits = metafields.coupon_credits_balance ?? 0;
 
-    // Add purchased credits
+    // Add purchased credits to purchased credits balance
     const newBalance = currentBalance + package_.credits;
-    await creditMetafield.updateCreditBalance(client, appInstallationId, newBalance);
+    const newPurchasedCredits = currentPurchasedCredits + package_.credits;
+    
+    await creditMetafield.updateCreditBalance(client, appInstallationId, newBalance, {
+      planCredits: currentPlanCredits,
+      purchasedCredits: newPurchasedCredits,
+      couponCredits: currentCouponCredits,
+    });
 
-    logger.info("[CREDIT_PURCHASE] Credits added after purchase", {
+    logger.info("[CREDIT_PURCHASE] Purchased credits added after purchase", {
       appInstallationId,
       purchaseId,
       packageId,
       creditsAdded: package_.credits,
       previousBalance: currentBalance,
       newBalance,
+      previousPurchasedCredits: currentPurchasedCredits,
+      newPurchasedCredits,
     });
 
     return {
       success: true,
       creditsAdded: package_.credits,
+      creditType: "purchased",
       newBalance,
+      purchasedCreditsRemaining: newPurchasedCredits,
     };
   } catch (error) {
     logger.error("[CREDIT_PURCHASE] Failed to add credits after purchase", error);

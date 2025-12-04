@@ -132,16 +132,27 @@ export const redeemCouponCode = async (client, appInstallationId, code) => {
   }
 
   try {
-    // Get current credit balance
+    // Get current credit balance and credit type balances
     const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
     const currentBalance = metafields.credit_balance || 0;
+    const currentCouponCredits = metafields.coupon_credits_balance ?? 0;
+    const currentPlanCredits = metafields.plan_credits_balance ?? 0;
+    const currentPurchasedCredits = metafields.purchased_credits_balance ?? 0;
     const creditsToAdd = validation.credits;
 
-    // Add credits to balance
+    // Add coupon credits to coupon credits balance
+    const newBalance = currentBalance + creditsToAdd;
+    const newCouponCredits = currentCouponCredits + creditsToAdd;
+    
     await creditMetafield.updateCreditBalance(
       client,
       appInstallationId,
-      currentBalance + creditsToAdd
+      newBalance,
+      {
+        planCredits: currentPlanCredits,
+        purchasedCredits: currentPurchasedCredits,
+        couponCredits: newCouponCredits,
+      }
     );
 
     // Track redemption
@@ -150,17 +161,22 @@ export const redeemCouponCode = async (client, appInstallationId, code) => {
       credits: creditsToAdd,
     });
 
-    logger.info("[COUPON_SERVICE] Coupon redeemed successfully", {
+    logger.info("[COUPON_SERVICE] Coupon credits added after redemption", {
       code: validation.code,
       creditsAdded: creditsToAdd,
-      newBalance: currentBalance + creditsToAdd,
+      previousBalance: currentBalance,
+      newBalance,
+      previousCouponCredits: currentCouponCredits,
+      newCouponCredits,
     });
 
     return {
       success: true,
       code: validation.code,
       creditsAdded: creditsToAdd,
-      newBalance: currentBalance + creditsToAdd,
+      creditType: "coupon",
+      newBalance,
+      couponCreditsRemaining: newCouponCredits,
       message: `${creditsToAdd} credits added successfully`,
     };
   } catch (error) {

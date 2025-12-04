@@ -31,6 +31,7 @@ import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import TrialNotificationBanner from "@/components/TrialNotificationBanner";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -938,6 +939,13 @@ const Index = () => {
         </div>
         <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20 relative">
           <div className="max-w-6xl mx-auto">
+            {/* Trial Notification Banner */}
+            <TrialNotificationBanner
+              onApprovalInitiated={() => {
+                // Refresh subscription status when approval is initiated
+                refreshSubscription();
+              }}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
               {/* Hero Content - Left Side */}
               <div className="lg:col-span-2">

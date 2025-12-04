@@ -1,9 +1,10 @@
 /**
  * Credit Reset Service
  * 
- * Handles credit reset on billing cycle renewal
- * For annual subscriptions, credits reset on the first day of each month
- * For monthly subscriptions, credits reset with the billing cycle
+ * Handles credit addition on billing cycle renewal
+ * Credits NEVER expire and always carry forward
+ * For annual subscriptions, credits are added on the first day of each month
+ * For monthly subscriptions, credits are added with the billing cycle
  */
 
 import * as logger from "./logger.js";
@@ -132,7 +133,7 @@ export const checkPeriodRenewal = async (client, appInstallationId, newPeriodEnd
 };
 
 /**
- * Reset credits for new billing period
+ * Add credits for new billing period (credits never expire, they carry forward)
  * For annual subscriptions, uses monthly period end instead of annual period end
  * Note: Overage billing should be handled BEFORE calling this function for annual subscriptions
  */
@@ -149,29 +150,39 @@ export const resetCreditsForNewPeriod = async (
       ? calculateNextMonthlyPeriodEnd()
       : periodEnd;
 
-    await creditMetafield.resetCreditsForPeriod(
+    // Get current balance to add credits instead of resetting
+    const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
+    const currentBalance = metafields.credit_balance || 0;
+    const newBalance = currentBalance + includedCredits;
+
+    await creditMetafield.addCreditsForPeriod(
       client,
       appInstallationId,
       actualPeriodEnd,
       includedCredits,
+      newBalance,
       isAnnual
     );
 
-    logger.info("[CREDIT_RESET] Credits reset for new period", {
+    logger.info("[CREDIT_RESET] Credits added for new period (carry forward)", {
       appInstallationId,
       periodEnd: actualPeriodEnd,
-      includedCredits,
+      creditsAdded: includedCredits,
+      previousBalance: currentBalance,
+      newBalance,
       isAnnual,
-      note: isAnnual ? "Monthly reset for annual subscription" : "Billing cycle reset",
+      note: isAnnual ? "Monthly credits added for annual subscription" : "Billing cycle credits added",
     });
 
     return {
       success: true,
-      balance: includedCredits,
+      balance: newBalance,
+      creditsAdded: includedCredits,
+      previousBalance: currentBalance,
       periodEnd: actualPeriodEnd,
     };
   } catch (error) {
-    logger.error("[CREDIT_RESET] Failed to reset credits", error);
+    logger.error("[CREDIT_RESET] Failed to add credits", error);
     throw error;
   }
 };
@@ -197,7 +208,7 @@ export const syncWithSubscription = async (client, appInstallationId, subscripti
       );
 
       if (periodCheck.isNewPeriod) {
-        // Reset credits for new period
+        // Add credits for new period (credits carry forward, never expire)
         const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
         const includedCredits = metafields.credits_included || 100;
         

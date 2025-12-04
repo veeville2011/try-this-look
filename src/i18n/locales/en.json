@@ -186,6 +186,10 @@
     "feature3": "Regular updates and new features",
     "feature4": "Manage your subscription from your Shopify admin",
     "continueButton": "Continue to Application"
+  },
+  "trialNotification": {
+    "approving": "Approving...",
+    "approvalInitiated": "Subscription approval initiated successfully"
   }
 }
 
