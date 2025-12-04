@@ -288,38 +288,92 @@ export const endTrialPeriod = async (client, appInstallationId, includedCredits 
 
 /**
  * Get trial status information
+ * If metafields don't exist yet, calculates from subscription data
+ * @param {Object} client - GraphQL client
+ * @param {string} appInstallationId - App installation ID
+ * @param {Object} subscriptionData - Optional subscription data (createdAt, trialDays) for calculation when metafields don't exist
  */
-export const getTrialStatus = async (client, appInstallationId) => {
+export const getTrialStatus = async (client, appInstallationId, subscriptionData = null) => {
   try {
     const metafields = await creditMetafield.getCreditMetafields(client, appInstallationId);
-    const isTrial = await isInTrialPeriod(client, appInstallationId);
     
-    if (!isTrial) {
+    // Check if metafields exist - if trial_start_date exists, use metafield-based logic
+    if (metafields.trial_start_date) {
+      const isTrial = await isInTrialPeriod(client, appInstallationId);
+      
+      if (!isTrial) {
+        return {
+          isTrial: false,
+          trialCreditsRemaining: 0,
+          trialCreditsUsed: metafields.trial_credits_used || 0,
+          daysRemaining: 0,
+        };
+      }
+      
+      const trialStartDate = metafields.trial_start_date;
+      const trialStart = new Date(trialStartDate);
+      const now = new Date();
+      const daysSinceTrialStart = Math.floor((now - trialStart) / (1000 * 60 * 60 * 24));
+      const daysRemaining = Math.max(0, TRIAL_DAYS - daysSinceTrialStart);
+      
+      const trialCreditsBalance = metafields.trial_credits_balance || TRIAL_CREDITS;
+      const trialCreditsUsed = metafields.trial_credits_used || 0;
+      
       return {
-        isTrial: false,
-        trialCreditsRemaining: 0,
-        trialCreditsUsed: metafields.trial_credits_used || 0,
-        daysRemaining: 0,
+        isTrial: true,
+        trialCreditsRemaining: trialCreditsBalance,
+        trialCreditsUsed,
+        trialCreditsTotal: TRIAL_CREDITS,
+        daysRemaining,
+        daysSinceStart: daysSinceTrialStart,
+        trialStartDate: trialStartDate,
       };
     }
     
-    const trialStartDate = metafields.trial_start_date;
-    const trialStart = trialStartDate ? new Date(trialStartDate) : new Date();
-    const now = new Date();
-    const daysSinceTrialStart = Math.floor((now - trialStart) / (1000 * 60 * 60 * 24));
-    const daysRemaining = Math.max(0, TRIAL_DAYS - daysSinceTrialStart);
+    // Metafields don't exist yet - calculate from subscription data
+    // This happens when subscription is just created and webhook hasn't initialized metafields yet
+    if (subscriptionData && subscriptionData.createdAt && subscriptionData.trialDays && subscriptionData.trialDays > 0) {
+      const createdAt = new Date(subscriptionData.createdAt);
+      const trialEndDate = new Date(createdAt);
+      trialEndDate.setDate(trialEndDate.getDate() + subscriptionData.trialDays);
+      const now = new Date();
+      const isStillInTrial = now < trialEndDate;
+      
+      if (isStillInTrial) {
+        const daysSinceStart = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+        const daysRemaining = Math.max(0, subscriptionData.trialDays - daysSinceStart);
+        
+        return {
+          isTrial: true,
+          trialCreditsRemaining: TRIAL_CREDITS, // Assume full trial credits if metafields don't exist
+          trialCreditsUsed: 0,
+          trialCreditsTotal: TRIAL_CREDITS,
+          daysRemaining,
+          daysSinceStart,
+          trialStartDate: createdAt.toISOString(),
+          note: "Calculated from subscription data (metafields not initialized yet)",
+        };
+      } else {
+        return {
+          isTrial: false,
+          trialCreditsRemaining: 0,
+          trialCreditsUsed: 0,
+          daysRemaining: 0,
+        };
+      }
+    }
     
-    const trialCreditsBalance = metafields.trial_credits_balance || TRIAL_CREDITS;
-    const trialCreditsUsed = metafields.trial_credits_used || 0;
+    // No metafields and no subscription data - cannot determine trial status
+    // This should not happen in normal flow, but return false to be safe
+    logger.warn("[TRIAL_MANAGER] Cannot determine trial status - no metafields and no subscription data", {
+      appInstallationId,
+    });
     
     return {
-      isTrial: true,
-      trialCreditsRemaining: trialCreditsBalance,
-      trialCreditsUsed,
-      trialCreditsTotal: TRIAL_CREDITS,
-      daysRemaining,
-      daysSinceStart: daysSinceTrialStart,
-      trialStartDate: trialStartDate,
+      isTrial: false,
+      trialCreditsRemaining: 0,
+      trialCreditsUsed: 0,
+      daysRemaining: 0,
     };
   } catch (error) {
     logger.error("[TRIAL_MANAGER] Failed to get trial status", error);

@@ -232,54 +232,27 @@ const mapSubscriptionToPlan = (appSubscription, customTrialStatus = null) => {
       }
     : null;
 
-  // CRITICAL: Use custom trial status from metafields if available (30-day trial logic)
-  // This overrides Shopify's subscription.trialDays which may be outdated
-  // If customTrialStatus is provided, use it; otherwise fall back to Shopify's trialDays
+  // CRITICAL: ALWAYS use custom trial status from metafields or calculated from subscription data
+  // NO FALLBACKS - customTrialStatus is ALWAYS provided and calculated correctly
   let trialDays = null;
   let trialDaysRemaining = null;
   let isInTrial = false;
 
-  if (customTrialStatus) {
-    // Use custom trial status from metafields (uses TRIAL_DAYS = 30)
-    isInTrial = customTrialStatus.isTrial;
-    trialDaysRemaining = customTrialStatus.daysRemaining;
-    trialDays = matchedPlan?.trialDays || 30; // Use config value (30 days) for display
+  if (!customTrialStatus) {
+    // This should never happen - customTrialStatus should always be calculated
+    logger.error("[BILLING] customTrialStatus is null - this should not happen", null, null, {
+      shop: appSubscription?.id,
+      hasActiveSubscription: !!appSubscription,
+    });
+    // Default to no trial if customTrialStatus is missing
+    isInTrial = false;
+    trialDaysRemaining = 0;
+    trialDays = matchedPlan?.trialDays || appSubscription?.trialDays || null;
   } else {
-    // Fallback to Shopify's trialDays (for backwards compatibility or when metafields unavailable)
-    trialDays = matchedPlan?.trialDays || appSubscription.trialDays || null;
-    
-    if (trialDays && appSubscription.createdAt) {
-      const createdAt = new Date(appSubscription.createdAt);
-      const trialEndDate = new Date(createdAt);
-      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-      const now = new Date();
-
-      // Check if subscription is still in trial period
-      // According to Shopify docs: trialDays delays billing by specified days from createdAt
-      // If currentPeriodEnd exists and is not null, billing has started (trial ended)
-      // Otherwise, check if trial period has expired based on time
-      const currentPeriodEnd = appSubscription.currentPeriodEnd 
-        ? new Date(appSubscription.currentPeriodEnd) 
-        : null;
-      
-      // Trial has ended if:
-      // 1. currentPeriodEnd exists (billing has started - subscription is active and being billed)
-      // 2. OR trial period has expired (now >= trialEndDate)
-      const billingStarted = currentPeriodEnd !== null;
-      
-      if (!billingStarted && now < trialEndDate) {
-        // Still in trial period
-        isInTrial = true;
-        const daysRemaining = Math.ceil(
-          (trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        trialDaysRemaining = Math.max(0, daysRemaining);
-      } else {
-        // Trial has ended
-        isInTrial = false;
-        trialDaysRemaining = 0;
-      }
-    }
+    // ALWAYS use customTrialStatus - it's calculated from metafields or subscription data
+    isInTrial = customTrialStatus.isTrial;
+    trialDaysRemaining = customTrialStatus.daysRemaining || 0;
+    trialDays = matchedPlan?.trialDays || 30; // Use config value (30 days) for display
   }
 
   return {
@@ -500,28 +473,39 @@ const fetchManagedSubscriptionStatus = async (
     subscriptions[0] ||
     null;
 
-  // CRITICAL: Get trial status from metafields (uses our custom 30-day trial logic)
-  // This overrides Shopify's subscription.trialDays which may be outdated (e.g., 15 days)
+  // CRITICAL: Get trial status from metafields or calculate from subscription data
+  // This ALWAYS uses our custom 30-day trial logic - no fallbacks
   let customTrialStatus = null;
-  try {
-    if (currentAppInstallation?.id && activeSubscription) {
+  if (currentAppInstallation?.id && activeSubscription) {
+    try {
       // Extract AppInstallation ID from GraphQL response
       const appInstallationId = currentAppInstallation.id;
-      customTrialStatus = await trialManager.getTrialStatus(client, appInstallationId);
-      logger.info("[BILLING] Fetched custom trial status from metafields", {
+      
+      // Pass subscription data so getTrialStatus can calculate if metafields don't exist yet
+      customTrialStatus = await trialManager.getTrialStatus(
+        client,
+        appInstallationId,
+        {
+          createdAt: activeSubscription.createdAt,
+          trialDays: activeSubscription.trialDays,
+        }
+      );
+      
+      logger.info("[BILLING] Fetched custom trial status", {
         shop: normalizedShop,
         isTrial: customTrialStatus.isTrial,
         daysRemaining: customTrialStatus.daysRemaining,
         trialCreditsRemaining: customTrialStatus.trialCreditsRemaining,
-        note: "Using custom trial logic (30 days OR 100 credits)",
+        note: customTrialStatus.note || "Using custom trial logic from metafields (30 days OR 100 credits)",
       });
+    } catch (trialStatusError) {
+      logger.error("[BILLING] Failed to fetch custom trial status", trialStatusError, null, {
+        shop: normalizedShop,
+        error: trialStatusError.message,
+      });
+      // Throw error - no fallbacks allowed
+      throw new Error(`Failed to get trial status: ${trialStatusError.message}`);
     }
-  } catch (trialStatusError) {
-    logger.warn("[BILLING] Failed to fetch custom trial status, falling back to Shopify trialDays", {
-      shop: normalizedShop,
-      error: trialStatusError.message,
-    });
-    // Continue with Shopify's trialDays as fallback
   }
 
   const subscriptionStatus = mapSubscriptionToPlan(activeSubscription, customTrialStatus);
@@ -2295,18 +2279,43 @@ app.post(
                           item.plan?.pricingDetails?.__typename === "AppUsagePricing"
                       );
 
-                      // Check if subscription is in trial period (only for new subscriptions, not transitions)
-                      const isInTrialForNew = !wasInTrial && app_subscription.trialDays && app_subscription.trialDays > 0;
-                      // Calculate if still in trial based on createdAt + trialDays
+                      // CRITICAL: Determine if subscription is in trial period using getTrialStatus
+                      // This ensures consistent trial calculation logic (no fallbacks)
+                      // For new subscriptions, calculate from subscription data if metafields don't exist yet
                       let isTrialActive = false;
-                      if (isInTrialForNew && app_subscription.createdAt) {
-                        const createdAt = new Date(app_subscription.createdAt);
-                        const trialEndDate = new Date(createdAt);
-                        trialEndDate.setDate(trialEndDate.getDate() + app_subscription.trialDays);
-                        const now = new Date();
-                        isTrialActive = now < trialEndDate;
+                      if (!wasInTrial && app_subscription.trialDays && app_subscription.trialDays > 0) {
+                        try {
+                          // Use getTrialStatus to calculate trial status consistently
+                          // Pass subscription data so it can calculate if metafields don't exist yet
+                          const trialStatus = await trialManager.getTrialStatus(
+                            client,
+                            appInstallationId,
+                            {
+                              createdAt: app_subscription.createdAt,
+                              trialDays: app_subscription.trialDays,
+                            }
+                          );
+                          isTrialActive = trialStatus.isTrial;
+                          
+                          logger.info("[WEBHOOK] Calculated trial status for credit initialization", {
+                            shop,
+                            subscriptionId: app_subscription.id,
+                            isTrialActive,
+                            daysRemaining: trialStatus.daysRemaining,
+                            note: trialStatus.note || "Using getTrialStatus for consistent calculation",
+                          });
+                        } catch (trialStatusError) {
+                          logger.error("[WEBHOOK] Failed to calculate trial status", trialStatusError, null, {
+                            shop,
+                            subscriptionId: app_subscription.id,
+                            error: trialStatusError.message,
+                          });
+                          // If we can't determine trial status, default to false (no trial)
+                          // This ensures we don't initialize trial credits incorrectly
+                          isTrialActive = false;
+                        }
                       }
-                      // If transitioning from trial, isTrialActive should be false (already ended above)
+                      // If transitioning from trial (wasInTrial = true), isTrialActive should be false (already ended above)
 
                       // CRITICAL: Retry logic for credit initialization with exponential backoff
                       let initializationSuccess = false;
@@ -4268,22 +4277,31 @@ app.get("/api/credits/balance", async (req, res) => {
         subscriptions.find((sub) => sub.status === "ACTIVE") || null;
 
       if (activeSubscription) {
-        // CRITICAL: Get trial status from metafields (uses our custom 30-day trial logic)
-        // This ensures correct trial status even if metafields don't exist yet
+        // CRITICAL: Get trial status from metafields or calculate from subscription data
+        // NO FALLBACKS - always calculate correctly
         let customTrialStatus = null;
         try {
-          customTrialStatus = await trialManager.getTrialStatus(client, appInstallationId);
-          logger.info("[CREDITS] Fetched custom trial status from metafields", {
+          customTrialStatus = await trialManager.getTrialStatus(
+            client,
+            appInstallationId,
+            {
+              createdAt: activeSubscription.createdAt,
+              trialDays: activeSubscription.trialDays,
+            }
+          );
+          logger.info("[CREDITS] Fetched custom trial status", {
             shop: shopDomain,
             isTrial: customTrialStatus.isTrial,
             daysRemaining: customTrialStatus.daysRemaining,
-            note: "Using custom trial logic (30 days OR 100 credits)",
+            note: customTrialStatus.note || "Using custom trial logic from metafields (30 days OR 100 credits)",
           });
         } catch (trialStatusError) {
-          logger.warn("[CREDITS] Failed to fetch custom trial status, will calculate from subscription", {
+          logger.error("[CREDITS] Failed to fetch custom trial status", trialStatusError, null, {
             shop: shopDomain,
             error: trialStatusError.message,
           });
+          // Throw error - no fallbacks allowed
+          throw new Error(`Failed to get trial status for credit initialization: ${trialStatusError.message}`);
         }
 
         // Map subscription to plan to get plan handle and credits
