@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
+import { getAvailablePlans, subscribeToPlan, cancelSubscription } from "@/services/billingApi";
 import {
   Card,
   CardContent,
@@ -126,29 +127,16 @@ const Index = () => {
 
   const fetchAvailablePlans = async () => {
     try {
-      // Use authenticated fetch with App Bridge to include JWT
-      const appBridge = (window as any).__APP_BRIDGE;
-      if (!appBridge) {
-        throw new Error("App Bridge not available");
+      // Get shop domain
+      const shopDomain =
+        shop || new URLSearchParams(window.location.search).get("shop");
+
+      if (!shopDomain) {
+        throw new Error("Shop parameter is required");
       }
 
-      const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
-      const fetchFn = authenticatedFetch(appBridge);
-
-      const response = await fetchFn("/api/billing/plans", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "same-origin",
-      });
-
-      if (!response.ok) {
-        throw new Error(t("index.errors.cannotFetchPlans"));
-      }
-
-      const data = await response.json();
+      // Use remote API service
+      const data = await getAvailablePlans(shopDomain);
       setAvailablePlans(Array.isArray(data.plans) ? data.plans : []);
     } catch (error: any) {
       console.error("[Billing] Failed to load plans", error);
@@ -189,33 +177,12 @@ const Index = () => {
     try {
       setCancelling(true);
 
-      const appBridge = (window as any).__APP_BRIDGE;
-      if (!appBridge) {
-        throw new Error("App Bridge not available");
-      }
-
-      const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
-      const fetchFn = authenticatedFetch(appBridge);
-
-      const response = await fetchFn("/api/billing/cancel", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          shop: shopDomain,
-          subscriptionId: subscription.subscription.id,
-          prorate: false, // Don't prorate - let subscription continue until period end
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || t("index.errors.cancelFailed"));
-      }
-
-      const data = await response.json();
+      // Use remote API service
+      const data = await cancelSubscription(
+        shopDomain,
+        subscription.subscription.id,
+        false // Don't prorate - let subscription continue until period end
+      );
 
       // Refresh subscription status
       await refreshSubscription();
@@ -240,86 +207,19 @@ const Index = () => {
     try {
       setBillingLoading(true);
 
-      const appBridge = (window as any).__APP_BRIDGE;
-      if (!appBridge) {
-        throw new Error("App Bridge not available");
-      }
-
-      const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
-      const fetchFn = authenticatedFetch(appBridge);
-
       console.log("[Billing] Creating subscription request", {
         shop: shopDomain,
         planHandle,
       });
 
-      const response = await fetchFn("/api/billing/subscribe", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          shop: shopDomain,
-          planHandle,
-          promoCode: null,
-        }),
-      });
+      // Use remote API service
+      const data = await subscribeToPlan(shopDomain, planHandle, null);
 
       console.log("[Billing] Subscription response received", {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
+        confirmationUrl: data.confirmationUrl,
+        subscriptionId: data.appSubscription?.id,
+        requestId: data.requestId,
       });
-
-      // Check response status before parsing
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData?.error || errorData?.message || errorMessage;
-        } catch (parseError) {
-          // If JSON parsing fails, try to get text
-          try {
-            const errorText = await response.text();
-            if (errorText) {
-              errorMessage = errorText.substring(0, 200);
-            }
-          } catch (textError) {
-            // Ignore text parsing errors
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Parse successful response
-      let data: any;
-      try {
-        const responseText = await response.text();
-        console.log("[Billing] Response text received", {
-          length: responseText?.length,
-          preview: responseText?.substring(0, 200),
-        });
-
-        if (!responseText || responseText.trim() === "") {
-          throw new Error("Empty response from server");
-        }
-        data = JSON.parse(responseText);
-        console.log("[Billing] Response parsed successfully", {
-          hasConfirmationUrl: !!data?.confirmationUrl,
-          requestId: data?.requestId,
-        });
-      } catch (parseError: any) {
-        console.error("[Billing] Failed to parse response", {
-          error: parseError,
-          message: parseError?.message,
-          stack: parseError?.stack,
-        });
-        throw new Error(
-          "Invalid response format from server. Please try again."
-        );
-      }
 
       if (!data || !data.confirmationUrl) {
         console.error("[Billing] Missing confirmationUrl in response", data);

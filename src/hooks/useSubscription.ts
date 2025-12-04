@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
+import { getSubscriptionStatus } from "@/services/billingApi";
 
 interface SubscriptionStatus {
   hasActiveSubscription: boolean;
@@ -93,60 +94,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
       // Don't use cache during fetch - we want fresh data from API
       // Cache is only used in the useEffect before fetch starts
 
-      const apiUrl = `/api/billing/subscription?shop=${encodeURIComponent(normalizedShop)}`;
-      
-      const appBridge = (window as any).__APP_BRIDGE;
-      let fetchFn = fetch;
-      let headers: HeadersInit = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      };
-
-      if (appBridge) {
-        try {
-          const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
-          fetchFn = authenticatedFetch(appBridge);
-        } catch (error) {
-          try {
-            const { getSessionToken } = await import("@shopify/app-bridge-utils");
-            const token = await getSessionToken(appBridge);
-            if (token) {
-              headers = {
-                ...headers,
-                Authorization: `Bearer ${token}`,
-              };
-            }
-          } catch (tokenError) {
-            // Ignore
-          }
-        }
-      }
-
-      const response = await fetchFn(apiUrl, {
-        method: "GET",
-        headers,
-        credentials: "same-origin",
-      });
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          try {
-            const errorText = await response.text();
-            if (errorText) {
-              errorMessage = errorText.substring(0, 200);
-            }
-          } catch {
-            // Ignore
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      const subscriptionData = await response.json();
+      // Use remote API service
+      const subscriptionData = await getSubscriptionStatus(normalizedShop);
 
       if (!subscriptionData || typeof subscriptionData !== "object") {
         throw new Error("Invalid subscription data received");

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
+import { getCreditsBalance } from "@/services/billingApi";
 
 interface CreditBalance {
   balance: number;
@@ -38,44 +39,8 @@ export const useCredits = (): UseCreditsReturn => {
       setLoading(true);
       setError(null);
 
-      const appBridge = (window as any).__APP_BRIDGE;
-      let fetchFn = fetch;
-      let headers: HeadersInit = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      };
-
-      if (appBridge) {
-        try {
-          const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
-          fetchFn = authenticatedFetch(appBridge);
-        } catch (error) {
-          try {
-            const { getSessionToken } = await import("@shopify/app-bridge-utils");
-            const token = await getSessionToken(appBridge);
-            if (token) {
-              headers = {
-                ...headers,
-                Authorization: `Bearer ${token}`,
-              };
-            }
-          } catch (tokenError) {
-            // Ignore
-          }
-        }
-      }
-
-      const response = await fetchFn(`/api/credits/balance?shop=${encodeURIComponent(shop)}`, {
-        method: "GET",
-        headers,
-        credentials: "same-origin",
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch credits: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      // Use remote API service
+      const data = await getCreditsBalance(shop);
       setCredits(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch credits";

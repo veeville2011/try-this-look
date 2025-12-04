@@ -3135,7 +3135,9 @@ app.post("/api/billing/subscribe", async (req, res) => {
     .substr(2, 9)}`;
 
   try {
-    const { shop, planHandle, promoCode } = req.body || {};
+    // Get shop from query string
+    const shop = req.query.shop;
+    const { planHandle, promoCode } = req.body || {};
 
     logger.info("[API] [SUBSCRIBE] Request received", {
       requestId,
@@ -3143,10 +3145,18 @@ app.post("/api/billing/subscribe", async (req, res) => {
       planHandle,
     });
 
-    if (!shop || !planHandle) {
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required in query string",
+        requestId,
+      });
+    }
+
+    if (!planHandle) {
       return res.status(400).json({
         error: "Missing required parameters",
-        message: "Both shop and planHandle are required.",
+        message: "planHandle is required in request body.",
         requestId,
       });
     }
@@ -3746,7 +3756,9 @@ app.post("/api/billing/cancel", async (req, res) => {
     .substr(2, 9)}`;
 
   try {
-    const { shop, subscriptionId, prorate } = req.body || {};
+    // Get shop from query string
+    const shop = req.query.shop;
+    const { subscriptionId, prorate } = req.body || {};
 
     logger.info("[API] [CANCEL] Request received", {
       requestId,
@@ -3755,10 +3767,18 @@ app.post("/api/billing/cancel", async (req, res) => {
       prorate: prorate || false,
     });
 
-    if (!shop || !subscriptionId) {
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required in query string",
+        requestId,
+      });
+    }
+
+    if (!subscriptionId) {
       return res.status(400).json({
         error: "Missing required parameters",
-        message: "Both shop and subscriptionId are required.",
+        message: "subscriptionId is required in request body.",
         requestId,
       });
     }
@@ -4019,6 +4039,23 @@ app.post("/api/billing/validate-promo", async (req, res) => {
 // Get available plans
 app.get("/api/billing/plans", (req, res) => {
   try {
+    // Validate shop parameter from query string
+    const shop = req.query.shop;
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required in query string",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+      });
+    }
+
     // Validate billing module exists
     if (!billing || typeof billing.getAvailablePlans !== "function") {
       const errorMsg = !billing
