@@ -379,9 +379,17 @@ export const initializeCredits = async (client, appInstallationId, planHandle, i
   const existingPlanCredits = existingMetafields.plan_credits_balance ?? 0;
   const existingPurchasedCredits = existingMetafields.purchased_credits_balance ?? 0;
   const existingCouponCredits = existingMetafields.coupon_credits_balance ?? 0;
+  const existingTrialCredits = existingMetafields.trial_credits_balance ?? 0;
   
   // Add plan credits to existing plan credits (for new billing periods)
   const newPlanCredits = isTrial ? existingPlanCredits : (existingPlanCredits + includedCredits);
+  
+  // CRITICAL: Calculate total balance including all credit types
+  // During trial: include trial credits (100) + existing credits
+  // After trial: include plan credits + existing credits
+  const totalCreditBalance = isTrial
+    ? (existingTrialCredits || 100) + existingPlanCredits + existingPurchasedCredits + existingCouponCredits
+    : planCreditBalance + existingPurchasedCredits + existingCouponCredits + existingTrialCredits;
 
   const metafields = [
     {
@@ -389,7 +397,7 @@ export const initializeCredits = async (client, appInstallationId, planHandle, i
       namespace: METAFIELD_NAMESPACE,
       key: METAFIELD_KEYS.CREDIT_BALANCE,
       type: "number_integer",
-      value: String(planCreditBalance),
+      value: String(totalCreditBalance),
     },
     {
       ownerId: appInstallationId,

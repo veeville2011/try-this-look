@@ -104,11 +104,16 @@ export const getTotalCreditsAvailable = async (client, appInstallationId) => {
       };
     }
 
-    // If metafield is 0, check usage records capacity
-    if (balance.subscriptionLineItemId) {
-      logger.info("[CREDIT_MANAGER] Metafield balance is 0, checking usage records capacity", {
+    // If metafield balance is 0, check if we're in overage mode
+    // Overage mode = credits have been used (used > 0) AND balance is 0
+    // If balance is 0 but nothing has been used yet, we're NOT in overage
+    const isInOverageMode = balance.balance === 0 && balance.used > 0;
+    
+    if (isInOverageMode && balance.subscriptionLineItemId) {
+      logger.info("[CREDIT_MANAGER] In overage mode (balance=0, used>0), checking usage records capacity", {
         appInstallationId,
         subscriptionLineItemId: balance.subscriptionLineItemId,
+        used: balance.used,
       });
 
       const usage = await usageRecordService.getCurrentUsage(
@@ -132,7 +137,7 @@ export const getTotalCreditsAvailable = async (client, appInstallationId) => {
       return {
         ...balance,
         isOverage: true,
-        totalAvailable: 0, // No metafield credits left
+        totalAvailable: 0, // No metafield credits left, using usage records
         usageCapacity: remainingCapacity,
         currentUsage: usage.totalUsage,
         cappedAmount: usage.cappedAmount,
