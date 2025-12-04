@@ -173,7 +173,8 @@
       "confirmCancel": "Êtes-vous sûr de vouloir annuler votre abonnement ? Votre accès continuera jusqu'à la fin de la période de facturation actuelle.",
       "cancelFailed": "Échec de l'annulation de l'abonnement",
       "cancelError": "Une erreur s'est produite lors de l'annulation. Veuillez réessayer.",
-      "missingConfirmationUrl": "URL de confirmation manquante. Veuillez réessayer plus tard."
+      "missingConfirmationUrl": "URL de confirmation manquante. Veuillez réessayer plus tard.",
+      "subscriptionFailed": "Échec de la création de l'abonnement. Veuillez réessayer."
     }
   },
   "paymentSuccess": {
