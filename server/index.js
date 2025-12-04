@@ -169,7 +169,7 @@ const isDemoStore = (shopDomain) => {
 
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
 
-const mapSubscriptionToPlan = (appSubscription) => {
+const mapSubscriptionToPlan = (appSubscription, customTrialStatus = null) => {
   if (!appSubscription) {
     return {
       hasActiveSubscription: false,
@@ -232,24 +232,35 @@ const mapSubscriptionToPlan = (appSubscription) => {
       }
     : null;
 
-  // Calculate trial information
-  // Get trialDays from matched plan config (since it's not always in subscription response)
-  const trialDays = matchedPlan?.trialDays || appSubscription.trialDays || null;
+  // CRITICAL: Use custom trial status from metafields if available (30-day trial logic)
+  // This overrides Shopify's subscription.trialDays which may be outdated
+  // If customTrialStatus is provided, use it; otherwise fall back to Shopify's trialDays
+  let trialDays = null;
   let trialDaysRemaining = null;
   let isInTrial = false;
 
-  if (trialDays && appSubscription.createdAt) {
-    const createdAt = new Date(appSubscription.createdAt);
-    const trialEndDate = new Date(createdAt);
-    trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-    const now = new Date();
+  if (customTrialStatus) {
+    // Use custom trial status from metafields (uses TRIAL_DAYS = 30)
+    isInTrial = customTrialStatus.isTrial;
+    trialDaysRemaining = customTrialStatus.daysRemaining;
+    trialDays = matchedPlan?.trialDays || 30; // Use config value (30 days) for display
+  } else {
+    // Fallback to Shopify's trialDays (for backwards compatibility or when metafields unavailable)
+    trialDays = matchedPlan?.trialDays || appSubscription.trialDays || null;
+    
+    if (trialDays && appSubscription.createdAt) {
+      const createdAt = new Date(appSubscription.createdAt);
+      const trialEndDate = new Date(createdAt);
+      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+      const now = new Date();
 
-    if (now < trialEndDate) {
-      isInTrial = true;
-      const daysRemaining = Math.ceil(
-        (trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      trialDaysRemaining = Math.max(0, daysRemaining);
+      if (now < trialEndDate) {
+        isInTrial = true;
+        const daysRemaining = Math.ceil(
+          (trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        trialDaysRemaining = Math.max(0, daysRemaining);
+      }
     }
   }
 
@@ -428,6 +439,7 @@ const fetchManagedSubscriptionStatus = async (
   const query = `
     query ManagedPricingSubscription {
       currentAppInstallation {
+        id
         activeSubscriptions {
           id
           name
@@ -456,8 +468,8 @@ const fetchManagedSubscriptionStatus = async (
 
   const response = await client.query({ data: query });
 
-  const subscriptions =
-    response.body?.data?.currentAppInstallation?.activeSubscriptions || [];
+  const currentAppInstallation = response.body?.data?.currentAppInstallation;
+  const subscriptions = currentAppInstallation?.activeSubscriptions || [];
 
   logger.info("[BILLING] GraphQL subscription query completed", {
     shop: normalizedShop,
@@ -470,7 +482,31 @@ const fetchManagedSubscriptionStatus = async (
     subscriptions[0] ||
     null;
 
-  const subscriptionStatus = mapSubscriptionToPlan(activeSubscription);
+  // CRITICAL: Get trial status from metafields (uses our custom 30-day trial logic)
+  // This overrides Shopify's subscription.trialDays which may be outdated (e.g., 15 days)
+  let customTrialStatus = null;
+  try {
+    if (currentAppInstallation?.id && activeSubscription) {
+      // Extract AppInstallation ID from GraphQL response
+      const appInstallationId = currentAppInstallation.id;
+      customTrialStatus = await trialManager.getTrialStatus(client, appInstallationId);
+      logger.info("[BILLING] Fetched custom trial status from metafields", {
+        shop: normalizedShop,
+        isTrial: customTrialStatus.isTrial,
+        daysRemaining: customTrialStatus.daysRemaining,
+        trialCreditsRemaining: customTrialStatus.trialCreditsRemaining,
+        note: "Using custom trial logic (30 days OR 100 credits)",
+      });
+    }
+  } catch (trialStatusError) {
+    logger.warn("[BILLING] Failed to fetch custom trial status, falling back to Shopify trialDays", {
+      shop: normalizedShop,
+      error: trialStatusError.message,
+    });
+    // Continue with Shopify's trialDays as fallback
+  }
+
+  const subscriptionStatus = mapSubscriptionToPlan(activeSubscription, customTrialStatus);
 
   // Sync metafield to control app block/banner visibility
   // This happens asynchronously to not block the response
@@ -2118,12 +2154,15 @@ app.post(
                     const isNowActive = app_subscription.status === "ACTIVE";
                     const hasNoTrialDays = !app_subscription.trialDays || app_subscription.trialDays === 0;
                     
+                    // Track if we just ended the trial period to prevent double initialization
+                    let trialJustEnded = false;
+                    
                     if (wasInTrial && isNowActive && hasNoTrialDays) {
-                      // This is a transition from trial to paid - end trial and reset to plan credits
+                      // This is a transition from trial to paid - end trial and add plan credits
                       logger.info("[WEBHOOK] Transitioning from trial to paid subscription", {
                         shop,
                         subscriptionId: app_subscription.id,
-                        note: "Ending trial period and resetting to plan credits",
+                        note: "Ending trial period and adding plan credits",
                       });
                       
                       const plan = processedData.plan;
@@ -2143,14 +2182,28 @@ app.post(
                         newBalance: trialEndResult.newBalance,
                         note: "Plan credits added to existing balance (credits never expire)",
                       });
+                      
+                      // Mark that trial just ended - credits already added by endTrialPeriod()
+                      trialJustEnded = true;
+                      
+                      // CRITICAL: Refresh metafields after endTrialPeriod() to get updated values
+                      // This ensures the initialization check below uses fresh data
+                      // According to Shopify docs, metafieldsSet is atomic, so we need to fetch fresh values
+                      const refreshedMetafields = await creditMetafield.getCreditMetafields(
+                        client,
+                        appInstallationId
+                      );
+                      // Update the metafields variable to use refreshed values for subsequent checks
+                      Object.assign(metafields, refreshedMetafields);
                     }
                     
                     // Initialize credits if this is a new subscription
                     // Check if credit_balance metafield exists (null/undefined means not initialized)
                     // Note: credit_balance can be 0 (used up), so we check for null/undefined specifically
-                    // Also check if transitioning from trial (has trial metafields but no plan credits)
+                    // CRITICAL: Skip initialization if we just ended the trial period (credits already added by endTrialPeriod)
+                    // The refreshed metafields will have the updated credit_balance, so this check will correctly evaluate
                     const hasTrialMetafields = metafields.trial_start_date != null;
-                    const needsInitialization = metafields.credit_balance == null || (hasTrialMetafields && wasInTrial && isNowActive);
+                    const needsInitialization = !trialJustEnded && (metafields.credit_balance == null || (hasTrialMetafields && wasInTrial && isNowActive));
                     
                     if (needsInitialization) {
                       // New subscription or transitioning from trial - initialize credits
