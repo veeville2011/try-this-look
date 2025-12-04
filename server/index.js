@@ -5341,10 +5341,13 @@ app.post("/api/tryon/generate", async (req, res) => {
     const { personImage, clothingImage, storeName, clothingKey, personKey } =
       req.body;
 
-    shopDomain = storeName ? normalizeShopDomain(storeName) : null;
+    // Get shop from query parameter first, then fall back to storeName in body
+    const shop = req.query.shop || storeName;
+    shopDomain = shop ? normalizeShopDomain(shop) : null;
     tryonId = `tryon-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     logger.info("[API] Try-on generation request received", {
+      shop: req.query.shop,
       storeName,
       shopDomain,
       tryonId,

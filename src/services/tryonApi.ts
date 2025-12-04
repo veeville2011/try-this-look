@@ -4,6 +4,19 @@ import { logError, logApiError } from "@/utils/errorHandler";
 const API_ENDPOINT = "https://try-on-server-v1.onrender.com/api/fashion-photo";
 const HEALTH_ENDPOINT = "https://try-on-server-v1.onrender.com/api/health";
 
+/**
+ * Normalize shop domain
+ */
+const normalizeShopDomain = (shop: string): string => {
+  if (!shop) return "";
+  let normalized = shop.trim().toLowerCase();
+  normalized = normalized.replace(/^https?:\/\//, "");
+  if (!normalized.includes(".myshopify.com")) {
+    normalized = `${normalized}.myshopify.com`;
+  }
+  return normalized;
+};
+
 export async function generateTryOn(
   personImage: File | Blob,
   clothingImage: Blob,
@@ -66,13 +79,23 @@ export async function generateTryOn(
     // Send request
     let response: Response;
     try {
+      // Build URL with shop query parameter if storeName is provided
+      let url = API_ENDPOINT;
+      if (storeName) {
+        const normalizedShop = normalizeShopDomain(storeName);
+        const urlObj = new URL(API_ENDPOINT);
+        urlObj.searchParams.set("shop", normalizedShop);
+        url = urlObj.toString();
+      }
+
       console.log("[FRONTEND] [TRYON] Sending request", {
         requestId,
-        endpoint: API_ENDPOINT,
+        endpoint: url,
         method: "POST",
+        hasShop: !!storeName,
       });
 
-      response = await fetch(API_ENDPOINT, {
+      response = await fetch(url, {
         method: "POST",
         headers: {
           "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
