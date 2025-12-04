@@ -200,7 +200,7 @@ const data = await response.json();
 
 if (data.success) {
   console.log('Store information:', data.data);
-  console.log('Shop:', data.data.shop);
+  console.log('Shop -:', data.data.shop);
   console.log('Is Active:', data.data.isActive);
   console.log('Scopes:', data.data.scope);
 } else {
