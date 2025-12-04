@@ -7,14 +7,14 @@
 
 /**
  * Get the API base URL from environment variable
- * @throws Error if VITE_API_BASE_URL is not set
+ * @throws Error if VITE_API_ENDPOINT is not set
  */
 const getApiBaseUrl = (): string => {
-  const apiUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiUrl = import.meta.env.VITE_API_ENDPOINT;
   
   if (!apiUrl) {
     throw new Error(
-      "VITE_API_BASE_URL environment variable is required. " +
+      "VITE_API_ENDPOINT environment variable is required. " +
       "Please set it in your .env file or environment configuration."
     );
   }
