@@ -8,6 +8,7 @@ import { AppBridgeProvider } from "@/providers/AppBridgeProvider";
 import Index from "./pages/Index";
 import ProductDemo from "./pages/ProductDemo";
 import Widget from "./pages/Widget";
+import CartOutfitWidget from "./pages/CartOutfitWidget";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 
@@ -36,6 +37,7 @@ const App = () => {
               />
               <Route path="/demo" element={<ProductDemo />} />
               <Route path="/widget" element={<Widget />} />
+              <Route path="/cart-outfit-widget" element={<CartOutfitWidget />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

@@ -1,0 +1,393 @@
+{% comment %}
+  NUSENSE Cart & Outfit Try-On Button Block
+  This block can be added to cart pages or product pages via the theme editor
+  It opens the CartOutfitWidget modal for batch generation
+{% endcomment %}
+
+{% comment %} Include the snippet that sets up cart/outfit integration {% endcomment %}
+{% render 'nusense-cart-outfit-script' %}
+
+{% schema %}
+{
+  "name": "NUSENSE Cart & Outfit Try-On",
+  "target": "section",
+  "available_if": "{{ app.metafields.subscription.active }}",
+  "enabled_on": {
+    "templates": ["cart", "product", "collection", "index"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "Try Multiple Items"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button Style",
+      "options": [
+        {
+          "value": "primary",
+          "label": "Primary"
+        },
+        {
+          "value": "secondary",
+          "label": "Secondary"
+        },
+        {
+          "value": "outline",
+          "label": "Outline"
+        },
+        {
+          "value": "minimal",
+          "label": "Minimal"
+        }
+      ],
+      "default": "primary"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_icon",
+      "label": "Show Icon",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_icon",
+      "label": "Button Icon (emoji)",
+      "default": "👕"
+    },
+    {
+      "type": "select",
+      "id": "default_mode",
+      "label": "Default Mode",
+      "options": [
+        {
+          "value": "cart",
+          "label": "Cart Mode (Individual Images)"
+        },
+        {
+          "value": "outfit",
+          "label": "Outfit Mode (Combined Look)"
+        }
+      ],
+      "default": "cart",
+      "info": "Cart Mode: Generates separate images for each item (1-6 items). Outfit Mode: Generates one combined outfit image (2-8 items)."
+    },
+    {
+      "type": "checkbox",
+      "id": "button_width_full",
+      "label": "Full Width Button",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_extract_cart",
+      "label": "Auto-extract Cart Items",
+      "default": true,
+      "info": "Automatically extract items from cart when on cart page"
+    }
+  ]
+}
+{% endschema %}
+
+{% comment %}
+  Read all block settings with proper defaults
+{% endcomment %}
+{% assign button_text = block.settings.button_text | default: 'Try Multiple Items' %}
+{% assign button_style = block.settings.button_style | default: 'primary' %}
+{% assign button_icon = block.settings.button_icon | default: '👕' %}
+{% assign default_mode = block.settings.default_mode | default: 'cart' %}
+
+{% comment %}
+  Handle checkbox values
+{% endcomment %}
+{% if block.settings.show_icon == true or block.settings.show_icon == 'true' %}
+  {% assign show_icon = true %}
+{% else %}
+  {% assign show_icon = false %}
+{% endif %}
+
+{% if block.settings.button_width_full == true or block.settings.button_width_full == 'true' %}
+  {% assign button_width_full = true %}
+{% else %}
+  {% assign button_width_full = false %}
+{% endif %}
+
+{% if block.settings.auto_extract_cart == true or block.settings.auto_extract_cart == 'true' %}
+  {% assign auto_extract_cart = true %}
+{% else %}
+  {% assign auto_extract_cart = false %}
+{% endif %}
+
+{% comment %}
+  Build button classes based on style variant
+{% endcomment %}
+{% assign button_classes = 'button' %}
+{% case button_style %}
+  {% when 'secondary' %}
+    {% assign button_classes = button_classes | append: ' button--secondary' %}
+  {% when 'outline' %}
+    {% assign button_classes = button_classes | append: ' button--outline' %}
+  {% when 'minimal' %}
+    {% assign button_classes = button_classes | append: ' button--tertiary' %}
+  {% else %}
+    {% comment %} Primary - no additional class needed {% endcomment %}
+{% endcase %}
+{% if button_width_full %}
+  {% assign button_classes = button_classes | append: ' button--full-width' %}
+{% endif %}
+
+<button 
+  id="nusense-cart-outfit-btn-{{ block.id }}" 
+  class="{{ button_classes }}"
+  {{ block.shopify_attributes }}
+  aria-label="{{ button_text }}"
+  data-shop-domain="{{ shop.permanent_domain }}"
+  data-button-style="{{ button_style }}"
+  data-show-icon="{{ show_icon }}"
+  data-button-width-full="{{ button_width_full }}"
+  data-default-mode="{{ default_mode }}"
+  data-auto-extract-cart="{{ auto_extract_cart }}"
+  type="button"
+  style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
+>
+  <span class="button__icon" data-icon="{{ button_icon }}" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon }}</span>
+  <span class="button__text">{{ button_text }}</span>
+</button>
+
+<script>
+  (function() {
+    const button = document.getElementById('nusense-cart-outfit-btn-{{ block.id }}');
+    if (!button) return;
+    
+    // Function to apply all button configurations
+    const applyButtonConfig = function() {
+      const buttonStyle = button.dataset.buttonStyle || '{{ button_style }}' || 'primary';
+      const showIcon = button.dataset.showIcon === 'true' || button.dataset.showIcon === true;
+      const buttonWidthFull = button.dataset.buttonWidthFull === 'true' || button.dataset.buttonWidthFull === true;
+      
+      // Apply button style classes
+      let classes = button.className
+        .replace(/\s*button--secondary\s*/g, ' ')
+        .replace(/\s*button--outline\s*/g, ' ')
+        .replace(/\s*button--tertiary\s*/g, ' ')
+        .replace(/\s*button--full-width\s*/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (!classes.includes('button')) {
+        classes = 'button ' + classes;
+      }
+      
+      if (buttonStyle === 'secondary') {
+        classes += ' button--secondary';
+      } else if (buttonStyle === 'outline') {
+        classes += ' button--outline';
+      } else if (buttonStyle === 'minimal') {
+        classes += ' button--tertiary';
+      }
+      
+      if (buttonWidthFull) {
+        classes += ' button--full-width';
+      }
+      
+      button.className = classes.trim();
+      
+      if (buttonWidthFull) {
+        button.style.width = '100%';
+      } else {
+        button.style.width = '';
+      }
+      
+      const iconSpan = button.querySelector('.button__icon');
+      if (iconSpan) {
+        iconSpan.style.display = showIcon ? 'inline' : 'none';
+        const iconText = iconSpan.dataset.icon || '{{ button_icon }}';
+        if (iconText && iconSpan.textContent !== iconText) {
+          iconSpan.textContent = iconText;
+        }
+      }
+    };
+    
+    applyButtonConfig();
+    
+    // Watch for changes in the theme editor
+    const observer = new MutationObserver(function(mutations) {
+      let shouldUpdate = false;
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'attributes') {
+          const attrName = mutation.attributeName;
+          if (attrName === 'data-button-style' || 
+              attrName === 'data-show-icon' || 
+              attrName === 'data-button-width-full' ||
+              attrName === 'class') {
+            shouldUpdate = true;
+          }
+        }
+      });
+      if (shouldUpdate) {
+        applyButtonConfig();
+      }
+    });
+    
+    observer.observe(button, {
+      attributes: true,
+      attributeFilter: ['data-button-style', 'data-show-icon', 'data-button-width-full', 'class'],
+      subtree: true
+    });
+    
+    const shopDomain = button.dataset.shopDomain || '{{ shop.permanent_domain }}';
+    const defaultMode = button.dataset.defaultMode || '{{ default_mode }}' || 'cart';
+    const autoExtractCart = button.dataset.autoExtractCart === 'true' || button.dataset.autoExtractCart === true;
+    
+    button.addEventListener('click', function() {
+      // Widget URL - points to CartOutfitWidget
+      const widgetUrl = '{{ shop.metafields.nusense.widget_url | default: "https://try-this-look.vercel.app" }}/cart-outfit-widget?shop_domain=' + encodeURIComponent(shopDomain) + '&mode=' + encodeURIComponent(defaultMode);
+      
+      // Create modal overlay
+      const overlay = document.createElement('div');
+      overlay.id = 'nusense-cart-outfit-widget-overlay';
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      
+      // Create container for iframe
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: relative;
+        width: 95vw;
+        max-width: 1400px;
+        height: 95vh;
+        max-height: 900px;
+      `;
+      
+      // Close function
+      const closeWidget = function() {
+        if (overlay && overlay.parentNode) {
+          document.body.removeChild(overlay);
+          document.body.style.overflow = '';
+        }
+      };
+      
+      // Create iframe
+      const iframe = document.createElement('iframe');
+      iframe.src = widgetUrl;
+      iframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 0.5rem;
+        background: white;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      `;
+      iframe.allow = 'camera; microphone';
+      iframe.setAttribute('allowfullscreen', 'true');
+      
+      // Assemble modal
+      container.appendChild(iframe);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+      
+      // Prevent body scroll
+      document.body.style.overflow = 'hidden';
+      
+      // Close on escape key
+      const closeHandler = function(e) {
+        if (e.key === 'Escape') {
+          closeWidget();
+          document.removeEventListener('keydown', closeHandler);
+        }
+      };
+      document.addEventListener('keydown', closeHandler);
+      
+      // Close on overlay click (outside iframe)
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+          closeWidget();
+        }
+      });
+      
+      // Listen for messages from iframe
+      window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {
+          closeWidget();
+        }
+        
+        // Handle store info request from iframe
+        if (e.data && e.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
+          const storeInfo = {
+            type: 'NUSENSE_STORE_INFO',
+            domain: window.location.hostname,
+            shopDomain: shopDomain || '{{ shop.permanent_domain }}',
+            origin: window.location.origin,
+            fullUrl: window.location.href
+          };
+          iframe.contentWindow.postMessage(storeInfo, '*');
+        }
+        
+        // Handle cart items request
+        if (e.data && e.data.type === 'NUSENSE_REQUEST_CART_ITEMS' && autoExtractCart) {
+          // Extract cart items from page
+          extractCartItems(function(cartItems) {
+            iframe.contentWindow.postMessage({
+              type: 'NUSENSE_CART_ITEMS',
+              items: cartItems
+            }, '*');
+          });
+        }
+      });
+      
+      // Extract cart items function
+      function extractCartItems(callback) {
+        const cartItems = [];
+        
+        // Method 1: Use Cart Ajax API
+        fetch('/cart.js')
+          .then(function(response) {
+            return response.json();
+          })
+          .then(function(cart) {
+            if (cart && cart.items && Array.isArray(cart.items)) {
+              cart.items.forEach(function(item) {
+                if (item.image) {
+                  cartItems.push({
+                    id: item.product_id || item.variant_id,
+                    url: item.image,
+                    title: item.product_title || item.title,
+                    variantId: item.variant_id
+                  });
+                }
+              });
+            }
+            callback(cartItems);
+          })
+          .catch(function(error) {
+            // Fallback: Extract from DOM
+            const cartItemElements = document.querySelectorAll('[data-cart-item], .cart-item, .cart__item');
+            cartItemElements.forEach(function(element) {
+              const img = element.querySelector('img');
+              if (img && img.src) {
+                cartItems.push({
+                  url: img.src,
+                  title: element.querySelector('.cart-item__title, .cart__item-title')?.textContent || ''
+                });
+              }
+            });
+            callback(cartItems);
+          });
+      }
+    });
+  })();
+</script>
+
