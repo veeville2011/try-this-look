@@ -9,12 +9,9 @@
 
 {% schema %}
 {
-  "name": "NUSENSE Cart & Outfit Try-On",
+  "name": "Cart & Outfit Try-On",
   "target": "section",
   "available_if": "{{ app.metafields.subscription.active }}",
-  "enabled_on": {
-    "templates": ["cart", "product", "collection", "index"]
-  },
   "settings": [
     {
       "type": "text",

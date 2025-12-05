@@ -66,7 +66,7 @@ Before you begin, ensure you have:
 
 4. **Add the App Block**:
    - In the left sidebar, scroll to **"Apps"** section
-   - Find **"NUSENSE Cart & Outfit Try-On"**
+   - Find **"Cart & Outfit Try-On"** (under NUSENSE app)
    - Click **"Add block"** or drag it to your desired location
    - Recommended: Place it above or below the cart items list
 

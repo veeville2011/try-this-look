@@ -70,9 +70,10 @@
                 imageUrl = 'https:' + imageUrl;
               }
               
+              var titleElement = element.querySelector('.cart-item__title, .cart__item-title');
               cartItems.push({
                 url: imageUrl,
-                title: element.querySelector('.cart-item__title, .cart__item-title')?.textContent || ''
+                title: titleElement ? titleElement.textContent : ''
               });
             }
           });
