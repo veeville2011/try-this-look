@@ -137,22 +137,19 @@ export const getSubscriptionStatus = async (shop: string): Promise<any> => {
 
 /**
  * Get Credits Balance
- * GET /api/credits/balance?shop={shop}
+ * GET https://try-on-server-v1.onrender.com/api/credits/balance?shop={shop}
  */
 export const getCreditsBalance = async (shop: string): Promise<any> => {
-  const baseUrl = getApiBaseUrl();
   const normalizedShop = normalizeShopDomain(shop);
-  const url = `${baseUrl}/api/credits/balance?shop=${encodeURIComponent(normalizedShop)}`;
+  const url = `https://try-on-server-v1.onrender.com/api/credits/balance?shop=${encodeURIComponent(normalizedShop)}`;
   
-  const fetchFn = await getAuthenticatedFetch();
-  
-  const response = await fetchFn(url, {
+  // Use regular fetch for external API (not authenticated)
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    credentials: "same-origin",
   });
   
   if (!response.ok) {

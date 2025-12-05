@@ -964,7 +964,7 @@ const Index = () => {
                                 {t("index.planCard.available")}
                               </span>
                               <span className="font-bold text-foreground">
-                                {credits.balance || 0}
+                                {credits.total_balance ?? credits.balance ?? 0}
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
@@ -972,16 +972,16 @@ const Index = () => {
                                 {t("index.planCard.totalIncluded")}
                               </span>
                               <span className="font-medium text-foreground">
-                                {credits.included || 100}
+                                {credits.total_credited ?? credits.included ?? 100}
                               </span>
                             </div>
-                            {credits.used !== undefined && (
+                            {(credits.total_used !== undefined || credits.used !== undefined) && (
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">
                                   {t("index.planCard.used")}
                                 </span>
                                 <span className="font-medium text-foreground">
-                                  {credits.used || 0}
+                                  {credits.total_used ?? credits.used ?? 0}
                                 </span>
                               </div>
                             )}

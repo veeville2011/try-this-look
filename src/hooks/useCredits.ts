@@ -2,14 +2,43 @@ import { useState, useEffect, useCallback } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { getCreditsBalance } from "@/services/billingApi";
 
-interface CreditBalance {
+export interface CreditType {
+  credited: number;
   balance: number;
-  included: number;
   used: number;
+}
+
+export interface CreditBalance {
+  total_credited: number;
+  total_used: number;
+  total_balance: number;
   isOverage: boolean;
-  periodEnd: string | null;
-  subscriptionLineItemId: string | null;
+  periodEnd: string;
+  subscriptionLineItemId: string;
   canPurchase: boolean;
+  creditTypes: {
+    trial: CreditType;
+    coupon: CreditType;
+    plan: CreditType;
+    purchased: CreditType;
+  };
+  overage?: {
+    type: string;
+    balanceUsed: number;
+    cappedAmount: number;
+    remaining: number;
+    currencyCode: string;
+  };
+  subscription: {
+    interval: string;
+    isMonthly: boolean;
+    isAnnual: boolean;
+    status: string;
+  };
+  // Legacy fields for backward compatibility
+  balance?: number;
+  included?: number;
+  used?: number;
 }
 
 interface UseCreditsReturn {
