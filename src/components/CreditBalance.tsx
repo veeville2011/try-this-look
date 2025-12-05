@@ -1,4 +1,5 @@
 import { useCredits, CreditBalance as CreditBalanceType } from "@/hooks/useCredits";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const CreditBalance = () => {
+  const { t, i18n } = useTranslation();
   const { credits, loading, error, refresh } = useCredits();
 
   if (loading) {
@@ -27,11 +29,11 @@ const CreditBalance = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-            <span>Loading Credit Balance...</span>
+            <span>{t("credits.balanceCard.loading")}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-muted-foreground">Fetching your credit information...</div>
+          <div className="text-sm text-muted-foreground">{t("credits.balanceCard.fetching")}</div>
         </CardContent>
       </Card>
     );
@@ -43,14 +45,14 @@ const CreditBalance = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertCircle className="h-5 w-5" />
-            Credit Balance Error
+            {t("credits.balanceCard.error")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error || "Failed to load credit balance. Please try again."}
+              {error || t("credits.balanceCard.errorMessage")}
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -70,14 +72,22 @@ const CreditBalance = () => {
   const isLow = totalBalance <= 20 && totalBalance > 0;
   const isExhausted = totalBalance === 0;
   const isOverage = credits.isOverage;
+  
+  // Check if in trial period - don't show Active badge during trial
+  const subscriptionStatus = credits.subscription?.status?.toUpperCase();
+  const isInTrial = subscriptionStatus === "TRIAL" || 
+                    (subscriptionStatus === "ACTIVE" && credits.creditTypes?.trial?.balance > 0);
 
-  // Format period end date
+  // Format period end date using current language
   const periodEndDate = credits.periodEnd 
-    ? new Date(credits.periodEnd).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      })
+    ? new Date(credits.periodEnd).toLocaleDateString(
+        i18n.language === "fr" ? "fr-FR" : "en-US", 
+        { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }
+      )
     : null;
 
   return (
@@ -90,16 +100,16 @@ const CreditBalance = () => {
             </div>
             <div>
               <CardTitle className="text-xl font-bold text-foreground">
-                Credit Balance
+                {t("credits.balanceCard.title")}
               </CardTitle>
               <CardDescription className="mt-1">
                 {periodEndDate ? (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
-                    Period ends: {periodEndDate}
+                    {t("credits.balanceCard.periodEnds")} {periodEndDate}
                   </span>
                 ) : (
-                  "Current billing period"
+                  t("credits.balanceCard.currentPeriod")
                 )}
               </CardDescription>
             </div>
@@ -111,10 +121,11 @@ const CreditBalance = () => {
                 Overage
               </Badge>
             )}
-            {credits.subscription?.status === "ACTIVE" && (
+            {/* Only show Active badge if subscription is ACTIVE and NOT in trial */}
+            {credits.subscription?.status === "ACTIVE" && !isInTrial && (
               <Badge variant="default" className="bg-success/20 text-success border-success/30">
                 <Sparkles className="h-3 w-3 mr-1" />
-                Active
+                {t("subscription.active")}
               </Badge>
             )}
           </div>
@@ -127,7 +138,7 @@ const CreditBalance = () => {
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-1">
-                Available Credits
+                {t("credits.balanceCard.availableCredits")}
               </p>
               <p className={cn(
                 "text-4xl font-bold transition-colors",
@@ -138,13 +149,13 @@ const CreditBalance = () => {
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-muted-foreground mb-1">
-                Total Used
+                {t("credits.balanceCard.totalUsed")}
               </p>
               <p className="text-2xl font-semibold text-foreground">
                 {totalUsed.toLocaleString()}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                of {totalCredited.toLocaleString()}
+                {t("credits.balanceCard.of")} {totalCredited.toLocaleString()}
               </p>
             </div>
           </div>
@@ -153,7 +164,7 @@ const CreditBalance = () => {
           {totalCredited > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground font-medium">Usage</span>
+                <span className="text-muted-foreground font-medium">{t("credits.balanceCard.usage")}</span>
                 <span className="font-semibold text-foreground">
                   {Math.round(usagePercentage)}%
                 </span>
@@ -166,8 +177,8 @@ const CreditBalance = () => {
                 )}
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{totalUsed.toLocaleString()} credits used</span>
-                <span>{totalCredited.toLocaleString()} total credited</span>
+                <span>{totalUsed.toLocaleString()} {t("credits.balanceCard.creditsUsed")}</span>
+                <span>{totalCredited.toLocaleString()} {t("credits.balanceCard.totalCredited")}</span>
               </div>
             </div>
           )}
@@ -180,15 +191,15 @@ const CreditBalance = () => {
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
-                Credit Breakdown by Type
+                {t("credits.balanceCard.breakdown")}
               </h4>
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(credits.creditTypes).map(([type, data]) => {
                   const typeConfig = {
-                    trial: { icon: Gift, label: "Trial", color: "text-blue-600", bg: "bg-blue-50", borderColor: "border-blue-200" },
-                    coupon: { icon: Sparkles, label: "Coupon", color: "text-purple-600", bg: "bg-purple-50", borderColor: "border-purple-200" },
-                    plan: { icon: Coins, label: "Plan", color: "text-primary", bg: "bg-primary/10", borderColor: "border-primary/30" },
-                    purchased: { icon: ShoppingBag, label: "Purchased", color: "text-green-600", bg: "bg-green-50", borderColor: "border-green-200" },
+                    trial: { icon: Gift, label: t("credits.balanceCard.trial"), color: "text-blue-600", bg: "bg-blue-50", borderColor: "border-blue-200" },
+                    coupon: { icon: Sparkles, label: t("credits.balanceCard.coupon"), color: "text-purple-600", bg: "bg-purple-50", borderColor: "border-purple-200" },
+                    plan: { icon: Coins, label: t("credits.balanceCard.plan"), color: "text-primary", bg: "bg-primary/10", borderColor: "border-primary/30" },
+                    purchased: { icon: ShoppingBag, label: t("credits.balanceCard.purchased"), color: "text-green-600", bg: "bg-green-50", borderColor: "border-green-200" },
                   }[type] || { icon: Coins, label: type, color: "text-muted-foreground", bg: "bg-muted", borderColor: "border-border" };
 
                   const Icon = typeConfig.icon;
@@ -211,19 +222,19 @@ const CreditBalance = () => {
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Credited</span>
+                          <span className="text-muted-foreground">{t("credits.balanceCard.credited")}</span>
                           <span className={cn("font-bold", isEmpty ? "text-muted-foreground" : typeConfig.color)}>
                             {data.credited.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Balance</span>
+                          <span className="text-muted-foreground">{t("credits.balanceCard.balance")}</span>
                           <span className={cn("font-semibold", isEmpty ? "text-muted-foreground" : typeConfig.color)}>
                             {data.balance.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Used</span>
+                          <span className="text-muted-foreground">{t("credits.balanceCard.used")}</span>
                           <span className={cn("font-medium", isEmpty ? "text-muted-foreground" : "text-foreground")}>
                             {data.used.toLocaleString()}
                           </span>
@@ -231,7 +242,7 @@ const CreditBalance = () => {
                         {data.credited > 0 && (
                           <div className="pt-1 border-t border-border/50">
                             <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Usage</span>
+                              <span className="text-muted-foreground">{t("credits.balanceCard.usagePercent")}</span>
                               <span className="font-semibold text-foreground">
                                 {Math.round((data.used / data.credited) * 100)}%
                               </span>
@@ -254,7 +265,7 @@ const CreditBalance = () => {
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Zap className="h-4 w-4 text-warning" />
-                Overage Billing Details
+                {t("credits.balanceCard.overageDetails")}
               </h4>
               <div className={cn(
                 "p-4 rounded-lg border",
@@ -265,28 +276,28 @@ const CreditBalance = () => {
                     <div className="flex items-center gap-2 mb-3">
                       <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
                         <Zap className="h-3 w-3 mr-1" />
-                        Active
+                        {t("subscription.active")}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Overage billing is currently active
+                        {t("credits.balanceCard.overageActive")}
                       </span>
                     </div>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="p-3 rounded bg-background/50 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Type</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.overageType")}</p>
                       <p className="text-sm font-semibold text-foreground capitalize">
                         {credits.overage.type.replace('_', ' ')}
                       </p>
                     </div>
                     <div className="p-3 rounded bg-background/50 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Currency</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.currency")}</p>
                       <p className="text-sm font-semibold text-foreground">
                         {credits.overage.currencyCode}
                       </p>
                     </div>
                     <div className="p-3 rounded bg-background/50 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Overage Used</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.overageUsed")}</p>
                       <p className={cn(
                         "text-sm font-bold",
                         isOverage ? "text-warning" : "text-foreground"
@@ -295,13 +306,13 @@ const CreditBalance = () => {
                       </p>
                     </div>
                     <div className="p-3 rounded bg-background/50 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Capped Amount</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.cappedAmount")}</p>
                       <p className="text-sm font-semibold text-foreground">
                         {credits.overage.cappedAmount.toFixed(2)} {credits.overage.currencyCode}
                       </p>
                     </div>
                     <div className="p-3 rounded bg-background/50 border border-border sm:col-span-2">
-                      <p className="text-xs text-muted-foreground mb-1">Remaining Overage Budget</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.remainingBudget")}</p>
                       <p className={cn(
                         "text-lg font-bold",
                         credits.overage.remaining > 0 ? "text-success" : "text-destructive"
@@ -310,7 +321,7 @@ const CreditBalance = () => {
                       </p>
                       {credits.overage.remaining > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          {((credits.overage.remaining / credits.overage.cappedAmount) * 100).toFixed(1)}% of capped amount remaining
+                          {((credits.overage.remaining / credits.overage.cappedAmount) * 100).toFixed(1)}% {t("credits.balanceCard.ofCappedRemaining")}
                         </p>
                       )}
                     </div>
@@ -328,19 +339,21 @@ const CreditBalance = () => {
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                Subscription Details
+                {t("credits.balanceCard.subscriptionDetails")}
               </h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">Interval</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.interval")}</p>
                   <p className="font-medium text-foreground">
-                    {credits.subscription.isMonthly ? "Monthly" : credits.subscription.isAnnual ? "Annual" : credits.subscription.interval}
+                    {credits.subscription.isMonthly ? t("planSelection.monthly") : credits.subscription.isAnnual ? t("planSelection.annual") : credits.subscription.interval}
                   </p>
                 </div>
                 <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.status")}</p>
                   <p className="font-medium text-foreground capitalize">
-                    {credits.subscription.status.toLowerCase()}
+                    {credits.subscription.status.toLowerCase() === "active" ? t("subscription.active") : 
+                     credits.subscription.status.toLowerCase() === "trial" ? t("subscription.trial") :
+                     credits.subscription.status.toLowerCase()}
                   </p>
                 </div>
               </div>
@@ -353,13 +366,13 @@ const CreditBalance = () => {
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <p className="font-semibold mb-1">No credits remaining</p>
+              <p className="font-semibold mb-1">{t("credits.balanceCard.noCreditsRemaining")}</p>
               <p className="text-sm">
                 {isOverage 
-                  ? "Overage billing is active. Additional usage will be charged." 
+                  ? t("credits.balanceCard.overageActiveMessage")
                   : credits.canPurchase
-                  ? "Please purchase more credits to continue using the service."
-                  : "Please contact support to add credits."}
+                  ? t("credits.balanceCard.purchaseCreditsMessage")
+                  : t("credits.balanceCard.contactSupportMessage")}
               </p>
             </AlertDescription>
           </Alert>
@@ -369,9 +382,9 @@ const CreditBalance = () => {
           <Alert className="bg-warning/10 border-warning/30">
             <AlertCircle className="h-4 w-4 text-warning" />
             <AlertDescription>
-              <p className="font-semibold text-foreground mb-1">Low credits remaining</p>
+              <p className="font-semibold text-foreground mb-1">{t("credits.balanceCard.lowCreditsRemaining")}</p>
               <p className="text-sm text-muted-foreground">
-                You have {totalBalance} credits left. Consider purchasing more credits to avoid interruption.
+                {t("credits.balanceCard.lowCreditsMessage", { count: totalBalance })}
               </p>
             </AlertDescription>
           </Alert>
