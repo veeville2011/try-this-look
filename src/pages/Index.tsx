@@ -346,8 +346,8 @@ const Index = () => {
   const billingTriggeredRef = useRef(false);
   const lastSubscriptionRef = useRef<typeof subscription>(null);
   const paymentSuccessTimeRef = useRef<number | null>(null);
-  const paymentSuccessRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const paymentSuccessRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // State to track payment success for reactive UI updates
   const [isWaitingForPaymentSuccess, setIsWaitingForPaymentSuccess] =
@@ -838,67 +838,78 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Main Content */}
-      {/* Enhanced Hero Section */}
-      <header className="relative overflow-hidden bg-card border-b border-border">
-        {/* Language Switcher - Fixed top right */}
-        <div className="absolute top-4 right-4 z-50">
-          <LanguageSwitcher />
-        </div>
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20 relative">
-          <div className="max-w-6xl mx-auto">
+      {/* Skip Link for Accessibility - Shopify Best Practice */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        tabIndex={0}
+      >
+        {t("common.skipToContent") || "Skip to main content"}
+      </a>
+
+      {/* Language Switcher - Fixed top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
+
+      {/* Hero Section - Shopify Style */}
+      <header className="relative bg-card border-b border-border" role="banner">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+          <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
             {/* Trial Notification Banner */}
-            <TrialNotificationBanner
-              onApprovalInitiated={() => {
-                // Refresh subscription status when approval is initiated
-                refreshSubscription();
-              }}
-            />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
-              {/* Hero Content - Left Side */}
-              <div className="lg:col-span-2">
-                <div className="flex flex-col items-start gap-4">
-                  <div className="inline-flex flex-col items-start">
+            <div className="mb-6">
+              <TrialNotificationBanner
+                onApprovalInitiated={() => {
+                  refreshSubscription();
+                }}
+              />
+            </div>
+
+            {/* Main Hero Grid - Shopify 3-column layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+              {/* Hero Content - Takes 8 columns */}
+              <div className="lg:col-span-8">
+                <div className="space-y-6">
+                  {/* Brand & Title */}
+                  <div className="space-y-4">
                     <h1
-                      className="inline-flex items-center font-extrabold tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight"
+                      className="inline-flex items-center font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight"
                       aria-label="NusenseTryOn"
                     >
-                      <span
-                        className="text-primary"
-                        style={{ color: "#ce0003" }}
-                      >
+                      <span className="text-primary" style={{ color: "#ce0003" }}>
                         Nusense
                       </span>
-                      <span
-                        className="text-foreground"
-                        style={{ color: "#564646" }}
-                      >
+                      <span className="text-foreground" style={{ color: "#564646" }}>
                         TryOn
                       </span>
                     </h1>
-                    <p className="text-lg sm:text-xl md:text-2xl text-foreground font-medium no-orphans mt-2">
+                    <p className="text-xl sm:text-2xl text-foreground font-semibold leading-relaxed">
                       {t("index.hero.title")}
                     </p>
-                    <p className="text-base sm:text-lg text-muted-foreground mt-3 max-w-2xl">
+                    <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
                       {t("index.hero.subtitle")}
                     </p>
                   </div>
-                  {/* Primary CTA */}
-                  <div className="flex flex-wrap gap-3 mt-4">
+
+                  {/* Primary CTAs - Shopify button group style */}
+                  <div className="flex flex-wrap gap-3 pt-2" role="group" aria-label={t("index.hero.primaryActions") || "Primary actions"}>
                     <Button
                       size="lg"
                       onClick={scrollToInstallationGuide}
-                      className="px-6"
+                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      aria-label={t("index.hero.startInstallation")}
                     >
-                      <Zap className="w-4 h-4 mr-2" />
+                      <Zap className="w-4 h-4 mr-2" aria-hidden="true" />
                       {t("index.hero.startInstallation")}
                     </Button>
                     <Button
                       size="lg"
+                      variant="outline"
                       onClick={() => {
                         handleRequireBilling();
                       }}
-                      className="px-6"
+                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      aria-label={t("index.hero.viewPricing")}
                     >
                       {t("index.hero.viewPricing")}
                     </Button>
@@ -906,156 +917,167 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Plan Information Card - Right Side */}
-              <div className="lg:col-span-1">
+              {/* Plan Information Card - Takes 4 columns - Shopify Sidebar Style */}
+              <div className="lg:col-span-4">
                 {subscription && subscription.subscription !== null ? (
-                  <Card className="border-2 border-border shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-card/95">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <CardTitle className="text-lg font-bold text-foreground">
-                          {t("index.planCard.title")}
-                        </CardTitle>
-                        {subscription.hasActiveSubscription && (
-                          <Badge
-                            variant="default"
-                            className="gap-1.5 bg-success/20 text-success border-success/30"
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                            {t("index.planCard.active")}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        {subscription.isFree ? (
-                          <Badge
-                            variant="outline"
-                            className="gap-1.5 text-sm px-3 py-1"
-                          >
-                            <Zap className="w-3.5 h-3.5" />
-                            {t("index.planCard.freePlan")}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="default"
-                            className="gap-1.5 bg-primary text-primary-foreground text-sm px-3 py-1"
-                          >
-                            <Crown className="w-3.5 h-3.5" />
-                            {subscription.plan?.name ||
-                              t("index.planCard.premiumPlan")}
-                          </Badge>
-                        )}
+                  <Card className="border border-border shadow-sm bg-card">
+                    {/* Card Header - Shopify Style */}
+                    <CardHeader className="pb-4 border-b border-border">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg font-semibold text-foreground mb-2">
+                            {t("index.planCard.title")}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            {subscription.isFree ? (
+                              <Badge
+                                variant="outline"
+                                className="gap-1.5 text-xs px-2.5 py-1 font-medium"
+                                aria-label={t("index.planCard.freePlan")}
+                              >
+                                <Zap className="w-3 h-3" aria-hidden="true" />
+                                <span>{t("index.planCard.freePlan")}</span>
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="default"
+                                className="gap-1.5 bg-primary text-primary-foreground text-xs px-2.5 py-1 font-medium"
+                                aria-label={subscription.plan?.name || t("index.planCard.premiumPlan")}
+                              >
+                                <Crown className="w-3 h-3" aria-hidden="true" />
+                                <span>{subscription.plan?.name ||
+                                  t("index.planCard.premiumPlan")}</span>
+                              </Badge>
+                            )}
+                            {subscription.hasActiveSubscription && !subscription.isFree && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-1.5 bg-success/10 text-success border-success/20 text-xs px-2.5 py-1 font-medium"
+                                aria-label={t("index.planCard.active")}
+                              >
+                                <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                                <span>{t("index.planCard.active")}</span>
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Credits Tracking - Full CreditBalance Component */}
+
+                    {/* Card Content - Shopify Style with proper spacing */}
+                    <CardContent className="p-6 space-y-6">
+                      {/* Credits Section - Prominent Display */}
                       {credits && !subscription.isFree && (
-                        <div className="pt-2 border-t border-border">
+                        <div className="space-y-4">
                           <CreditBalance variant="embedded" />
                         </div>
                       )}
 
-                      {/* Trial Days Remaining */}
+                      {/* Trial Days Remaining - Shopify Alert Style */}
                       {subscription.subscription?.isInTrial &&
-                        subscription.subscription?.trialDaysRemaining !==
-                          null && (
-                          <div className="pt-2 border-t border-border">
-                            <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Sparkle className="w-4 h-4 text-primary" />
-                                  <span className="text-sm font-semibold text-foreground">
-                                    {t("index.planCard.trialPeriod")}
-                                  </span>
-                                </div>
-                                <span className="text-sm font-bold text-primary">
-                                  {subscription.subscription.trialDaysRemaining}{" "}
-                                  {subscription.subscription
-                                    .trialDaysRemaining === 1
-                                    ? t("index.planCard.trialDayRemaining")
-                                    : t("index.planCard.trialDaysRemaining")}
+                        subscription.subscription?.trialDaysRemaining !== null && (
+                          <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Sparkle className="w-4 h-4 text-primary flex-shrink-0" />
+                                <span className="text-sm font-semibold text-foreground">
+                                  {t("index.planCard.trialPeriod")}
                                 </span>
                               </div>
+                              <span className="text-sm font-bold text-primary">
+                                {subscription.subscription.trialDaysRemaining}{" "}
+                                {subscription.subscription.trialDaysRemaining === 1
+                                  ? t("index.planCard.trialDayRemaining")
+                                  : t("index.planCard.trialDaysRemaining")}
+                              </span>
                             </div>
                           </div>
                         )}
 
-                      {/* Subscription Status */}
+                      {/* Subscription Details - Shopify Info List Style */}
                       {subscription.subscription && (
-                        <div className="space-y-2 pt-2 border-t border-border">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">
-                              {t("index.planCard.planStart")}
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {new Date(
-                                subscription.subscription.currentPeriodStart ||
-                                  subscription.subscription.createdAt
-                              ).toLocaleDateString(
-                                i18n.language === "fr" ? "fr-FR" : "en-US",
-                                {
-                                  day: "numeric",
-                                  month: "long",
-                                  year: "numeric",
-                                }
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">
-                              {t("index.planCard.renewal")}
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {new Date(
-                                subscription.subscription.currentPeriodEnd
-                              ).toLocaleDateString(
-                                i18n.language === "fr" ? "fr-FR" : "en-US",
-                                {
-                                  day: "numeric",
-                                  month: "long",
-                                  year: "numeric",
-                                }
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <CheckCircle2 className="w-4 h-4 text-success" />
-                            <span className="text-muted-foreground">
-                              {t("index.planCard.status")}
-                            </span>
-                            <span className="font-medium text-foreground capitalize">
-                              {subscription.subscription.status.toLowerCase()}
-                            </span>
-                          </div>
+                        <div className="space-y-3 pt-4 border-t border-border">
+                          <h3 className="text-sm font-semibold text-foreground mb-3">
+                            {t("index.planCard.subscriptionDetails") || "Subscription Details"}
+                          </h3>
+                          <dl className="space-y-2.5">
+                            <div className="flex items-start justify-between gap-4">
+                              <dt className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+                                <Calendar className="w-4 h-4 flex-shrink-0" />
+                                <span>{t("index.planCard.planStart")}</span>
+                              </dt>
+                              <dd className="text-sm font-medium text-foreground text-right">
+                                {new Date(
+                                  subscription.subscription.currentPeriodStart ||
+                                    subscription.subscription.createdAt
+                                ).toLocaleDateString(
+                                  i18n.language === "fr" ? "fr-FR" : "en-US",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </dd>
+                            </div>
+                            <div className="flex items-start justify-between gap-4">
+                              <dt className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+                                <Calendar className="w-4 h-4 flex-shrink-0" />
+                                <span>{t("index.planCard.renewal")}</span>
+                              </dt>
+                              <dd className="text-sm font-medium text-foreground text-right">
+                                {new Date(
+                                  subscription.subscription.currentPeriodEnd
+                                ).toLocaleDateString(
+                                  i18n.language === "fr" ? "fr-FR" : "en-US",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </dd>
+                            </div>
+                            <div className="flex items-start justify-between gap-4">
+                              <dt className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-success" />
+                                <span>{t("index.planCard.status")}</span>
+                              </dt>
+                              <dd className="text-sm font-medium text-foreground capitalize text-right">
+                                {subscription.subscription.status.toLowerCase() === "active"
+                                  ? t("subscription.active")
+                                  : subscription.subscription.status.toLowerCase() === "trial"
+                                  ? t("subscription.trial")
+                                  : subscription.subscription.status.toLowerCase()}
+                              </dd>
+                            </div>
+                          </dl>
                         </div>
                       )}
 
-                      {/* Plan Benefits - From Pricing Page */}
-                      <div className="pt-3 border-t border-border">
-                        <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <Sparkle className="w-4 h-4 text-primary" />
+                      {/* Plan Features - Shopify List Style */}
+                      <div className="pt-4 border-t border-border">
+                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Sparkle className="w-4 h-4 text-primary" aria-hidden="true" />
                           {t("index.planCard.featuresTitle")}
-                        </p>
-                        <ul className="space-y-2">
+                        </h3>
+                        <ul className="space-y-2.5">
                           {(() => {
-                            // Find the plan from availablePlans by name
                             const planName = subscription.plan?.name;
                             const matchedPlan = availablePlans.find(
                               (p) => p.name === planName
                             );
                             const planFeatures = matchedPlan?.features || [];
 
-                            // If we have features from the pricing page, use those
                             if (planFeatures.length > 0) {
                               return planFeatures.map(
                                 (feature: string, index: number) => (
                                   <li
                                     key={index}
-                                    className="flex items-start gap-2 text-sm"
+                                    className="flex items-start gap-2.5 text-sm"
                                   >
                                     <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                    <span className="text-muted-foreground">
+                                    <span className="text-muted-foreground leading-relaxed">
                                       {feature}
                                     </span>
                                   </li>
@@ -1063,24 +1085,23 @@ const Index = () => {
                               );
                             }
 
-                            // Fallback to default features if no plan found
                             return (
                               <>
-                                <li className="flex items-start gap-2 text-sm">
+                                <li className="flex items-start gap-2.5 text-sm">
                                   <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground">
+                                  <span className="text-muted-foreground leading-relaxed">
                                     {t("index.planCard.unlimitedTryOn")}
                                   </span>
                                 </li>
-                                <li className="flex items-start gap-2 text-sm">
+                                <li className="flex items-start gap-2.5 text-sm">
                                   <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground">
+                                  <span className="text-muted-foreground leading-relaxed">
                                     {t("index.planCard.prioritySupport")}
                                   </span>
                                 </li>
-                                <li className="flex items-start gap-2 text-sm">
+                                <li className="flex items-start gap-2.5 text-sm">
                                   <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground">
+                                  <span className="text-muted-foreground leading-relaxed">
                                     {t("index.planCard.shopifyIntegration")}
                                   </span>
                                 </li>
@@ -1090,16 +1111,19 @@ const Index = () => {
                         </ul>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="pt-3 space-y-2">
+                      {/* Action Buttons - Shopify Button Group Style */}
+                      <div className="pt-4 border-t border-border space-y-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                         <Button
-                          size="sm"
-                          className="w-full"
+                          size="default"
+                          className="w-full h-11 min-h-[44px] font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                           onClick={() => {
                             handleRequireBilling();
                           }}
+                          aria-label={subscription.isFree
+                            ? t("index.planCard.upgradeToPremium")
+                            : t("index.planCard.manageSubscription")}
                         >
-                          <CreditCard className="w-4 h-4 mr-2" />
+                          <CreditCard className="w-4 h-4 mr-2" aria-hidden="true" />
                           {subscription.isFree
                             ? t("index.planCard.upgradeToPremium")
                             : t("index.planCard.manageSubscription")}
@@ -1107,10 +1131,14 @@ const Index = () => {
                         {subscription.hasActiveSubscription &&
                           subscription.subscription?.status === "ACTIVE" && (
                             <Button
-                              size="sm"
-                              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              size="default"
+                              variant="outline"
+                              className="w-full h-11 min-h-[44px] font-medium text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
                               onClick={handleCancelSubscription}
                               disabled={cancelling}
+                              aria-label={cancelling
+                                ? t("index.planCard.cancelling")
+                                : t("index.planCard.cancelSubscription")}
                             >
                               {cancelling
                                 ? t("index.planCard.cancelling")
@@ -1121,28 +1149,34 @@ const Index = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border-2 border-dashed border-border bg-muted/30">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg font-bold text-foreground">
+                  <Card className="border border-border shadow-sm bg-card">
+                    <CardHeader className="pb-4 border-b border-border">
+                      <CardTitle className="text-lg font-semibold text-foreground">
                         {t("index.planCard.title")}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="text-center py-6">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+                    <CardContent className="p-6">
+                      <div className="text-center py-8 space-y-4">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-2">
                           <CreditCard className="w-8 h-8 text-muted-foreground" />
                         </div>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {t("index.planCard.noPlanSelected")}
-                        </p>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-foreground">
+                            {t("index.planCard.noPlanSelected")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {t("index.planCard.selectPlanToContinue") || "Select a plan to get started"}
+                          </p>
+                        </div>
                         <Button
-                          size="sm"
-                          className="w-full"
+                          size="default"
+                          className="w-full h-11 min-h-[44px] font-medium mt-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                           onClick={() => {
                             handleRequireBilling();
                           }}
+                          aria-label={t("index.planCard.choosePlan")}
                         >
-                          <Sparkle className="w-4 h-4 mr-2" />
+                          <Sparkle className="w-4 h-4 mr-2" aria-hidden="true" />
                           {t("index.planCard.choosePlan")}
                         </Button>
                       </div>
@@ -1155,11 +1189,14 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Quick Actions Section */}
+      {/* Quick Actions Section - Shopify Section Style */}
       {subscription && subscription.subscription !== null && (
-        <section className="py-8 sm:py-12 bg-background border-b border-border">
-          <div className="container mx-auto px-4 sm:px-6 md:px-8">
-            <div className="max-w-6xl mx-auto">
+        <section className="py-6 sm:py-8 bg-background border-b border-border" aria-labelledby="quick-actions-heading">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+              <h2 id="quick-actions-heading" className="sr-only">
+                {t("index.quickActions.title") || "Quick Actions"}
+              </h2>
               <QuickActions
                 showInstall={!currentPlan || currentPlan === "free"}
                 showConfigure={currentPlan && currentPlan !== "free"}
@@ -1172,403 +1209,333 @@ const Index = () => {
         </section>
       )}
 
-      {/* Installation Instructions - Always visible */}
+      {/* Installation Instructions - Shopify Section Style */}
       <section
         id="installation-guide"
-        className="py-12 sm:py-16 md:py-20 lg:py-24 bg-background"
+        className="py-8 sm:py-12 lg:py-16 bg-background"
+        aria-labelledby="installation-guide-heading"
       >
-        <div className="container mx-auto px-4 sm:px-6 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="space-y-8 sm:space-y-10 md:space-y-12">
-              {/* Installation Steps */}
-              <Card className="p-6 sm:p-8 md:p-10 lg:p-12 border-2 border-border bg-card shadow-lg">
-                <CardHeader className="p-0 mb-8 sm:mb-10">
-                  <CardTitle className="text-2xl sm:text-3xl md:text-4xl flex items-center gap-3 sm:gap-4 text-foreground no-orphans">
-                    <Zap
-                      className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 text-primary flex-shrink-0"
-                      aria-hidden="true"
-                    />
-                    {t("index.installationGuide.title")}
-                  </CardTitle>
-                  <CardDescription className="text-base sm:text-lg md:text-xl mt-4 sm:mt-5 text-foreground/80 no-orphans">
-                    {t("index.installationGuide.subtitle")}
-                  </CardDescription>
-                  <div className="mt-6 sm:mt-8 bg-info/15 border-2 border-info/30 rounded-lg p-4 sm:p-5">
-                    <p className="text-sm sm:text-base text-foreground leading-relaxed no-orphans">
-                      <strong className="font-bold text-foreground">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="space-y-6">
+              {/* Section Header */}
+              <header className="mb-8">
+                <h2 id="installation-guide-heading" className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+                  {t("index.installationGuide.title")}
+                </h2>
+                <p className="text-base text-muted-foreground">
+                  {t("index.installationGuide.subtitle")}
+                </p>
+              </header>
+
+              {/* Installation Steps Card - Shopify Card Style */}
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-6 sm:p-8 lg:p-10">
+                  {/* Info Banner - Shopify Alert Style */}
+                  <div className="mb-8 p-4 bg-info/10 border border-info/20 rounded-lg">
+                    <p className="text-sm text-foreground leading-relaxed">
+                      <strong className="font-semibold text-foreground">
                         {t("index.installationGuide.appBlockNote")}{" "}
                       </strong>
                       {t("index.installationGuide.appBlockDescription")}
                     </p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0 space-y-8 sm:space-y-10 md:space-y-12">
-                  {/* Step 1 */}
-                  <div className="relative">
-                    <div className="flex gap-5 sm:gap-6 md:gap-8">
-                      <div className="flex-shrink-0">
-                        <div
-                          className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                          aria-label="Étape 1"
-                        >
-                          1
+
+                  {/* Steps Container */}
+                  <div className="space-y-8 sm:space-y-10">
+                    {/* Step 1 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 1"
+                          >
+                            1
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0 pt-1">
-                        <div className="flex items-start gap-4 mb-3">
-                          <Store
-                            className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-primary flex-shrink-0 mt-1"
-                            aria-hidden="true"
-                          />
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              {t("index.installationGuide.step1Title")}
-                            </h3>
-                            <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              {t("index.installationGuide.step1Description")}
-                            </p>
-                            <div className="bg-info/20 border-2 border-info/40 rounded-lg p-4 sm:p-5">
-                              <p className="text-sm sm:text-base text-foreground leading-relaxed no-orphans">
-                                <strong className="font-bold text-foreground">
-                                  {t("index.installationGuide.step1Note")}{" "}
-                                </strong>
-                                {t("index.installationGuide.step1NoteText")}
-                              </p>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Store
+                                className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step1Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step1Description")}
+                                </p>
+                                <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
+                                  <p className="text-xs sm:text-sm text-foreground leading-relaxed">
+                                    <strong className="font-semibold text-foreground">
+                                      {t("index.installationGuide.step1Note")}{" "}
+                                    </strong>
+                                    {t("index.installationGuide.step1NoteText")}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
+                      <div className="absolute left-5 sm:left-6 top-12 bottom-0 w-0.5 bg-border/40 -z-10" />
                     </div>
-                    <div className="absolute left-7 sm:left-8 md:left-9 top-16 sm:top-20 md:top-24 bottom-0 w-1 bg-border/60 -z-10" />
-                  </div>
 
-                  {/* Step 2 - App Block (Online Store 2.0) */}
-                  <div className="relative">
-                    <div className="flex gap-5 sm:gap-6 md:gap-8">
-                      <div className="flex-shrink-0">
-                        <div
-                          className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                          aria-label="Étape 2"
-                        >
-                          2
+                    {/* Step 2 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 2"
+                          >
+                            2
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0 pt-1">
-                        <div className="flex items-start gap-4 mb-3">
-                          <Zap
-                            className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-primary flex-shrink-0 mt-1"
-                            aria-hidden="true"
-                          />
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              {t("index.installationGuide.step2Title")}
-                            </h3>
-                            <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              {t("index.installationGuide.step2Description")}
-                            </p>
-                            <div className="space-y-4 mb-4 sm:mb-5">
-                              <div className="bg-muted rounded-lg p-4 sm:p-5 border-2 border-border">
-                                <p className="text-sm sm:text-base font-semibold text-foreground mb-3 no-orphans">
-                                  {t(
-                                    "index.installationGuide.step2Instructions"
-                                  )}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Zap
+                                className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step2Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step2Description")}
                                 </p>
-                                <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-foreground/90">
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step2Instruction1"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step2Instruction2"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step2Instruction3"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step2Instruction4"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step2Instruction5"
-                                    )}
-                                  </li>
-                                </ol>
-                              </div>
-                              <div className="bg-warning/20 border-2 border-warning/40 rounded-lg p-4 sm:p-5">
-                                <p className="text-sm sm:text-base text-foreground flex items-start gap-3 leading-relaxed">
-                                  <Shield
-                                    className="w-5 h-5 sm:w-6 sm:h-6 text-warning flex-shrink-0 mt-0.5"
-                                    aria-hidden="true"
-                                  />
-                                  <span className="no-orphans">
-                                    <strong className="font-bold text-foreground">
-                                      {t(
-                                        "index.installationGuide.step2Important"
-                                      )}{" "}
-                                    </strong>
-                                    {t(
-                                      "index.installationGuide.step2ImportantText"
-                                    )}
-                                  </span>
-                                </p>
-                              </div>
-                              {subscription &&
-                              subscription.subscription !== null ? (
-                                <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 sm:p-5">
-                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step2QuickAccess"
-                                        )}
-                                      </p>
-                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step2QuickAccessText"
-                                        )}
-                                      </p>
-                                    </div>
-                                    <Button
-                                      onClick={() =>
-                                        handleDeepLinkClick("product")
-                                      }
-                                      className="w-full sm:w-auto whitespace-nowrap"
-                                      size="sm"
-                                    >
-                                      <Link2
-                                        className="w-4 h-4 mr-2"
+                                <div className="space-y-3">
+                                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                                    <p className="text-sm font-semibold text-foreground mb-3">
+                                      {t("index.installationGuide.step2Instructions")}
+                                    </p>
+                                    <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                                      <li>{t("index.installationGuide.step2Instruction1")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction2")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction3")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction4")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction5")}</li>
+                                    </ol>
+                                  </div>
+                                  <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                                    <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                      <Shield
+                                        className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
                                         aria-hidden="true"
                                       />
-                                      {t("index.installationGuide.step2AddNow")}
-                                    </Button>
+                                      <span>
+                                        <strong className="font-semibold text-foreground">
+                                          {t("index.installationGuide.step2Important")}{" "}
+                                        </strong>
+                                        {t("index.installationGuide.step2ImportantText")}
+                                      </span>
+                                    </p>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="bg-warning/20 border-2 border-warning/40 rounded-lg p-4 sm:p-5">
-                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step2Restricted"
-                                        )}
-                                      </p>
-                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step2RestrictedText"
-                                        )}
-                                      </p>
+                                  {subscription && subscription.subscription !== null ? (
+                                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step2QuickAccess")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step2QuickAccessText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleDeepLinkClick("product")}
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step2AddNow")}
+                                        >
+                                          <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                                          {t("index.installationGuide.step2AddNow")}
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <Button
-                                      onClick={() => {
-                                        handleRequireBilling();
-                                      }}
-                                      className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                                      size="sm"
-                                    >
-                                      {t(
-                                        "index.installationGuide.step2ViewPricing"
-                                      )}
-                                    </Button>
-                                  </div>
+                                  ) : (
+                                    <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step2Restricted")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step2RestrictedText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleRequireBilling()}
+                                          variant="outline"
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step2ViewPricing")}
+                                        >
+                                          {t("index.installationGuide.step2ViewPricing")}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
+                      <div className="absolute left-5 sm:left-6 top-12 bottom-0 w-0.5 bg-border/40 -z-10" />
                     </div>
-                    <div className="absolute left-7 sm:left-8 md:left-9 top-16 sm:top-20 md:top-24 bottom-0 w-1 bg-border/60 -z-10" />
-                  </div>
 
-                  {/* Step 3 - Banner App Embed */}
-                  <div className="relative">
-                    <div className="flex gap-5 sm:gap-6 md:gap-8">
-                      <div className="flex-shrink-0">
-                        <div
-                          className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                          aria-label="Étape 3"
-                        >
-                          3
+                    {/* Step 3 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 3"
+                          >
+                            3
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0 pt-1">
-                        <div className="flex items-start gap-4 mb-3">
-                          <Sparkles
-                            className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-primary flex-shrink-0 mt-1"
-                            aria-hidden="true"
-                          />
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              {t("index.installationGuide.step3Title")}
-                            </h3>
-                            <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              {t("index.installationGuide.step3Description")}
-                            </p>
-                            <div className="space-y-4 mb-4 sm:mb-5">
-                              <div className="bg-muted rounded-lg p-4 sm:p-5 border-2 border-border">
-                                <p className="text-sm sm:text-base font-semibold text-foreground mb-3 no-orphans">
-                                  {t(
-                                    "index.installationGuide.step3Instructions"
-                                  )}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Sparkles
+                                className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step3Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step3Description")}
                                 </p>
-                                <ol className="list-decimal list-inside space-y-2 text-sm sm:text-base text-foreground/90">
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step3Instruction1"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step3Instruction2"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step3Instruction3"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step3Instruction4"
-                                    )}
-                                  </li>
-                                  <li className="no-orphans">
-                                    {t(
-                                      "index.installationGuide.step3Instruction5"
-                                    )}
-                                  </li>
-                                </ol>
-                              </div>
-                              <div className="bg-info/20 border-2 border-info/40 rounded-lg p-4 sm:p-5">
-                                <p className="text-sm sm:text-base text-foreground flex items-start gap-3 leading-relaxed">
-                                  <Sparkles
-                                    className="w-5 h-5 sm:w-6 sm:h-6 text-info flex-shrink-0 mt-0.5"
-                                    aria-hidden="true"
-                                  />
-                                  <span className="no-orphans">
-                                    <strong className="font-bold text-foreground">
-                                      {t("index.installationGuide.step3Tip")}{" "}
-                                    </strong>
-                                    {t("index.installationGuide.step3TipText")}
-                                  </span>
-                                </p>
-                              </div>
-                              {subscription &&
-                              subscription.subscription !== null ? (
-                                <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 sm:p-5">
-                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step3QuickAccess"
-                                        )}
-                                      </p>
-                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step3QuickAccessText"
-                                        )}
-                                      </p>
-                                    </div>
-                                    <Button
-                                      onClick={() =>
-                                        handleDeepLinkClick("index")
-                                      }
-                                      className="w-full sm:w-auto whitespace-nowrap"
-                                      size="sm"
-                                    >
-                                      <Link2
-                                        className="w-4 h-4 mr-2"
+                                <div className="space-y-3">
+                                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                                    <p className="text-sm font-semibold text-foreground mb-3">
+                                      {t("index.installationGuide.step3Instructions")}
+                                    </p>
+                                    <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                                      <li>{t("index.installationGuide.step3Instruction1")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction2")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction3")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction4")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction5")}</li>
+                                    </ol>
+                                  </div>
+                                  <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
+                                    <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                      <Sparkles
+                                        className="w-4 h-4 text-info flex-shrink-0 mt-0.5"
                                         aria-hidden="true"
                                       />
-                                      {t("index.installationGuide.step3AddNow")}
-                                    </Button>
+                                      <span>
+                                        <strong className="font-semibold text-foreground">
+                                          {t("index.installationGuide.step3Tip")}{" "}
+                                        </strong>
+                                        {t("index.installationGuide.step3TipText")}
+                                      </span>
+                                    </p>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="bg-warning/20 border-2 border-warning/40 rounded-lg p-4 sm:p-5">
-                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                      <p className="text-sm sm:text-base font-semibold text-foreground mb-2 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step3Restricted"
-                                        )}
-                                      </p>
-                                      <p className="text-sm sm:text-base text-foreground/90 no-orphans">
-                                        {t(
-                                          "index.installationGuide.step3RestrictedText"
-                                        )}
-                                      </p>
+                                  {subscription && subscription.subscription !== null ? (
+                                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step3QuickAccess")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step3QuickAccessText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleDeepLinkClick("index")}
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step3AddNow")}
+                                        >
+                                          <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                                          {t("index.installationGuide.step3AddNow")}
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <Button
-                                      onClick={() => {
-                                        handleRequireBilling();
-                                      }}
-                                      className="w-full sm:w-auto whitespace-nowrap border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                                      size="sm"
-                                    >
-                                      {t(
-                                        "index.installationGuide.step3ViewPricing"
-                                      )}
-                                    </Button>
-                                  </div>
+                                  ) : (
+                                    <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step3Restricted")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step3RestrictedText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleRequireBilling()}
+                                          variant="outline"
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step3ViewPricing")}
+                                        >
+                                          {t("index.installationGuide.step3ViewPricing")}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
+                      <div className="absolute left-5 sm:left-6 top-12 bottom-0 w-0.5 bg-border/40 -z-10" />
                     </div>
-                    <div className="absolute left-7 sm:left-8 md:left-9 top-16 sm:top-20 md:top-24 bottom-0 w-1 bg-border/60 -z-10" />
-                  </div>
 
-                  {/* Step 4 */}
-                  <div className="relative">
-                    <div className="flex gap-5 sm:gap-6 md:gap-8">
-                      <div className="flex-shrink-0">
-                        <div
-                          className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary text-primary-foreground rounded-xl flex items-center justify-center font-bold text-xl sm:text-2xl md:text-3xl shadow-lg ring-2 ring-primary/20"
-                          aria-label="Étape 4"
-                        >
-                          4
+                    {/* Step 4 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-success text-success-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 4"
+                          >
+                            4
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0 pt-1">
-                        <div className="flex items-start gap-4 mb-3">
-                          <CheckCircle2
-                            className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-success flex-shrink-0 mt-1"
-                            aria-hidden="true"
-                          />
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4 text-foreground no-orphans">
-                              {t("index.installationGuide.step4Title")}
-                            </h3>
-                            <p className="text-base sm:text-lg text-foreground/90 mb-4 sm:mb-5 leading-relaxed no-orphans">
-                              {t("index.installationGuide.step4Description")}
-                            </p>
-                            <div className="bg-success/25 border-2 border-success/50 rounded-lg p-4 sm:p-5">
-                              <p className="text-sm sm:text-base text-foreground flex items-start gap-3 leading-relaxed">
-                                <CheckCircle2
-                                  className="w-5 h-5 sm:w-6 sm:h-6 text-success flex-shrink-0 mt-0.5"
-                                  aria-hidden="true"
-                                />
-                                <span className="no-orphans">
-                                  <strong className="font-bold text-foreground">
-                                    {t(
-                                      "index.installationGuide.step4Congratulations"
-                                    )}{" "}
-                                  </strong>
-                                  {t(
-                                    "index.installationGuide.step4CongratulationsText"
-                                  )}
-                                </span>
-                              </p>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <CheckCircle2
+                                className="w-5 h-5 text-success flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step4Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step4Description")}
+                                </p>
+                                <div className="p-4 bg-success/10 border border-success/20 rounded-lg">
+                                  <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                    <CheckCircle2
+                                      className="w-4 h-4 text-success flex-shrink-0 mt-0.5"
+                                      aria-hidden="true"
+                                    />
+                                    <span>
+                                      <strong className="font-semibold text-foreground">
+                                        {t("index.installationGuide.step4Congratulations")}{" "}
+                                      </strong>
+                                      {t("index.installationGuide.step4CongratulationsText")}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1582,38 +1549,40 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Feature Highlights Section */}
-      <section className="py-12 sm:py-16 bg-muted/30">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 text-foreground">
+      {/* Feature Highlights Section - Shopify Section Style */}
+      <section className="py-8 sm:py-12 lg:py-16 bg-muted/30" aria-labelledby="features-heading">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <header className="text-center mb-8">
+              <h2 id="features-heading" className="text-2xl sm:text-3xl font-bold mb-2 text-foreground">
                 {t("index.features.title")}
               </h2>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 {t("index.features.subtitle")}
               </p>
-            </div>
+            </header>
             <FeatureHighlights />
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-card border-t-2 border-border py-10 sm:py-12 md:py-16">
-        <div className="container mx-auto px-4 sm:px-6 md:px-8 text-center">
-          <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <Sparkles
-              className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex-shrink-0 text-primary"
-              aria-hidden="true"
-            />
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
-              NusenseTryOn
-            </h2>
+      {/* Footer - Shopify Footer Style */}
+      <footer className="bg-card border-t border-border py-8 sm:py-10" role="contentinfo">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Sparkles
+                className="w-6 h-6 text-primary flex-shrink-0"
+                aria-hidden="true"
+              />
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+                NusenseTryOn
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t("index.footer.copyright", { year: new Date().getFullYear() })}
+            </p>
           </div>
-          <p className="text-sm sm:text-base md:text-lg text-foreground/80 no-orphans">
-            {t("index.footer.copyright", { year: new Date().getFullYear() })}
-          </p>
         </div>
       </footer>
     </div>

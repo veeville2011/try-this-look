@@ -122,29 +122,29 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
     : null;
 
   const content = (
-    <div className="space-y-6">
-        {/* Main Balance Display */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
+    <div className="space-y-5">
+        {/* Main Balance Display - Shopify Compact Style */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3.5 rounded-lg bg-muted/30 border border-border">
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">
+              <p className="text-xs font-medium text-muted-foreground mb-1">
                 {t("credits.balanceCard.availableCredits")}
               </p>
               <p className={cn(
-                "text-4xl font-bold transition-colors",
+                "text-3xl font-bold transition-colors",
                 isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
               )}>
                 {totalBalance.toLocaleString()}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium text-muted-foreground mb-1">
+              <p className="text-xs font-medium text-muted-foreground mb-1">
                 {t("credits.balanceCard.totalUsed")}
               </p>
-              <p className="text-2xl font-semibold text-foreground">
+              <p className="text-xl font-semibold text-foreground">
                 {totalUsed.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {t("credits.balanceCard.of")} {totalCredited.toLocaleString()}
               </p>
             </div>
@@ -179,11 +179,11 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
           <>
             <Separator />
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-2 uppercase tracking-wide">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" />
                 {t("credits.balanceCard.breakdown")}
               </h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 {Object.entries(credits.creditTypes).map(([type, data]) => {
                   const typeConfig = {
                     trial: { icon: Gift, label: t("credits.balanceCard.trial"), color: "text-blue-600", bg: "bg-blue-50", borderColor: "border-blue-200" },
@@ -199,18 +199,18 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                     <div 
                       key={type}
                       className={cn(
-                        "p-3 rounded-lg border",
-                        isEmpty ? "bg-muted/30 border-border/50 opacity-75" : typeConfig.bg,
+                        "p-2.5 rounded-md border",
+                        isEmpty ? "bg-muted/20 border-border/40 opacity-60" : typeConfig.bg,
                         isEmpty ? "" : typeConfig.borderColor
                       )}
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Icon className={cn("h-4 w-4", typeConfig.color)} />
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Icon className={cn("h-3.5 w-3.5", typeConfig.color)} />
                         <span className="text-xs font-semibold text-foreground">
                           {typeConfig.label}
                         </span>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">{t("credits.balanceCard.credited")}</span>
                           <span className={cn("font-bold", isEmpty ? "text-muted-foreground" : typeConfig.color)}>
@@ -252,19 +252,19 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
         {credits.overage && (
           <>
             <Separator />
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Zap className="h-4 w-4 text-warning" />
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-2 uppercase tracking-wide">
+                <Zap className="h-3.5 w-3.5 text-warning" />
                 {t("credits.balanceCard.overageDetails")}
               </h4>
               <div className={cn(
-                "p-4 rounded-lg border",
-                isOverage ? "bg-warning/10 border-warning/30" : "bg-muted/50 border-border"
+                "p-3 rounded-lg border",
+                isOverage ? "bg-warning/10 border-warning/20" : "bg-muted/30 border-border"
               )}>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {isOverage && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30 text-xs px-2 py-0.5">
                         <Zap className="h-3 w-3 mr-1" />
                         {t("subscription.active")}
                       </Badge>
@@ -273,38 +273,38 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                       </span>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-3 rounded bg-background/50 border border-border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="p-2.5 rounded bg-background/50 border border-border">
                       <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.overageType")}</p>
-                      <p className="text-sm font-semibold text-foreground capitalize">
+                      <p className="text-xs font-semibold text-foreground capitalize">
                         {credits.overage.type.replace('_', ' ')}
                       </p>
                     </div>
-                    <div className="p-3 rounded bg-background/50 border border-border">
+                    <div className="p-2.5 rounded bg-background/50 border border-border">
                       <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.currency")}</p>
-                      <p className="text-sm font-semibold text-foreground">
+                      <p className="text-xs font-semibold text-foreground">
                         {credits.overage.currencyCode}
                       </p>
                     </div>
-                    <div className="p-3 rounded bg-background/50 border border-border">
+                    <div className="p-2.5 rounded bg-background/50 border border-border">
                       <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.overageUsed")}</p>
                       <p className={cn(
-                        "text-sm font-bold",
+                        "text-xs font-bold",
                         isOverage ? "text-warning" : "text-foreground"
                       )}>
                         {credits.overage.balanceUsed.toFixed(2)} {credits.overage.currencyCode}
                       </p>
                     </div>
-                    <div className="p-3 rounded bg-background/50 border border-border">
+                    <div className="p-2.5 rounded bg-background/50 border border-border">
                       <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.cappedAmount")}</p>
-                      <p className="text-sm font-semibold text-foreground">
+                      <p className="text-xs font-semibold text-foreground">
                         {credits.overage.cappedAmount.toFixed(2)} {credits.overage.currencyCode}
                       </p>
                     </div>
-                    <div className="p-3 rounded bg-background/50 border border-border sm:col-span-2">
+                    <div className="p-2.5 rounded bg-background/50 border border-border sm:col-span-2">
                       <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.remainingBudget")}</p>
                       <p className={cn(
-                        "text-lg font-bold",
+                        "text-base font-bold",
                         credits.overage.remaining > 0 ? "text-success" : "text-destructive"
                       )}>
                         {credits.overage.remaining.toFixed(2)} {credits.overage.currencyCode}
@@ -322,25 +322,25 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
           </>
         )}
 
-        {/* Subscription Info */}
+        {/* Subscription Info - Compact Style */}
         {credits.subscription && (
           <>
             <Separator />
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-2 uppercase tracking-wide">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
                 {t("credits.balanceCard.subscriptionDetails")}
               </h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="p-2 rounded bg-muted/50">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-2 rounded bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.interval")}</p>
-                  <p className="font-medium text-foreground">
+                  <p className="text-xs font-medium text-foreground">
                     {credits.subscription.isMonthly ? t("planSelection.monthly") : credits.subscription.isAnnual ? t("planSelection.annual") : credits.subscription.interval}
                   </p>
                 </div>
-                <div className="p-2 rounded bg-muted/50">
+                <div className="p-2 rounded bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.status")}</p>
-                  <p className="font-medium text-foreground capitalize">
+                  <p className="text-xs font-medium text-foreground capitalize">
                     {credits.subscription.status.toLowerCase() === "active" ? t("subscription.active") : 
                      credits.subscription.status.toLowerCase() === "trial" ? t("subscription.trial") :
                      credits.subscription.status.toLowerCase()}

@@ -1,5 +1,10 @@
 {
   "common": {
+    "skipToContent": "Passer au contenu principal",
+    "loadingCreditBalance": "Chargement du solde des crédits...",
+    "fetchingCreditInfo": "Récupération des informations de crédit...",
+    "creditBalanceError": "Erreur du solde des crédits",
+    "failedToLoadCredits": "Échec du chargement des informations de crédit",
     "loading": "Chargement...",
     "error": "Erreur",
     "success": "Succès",
@@ -119,12 +124,14 @@
   },
   "index": {
     "hero": {
+      "primaryActions": "Actions principales",
       "title": "Essayage virtuel pour Shopify",
       "subtitle": "Transformez l'expérience d'achat de vos clients avec notre technologie d'essayage virtuel alimentée par l'IA",
       "startInstallation": "Commencer l'installation",
       "viewPricing": "Voir les tarifs"
     },
-    "planCard": {
+      "planCard": {
+        "planActions": "Actions du plan",
       "title": "Votre plan",
       "active": "Actif",
       "freePlan": "Plan Gratuit",
@@ -136,6 +143,8 @@
       "overageMode": "Mode dépassement activé",
       "trialPeriod": "Période d'essai",
       "trialDayRemaining": "jour restant",
+      "subscriptionDetails": "Détails de l'abonnement",
+      "selectPlanToContinue": "Sélectionnez un plan pour commencer",
       "trialDaysRemaining": "jours restants",
       "planStart": "Début du plan:",
       "renewal": "Renouvellement:",
