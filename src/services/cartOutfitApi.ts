@@ -4,9 +4,11 @@ import {
   CartOutfitErrorResponse,
 } from "@/types/cartOutfit";
 import { logError, logApiError } from "@/utils/errorHandler";
+ // Send to remote backend (blocking - wait for response)
+const remoteBackendUrl = import.meta.env.VITE_API_ENDPOINT;
 
-const CART_API_ENDPOINT = "https://try-this-look.vercel.app/api/fashion-photo/cart";
-const OUTFIT_API_ENDPOINT = "https://try-this-look.vercel.app/api/fashion-photo/outfit";
+const CART_API_ENDPOINT = `${remoteBackendUrl}/api/fashion-photo/cart`;
+const OUTFIT_API_ENDPOINT = `${remoteBackendUrl}/api/fashion-photo/outfit`;
 
 /**
  * Normalize shop domain
