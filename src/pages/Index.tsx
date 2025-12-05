@@ -33,6 +33,7 @@ import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import TrialNotificationBanner from "@/components/TrialNotificationBanner";
+import CreditBalance from "@/components/CreditBalance";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -946,51 +947,10 @@ const Index = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {/* Credits Tracking */}
+                      {/* Credits Tracking - Full CreditBalance Component */}
                       {credits && !subscription.isFree && (
-                        <div className="space-y-3 pt-2 border-t border-border">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                              <Sparkle className="w-4 h-4 text-primary" />
-                              {t("index.planCard.availableCredits")}
-                            </span>
-                            {creditsLoading && (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {t("index.planCard.available")}
-                              </span>
-                              <span className="font-bold text-foreground">
-                                {credits.total_balance ?? credits.balance ?? 0}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {t("index.planCard.totalIncluded")}
-                              </span>
-                              <span className="font-medium text-foreground">
-                                {credits.total_credited ?? credits.included ?? 100}
-                              </span>
-                            </div>
-                            {(credits.total_used !== undefined || credits.used !== undefined) && (
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  {t("index.planCard.used")}
-                                </span>
-                                <span className="font-medium text-foreground">
-                                  {credits.total_used ?? credits.used ?? 0}
-                                </span>
-                              </div>
-                            )}
-                            {credits.isOverage && (
-                              <div className="mt-2 p-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
-                                {t("index.planCard.overageMode")}
-                              </div>
-                            )}
-                          </div>
+                        <div className="pt-2 border-t border-border">
+                          <CreditBalance variant="embedded" />
                         </div>
                       )}
 

@@ -19,44 +19,75 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-const CreditBalance = () => {
+interface CreditBalanceProps {
+  variant?: "standalone" | "embedded";
+}
+
+const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
   const { t, i18n } = useTranslation();
   const { credits, loading, error, refresh } = useCredits();
 
   if (loading) {
+    const LoadingWrapper = variant === "embedded" ? "div" : Card;
+    const loadingWrapperProps = variant === "embedded" 
+      ? { className: "space-y-2" }
+      : { className: "border-2 border-border shadow-lg" };
+    
     return (
-      <Card className="border-2 border-border shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-            <span>{t("credits.balanceCard.loading")}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <LoadingWrapper {...loadingWrapperProps}>
+        {variant === "standalone" && (
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+              <span>{t("credits.balanceCard.loading")}</span>
+            </CardTitle>
+          </CardHeader>
+        )}
+        {variant === "standalone" ? (
+          <CardContent>
+            <div className="text-sm text-muted-foreground">{t("credits.balanceCard.fetching")}</div>
+          </CardContent>
+        ) : (
           <div className="text-sm text-muted-foreground">{t("credits.balanceCard.fetching")}</div>
-        </CardContent>
-      </Card>
+        )}
+      </LoadingWrapper>
     );
   }
 
   if (error || !credits) {
+    const ErrorWrapper = variant === "embedded" ? "div" : Card;
+    const errorWrapperProps = variant === "embedded" 
+      ? { className: "space-y-2" }
+      : { className: "border-2 border-destructive/20" };
+    
     return (
-      <Card className="border-2 border-destructive/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-5 w-5" />
-            {t("credits.balanceCard.error")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <ErrorWrapper {...errorWrapperProps}>
+        {variant === "standalone" && (
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              {t("credits.balanceCard.error")}
+            </CardTitle>
+          </CardHeader>
+        )}
+        {variant === "standalone" ? (
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error || t("credits.balanceCard.errorMessage")}
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        ) : (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               {error || t("credits.balanceCard.errorMessage")}
             </AlertDescription>
           </Alert>
-        </CardContent>
-      </Card>
+        )}
+      </ErrorWrapper>
     );
   }
 
@@ -90,49 +121,8 @@ const CreditBalance = () => {
       )
     : null;
 
-  return (
-    <Card className="border-2 border-border shadow-lg bg-gradient-to-br from-card to-card/95">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <CreditCard className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-bold text-foreground">
-                {t("credits.balanceCard.title")}
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {periodEndDate ? (
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {t("credits.balanceCard.periodEnds")} {periodEndDate}
-                  </span>
-                ) : (
-                  t("credits.balanceCard.currentPeriod")
-                )}
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isOverage && (
-              <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
-                <Zap className="h-3 w-3 mr-1" />
-                Overage
-              </Badge>
-            )}
-            {/* Only show Active badge if subscription is ACTIVE and NOT in trial */}
-            {credits.subscription?.status === "ACTIVE" && !isInTrial && (
-              <Badge variant="default" className="bg-success/20 text-success border-success/30">
-                <Sparkles className="h-3 w-3 mr-1" />
-                {t("subscription.active")}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
+  const content = (
+    <div className="space-y-6">
         {/* Main Balance Display */}
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
@@ -389,6 +379,56 @@ const CreditBalance = () => {
             </AlertDescription>
           </Alert>
         )}
+    </div>
+  );
+
+  if (variant === "embedded") {
+    return content;
+  }
+
+  return (
+    <Card className="border-2 border-border shadow-lg bg-gradient-to-br from-card to-card/95">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <CreditCard className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-foreground">
+                {t("credits.balanceCard.title")}
+              </CardTitle>
+              <CardDescription className="mt-1">
+                {periodEndDate ? (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {t("credits.balanceCard.periodEnds")} {periodEndDate}
+                  </span>
+                ) : (
+                  t("credits.balanceCard.currentPeriod")
+                )}
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isOverage && (
+              <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
+                <Zap className="h-3 w-3 mr-1" />
+                Overage
+              </Badge>
+            )}
+            {/* Only show Active badge if subscription is ACTIVE and NOT in trial */}
+            {credits.subscription?.status === "ACTIVE" && !isInTrial && (
+              <Badge variant="default" className="bg-success/20 text-success border-success/30">
+                <Sparkles className="h-3 w-3 mr-1" />
+                {t("subscription.active")}
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {content}
       </CardContent>
     </Card>
   );
