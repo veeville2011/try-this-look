@@ -27,6 +27,7 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
+  Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1011,9 +1012,10 @@ const Index = () => {
                 <CardContent className="p-6 sm:p-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                     {/* Left Section - Plan Info & Status */}
-                    <div className="lg:col-span-4 space-y-4 pb-6 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-8">
-                      <div>
-                        <h2 id="plan-card-heading" className="text-sm sm:text-base font-semibold text-foreground mb-3">
+                    <div className="lg:col-span-4 space-y-5 pb-6 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-8">
+                      {/* Plan Title & Badges - Always visible */}
+                      <div className="space-y-3">
+                        <h2 id="plan-card-heading" className="text-sm sm:text-base font-semibold text-foreground">
                           {t("index.planCard.title")}
                         </h2>
                         <div className="flex flex-wrap items-center gap-2">
@@ -1047,14 +1049,30 @@ const Index = () => {
                             </Badge>
                           )}
                         </div>
+                        {/* Plan Price & Interval - Show when plan exists */}
+                        {subscription.plan && !subscription.isFree && (
+                          <div className="pt-1">
+                            <p className="text-sm font-semibold text-foreground">
+                              {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {subscription.plan.interval === "EVERY_30_DAYS" 
+                                ? t("planSelection.monthly") || "Monthly"
+                                : subscription.plan.interval === "ANNUAL"
+                                ? t("planSelection.annual") || "Annual"
+                                : subscription.plan.interval}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Trial Days Remaining */}
-                      {subscription.subscription?.isInTrial &&
-                        subscription.subscription?.trialDaysRemaining !== null && (
-                          <div className="px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+                      {/* Trial Days Remaining - Consistent spacing whether shown or not */}
+                      <div className="min-h-[60px] flex items-start">
+                        {subscription.subscription?.isInTrial &&
+                        subscription.subscription?.trialDaysRemaining !== null ? (
+                          <div className="w-full px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
                             <div className="flex items-start gap-2.5">
-                              <Sparkle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                              <Sparkle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-muted-foreground mb-0.5">
                                   {t("index.planCard.trialPeriod")}
@@ -1068,10 +1086,13 @@ const Index = () => {
                               </div>
                             </div>
                           </div>
+                        ) : (
+                          <div className="w-full" aria-hidden="true" />
                         )}
+                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="space-y-2 pt-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
+                      {/* Action Buttons - Consistent spacing */}
+                      <div className="space-y-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                         <Button
                           size="default"
                           className="w-full h-10 min-h-[40px] font-medium text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -1087,29 +1108,80 @@ const Index = () => {
                             ? t("index.planCard.upgradeToPremium")
                             : t("index.planCard.manageSubscription")}
                         </Button>
-                        {/* Cancel Button - Always show when user has a subscription (not free) */}
-                        {subscription && 
-                         subscription.subscription !== null && 
-                         !subscription.isFree && 
-                         subscription.subscription?.id && (
-                            <Button
-                              size="default"
-                              variant="outline"
-                              className="w-full h-10 min-h-[40px] font-medium text-sm text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                              onClick={handleCancelSubscription}
-                              disabled={cancelling}
-                              aria-label={cancelling
-                                ? t("index.planCard.cancelling")
-                                : t("index.planCard.cancelSubscription")}
-                            >
-                              {cancelling
-                                ? t("index.planCard.cancelling")
-                                : t("index.planCard.cancelSubscription")}
-                            </Button>
-                          )}
+                        {/* Cancel Button - Consistent spacing whether shown or not */}
+                        <div className="min-h-[40px]">
+                          {subscription && 
+                           subscription.subscription !== null && 
+                           !subscription.isFree && 
+                           subscription.subscription?.id ? (
+                              <Button
+                                size="default"
+                                variant="outline"
+                                className="w-full h-10 min-h-[40px] font-medium text-sm text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                onClick={handleCancelSubscription}
+                                disabled={cancelling}
+                                aria-label={cancelling
+                                  ? t("index.planCard.cancelling")
+                                  : t("index.planCard.cancelSubscription")}
+                              >
+                                {cancelling
+                                  ? t("index.planCard.cancelling")
+                                  : t("index.planCard.cancelSubscription")}
+                              </Button>
+                            ) : (
+                              <div className="w-full" aria-hidden="true" />
+                            )}
+                        </div>
                       </div>
 
-                      {/* Promo Code Section */}
+                      {/* Subscription Period Info - Show when available */}
+                      {subscription.subscription && !subscription.isFree && (
+                        <div className="pt-2 border-t border-border">
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                              {t("index.planCard.periodInfo") || "Billing Period"}
+                            </h4>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {subscription.subscription.currentPeriodStart && (
+                                <div className="p-2 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5">{t("index.planCard.periodStart") || "Period Start"}</p>
+                                  <p className="font-medium text-foreground">
+                                    {new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
+                                      i18n.language === "fr" ? "fr-FR" : "en-US",
+                                      { year: 'numeric', month: 'short', day: 'numeric' }
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+                              {subscription.subscription.currentPeriodEnd && (
+                                <div className="p-2 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5">{t("index.planCard.periodEnd") || "Period End"}</p>
+                                  <p className="font-medium text-foreground">
+                                    {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
+                                      i18n.language === "fr" ? "fr-FR" : "en-US",
+                                      { year: 'numeric', month: 'short', day: 'numeric' }
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            {subscription.subscription.createdAt && (
+                              <div className="p-2 rounded bg-muted/30">
+                                <p className="text-xs text-muted-foreground mb-0.5">{t("index.planCard.subscriptionCreated") || "Subscription Created"}</p>
+                                <p className="text-xs font-medium text-foreground">
+                                  {new Date(subscription.subscription.createdAt).toLocaleDateString(
+                                    i18n.language === "fr" ? "fr-FR" : "en-US",
+                                    { year: 'numeric', month: 'long', day: 'numeric' }
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Promo Code Section - Always visible for consistent layout */}
                       <div className="pt-4 border-t border-border">
                         <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-xs font-medium text-foreground mb-2">
                           <Tag className="w-3.5 h-3.5" aria-hidden="true" />
@@ -1150,74 +1222,87 @@ const Index = () => {
 
                     {/* Right Section - Credits & Features */}
                     <div className="lg:col-span-8 space-y-6 lg:pl-8">
-                      {/* Credits Card (if available) */}
-                      {credits && !subscription.isFree && (
-                        <div>
+                      {/* Credits Card - Consistent spacing whether shown or not */}
+                      <div className="min-h-[200px]">
+                        {credits && !subscription.isFree ? (
                           <CreditBalance variant="embedded" />
-                        </div>
-                      )}
-
-                      {/* Plan Features - Collapsible */}
-                      {(() => {
-                        const planName = subscription.plan?.name;
-                        const matchedPlan = availablePlans.find(
-                          (p) => p.name === planName
-                        );
-                        const planFeatures = matchedPlan?.features || [];
-                        const defaultFeatures = [
-                          t("index.planCard.unlimitedTryOn"),
-                          t("index.planCard.prioritySupport"),
-                          t("index.planCard.shopifyIntegration"),
-                        ];
-                        const allFeatures = planFeatures.length > 0 ? planFeatures : defaultFeatures;
-                        const previewFeatures = allFeatures.slice(0, 3);
-                        const remainingFeatures = allFeatures.slice(3);
-
-                        return (
-                          <Collapsible open={isFeaturesOpen} onOpenChange={setIsFeaturesOpen}>
-                            <div className="space-y-3">
-                              <CollapsibleTrigger
-                                className="w-full flex items-center justify-between py-2 px-2 -mx-2 rounded-md text-sm font-semibold text-foreground hover:text-primary hover:bg-muted/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                                aria-label={
-                                  isFeaturesOpen
-                                    ? t("index.planCard.hideFeatures") || "Hide plan features"
-                                    : t("index.planCard.showFeatures") || "Show all plan features"
-                                }
-                              >
-                                <span className="flex items-center gap-2">
-                                  <Sparkle className="w-4 h-4 text-primary" aria-hidden="true" />
-                                  {t("index.planCard.featuresTitle")}
-                                </span>
-                                {isFeaturesOpen ? (
-                                  <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                                )}
-                              </CollapsibleTrigger>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                {previewFeatures.map((feature: string, index: number) => (
-                                  <div key={index} className="flex items-start gap-2.5 text-sm">
-                                    <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
-                                    <span className="text-foreground leading-relaxed">{feature}</span>
-                                  </div>
-                                ))}
-                                {remainingFeatures.length > 0 && (
-                                  <CollapsibleContent className="sm:col-span-2 overflow-hidden transition-all">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-border/50">
-                                      {remainingFeatures.map((feature: string, index: number) => (
-                                        <div key={index + previewFeatures.length} className="flex items-start gap-2.5 text-sm">
-                                          <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
-                                          <span className="text-foreground leading-relaxed">{feature}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </CollapsibleContent>
-                                )}
-                              </div>
+                        ) : (
+                          <div className="p-4 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
+                            <div className="text-center space-y-2">
+                              <Coins className="w-8 h-8 text-muted-foreground mx-auto opacity-50" aria-hidden="true" />
+                              <p className="text-sm text-muted-foreground">
+                                {subscription.isFree 
+                                  ? t("index.planCard.creditsAvailableAfterUpgrade") || "Credits available after upgrade"
+                                  : t("index.planCard.loadingCredits") || "Loading credits..."}
+                              </p>
                             </div>
-                          </Collapsible>
-                        );
-                      })()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Plan Features - Collapsible - Always visible for consistent layout */}
+                      <div className="space-y-3">
+                        {(() => {
+                          const planName = subscription.plan?.name;
+                          const matchedPlan = availablePlans.find(
+                            (p) => p.name === planName
+                          );
+                          const planFeatures = matchedPlan?.features || [];
+                          const defaultFeatures = [
+                            t("index.planCard.unlimitedTryOn"),
+                            t("index.planCard.prioritySupport"),
+                            t("index.planCard.shopifyIntegration"),
+                          ];
+                          const allFeatures = planFeatures.length > 0 ? planFeatures : defaultFeatures;
+                          const previewFeatures = allFeatures.slice(0, 3);
+                          const remainingFeatures = allFeatures.slice(3);
+
+                          return (
+                            <Collapsible open={isFeaturesOpen} onOpenChange={setIsFeaturesOpen}>
+                              <div className="space-y-3">
+                                <CollapsibleTrigger
+                                  className="w-full flex items-center justify-between py-2.5 px-2 -mx-2 rounded-md text-sm font-semibold text-foreground hover:text-primary hover:bg-muted/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                  aria-label={
+                                    isFeaturesOpen
+                                      ? t("index.planCard.hideFeatures") || "Hide plan features"
+                                      : t("index.planCard.showFeatures") || "Show all plan features"
+                                  }
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <Sparkle className="w-4 h-4 text-primary" aria-hidden="true" />
+                                    {t("index.planCard.featuresTitle")}
+                                  </span>
+                                  {isFeaturesOpen ? (
+                                    <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                  )}
+                                </CollapsibleTrigger>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  {previewFeatures.map((feature: string, index: number) => (
+                                    <div key={index} className="flex items-start gap-2.5 text-sm">
+                                      <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
+                                      <span className="text-foreground leading-relaxed">{feature}</span>
+                                    </div>
+                                  ))}
+                                  {remainingFeatures.length > 0 && (
+                                    <CollapsibleContent className="sm:col-span-2 overflow-hidden transition-all">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-border/50">
+                                        {remainingFeatures.map((feature: string, index: number) => (
+                                          <div key={index + previewFeatures.length} className="flex items-start gap-2.5 text-sm">
+                                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
+                                            <span className="text-foreground leading-relaxed">{feature}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </CollapsibleContent>
+                                  )}
+                                </div>
+                              </div>
+                            </Collapsible>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

@@ -1,7 +1,7 @@
 import { useCredits, CreditBalance as CreditBalanceType } from "@/hooks/useCredits";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { RadialProgress } from "@/components/ui/radial-progress";
 import { Badge } from "@/components/ui/badge";
 import { 
   CreditCard, 
@@ -122,123 +122,175 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
     : null;
 
   const content = (
-    <div className="space-y-5">
-        {/* Main Balance Display - Shopify Compact Style */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3.5 rounded-lg bg-muted/30 border border-border">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">
-                {t("credits.balanceCard.availableCredits")}
-              </p>
-              <p className={cn(
-                "text-3xl font-bold transition-colors",
-                isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
-              )}>
-                {totalBalance.toLocaleString()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-medium text-muted-foreground mb-1">
-                {t("credits.balanceCard.totalUsed")}
-              </p>
-              <p className="text-xl font-semibold text-foreground">
-                {totalUsed.toLocaleString()}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t("credits.balanceCard.of")} {totalCredited.toLocaleString()}
-              </p>
-            </div>
-          </div>
-
-          {/* Usage Progress Bar */}
+    <div className="space-y-6">
+        {/* Main Balance Display with Radial Progress - Enhanced UI */}
+        <div className="space-y-4">
+          {/* Total Credits Radial Progress - Large */}
           {totalCredited > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground font-medium">{t("credits.balanceCard.usage")}</span>
-                <span className="font-semibold text-foreground">
-                  {Math.round(usagePercentage)}%
-                </span>
+            <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-6 p-4 sm:p-6 rounded-lg bg-gradient-to-br from-muted/30 to-muted/10 border border-border">
+              <div className="flex-1 space-y-2 text-center sm:text-left">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {t("credits.balanceCard.totalCredits")}
+                </p>
+                <div className="space-y-1">
+                  <p className={cn(
+                    "text-3xl sm:text-4xl font-bold transition-colors",
+                    isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
+                  )}>
+                    {totalBalance.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("credits.balanceCard.of")} {totalCredited.toLocaleString()} {t("credits.balanceCard.available")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground">{totalUsed.toLocaleString()}</span>
+                    <span>{t("credits.balanceCard.used")}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground">{totalCredited.toLocaleString()}</span>
+                    <span>{t("credits.balanceCard.totalCredited")}</span>
+                  </span>
+                </div>
               </div>
-              <Progress 
-                value={usagePercentage} 
-                className={cn(
-                  "h-3",
-                  usagePercentage >= 90 ? "bg-destructive/20" : usagePercentage >= 70 ? "bg-warning/20" : ""
-                )}
-              />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{totalUsed.toLocaleString()} {t("credits.balanceCard.creditsUsed")}</span>
-                <span>{totalCredited.toLocaleString()} {t("credits.balanceCard.totalCredited")}</span>
+              <div className="flex-shrink-0">
+                <RadialProgress
+                  value={totalUsed}
+                  max={totalCredited}
+                  size="xl"
+                  color={isExhausted ? "destructive" : isLow ? "warning" : "primary"}
+                  showLabel={true}
+                  label={t("credits.balanceCard.usage")}
+                  labelPosition="bottom"
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <span className={cn(
+                      "text-2xl font-bold",
+                      isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
+                    )}>
+                      {Math.round(usagePercentage)}%
+                    </span>
+                    <span className="text-xs font-medium text-muted-foreground mt-1">
+                      {t("credits.balanceCard.usage")}
+                    </span>
+                  </div>
+                </RadialProgress>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback for when no credits are credited yet */}
+          {totalCredited === 0 && (
+            <div className="flex items-center justify-between p-4 sm:p-6 rounded-lg bg-muted/30 border border-border">
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  {t("credits.balanceCard.availableCredits")}
+                </p>
+                <p className={cn(
+                  "text-3xl sm:text-4xl font-bold transition-colors",
+                  isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
+                )}>
+                  {totalBalance.toLocaleString()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  {t("credits.balanceCard.totalUsed")}
+                </p>
+                <p className="text-xl font-semibold text-foreground">
+                  {totalUsed.toLocaleString()}
+                </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Credit Type Breakdown - Show ALL types */}
+        {/* Credit Type Breakdown - Show ALL types with Radial Progress */}
         {credits.creditTypes && (
           <>
             <Separator />
-            <div className="space-y-3">
+            <div className="space-y-4">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-2 uppercase tracking-wide">
                 <TrendingUp className="h-3.5 w-3.5 text-primary" />
                 {t("credits.balanceCard.breakdown")}
               </h4>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {Object.entries(credits.creditTypes).map(([type, data]) => {
                   const typeConfig = {
-                    trial: { icon: Gift, label: t("credits.balanceCard.trial"), color: "text-blue-600", bg: "bg-blue-50", borderColor: "border-blue-200" },
-                    coupon: { icon: Sparkles, label: t("credits.balanceCard.coupon"), color: "text-purple-600", bg: "bg-purple-50", borderColor: "border-purple-200" },
-                    plan: { icon: Coins, label: t("credits.balanceCard.plan"), color: "text-primary", bg: "bg-primary/10", borderColor: "border-primary/30" },
-                    purchased: { icon: ShoppingBag, label: t("credits.balanceCard.purchased"), color: "text-green-600", bg: "bg-green-50", borderColor: "border-green-200" },
-                  }[type] || { icon: Coins, label: type, color: "text-muted-foreground", bg: "bg-muted", borderColor: "border-border" };
+                    trial: { icon: Gift, label: t("credits.balanceCard.trial"), color: "primary", bg: "bg-blue-50/50", borderColor: "border-blue-200" },
+                    coupon: { icon: Sparkles, label: t("credits.balanceCard.coupon"), color: "primary", bg: "bg-purple-50/50", borderColor: "border-purple-200" },
+                    plan: { icon: Coins, label: t("credits.balanceCard.plan"), color: "primary", bg: "bg-primary/5", borderColor: "border-primary/30" },
+                    purchased: { icon: ShoppingBag, label: t("credits.balanceCard.purchased"), color: "success", bg: "bg-green-50/50", borderColor: "border-green-200" },
+                  }[type] || { icon: Coins, label: type, color: "muted", bg: "bg-muted/30", borderColor: "border-border" };
 
                   const Icon = typeConfig.icon;
                   const isEmpty = data.credited === 0 && data.balance === 0 && data.used === 0;
+                  const variantUsagePercentage = data.credited > 0 ? Math.min((data.used / data.credited) * 100, 100) : 0;
                   
                   return (
                     <div 
                       key={type}
                       className={cn(
-                        "p-2.5 rounded-md border",
+                        "p-4 rounded-lg border transition-all hover:shadow-sm",
                         isEmpty ? "bg-muted/20 border-border/40 opacity-60" : typeConfig.bg,
                         isEmpty ? "" : typeConfig.borderColor
                       )}
                     >
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Icon className={cn("h-3.5 w-3.5", typeConfig.color)} />
-                        <span className="text-xs font-semibold text-foreground">
-                          {typeConfig.label}
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{t("credits.balanceCard.credited")}</span>
-                          <span className={cn("font-bold", isEmpty ? "text-muted-foreground" : typeConfig.color)}>
-                            {data.credited.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{t("credits.balanceCard.balance")}</span>
-                          <span className={cn("font-semibold", isEmpty ? "text-muted-foreground" : typeConfig.color)}>
-                            {data.balance.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{t("credits.balanceCard.used")}</span>
-                          <span className={cn("font-medium", isEmpty ? "text-muted-foreground" : "text-foreground")}>
-                            {data.used.toLocaleString()}
-                          </span>
-                        </div>
-                        {data.credited > 0 && (
-                          <div className="pt-1 border-t border-border/50">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">{t("credits.balanceCard.usagePercent")}</span>
-                              <span className="font-semibold text-foreground">
-                                {Math.round((data.used / data.credited) * 100)}%
+                      <div className="flex items-start gap-3">
+                        {/* Small Radial Progress */}
+                        <div className="flex-shrink-0">
+                          {data.credited > 0 ? (
+                            <RadialProgress
+                              value={data.used}
+                              max={data.credited}
+                              size="sm"
+                              color={isEmpty ? "muted" : (variantUsagePercentage >= 90 ? "destructive" : variantUsagePercentage >= 70 ? "warning" : typeConfig.color as "primary" | "success" | "warning" | "destructive" | "muted")}
+                              showLabel={true}
+                            >
+                              <span className={cn(
+                                "text-xs font-bold",
+                                isEmpty ? "text-muted-foreground" : variantUsagePercentage >= 90 ? "text-destructive" : variantUsagePercentage >= 70 ? "text-warning" : "text-primary"
+                              )}>
+                                {Math.round(variantUsagePercentage)}%
                               </span>
+                            </RadialProgress>
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-muted/30 border border-border/40 flex items-center justify-center">
+                              <Icon className={cn("h-5 w-5", isEmpty ? "text-muted-foreground" : "text-primary")} />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Details */}
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <Icon className={cn("h-3.5 w-3.5 flex-shrink-0", isEmpty ? "text-muted-foreground" : typeConfig.color === "primary" ? "text-primary" : typeConfig.color === "success" ? "text-success" : "text-muted-foreground")} />
+                            <span className="text-xs font-semibold text-foreground truncate">
+                              {typeConfig.label}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div>
+                              <p className="text-muted-foreground mb-0.5">{t("credits.balanceCard.credited")}</p>
+                              <p className={cn("font-bold", isEmpty ? "text-muted-foreground" : "text-foreground")}>
+                                {data.credited.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground mb-0.5">{t("credits.balanceCard.balance")}</p>
+                              <p className={cn("font-semibold", isEmpty ? "text-muted-foreground" : "text-foreground")}>
+                                {data.balance.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground mb-0.5">{t("credits.balanceCard.used")}</p>
+                              <p className={cn("font-medium", isEmpty ? "text-muted-foreground" : "text-foreground")}>
+                                {data.used.toLocaleString()}
+                              </p>
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -322,11 +374,11 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
           </>
         )}
 
-        {/* Subscription Info - Compact Style */}
+        {/* Subscription Info - Compact Style - Show ALL subscription details */}
         {credits.subscription && (
           <>
             <Separator />
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-2 uppercase tracking-wide">
                 <Calendar className="h-3.5 w-3.5 text-primary" />
                 {t("credits.balanceCard.subscriptionDetails")}
@@ -347,6 +399,15 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </p>
                 </div>
               </div>
+              {/* Period Information - Show period end date */}
+              {periodEndDate && (
+                <div className="p-2 rounded bg-muted/30 border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1">{t("credits.balanceCard.periodEnds") || "Period Ends"}</p>
+                  <p className="text-xs font-medium text-foreground">
+                    {periodEndDate}
+                  </p>
+                </div>
+              )}
             </div>
           </>
         )}
