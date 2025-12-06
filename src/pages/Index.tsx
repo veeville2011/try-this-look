@@ -20,12 +20,9 @@ import {
   Shield,
   Link2,
   Crown,
-  Check,
   Calendar,
   CreditCard,
   Sparkle,
-  ChevronDown,
-  ChevronUp,
   Tag,
   Coins,
 } from "lucide-react";
@@ -39,11 +36,6 @@ import PlanSelection from "@/components/PlanSelection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import TrialNotificationBanner from "@/components/TrialNotificationBanner";
 import CreditBalance from "@/components/CreditBalance";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -61,7 +53,6 @@ const Index = () => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
 
@@ -1238,70 +1229,6 @@ const Index = () => {
                             </div>
                           </div>
                         )}
-                      </div>
-
-                      {/* Plan Features - Collapsible - Always visible for consistent layout */}
-                      <div className="space-y-3">
-                        {(() => {
-                          const planName = subscription.plan?.name;
-                          const matchedPlan = availablePlans.find(
-                            (p) => p.name === planName
-                          );
-                          const planFeatures = matchedPlan?.features || [];
-                          const defaultFeatures = [
-                            t("index.planCard.unlimitedTryOn"),
-                            t("index.planCard.prioritySupport"),
-                            t("index.planCard.shopifyIntegration"),
-                          ];
-                          const allFeatures = planFeatures.length > 0 ? planFeatures : defaultFeatures;
-                          const previewFeatures = allFeatures.slice(0, 3);
-                          const remainingFeatures = allFeatures.slice(3);
-
-                          return (
-                            <Collapsible open={isFeaturesOpen} onOpenChange={setIsFeaturesOpen}>
-                              <div className="space-y-3">
-                                <CollapsibleTrigger
-                                  className="w-full flex items-center justify-between py-2.5 px-2 -mx-2 rounded-md text-sm font-semibold text-foreground hover:text-primary hover:bg-muted/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                                  aria-label={
-                                    isFeaturesOpen
-                                      ? t("index.planCard.hideFeatures") || "Hide plan features"
-                                      : t("index.planCard.showFeatures") || "Show all plan features"
-                                  }
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <Sparkle className="w-4 h-4 text-primary" aria-hidden="true" />
-                                    {t("index.planCard.featuresTitle")}
-                                  </span>
-                                  {isFeaturesOpen ? (
-                                    <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                                  ) : (
-                                    <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                                  )}
-                                </CollapsibleTrigger>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                  {previewFeatures.map((feature: string, index: number) => (
-                                    <div key={index} className="flex items-start gap-2.5 text-sm">
-                                      <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
-                                      <span className="text-foreground leading-relaxed">{feature}</span>
-                                    </div>
-                                  ))}
-                                  {remainingFeatures.length > 0 && (
-                                    <CollapsibleContent className="sm:col-span-2 overflow-hidden transition-all">
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-border/50">
-                                        {remainingFeatures.map((feature: string, index: number) => (
-                                          <div key={index + previewFeatures.length} className="flex items-start gap-2.5 text-sm">
-                                            <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
-                                            <span className="text-foreground leading-relaxed">{feature}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </CollapsibleContent>
-                                  )}
-                                </div>
-                              </div>
-                            </Collapsible>
-                          );
-                        })()}
                       </div>
                     </div>
                   </div>
