@@ -513,13 +513,25 @@ const fetchManagedSubscriptionStatus = async (
   // Sync metafield to control app block/banner visibility
   // Blocks available if: subscription active (ACTIVE/PENDING/TRIAL) OR total credits > 0
   // This happens asynchronously to not block the response
+  // CRITICAL: Ensure metafield exists first (creates it if missing), then update with current value
   (async () => {
     try {
       const appInstallationId =
         await subscriptionMetafield.getAppInstallationId(client);
       
-      // Check if blocks should be available: subscription active OR credits > 0
+      // Get current subscription status
       const subscriptionStatusValue = subscriptionStatus.subscription?.status || null;
+      
+      // First, ensure the metafield exists (creates it if missing)
+      // This is critical - if the metafield doesn't exist, app blocks won't be visible
+      await subscriptionMetafield.ensureSubscriptionMetafieldExists(
+        client,
+        appInstallationId,
+        subscriptionStatusValue
+      );
+      
+      // Then, check if blocks should be available and update the metafield
+      // This ensures the metafield always reflects the current state
       const blocksShouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
         client,
         appInstallationId,
@@ -531,6 +543,12 @@ const fetchManagedSubscriptionStatus = async (
         appInstallationId,
         blocksShouldBeAvailable
       );
+      
+      logger.info("[BILLING] Subscription metafield synced successfully", {
+        shop: normalizedShop,
+        subscriptionStatus: subscriptionStatusValue,
+        blocksShouldBeAvailable,
+      });
     } catch (metafieldError) {
       // Log error but don't fail the request
       logger.error(
@@ -2702,11 +2720,21 @@ app.post(
             // Update metafield if we have client and appInstallationId
             if (metafieldClient && metafieldAppInstallationId) {
               try {
-                // Check if blocks should be available: subscription active OR credits > 0
+                const subscriptionStatusValue = app_subscription?.status || null;
+                
+                // CRITICAL: First ensure the metafield exists (creates it if missing)
+                // This is essential - if the metafield doesn't exist, app blocks won't be visible
+                await subscriptionMetafield.ensureSubscriptionMetafieldExists(
+                  metafieldClient,
+                  metafieldAppInstallationId,
+                  subscriptionStatusValue
+                );
+                
+                // Then check if blocks should be available and update the metafield
                 const blocksShouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
                   metafieldClient,
                   metafieldAppInstallationId,
-                  app_subscription?.status || null
+                  subscriptionStatusValue
                 );
                 
                 await subscriptionMetafield.updateSubscriptionMetafield(

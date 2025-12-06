@@ -263,6 +263,93 @@ export const verifySubscriptionMetafield = async (
 };
 
 /**
+ * Ensure the subscription metafield exists, creating it if missing
+ * This is critical for app blocks to be visible - if the metafield doesn't exist,
+ * Liquid's available_if condition will fail
+ * @param {Object} client - GraphQL client with authenticated session
+ * @param {string} appInstallationId - App installation ID
+ * @param {string|null} subscriptionStatus - Current subscription status (ACTIVE, PENDING, TRIAL, etc.)
+ * @returns {Promise<Object>} The metafield object (created or existing)
+ */
+export const ensureSubscriptionMetafieldExists = async (
+  client,
+  appInstallationId,
+  subscriptionStatus = null
+) => {
+  try {
+    // First, check if metafield exists
+    const query = `
+      query CheckSubscriptionMetafield($ownerId: ID!, $namespace: String!, $key: String!) {
+        appInstallation(id: $ownerId) {
+          metafield(namespace: $namespace, key: $key) {
+            id
+            namespace
+            key
+            value
+            type
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      ownerId: appInstallationId,
+      namespace: "subscription",
+      key: "active",
+    };
+
+    const response = await client.request(query, { variables });
+    const existingMetafield = response.data?.appInstallation?.metafield;
+
+    // If metafield exists, return it
+    if (existingMetafield) {
+      logger.info("[METAFIELD] Metafield already exists", {
+        appInstallationId,
+        metafieldId: existingMetafield.id,
+        currentValue: existingMetafield.value,
+      });
+      return existingMetafield;
+    }
+
+    // Metafield doesn't exist - determine initial value based on subscription status or credits
+    logger.info("[METAFIELD] Metafield does not exist, creating it", {
+      appInstallationId,
+      subscriptionStatus,
+    });
+
+    // Determine initial value: check if blocks should be available
+    const shouldBeAvailable = await shouldBlocksBeAvailable(
+      client,
+      appInstallationId,
+      subscriptionStatus
+    );
+
+    // Create the metafield with the determined value
+    const createdMetafield = await updateSubscriptionMetafield(
+      client,
+      appInstallationId,
+      shouldBeAvailable
+    );
+
+    logger.info("[METAFIELD] Metafield created successfully", {
+      appInstallationId,
+      metafieldId: createdMetafield.id,
+      initialValue: createdMetafield.value,
+    });
+
+    return createdMetafield;
+  } catch (error) {
+    logger.error("[METAFIELD] Error ensuring subscription metafield exists", error, null, {
+      appInstallationId,
+      subscriptionStatus,
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  }
+};
+
+/**
  * Get current app installation ID for a shop
  * @param {Object} client - GraphQL client with authenticated session
  * @returns {Promise<string>} App installation ID
