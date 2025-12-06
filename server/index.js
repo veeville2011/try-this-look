@@ -2569,6 +2569,84 @@ app.post(
         );
       }
 
+      // CRITICAL: Update subscription metafield to control app block/banner visibility
+      // This must happen after subscription processing to ensure blocks appear in theme editor
+      if (app_subscription) {
+        try {
+          let client = null;
+          let appInstallationId = null;
+          
+          try {
+            const tokenResult = await shopify.auth.tokenExchange({
+              shop,
+              sessionToken: null,
+              requestedTokenType: RequestedTokenType.OfflineAccessToken,
+            });
+
+            const session = tokenResult?.session;
+            const accessToken =
+              session?.accessToken || session?.access_token;
+
+            if (session && accessToken) {
+              client = new shopify.clients.Graphql({
+                session: {
+                  shop: session.shop || shop,
+                  accessToken,
+                  scope: session.scope,
+                  isOnline: session.isOnline || false,
+                },
+              });
+              
+              appInstallationId = await subscriptionMetafield.getAppInstallationId(client);
+              
+              // Determine if subscription is active (ACTIVE or PENDING status means blocks should be available)
+              const hasActiveSubscription = 
+                app_subscription.status === "ACTIVE" || 
+                app_subscription.status === "PENDING" ||
+                app_subscription.status === "TRIAL";
+              
+              await subscriptionMetafield.updateSubscriptionMetafield(
+                client,
+                appInstallationId,
+                hasActiveSubscription
+              );
+              
+              logger.info("[WEBHOOK] Subscription metafield updated successfully", {
+                shop,
+                subscriptionId: app_subscription?.id,
+                status: app_subscription?.status,
+                hasActiveSubscription,
+              });
+            }
+          } catch (metafieldError) {
+            // Log error but don't fail webhook - metafield will be updated on next GET request
+            logger.error(
+              "[WEBHOOK] Failed to update subscription metafield",
+              metafieldError,
+              null,
+              {
+                shop,
+                subscriptionId: app_subscription?.id,
+                status: app_subscription?.status,
+                errorMessage: metafieldError.message,
+              }
+            );
+          }
+        } catch (error) {
+          // Log error but don't fail webhook
+          logger.error(
+            "[WEBHOOK] Error in metafield update process",
+            error,
+            null,
+            {
+              shop,
+              subscriptionId: app_subscription?.id,
+              errorMessage: error.message,
+            }
+          );
+        }
+      }
+
       logger.info("[WEBHOOK] app/subscriptions/update processed successfully", {
         shop,
         subscriptionId: app_subscription?.id,
