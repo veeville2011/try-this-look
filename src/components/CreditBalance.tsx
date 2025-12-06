@@ -12,9 +12,13 @@ import {
   ShoppingBag,
   Coins,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  DollarSign,
+  Wallet,
+  BarChart3
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RadialProgress } from "@/components/ui/radial-progress";
 import { 
   Table, 
   TableBody, 
@@ -213,18 +217,18 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
       </div>
 
       {/* Credit Types Table and Overage Table - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Credit Types Table */}
         {credits.creditTypes && Object.keys(credits.creditTypes).length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 flex flex-col h-full">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold text-foreground">
                 {t("credits.balanceCard.breakdown") || "Credit Breakdown"}
               </h3>
             </div>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <Table>
+            <div className="rounded-lg border border-border overflow-hidden flex-1 flex flex-col min-h-[400px]">
+              <Table className="flex-1">
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="w-[200px] font-semibold text-xs uppercase tracking-wide">
@@ -313,30 +317,23 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                         </TableCell>
                         <TableCell className="text-right">
                           {data.credited > 0 ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                  className={cn(
-                                    "h-full transition-all",
-                                    typeUsagePercentage >= 90 
-                                      ? "bg-destructive" 
+                            <div className="flex items-center justify-end">
+                              <RadialProgress
+                                value={data.used}
+                                max={data.credited}
+                                size="sm"
+                                color={
+                                  isEmpty 
+                                    ? "muted" 
+                                    : typeUsagePercentage >= 90 
+                                      ? "destructive" 
                                       : typeUsagePercentage >= 70 
-                                        ? "bg-warning" 
-                                        : "bg-primary"
-                                  )}
-                                  style={{ width: `${typeUsagePercentage}%` }}
-                                />
-                              </div>
-                              <span className={cn(
-                                "text-xs font-medium min-w-[40px] text-right",
-                                typeUsagePercentage >= 90 
-                                  ? "text-destructive" 
-                                  : typeUsagePercentage >= 70 
-                                    ? "text-warning" 
-                                    : "text-muted-foreground"
-                              )}>
-                                {Math.round(typeUsagePercentage)}%
-                              </span>
+                                        ? "warning" 
+                                        : "primary"
+                                }
+                                showLabel={true}
+                                labelPosition="center"
+                              />
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
@@ -353,7 +350,7 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
 
         {/* Overage Information Table */}
         {credits.overage && (
-          <div className="space-y-3">
+          <div className="space-y-3 flex flex-col h-full">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-warning" />
               <h3 className="text-sm font-semibold text-foreground">
@@ -366,8 +363,8 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                 </Badge>
               )}
             </div>
-            <div className="rounded-lg border border-warning/20 bg-warning/5 overflow-hidden">
-              <Table>
+            <div className="rounded-lg border border-warning/20 bg-warning/5 overflow-hidden flex-1 flex flex-col min-h-[400px]">
+              <Table className="flex-1">
                 <TableHeader>
                   <TableRow className="bg-warning/10">
                     <TableHead className="font-semibold text-xs uppercase tracking-wide">
@@ -381,7 +378,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                 <TableBody>
                   <TableRow>
                     <TableCell className="font-medium">
-                      {t("credits.balanceCard.overageType") || "Overage Type"}
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("credits.balanceCard.overageType") || "Overage Type"}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <span className="text-sm font-semibold text-foreground capitalize">
@@ -391,7 +391,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </TableRow>
                   <TableRow>
                     <TableCell className="font-medium">
-                      {t("credits.balanceCard.currency") || "Currency"}
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("credits.balanceCard.currency") || "Currency"}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <span className="text-sm font-semibold text-foreground">
@@ -401,7 +404,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </TableRow>
                   <TableRow>
                     <TableCell className="font-medium">
-                      {t("credits.balanceCard.overageUsed") || "Overage Used"}
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("credits.balanceCard.overageUsed") || "Overage Used"}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <span className={cn(
@@ -414,7 +420,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </TableRow>
                   <TableRow>
                     <TableCell className="font-medium">
-                      {t("credits.balanceCard.cappedAmount") || "Capped Amount"}
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("credits.balanceCard.cappedAmount") || "Capped Amount"}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <span className="text-sm font-semibold text-foreground">
@@ -424,7 +433,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </TableRow>
                   <TableRow className="bg-muted/30">
                     <TableCell className="font-semibold">
-                      {t("credits.balanceCard.remainingBudget") || "Remaining Budget"}
+                      <div className="flex items-center gap-2">
+                        <Coins className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("credits.balanceCard.remainingBudget") || "Remaining Budget"}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <span className={cn(

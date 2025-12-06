@@ -1050,24 +1050,23 @@ const Index = () => {
                           )}
                         </div>
 
-                        {/* Trial Days Remaining - Consistent spacing whether shown or not */}
-                        <div className="min-h-[50px] flex items-start">
+                        {/* Trial Days Remaining - Single line display */}
+                        <div className="min-h-[36px] flex items-center">
                           {subscription.subscription?.isInTrial &&
                           subscription.subscription?.trialDaysRemaining !== null ? (
-                            <div className="w-full px-2.5 py-2 bg-primary/5 border border-primary/20 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] font-medium text-muted-foreground mb-0.5">
-                                    {t("index.planCard.trialPeriod")}
-                                  </p>
-                                  <p className="text-xs font-bold text-primary">
+                            <div className="w-full px-2.5 py-1.5 bg-primary/5 border border-primary/20 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0" aria-hidden="true" />
+                                <p className="text-xs font-medium text-foreground">
+                                  <span className="text-muted-foreground">{t("index.planCard.trialPeriod")}</span>
+                                  {" "}
+                                  <span className="font-bold text-primary">
                                     {subscription.subscription.trialDaysRemaining}{" "}
                                     {subscription.subscription.trialDaysRemaining === 1
                                       ? t("index.planCard.trialDayRemaining")
                                       : t("index.planCard.trialDaysRemaining")}
-                                  </p>
-                                </div>
+                                  </span>
+                                </p>
                               </div>
                             </div>
                           ) : (
@@ -1123,28 +1122,28 @@ const Index = () => {
                         {subscription.subscription && !subscription.isFree && (
                           <div className="pt-1.5 border-t border-border">
                             <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                              {subscription.subscription.currentPeriodStart && (
-                                <div className="p-1.5 rounded bg-muted/30">
-                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
-                                  <p className="font-medium text-foreground leading-tight">
-                                    {new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
-                                      i18n.language === "fr" ? "fr-FR" : "en-US",
-                                      { year: 'numeric', month: 'short', day: 'numeric' }
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-                              {subscription.subscription.currentPeriodEnd && (
-                                <div className="p-1.5 rounded bg-muted/30">
-                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
-                                  <p className="font-medium text-foreground leading-tight">
-                                    {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
-                                      i18n.language === "fr" ? "fr-FR" : "en-US",
-                                      { year: 'numeric', month: 'short', day: 'numeric' }
-                                    )}
-                                  </p>
-                                </div>
-                              )}
+                              <div className="p-1.5 rounded bg-muted/30">
+                                <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
+                                <p className="font-medium text-foreground leading-tight">
+                                  {subscription.subscription.currentPeriodStart
+                                    ? new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
+                                        i18n.language === "fr" ? "fr-FR" : "en-US",
+                                        { year: 'numeric', month: 'short', day: 'numeric' }
+                                      )
+                                    : "—"}
+                                </p>
+                              </div>
+                              <div className="p-1.5 rounded bg-muted/30">
+                                <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
+                                <p className="font-medium text-foreground leading-tight">
+                                  {subscription.subscription.currentPeriodEnd
+                                    ? new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
+                                        i18n.language === "fr" ? "fr-FR" : "en-US",
+                                        { year: 'numeric', month: 'short', day: 'numeric' }
+                                      )
+                                    : "—"}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         )}
