@@ -269,16 +269,6 @@
   "trialNotification": {
     "approving": "Approbation...",
     "approvalInitiated": "Approbation de l'abonnement initiée avec succès"
-  },
-  "installationTracker": {
-    "sectionTitle": "État de l'installation",
-    "sectionSubtitle": "Vérifiez si le bloc d'application est installé dans votre thème",
-    "title": "Installation du bloc d'application",
-    "checking": "Vérification de l'état de l'installation...",
-    "installed": "Le bloc d'application est installé et actif",
-    "notInstalled": "Le bloc d'application n'est pas installé",
-    "addButton": "Ajouter le bloc d'application",
-    "selectPlan": "Choisir un plan"
   }
 }
 

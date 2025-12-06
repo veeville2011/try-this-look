@@ -36,7 +36,6 @@ import PlanSelection from "@/components/PlanSelection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import TrialNotificationBanner from "@/components/TrialNotificationBanner";
 import CreditBalance from "@/components/CreditBalance";
-import InstallationTracker from "@/components/InstallationTracker";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -321,12 +320,12 @@ const Index = () => {
     }
   }, [subscription, subscriptionLoading, subscriptionError, shop]);
 
-  const scrollToInstallationTracker = () => {
-    const trackerElement = document.getElementById("installation-tracker");
-    if (!trackerElement) {
+  const scrollToInstallationGuide = () => {
+    const guideElement = document.getElementById("installation-guide");
+    if (!guideElement) {
       return;
     }
-    trackerElement.scrollIntoView({ behavior: "smooth" });
+    guideElement.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleDeepLinkClick = async (
@@ -907,11 +906,11 @@ const Index = () => {
               {/* Navigation Links */}
               <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
                 <button
-                  onClick={scrollToInstallationTracker}
+                  onClick={scrollToInstallationGuide}
                   className="px-3 sm:px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap"
-                  aria-label={t("installationTracker.sectionTitle") || "Installation Status"}
+                  aria-label={t("index.installationGuide.title")}
                 >
-                  {t("installationTracker.sectionTitle") || "Installation Status"}
+                  {t("index.installationGuide.title") || "Installation Guide"}
                 </button>
                 <button
                   onClick={scrollToFeatures}
@@ -973,7 +972,7 @@ const Index = () => {
                 <div className="flex flex-wrap gap-4 mt-8" role="group" aria-label={t("index.hero.primaryActions") || "Primary actions"}>
                   <Button
                     size="lg"
-                    onClick={scrollToInstallationTracker}
+                    onClick={scrollToInstallationGuide}
                     className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     aria-label={t("index.hero.startInstallation")}
                   >
@@ -1300,31 +1299,342 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Installation Tracker Section */}
+      {/* Installation Instructions - Shopify Section Style */}
       <section
-        id="installation-tracker"
+        id="installation-guide"
         className="py-12 sm:py-16 lg:py-20 bg-background"
-        aria-labelledby="installation-tracker-heading"
+        aria-labelledby="installation-guide-heading"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto">
-            <header className="mb-8 text-center">
-              <h2 id="installation-tracker-heading" className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">
-                {t("installationTracker.sectionTitle") || "Installation Status"}
-              </h2>
-              <p className="text-base text-muted-foreground">
-                {t("installationTracker.sectionSubtitle") || "Check if the app block is installed in your theme"}
-              </p>
-            </header>
-            <InstallationTracker
-              onAddClick={() => {
-                if (subscription && subscription.subscription !== null) {
-                  handleDeepLinkClick("product");
-                } else {
-                  handleRequireBilling();
-                }
-              }}
-            />
+          <div className="max-w-7xl mx-auto">
+            <div className="space-y-6">
+              {/* Section Header */}
+              <header className="mb-12">
+                <h2 id="installation-guide-heading" className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">
+                  {t("index.installationGuide.title")}
+                </h2>
+                <p className="text-base text-muted-foreground">
+                  {t("index.installationGuide.subtitle")}
+                </p>
+              </header>
+
+              {/* Installation Steps Card - Shopify Card Style */}
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-6 sm:p-8 lg:p-10">
+                  {/* Info Banner - Shopify Alert Style */}
+                  <div className="mb-8 p-4 bg-info/10 border border-info/20 rounded-lg">
+                    <p className="text-sm text-foreground leading-relaxed">
+                      <strong className="font-semibold text-foreground">
+                        {t("index.installationGuide.appBlockNote")}{" "}
+                      </strong>
+                      {t("index.installationGuide.appBlockDescription")}
+                    </p>
+                  </div>
+
+                  {/* Steps Container */}
+                  <div className="space-y-10 sm:space-y-12">
+                    {/* Step 1 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 1"
+                          >
+                            1
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Store
+                                className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step1Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step1Description")}
+                                </p>
+                                <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
+                                  <p className="text-xs sm:text-sm text-foreground leading-relaxed">
+                                    <strong className="font-semibold text-foreground">
+                                      {t("index.installationGuide.step1Note")}{" "}
+                                    </strong>
+                                    {t("index.installationGuide.step1NoteText")}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="absolute left-5 sm:left-6 top-12 bottom-0 w-0.5 bg-border/40 -z-10" />
+                    </div>
+
+                    {/* Step 2 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 2"
+                          >
+                            2
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Zap
+                                className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step2Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step2Description")}
+                                </p>
+                                <div className="space-y-3">
+                                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                                    <p className="text-sm font-semibold text-foreground mb-3">
+                                      {t("index.installationGuide.step2Instructions")}
+                                    </p>
+                                    <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                                      <li>{t("index.installationGuide.step2Instruction1")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction2")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction3")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction4")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction5")}</li>
+                                    </ol>
+                                  </div>
+                                  <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                                    <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                      <Shield
+                                        className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
+                                        aria-hidden="true"
+                                      />
+                                      <span>
+                                        <strong className="font-semibold text-foreground">
+                                          {t("index.installationGuide.step2Important")}{" "}
+                                        </strong>
+                                        {t("index.installationGuide.step2ImportantText")}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  {subscription && subscription.subscription !== null ? (
+                                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step2QuickAccess")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step2QuickAccessText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleDeepLinkClick("product")}
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step2AddNow")}
+                                        >
+                                          <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                                          {t("index.installationGuide.step2AddNow")}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step2Restricted")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step2RestrictedText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleRequireBilling()}
+                                          variant="outline"
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step2ViewPricing")}
+                                        >
+                                          {t("index.installationGuide.step2ViewPricing")}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="absolute left-5 sm:left-6 top-12 bottom-0 w-0.5 bg-border/40 -z-10" />
+                    </div>
+
+                    {/* Step 3 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 3"
+                          >
+                            3
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <Sparkles
+                                className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step3Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step3Description")}
+                                </p>
+                                <div className="space-y-3">
+                                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                                    <p className="text-sm font-semibold text-foreground mb-3">
+                                      {t("index.installationGuide.step3Instructions")}
+                                    </p>
+                                    <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                                      <li>{t("index.installationGuide.step3Instruction1")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction2")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction3")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction4")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction5")}</li>
+                                    </ol>
+                                  </div>
+                                  <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
+                                    <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                      <Sparkles
+                                        className="w-4 h-4 text-info flex-shrink-0 mt-0.5"
+                                        aria-hidden="true"
+                                      />
+                                      <span>
+                                        <strong className="font-semibold text-foreground">
+                                          {t("index.installationGuide.step3Tip")}{" "}
+                                        </strong>
+                                        {t("index.installationGuide.step3TipText")}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  {subscription && subscription.subscription !== null ? (
+                                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step3QuickAccess")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step3QuickAccessText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleDeepLinkClick("index")}
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step3AddNow")}
+                                        >
+                                          <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
+                                          {t("index.installationGuide.step3AddNow")}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-semibold text-foreground mb-1">
+                                            {t("index.installationGuide.step3Restricted")}
+                                          </p>
+                                          <p className="text-xs sm:text-sm text-muted-foreground">
+                                            {t("index.installationGuide.step3RestrictedText")}
+                                          </p>
+                                        </div>
+                                        <Button
+                                          onClick={() => handleRequireBilling()}
+                                          variant="outline"
+                                          className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                          size="sm"
+                                          aria-label={t("index.installationGuide.step3ViewPricing")}
+                                        >
+                                          {t("index.installationGuide.step3ViewPricing")}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="absolute left-5 sm:left-6 top-12 bottom-0 w-0.5 bg-border/40 -z-10" />
+                    </div>
+
+                    {/* Step 4 - Shopify Step Style */}
+                    <div className="relative">
+                      <div className="flex gap-4 sm:gap-6">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-success text-success-foreground rounded-lg flex items-center justify-center font-semibold text-lg sm:text-xl shadow-sm"
+                            aria-label="Step 4"
+                          >
+                            4
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <CheckCircle2
+                                className="w-5 h-5 text-success flex-shrink-0 mt-0.5"
+                                aria-hidden="true"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
+                                  {t("index.installationGuide.step4Title")}
+                                </h4>
+                                <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
+                                  {t("index.installationGuide.step4Description")}
+                                </p>
+                                <div className="p-4 bg-success/10 border border-success/20 rounded-lg">
+                                  <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                    <CheckCircle2
+                                      className="w-4 h-4 text-success flex-shrink-0 mt-0.5"
+                                      aria-hidden="true"
+                                    />
+                                    <span>
+                                      <strong className="font-semibold text-foreground">
+                                        {t("index.installationGuide.step4Congratulations")}{" "}
+                                      </strong>
+                                      {t("index.installationGuide.step4CongratulationsText")}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </section>
