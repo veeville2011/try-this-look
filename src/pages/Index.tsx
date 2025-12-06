@@ -24,6 +24,8 @@ import {
   Calendar,
   CreditCard,
   Sparkle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,11 @@ import PlanSelection from "@/components/PlanSelection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import TrialNotificationBanner from "@/components/TrialNotificationBanner";
 import CreditBalance from "@/components/CreditBalance";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -51,6 +58,8 @@ const Index = () => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -964,27 +973,27 @@ const Index = () => {
                       </div>
                     </CardHeader>
 
-                    {/* Card Content - Shopify Style with proper spacing */}
-                    <CardContent className="p-6 space-y-6">
-                      {/* Credits Section - Prominent Display */}
+                    {/* Card Content - Compact Shopify Style */}
+                    <CardContent className="p-5 space-y-4">
+                      {/* Credits Section - Compact Display */}
                       {credits && !subscription.isFree && (
-                        <div className="space-y-4">
+                        <div>
                           <CreditBalance variant="embedded" />
                         </div>
                       )}
 
-                      {/* Trial Days Remaining - Shopify Alert Style */}
+                      {/* Trial Days Remaining - Compact Single Line */}
                       {subscription.subscription?.isInTrial &&
                         subscription.subscription?.trialDaysRemaining !== null && (
-                          <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Sparkle className="w-4 h-4 text-primary flex-shrink-0" />
-                                <span className="text-sm font-semibold text-foreground">
+                          <div className="px-3 py-2 bg-primary/5 border border-primary/20 rounded-md">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                <span className="text-xs font-medium text-foreground">
                                   {t("index.planCard.trialPeriod")}
                                 </span>
                               </div>
-                              <span className="text-sm font-bold text-primary">
+                              <span className="text-xs font-bold text-primary">
                                 {subscription.subscription.trialDaysRemaining}{" "}
                                 {subscription.subscription.trialDaysRemaining === 1
                                   ? t("index.planCard.trialDayRemaining")
@@ -994,128 +1003,159 @@ const Index = () => {
                           </div>
                         )}
 
-                      {/* Subscription Details - Shopify Info List Style */}
+                      {/* Subscription Details - Collapsible */}
                       {subscription.subscription && (
-                        <div className="space-y-3 pt-4 border-t border-border">
-                          <h3 className="text-sm font-semibold text-foreground mb-3">
-                            {t("index.planCard.subscriptionDetails") || "Subscription Details"}
-                          </h3>
-                          <dl className="space-y-2.5">
-                            <div className="flex items-start justify-between gap-4">
-                              <dt className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-                                <Calendar className="w-4 h-4 flex-shrink-0" />
-                                <span>{t("index.planCard.planStart")}</span>
-                              </dt>
-                              <dd className="text-sm font-medium text-foreground text-right">
-                                {new Date(
-                                  subscription.subscription.currentPeriodStart ||
-                                    subscription.subscription.createdAt
-                                ).toLocaleDateString(
-                                  i18n.language === "fr" ? "fr-FR" : "en-US",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  }
-                                )}
-                              </dd>
-                            </div>
-                            <div className="flex items-start justify-between gap-4">
-                              <dt className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-                                <Calendar className="w-4 h-4 flex-shrink-0" />
-                                <span>{t("index.planCard.renewal")}</span>
-                              </dt>
-                              <dd className="text-sm font-medium text-foreground text-right">
-                                {new Date(
-                                  subscription.subscription.currentPeriodEnd
-                                ).toLocaleDateString(
-                                  i18n.language === "fr" ? "fr-FR" : "en-US",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  }
-                                )}
-                              </dd>
-                            </div>
-                            <div className="flex items-start justify-between gap-4">
-                              <dt className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-                                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-success" />
-                                <span>{t("index.planCard.status")}</span>
-                              </dt>
-                              <dd className="text-sm font-medium text-foreground capitalize text-right">
-                                {subscription.subscription.status.toLowerCase() === "active"
-                                  ? t("subscription.active")
-                                  : subscription.subscription.status.toLowerCase() === "trial"
-                                  ? t("subscription.trial")
-                                  : subscription.subscription.status.toLowerCase()}
-                              </dd>
-                            </div>
-                          </dl>
-                        </div>
+                        <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                          <CollapsibleTrigger
+                            className="w-full flex items-center justify-between py-2 px-0 text-sm font-semibold text-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-md"
+                            aria-label={
+                              isDetailsOpen
+                                ? t("index.planCard.hideDetails") || "Hide subscription details"
+                                : t("index.planCard.showDetails") || "Show subscription details"
+                            }
+                          >
+                            <span className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              {t("index.planCard.subscriptionDetails") || "Subscription Details"}
+                            </span>
+                            {isDetailsOpen ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-2 space-y-2">
+                            <dl className="space-y-2">
+                              <div className="flex items-center justify-between gap-4 text-sm">
+                                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                                  <span>{t("index.planCard.planStart")}</span>
+                                </dt>
+                                <dd className="font-medium text-foreground">
+                                  {new Date(
+                                    subscription.subscription.currentPeriodStart ||
+                                      subscription.subscription.createdAt
+                                  ).toLocaleDateString(
+                                    i18n.language === "fr" ? "fr-FR" : "en-US",
+                                    {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    }
+                                  )}
+                                </dd>
+                              </div>
+                              <div className="flex items-center justify-between gap-4 text-sm">
+                                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                                  <span>{t("index.planCard.renewal")}</span>
+                                </dt>
+                                <dd className="font-medium text-foreground">
+                                  {new Date(
+                                    subscription.subscription.currentPeriodEnd
+                                  ).toLocaleDateString(
+                                    i18n.language === "fr" ? "fr-FR" : "en-US",
+                                    {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    }
+                                  )}
+                                </dd>
+                              </div>
+                              <div className="flex items-center justify-between gap-4 text-sm">
+                                <dt className="flex items-center gap-1.5 text-muted-foreground">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-success flex-shrink-0" />
+                                  <span>{t("index.planCard.status")}</span>
+                                </dt>
+                                <dd className="font-medium text-foreground capitalize">
+                                  {subscription.subscription.status.toLowerCase() === "active"
+                                    ? t("subscription.active")
+                                    : subscription.subscription.status.toLowerCase() === "trial"
+                                    ? t("subscription.trial")
+                                    : subscription.subscription.status.toLowerCase()}
+                                </dd>
+                              </div>
+                            </dl>
+                          </CollapsibleContent>
+                        </Collapsible>
                       )}
 
-                      {/* Plan Features - Shopify List Style */}
-                      <div className="pt-4 border-t border-border">
-                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <Sparkle className="w-4 h-4 text-primary" aria-hidden="true" />
-                          {t("index.planCard.featuresTitle")}
-                        </h3>
-                        <ul className="space-y-2.5">
-                          {(() => {
-                            const planName = subscription.plan?.name;
-                            const matchedPlan = availablePlans.find(
-                              (p) => p.name === planName
-                            );
-                            const planFeatures = matchedPlan?.features || [];
+                      {/* Plan Features - Collapsible with Preview */}
+                      {(() => {
+                        const planName = subscription.plan?.name;
+                        const matchedPlan = availablePlans.find(
+                          (p) => p.name === planName
+                        );
+                        const planFeatures = matchedPlan?.features || [];
+                        const defaultFeatures = [
+                          t("index.planCard.unlimitedTryOn"),
+                          t("index.planCard.prioritySupport"),
+                          t("index.planCard.shopifyIntegration"),
+                        ];
+                        const allFeatures = planFeatures.length > 0 ? planFeatures : defaultFeatures;
+                        const previewFeatures = allFeatures.slice(0, 3);
+                        const remainingFeatures = allFeatures.slice(3);
 
-                            if (planFeatures.length > 0) {
-                              return planFeatures.map(
-                                (feature: string, index: number) => (
+                        return (
+                          <Collapsible open={isFeaturesOpen} onOpenChange={setIsFeaturesOpen}>
+                            <div className="space-y-2">
+                              <CollapsibleTrigger
+                                className="w-full flex items-center justify-between py-2 px-0 text-sm font-semibold text-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-md"
+                                aria-label={
+                                  isFeaturesOpen
+                                    ? t("index.planCard.hideFeatures") || "Hide plan features"
+                                    : t("index.planCard.showFeatures") || "Show all plan features"
+                                }
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Sparkle className="w-4 h-4 text-primary" />
+                                  {t("index.planCard.featuresTitle")}
+                                </span>
+                                {isFeaturesOpen ? (
+                                  <ChevronUp className="w-4 h-4" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4" />
+                                )}
+                              </CollapsibleTrigger>
+                              <ul className="space-y-1.5">
+                                {previewFeatures.map((feature: string, index: number) => (
                                   <li
                                     key={index}
-                                    className="flex items-start gap-2.5 text-sm"
+                                    className="flex items-start gap-2 text-sm"
                                   >
-                                    <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                    <span className="text-muted-foreground leading-relaxed">
+                                    <Check className="w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5" />
+                                    <span className="text-muted-foreground leading-snug">
                                       {feature}
                                     </span>
                                   </li>
-                                )
-                              );
-                            }
+                                ))}
+                              </ul>
+                              {remainingFeatures.length > 0 && (
+                                <CollapsibleContent className="space-y-1.5 pt-1">
+                                  <ul className="space-y-1.5">
+                                    {remainingFeatures.map((feature: string, index: number) => (
+                                      <li
+                                        key={index + previewFeatures.length}
+                                        className="flex items-start gap-2 text-sm"
+                                      >
+                                        <Check className="w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5" />
+                                        <span className="text-muted-foreground leading-snug">
+                                          {feature}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </CollapsibleContent>
+                              )}
+                            </div>
+                          </Collapsible>
+                        );
+                      })()}
 
-                            return (
-                              <>
-                                <li className="flex items-start gap-2.5 text-sm">
-                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground leading-relaxed">
-                                    {t("index.planCard.unlimitedTryOn")}
-                                  </span>
-                                </li>
-                                <li className="flex items-start gap-2.5 text-sm">
-                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground leading-relaxed">
-                                    {t("index.planCard.prioritySupport")}
-                                  </span>
-                                </li>
-                                <li className="flex items-start gap-2.5 text-sm">
-                                  <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground leading-relaxed">
-                                    {t("index.planCard.shopifyIntegration")}
-                                  </span>
-                                </li>
-                              </>
-                            );
-                          })()}
-                        </ul>
-                      </div>
-
-                      {/* Action Buttons - Shopify Button Group Style */}
-                      <div className="pt-4 border-t border-border space-y-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
+                      {/* Action Buttons - Compact */}
+                      <div className="pt-2 space-y-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                         <Button
                           size="default"
-                          className="w-full h-11 min-h-[44px] font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                          className="w-full h-10 min-h-[40px] font-medium text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                           onClick={() => {
                             handleRequireBilling();
                           }}
@@ -1133,7 +1173,7 @@ const Index = () => {
                             <Button
                               size="default"
                               variant="outline"
-                              className="w-full h-11 min-h-[44px] font-medium text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                              className="w-full h-10 min-h-[40px] font-medium text-sm text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
                               onClick={handleCancelSubscription}
                               disabled={cancelling}
                               aria-label={cancelling
