@@ -24,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
+import CartOutfitWidget from "./CartOutfitWidget";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -122,6 +123,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [activeTab, setActiveTab] = useState<"single" | "multiple" | "look">("single");
+  const [cartItems, setCartItems] = useState<ProductImage[]>([]);
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
@@ -375,11 +377,37 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         }
         // Store info will be logged by the useEffect above
       }
+
+      // Handle cart items from parent window (for Try Multiple and Try Look tabs)
+      if (event.data && event.data.type === "NUSENSE_CART_ITEMS") {
+        const items = event.data.items || [];
+        const productImages: ProductImage[] = items.map((item: any) => ({
+          url: item.url,
+          id: item.id || item.variantId,
+        }));
+        setCartItems(productImages);
+      }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, [fetchStoreInfoFromRedux]); // Include fetchStoreInfoFromRedux in dependencies
+
+  // Request cart items from parent window when in iframe mode
+  useEffect(() => {
+    const isInIframe = window.parent !== window;
+    if (isInIframe) {
+      // Request cart items from parent window
+      try {
+        window.parent.postMessage(
+          { type: "NUSENSE_REQUEST_CART_ITEMS" },
+          "*"
+        );
+      } catch (error) {
+        // Error communicating with parent window
+      }
+    }
+  }, []);
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {
@@ -1046,38 +1074,30 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             )}
           </TabsContent>
 
-          {/* Try Multiple Tab - Coming Soon */}
+          {/* Try Multiple Tab - Cart Mode */}
           <TabsContent value="multiple" className="mt-0">
-            <Card className="p-8 sm:p-12 md:p-16 border-border bg-card">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 border border-primary/20 mb-4">
-                  <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-primary" aria-hidden="true" />
-                </div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                  Coming Soon
-                </h2>
-                <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-md">
-                  The "Try Multiple" feature is currently under development. You'll be able to try on multiple clothing items at once soon!
-                </p>
-              </div>
-            </Card>
+            <div className="w-full -mx-3 sm:-mx-4 md:-mx-5 lg:-mx-6">
+              <CartOutfitWidget
+                isOpen={true}
+                initialMode="cart"
+                cartItems={cartItems}
+                onClose={onClose}
+                hideHeader={true}
+              />
+            </div>
           </TabsContent>
 
-          {/* Try Look Tab - Coming Soon */}
+          {/* Try Look Tab - Outfit Mode */}
           <TabsContent value="look" className="mt-0">
-            <Card className="p-8 sm:p-12 md:p-16 border-border bg-card">
-              <div className="flex flex-col items-center justify-center text-center space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 border border-primary/20 mb-4">
-                  <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-primary" aria-hidden="true" />
-                </div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                  Coming Soon
-                </h2>
-                <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-md">
-                  The "Try Look" feature is currently under development. You'll be able to try on complete outfits and looks soon!
-                </p>
-              </div>
-            </Card>
+            <div className="w-full -mx-3 sm:-mx-4 md:-mx-5 lg:-mx-6">
+              <CartOutfitWidget
+                isOpen={true}
+                initialMode="outfit"
+                cartItems={cartItems}
+                onClose={onClose}
+                hideHeader={true}
+              />
+            </div>
           </TabsContent>
         </div>
       </Tabs>

@@ -35,6 +35,7 @@ interface CartOutfitWidgetProps {
   onClose?: () => void;
   initialMode?: CartOutfitMode;
   cartItems?: ProductImage[]; // Optional: pre-populate from cart
+  hideHeader?: boolean; // Hide header and status bar when embedded in tabs
 }
 
 export default function CartOutfitWidget({
@@ -42,6 +43,7 @@ export default function CartOutfitWidget({
   onClose,
   initialMode = "cart",
   cartItems = [],
+  hideHeader = false,
 }: CartOutfitWidgetProps) {
   const [mode, setMode] = useState<CartOutfitMode>(initialMode);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -449,7 +451,7 @@ export default function CartOutfitWidget({
   return (
     <div
       className="w-full h-full overflow-y-auto"
-      style={{ backgroundColor: "#fef3f3", minHeight: "100vh" }}
+      style={hideHeader ? {} : { backgroundColor: "#fef3f3", minHeight: "100vh" }}
       role="main"
       aria-label="Application d'essayage virtuel - Panier et Tenue"
     >
@@ -476,64 +478,68 @@ export default function CartOutfitWidget({
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4 border-b border-border shadow-sm">
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="inline-flex flex-col flex-shrink-0 min-w-0">
-            <h1
-              className="inline-flex items-center tracking-wide leading-none whitespace-nowrap text-2xl sm:text-3xl md:text-4xl font-bold"
-              aria-label="NULOOK - Essayage Virtuel Panier et Tenue"
-            >
-              <span style={{ color: "#ce0003" }} aria-hidden="true">
-                NU
-              </span>
-              <span style={{ color: "#564646" }} aria-hidden="true">
-                LOOK
-              </span>
-            </h1>
-            <p className="mt-0.5 sm:mt-1 text-left leading-tight tracking-tight whitespace-nowrap text-[10px] sm:text-xs md:text-sm text-[#3D3232] font-medium">
-              Essayage Virtuel - Panier & Tenue
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3 flex-shrink-0">
-            {!isGenerating && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleReset}
-                className="group text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 text-xs sm:text-sm px-3 sm:px-4 h-[44px] sm:h-9 md:h-10 whitespace-nowrap shadow-sm hover:shadow-md gap-2 flex items-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label="Réinitialiser l'application"
-              >
-                <RotateCcw
-                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                  aria-hidden="true"
-                />
-                <span>Réinitialiser</span>
-              </Button>
-            )}
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={handleClose}
-              className="h-[44px] w-[44px] sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md bg-error text-error-foreground hover:bg-error/90 border-error transition-all duration-200 group shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2"
-              aria-label="Fermer l'application"
-              title="Fermer"
-            >
-              <X
-                className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:rotate-90 duration-300"
-                aria-hidden="true"
-              />
-            </Button>
-          </div>
-        </div>
-      </header>
+      {!hideHeader && (
+        <>
+          <header className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4 border-b border-border shadow-sm">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <div className="inline-flex flex-col flex-shrink-0 min-w-0">
+                <h1
+                  className="inline-flex items-center tracking-wide leading-none whitespace-nowrap text-2xl sm:text-3xl md:text-4xl font-bold"
+                  aria-label="NULOOK - Essayage Virtuel Panier et Tenue"
+                >
+                  <span style={{ color: "#ce0003" }} aria-hidden="true">
+                    NU
+                  </span>
+                  <span style={{ color: "#564646" }} aria-hidden="true">
+                    LOOK
+                  </span>
+                </h1>
+                <p className="mt-0.5 sm:mt-1 text-left leading-tight tracking-tight whitespace-nowrap text-[10px] sm:text-xs md:text-sm text-[#3D3232] font-medium">
+                  Essayage Virtuel - Panier & Tenue
+                </p>
+              </div>
+              <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3 flex-shrink-0">
+                {!isGenerating && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleReset}
+                    className="group text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 text-xs sm:text-sm px-3 sm:px-4 h-[44px] sm:h-9 md:h-10 whitespace-nowrap shadow-sm hover:shadow-md gap-2 flex items-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label="Réinitialiser l'application"
+                  >
+                    <RotateCcw
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                      aria-hidden="true"
+                    />
+                    <span>Réinitialiser</span>
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={handleClose}
+                  className="h-[44px] w-[44px] sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md bg-error text-error-foreground hover:bg-error/90 border-error transition-all duration-200 group shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2"
+                  aria-label="Fermer l'application"
+                  title="Fermer"
+                >
+                  <X
+                    className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:rotate-90 duration-300"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </div>
+            </div>
+          </header>
 
-      {/* Status Bar */}
-      <section
-        className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
-        aria-label="État de l'application"
-      >
-        <StatusBar message={statusMessage} variant={statusVariant} />
-      </section>
+          {/* Status Bar */}
+          <section
+            className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
+            aria-label="État de l'application"
+          >
+            <StatusBar message={statusMessage} variant={statusVariant} />
+          </section>
+        </>
+      )}
 
       {/* Content */}
       <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
