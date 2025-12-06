@@ -1452,6 +1452,46 @@ app.get("/api/debug/metafield", async (req, res) => {
       creditInfo = { error: creditError.message };
     }
 
+    // Check what shouldBlocksBeAvailable would return
+    let shouldBeAvailable = null;
+    let blocksAvailabilityReason = null;
+    try {
+      const subscriptionStatus =
+        activeSubscriptions.length > 0
+          ? activeSubscriptions[0].status
+          : null;
+      shouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
+        client,
+        appInstallationId,
+        subscriptionStatus
+      );
+
+      // Determine reason
+      const hasActiveSubscription =
+        subscriptionStatus === "ACTIVE" ||
+        subscriptionStatus === "PENDING" ||
+        subscriptionStatus === "TRIAL";
+      const hasCredits = creditInfo?.balance > 0;
+
+      if (hasActiveSubscription) {
+        blocksAvailabilityReason = `Subscription is active (status: ${subscriptionStatus})`;
+      } else if (hasCredits) {
+        blocksAvailabilityReason = `Credits available (balance: ${creditInfo.balance})`;
+      } else {
+        blocksAvailabilityReason =
+          "No active subscription and no credits available";
+      }
+    } catch (availabilityError) {
+      shouldBeAvailable = null;
+      blocksAvailabilityReason = `Error checking: ${availabilityError.message}`;
+    }
+
+    // Determine if there's a mismatch
+    const metafieldValue = metafield?.value;
+    const metafieldBoolValue = metafieldValue === "true";
+    const hasMismatch =
+      shouldBeAvailable !== null && metafieldBoolValue !== shouldBeAvailable;
+
     res.json({
       shop: normalizedShop,
       appInstallationId,
@@ -1459,10 +1499,24 @@ app.get("/api/debug/metafield", async (req, res) => {
       allMetafieldsInNamespace: allMetafields || [],
       activeSubscriptions,
       creditInfo,
-      liquidAccessPath: "app.metafields.subscription.active",
-      expectedValue: metafield?.value || "not set",
+      liquidAccessPath: "app.metafields.subscription.active.value",
+      currentMetafieldValue: metafieldValue || "not set",
+      currentMetafieldBoolValue: metafield ? metafieldBoolValue : null,
+      shouldBlocksBeAvailable,
+      blocksAvailabilityReason,
+      hasMismatch,
+      recommendation:
+        hasMismatch && shouldBeAvailable !== null
+          ? `⚠️ MISMATCH DETECTED: Metafield value is "${metafieldValue}" but should be "${
+              shouldBeAvailable ? "true" : "false"
+            }". Run GET /api/billing/subscription?shop=${normalizedShop} to sync.`
+          : !metafield
+          ? "⚠️ Metafield doesn't exist. Run GET /api/billing/subscription to create it."
+          : metafieldBoolValue === shouldBeAvailable
+          ? "✅ Metafield is correctly set"
+          : "✅ Status OK",
       note:
-        "If metafield is null, it doesn't exist. Blocks won't be visible until metafield is created with value 'true'.",
+        "Blocks are available if: subscription is ACTIVE/PENDING/TRIAL OR total credits > 0. Access in Liquid: {{ app.metafields.subscription.active.value }}",
     });
   } catch (error) {
     logger.error("[DEBUG] Error checking metafield", error, req, {
