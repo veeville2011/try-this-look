@@ -60,7 +60,6 @@ const Index = () => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
@@ -941,10 +940,10 @@ const Index = () => {
 
       {/* Hero Section - Shopify Style */}
       <header className="relative bg-card border-b border-border" role="banner">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
             {/* Trial Notification Banner */}
-            <div className="mb-6">
+            <div className="mb-8">
               <TrialNotificationBanner
                 onApprovalInitiated={() => {
                   refreshSubscription();
@@ -953,9 +952,9 @@ const Index = () => {
             </div>
 
             {/* Main Hero Content - Full Width */}
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Brand & Title */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <h1
                   className="inline-flex items-center font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight"
                   aria-label="NusenseTryOn"
@@ -976,7 +975,7 @@ const Index = () => {
               </div>
 
               {/* Primary CTAs - Shopify button group style */}
-              <div className="flex flex-wrap gap-3 pt-2" role="group" aria-label={t("index.hero.primaryActions") || "Primary actions"}>
+              <div className="flex flex-wrap gap-4 mt-8" role="group" aria-label={t("index.hero.primaryActions") || "Primary actions"}>
                 <Button
                   size="lg"
                   onClick={scrollToInstallationGuide}
@@ -1004,15 +1003,15 @@ const Index = () => {
       </header>
 
       {/* Plan Information Card - Horizontal Layout Below Hero */}
-      <section className="bg-muted/30 border-b border-border py-6 sm:py-8" aria-labelledby="plan-card-heading">
+      <section className="bg-muted/30 border-b border-border py-12 sm:py-16 lg:py-20" aria-labelledby="plan-card-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             {subscription && subscription.subscription !== null ? (
               <Card className="border border-border shadow-sm bg-card">
-                <CardContent className="p-4 sm:p-6">
+                <CardContent className="p-6 sm:p-8">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                     {/* Left Section - Plan Info & Status */}
-                    <div className="lg:col-span-3 space-y-4 pb-4 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-6">
+                    <div className="lg:col-span-4 space-y-4 pb-6 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-8">
                       <div>
                         <h2 id="plan-card-heading" className="text-sm sm:text-base font-semibold text-foreground mb-3">
                           {t("index.planCard.title")}
@@ -1149,91 +1148,13 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Middle Section - Credits (if available) */}
-                    {credits && !subscription.isFree && (
-                      <div className="lg:col-span-4 pb-4 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-6">
-                        <CreditBalance variant="embedded" />
-                      </div>
-                    )}
-
-                    {/* Right Section - Subscription Details & Features */}
-                    <div className={`space-y-4 lg:pl-6 ${credits && !subscription.isFree ? 'lg:col-span-5' : 'lg:col-span-9'}`}>
-                      {/* Subscription Details - Collapsible */}
-                      {subscription.subscription && (
-                        <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                          <div className="space-y-3">
-                            <CollapsibleTrigger
-                              className="w-full flex items-center justify-between py-2 px-2 -mx-2 rounded-md text-sm font-semibold text-foreground hover:text-primary hover:bg-muted/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                              aria-label={
-                                isDetailsOpen
-                                  ? t("index.planCard.hideDetails") || "Hide subscription details"
-                                  : t("index.planCard.showDetails") || "Show subscription details"
-                              }
-                            >
-                              <span className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4" aria-hidden="true" />
-                                {t("index.planCard.subscriptionDetails") || "Subscription Details"}
-                              </span>
-                              {isDetailsOpen ? (
-                                <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                              )}
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="pt-1 overflow-hidden transition-all">
-                              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-muted/30 rounded-lg p-4">
-                                <div>
-                                  <dt className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                                    {t("index.planCard.planStart")}
-                                  </dt>
-                                  <dd className="font-semibold text-foreground">
-                                    {new Date(
-                                      subscription.subscription.currentPeriodStart ||
-                                        subscription.subscription.createdAt
-                                    ).toLocaleDateString(
-                                      i18n.language === "fr" ? "fr-FR" : "en-US",
-                                      {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                      }
-                                    )}
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                                    {t("index.planCard.renewal")}
-                                  </dt>
-                                  <dd className="font-semibold text-foreground">
-                                    {new Date(
-                                      subscription.subscription.currentPeriodEnd
-                                    ).toLocaleDateString(
-                                      i18n.language === "fr" ? "fr-FR" : "en-US",
-                                      {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                      }
-                                    )}
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-success" aria-hidden="true" />
-                                    {t("index.planCard.status")}
-                                  </dt>
-                                  <dd className="font-semibold text-foreground capitalize">
-                                    {subscription.subscription.status.toLowerCase() === "active"
-                                      ? t("subscription.active")
-                                      : subscription.subscription.status.toLowerCase() === "trial"
-                                      ? t("subscription.trial")
-                                      : subscription.subscription.status.toLowerCase()}
-                                  </dd>
-                                </div>
-                              </dl>
-                            </CollapsibleContent>
-                          </div>
-                        </Collapsible>
+                    {/* Right Section - Credits & Features */}
+                    <div className="lg:col-span-8 space-y-6 lg:pl-8">
+                      {/* Credits Card (if available) */}
+                      {credits && !subscription.isFree && (
+                        <div>
+                          <CreditBalance variant="embedded" />
+                        </div>
                       )}
 
                       {/* Plan Features - Collapsible */}
@@ -1341,37 +1262,35 @@ const Index = () => {
       </section>
 
       {/* Quick Actions Section - Shopify Section Style */}
-      {subscription && subscription.subscription !== null && (
-        <section className="py-6 sm:py-8 bg-background border-b border-border" aria-labelledby="quick-actions-heading">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <h2 id="quick-actions-heading" className="sr-only">
-                {t("index.quickActions.title") || "Quick Actions"}
-              </h2>
-              <QuickActions
-                showInstall={!currentPlan || currentPlan === "free"}
-                showConfigure={currentPlan && currentPlan !== "free"}
-                onInstallClick={scrollToInstallationGuide}
-                onConfigureClick={scrollToInstallationGuide}
-                onPricingClick={handleRequireBilling}
-              />
-            </div>
+      <section className="py-12 sm:py-16 lg:py-20 bg-background border-b border-border" aria-labelledby="quick-actions-heading">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <h2 id="quick-actions-heading" className="sr-only">
+              {t("index.quickActions.title") || "Quick Actions"}
+            </h2>
+            <QuickActions
+              showInstall={!currentPlan || currentPlan === "free" || !subscription || subscription.subscription === null}
+              showConfigure={currentPlan && currentPlan !== "free" && subscription && subscription.subscription !== null}
+              onInstallClick={scrollToInstallationGuide}
+              onConfigureClick={scrollToInstallationGuide}
+              onPricingClick={handleRequireBilling}
+            />
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* Installation Instructions - Shopify Section Style */}
       <section
         id="installation-guide"
-        className="py-8 sm:py-12 lg:py-16 bg-background"
+        className="py-12 sm:py-16 lg:py-20 bg-background"
         aria-labelledby="installation-guide-heading"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="space-y-6">
               {/* Section Header */}
-              <header className="mb-8">
-                <h2 id="installation-guide-heading" className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+              <header className="mb-12">
+                <h2 id="installation-guide-heading" className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">
                   {t("index.installationGuide.title")}
                 </h2>
                 <p className="text-base text-muted-foreground">
@@ -1393,7 +1312,7 @@ const Index = () => {
                   </div>
 
                   {/* Steps Container */}
-                  <div className="space-y-8 sm:space-y-10">
+                  <div className="space-y-10 sm:space-y-12">
                     {/* Step 1 - Shopify Step Style */}
                     <div className="relative">
                       <div className="flex gap-4 sm:gap-6">
@@ -1701,11 +1620,11 @@ const Index = () => {
       </section>
 
       {/* Feature Highlights Section - Shopify Section Style */}
-      <section className="py-8 sm:py-12 lg:py-16 bg-muted/30" aria-labelledby="features-heading">
+      <section className="py-12 sm:py-16 lg:py-20 bg-muted/30" aria-labelledby="features-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <header className="text-center mb-8">
-              <h2 id="features-heading" className="text-2xl sm:text-3xl font-bold mb-2 text-foreground">
+            <header className="text-center mb-12">
+              <h2 id="features-heading" className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 text-foreground">
                 {t("index.features.title")}
               </h2>
               <p className="text-base text-muted-foreground">
@@ -1718,10 +1637,10 @@ const Index = () => {
       </section>
 
       {/* Footer - Shopify Footer Style */}
-      <footer className="bg-card border-t border-border py-8 sm:py-10" role="contentinfo">
+      <footer className="bg-card border-t border-border py-12 sm:py-16" role="contentinfo">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="flex items-center justify-center gap-3 mb-6">
               <Sparkles
                 className="w-6 h-6 text-primary flex-shrink-0"
                 aria-hidden="true"
