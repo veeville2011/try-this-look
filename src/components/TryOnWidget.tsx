@@ -19,12 +19,26 @@ import {
   getHealthStatus,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle } from "lucide-react";
+import {
+  CartOutfitMode,
+  SelectedGarment,
+  CartResponse,
+  OutfitResponse,
+  BatchProgress,
+} from "@/types/cartOutfit";
+import {
+  generateCartTryOn,
+  generateOutfitLook,
+  dataURLToBlob as cartDataURLToBlob,
+} from "@/services/cartOutfitApi";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
-import CartOutfitWidget from "./CartOutfitWidget";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -123,7 +137,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [activeTab, setActiveTab] = useState<"single" | "multiple" | "look">("single");
+  
+  // Cart/Outfit state (for Try Multiple and Try Look tabs)
+  const [cartMultipleImage, setCartMultipleImage] = useState<string | null>(null);
+  const [cartMultipleDemoPhotoUrl, setCartMultipleDemoPhotoUrl] = useState<string | null>(null);
+  const [selectedGarments, setSelectedGarments] = useState<SelectedGarment[]>([]);
+  const [isGeneratingMultiple, setIsGeneratingMultiple] = useState(false);
+  const [cartResults, setCartResults] = useState<CartResponse | null>(null);
+  const [outfitResult, setOutfitResult] = useState<OutfitResponse | null>(null);
+  const [errorMultiple, setErrorMultiple] = useState<string | null>(null);
+  const [progressMultiple, setProgressMultiple] = useState(0);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const [cartItems, setCartItems] = useState<ProductImage[]>([]);
+  
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
@@ -386,28 +413,24 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           id: item.id || item.variantId,
         }));
         setCartItems(productImages);
+        
+        // If we're in multiple/look tab and no images loaded yet, use cart items
+        if ((activeTab === "multiple" || activeTab === "look") && availableImages.length === 0) {
+          setAvailableImages(productImages.map(img => img.url));
+          const idMap = new Map<string, string | number>();
+          productImages.forEach((item) => {
+            if (item.id) {
+              idMap.set(item.url, item.id);
+            }
+          });
+          setAvailableImagesWithIds(idMap);
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [fetchStoreInfoFromRedux]); // Include fetchStoreInfoFromRedux in dependencies
-
-  // Request cart items from parent window when in iframe mode
-  useEffect(() => {
-    const isInIframe = window.parent !== window;
-    if (isInIframe) {
-      // Request cart items from parent window
-      try {
-        window.parent.postMessage(
-          { type: "NUSENSE_REQUEST_CART_ITEMS" },
-          "*"
-        );
-      } catch (error) {
-        // Error communicating with parent window
-      }
-    }
-  }, []);
+  }, [fetchStoreInfoFromRedux, activeTab, availableImages.length]); // Include fetchStoreInfoFromRedux in dependencies
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {
@@ -428,6 +451,31 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       });
     }
   }, [storeInfo, reduxStoreInfo, fetchStoreInfoFromRedux]);
+
+  // Request cart items from parent window when in iframe mode and on multiple/look tabs
+  useEffect(() => {
+    const isInIframe = window.parent !== window;
+    if (isInIframe && (activeTab === "multiple" || activeTab === "look")) {
+      // Request cart items from parent window
+      try {
+        window.parent.postMessage(
+          { type: "NUSENSE_REQUEST_CART_ITEMS" },
+          "*"
+        );
+      } catch (error) {
+        // Error communicating with parent window
+      }
+      
+      // Also request product images if we don't have any yet
+      if (availableImages.length === 0) {
+        try {
+          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+        } catch (error) {
+          // Error communicating with parent window
+        }
+      }
+    }
+  }, [activeTab, availableImages.length]);
 
   const handlePhotoUpload = (
     dataURL: string,
@@ -684,6 +732,291 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setStatusMessage(
       "Téléchargez votre photo puis choisissez un article à essayer"
     );
+    
+    // Reset cart/outfit state
+    setCartMultipleImage(null);
+    setCartMultipleDemoPhotoUrl(null);
+    setSelectedGarments([]);
+    setCartResults(null);
+    setOutfitResult(null);
+    setErrorMultiple(null);
+    setProgressMultiple(0);
+    setBatchProgress(null);
+  };
+
+  // Cart/Outfit handlers
+  const handleCartMultiplePhotoUpload = (
+    dataURL: string,
+    isDemoPhoto?: boolean,
+    demoPhotoUrl?: string
+  ) => {
+    setCartMultipleImage(dataURL);
+    if (isDemoPhoto && demoPhotoUrl) {
+      setCartMultipleDemoPhotoUrl(demoPhotoUrl);
+    } else {
+      setCartMultipleDemoPhotoUrl(null);
+    }
+  };
+
+  const handleGarmentSelect = (garment: ProductImage) => {
+    const maxItems = activeTab === "multiple" ? 6 : 8;
+    if (selectedGarments.length >= maxItems) return;
+
+    const newGarment: SelectedGarment = {
+      ...garment,
+    };
+
+    setSelectedGarments([...selectedGarments, newGarment]);
+  };
+
+  const handleGarmentDeselect = (index: number) => {
+    const newGarments = selectedGarments.filter((_, i) => i !== index);
+    setSelectedGarments(newGarments);
+  };
+
+  const runCartMultipleGeneration = async () => {
+    const minItems = activeTab === "multiple" ? 1 : 2;
+    const maxItems = activeTab === "multiple" ? 6 : 8;
+
+    if (!cartMultipleImage || selectedGarments.length < minItems) {
+      setErrorMultiple(
+        `La génération nécessite une photo et au moins ${minItems} article${minItems > 1 ? "s" : ""} sélectionné${minItems > 1 ? "s" : ""}.`
+      );
+      return;
+    }
+
+    setIsGeneratingMultiple(true);
+    setErrorMultiple(null);
+    setProgressMultiple(0);
+    setCartResults(null);
+    setOutfitResult(null);
+    setBatchProgress(null);
+
+    let progressInterval: NodeJS.Timeout | null = null;
+
+    try {
+      const personBlob = await cartDataURLToBlob(cartMultipleImage);
+      const storeName = storeInfo?.shopDomain || storeInfo?.domain || "";
+
+      if (!storeName) {
+        throw new Error("Informations de magasin non disponibles");
+      }
+
+      // Get personKey from demo photo if available
+      const personKey = cartMultipleDemoPhotoUrl
+        ? DEMO_PHOTO_ID_MAP.get(cartMultipleDemoPhotoUrl) || undefined
+        : undefined;
+
+      // Fetch all garment images
+      const garmentBlobs: Blob[] = [];
+      const garmentKeys: string[] = [];
+
+      for (const garment of selectedGarments) {
+        try {
+          const response = await fetch(garment.url);
+          const blob = await response.blob();
+          garmentBlobs.push(blob);
+
+          // Get garment key if available
+          const garmentId = availableImagesWithIds.get(garment.url);
+          if (garmentId) {
+            garmentKeys.push(String(garmentId));
+          }
+        } catch (fetchError) {
+          console.error("Failed to fetch garment image:", garment.url, fetchError);
+          throw new Error(`Impossible de charger l'image de l'article: ${garment.url}`);
+        }
+      }
+
+      if (activeTab === "multiple") {
+        // Cart mode: Generate individual images
+        setBatchProgress({
+          total: selectedGarments.length,
+          completed: 0,
+          failed: 0,
+        });
+        setProgressMultiple(0);
+
+        const result = await generateCartTryOn(
+          personBlob,
+          garmentBlobs,
+          storeName,
+          garmentKeys.length > 0 ? garmentKeys : undefined,
+          personKey
+        );
+
+        // Update batch progress with final results
+        setBatchProgress({
+          total: result.summary.totalGarments,
+          completed: result.summary.successful,
+          failed: result.summary.failed,
+        });
+
+        setCartResults(result);
+        setProgressMultiple(100);
+      } else {
+        // Outfit mode: Generate combined outfit
+        setProgressMultiple(0);
+        setBatchProgress(null);
+
+        // Extract garment types if available
+        const garmentTypes = selectedGarments
+          .map((g) => g.type)
+          .filter((t): t is string => !!t);
+
+        // Simulate progress for outfit mode
+        progressInterval = setInterval(() => {
+          setProgressMultiple((prev) => {
+            if (prev >= 90) return prev;
+            return prev + 10;
+          });
+        }, 1000);
+
+        const result = await generateOutfitLook(
+          personBlob,
+          garmentBlobs,
+          garmentTypes,
+          storeName,
+          garmentKeys.length > 0 ? garmentKeys : undefined,
+          personKey
+        );
+
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+
+        setOutfitResult(result);
+        setProgressMultiple(100);
+      }
+    } catch (err) {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Une erreur inattendue s'est produite";
+      setErrorMultiple(errorMessage);
+      setProgressMultiple(0);
+      setBatchProgress(null);
+    } finally {
+      setIsGeneratingMultiple(false);
+    }
+  };
+
+  const handleCartMultipleGenerate = () => {
+    void runCartMultipleGeneration();
+  };
+
+  const handleCartMultipleDownload = async (imageUrl: string, index?: number) => {
+    if (downloadingIndex !== null) return;
+
+    if (index !== undefined) {
+      setDownloadingIndex(index);
+    }
+
+    try {
+      let blob: Blob | null = null;
+
+      if (imageUrl.startsWith("data:")) {
+        const response = await fetch(imageUrl);
+        blob = await response.blob();
+      } else if (imageUrl.startsWith("blob:")) {
+        const response = await fetch(imageUrl);
+        blob = await response.blob();
+      } else {
+        try {
+          const response = await fetch(imageUrl, {
+            mode: "cors",
+            credentials: "omit",
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          blob = await response.blob();
+        } catch (fetchError) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+
+          blob = await new Promise<Blob>((resolve, reject) => {
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                  reject(new Error("Could not get canvas context"));
+                  return;
+                }
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blobResult) => {
+                  if (blobResult) {
+                    resolve(blobResult);
+                  } else {
+                    reject(new Error("Failed to convert canvas to blob"));
+                  }
+                }, "image/png");
+              } catch (error) {
+                reject(error);
+              }
+            };
+            img.onerror = () => reject(new Error("Failed to load image"));
+            img.src = imageUrl;
+          });
+        }
+      }
+
+      if (!blob) {
+        throw new Error("Failed to create blob");
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const extension = "png";
+      const filename =
+        index !== undefined
+          ? `essayage-virtuel-${index + 1}-${Date.now()}.${extension}`
+          : `essayage-virtuel-outfit-${Date.now()}.${extension}`;
+      link.download = filename;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      if (index !== undefined) {
+        setDownloadingIndex(null);
+      }
+      toast.success("Téléchargement réussi", {
+        description: "L'image a été téléchargée avec succès.",
+      });
+    } catch (error) {
+      if (index !== undefined) {
+        setDownloadingIndex(null);
+      }
+
+      try {
+        window.open(imageUrl, "_blank");
+        toast.info("Ouverture dans un nouvel onglet", {
+          description:
+            "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+        });
+      } catch (openError) {
+        toast.error("Erreur de téléchargement", {
+          description:
+            "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
+        });
+      }
+    }
   };
 
   // Restore clothingKey when images are loaded (for saved state)
@@ -821,10 +1154,39 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       </header>
 
       {/* Tabs Navigation and Content */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "single" | "multiple" | "look")} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          const newTab = value as "single" | "multiple" | "look";
+          setActiveTab(newTab);
+          
+          // Reset cart/outfit state when switching away from multiple/look tabs
+          if (newTab === "single") {
+            setCartMultipleImage(null);
+            setCartMultipleDemoPhotoUrl(null);
+            setSelectedGarments([]);
+            setCartResults(null);
+            setOutfitResult(null);
+            setErrorMultiple(null);
+            setProgressMultiple(0);
+            setBatchProgress(null);
+          }
+          
+          // Clear selected garments when switching between multiple and look tabs
+          if ((activeTab === "multiple" || activeTab === "look") && (newTab === "multiple" || newTab === "look")) {
+            setSelectedGarments([]);
+            setCartResults(null);
+            setOutfitResult(null);
+            setErrorMultiple(null);
+            setProgressMultiple(0);
+            setBatchProgress(null);
+          }
+        }}
+        className="w-full"
+      >
         {/* Tabs Navigation */}
-        <section
-          className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
+      <section
+        className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
           aria-label="Mode d'essayage"
         >
           <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1">
@@ -850,14 +1212,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               Try Look
             </TabsTrigger>
           </TabsList>
-        </section>
+      </section>
 
-        {/* Content */}
-        <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
+      {/* Content */}
+      <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
           {/* Try Single Tab - Current UI */}
           <TabsContent value="single" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
-            {/* Selection sections - always visible */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+        {/* Selection sections - always visible */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left Panel: Upload / Preview */}
           <section aria-labelledby="upload-heading">
             <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
@@ -1050,18 +1412,519 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           />
         </section>
 
-            {error && (
+        {error && (
+          <div role="alert" aria-live="assertive">
+            <Card className="p-6 bg-error/10 border-error">
+              <p className="text-error font-medium" id="error-message">
+                {error}
+              </p>
+              <Button
+                variant="secondary"
+                onClick={handleReset}
+                className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label="Réessayer après une erreur"
+                aria-describedby="error-message"
+              >
+                <RotateCcw
+                  className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                  aria-hidden="true"
+                />
+                <span>Réessayer</span>
+              </Button>
+            </Card>
+          </div>
+        )}
+          </TabsContent>
+
+          {/* Try Multiple Tab - Cart Mode */}
+          <TabsContent value="multiple" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+            {/* Selection sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+              {/* Left Panel: Upload */}
+              <section aria-labelledby="upload-multiple-heading">
+                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      aria-hidden="true"
+                    >
+                      1
+      </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id="upload-multiple-heading"
+                        className="text-base sm:text-lg font-semibold"
+                      >
+                        Téléchargez Votre Photo
+                      </h2>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Choisissez une photo claire de vous-même
+                      </p>
+    </div>
+                  </div>
+
+                  {!cartMultipleImage && (
+                    <PhotoUpload
+                      onPhotoUpload={handleCartMultiplePhotoUpload}
+                      generatedPersonKeys={new Set()}
+                      matchingPersonKeys={[]}
+                    />
+                  )}
+
+                  {cartMultipleImage && (
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
+                        <div className="flex items-center justify-between mb-2 gap-2">
+                          <h3 className="font-semibold text-sm sm:text-base">
+                            Votre Photo
+                          </h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setCartMultipleImage(null);
+                              setCartMultipleDemoPhotoUrl(null);
+                            }}
+                            className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            aria-label="Effacer la photo téléchargée"
+                          >
+                            <XCircle
+                              className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
+                              aria-hidden="true"
+                            />
+                            <span>Effacer</span>
+                          </Button>
+                        </div>
+                        <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
+                          <img
+                            src={cartMultipleImage}
+                            alt="Photo téléchargée pour l'essayage virtuel"
+                            className="h-full w-auto object-contain"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </section>
+
+              {/* Right Panel: Garment Selection */}
+              <section aria-labelledby="garments-multiple-heading">
+                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      aria-hidden="true"
+                    >
+                      2
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id="garments-multiple-heading"
+                        className="text-base sm:text-lg font-semibold"
+                      >
+                        Sélectionner les Articles
+                      </h2>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Sélectionnez 1-6 articles
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Selection Counter */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm sm:text-base font-semibold">
+                          Articles Sélectionnés
+                        </span>
+                        <span
+                          className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
+                            selectedGarments.length >= 1 && selectedGarments.length < 6
+                              ? "bg-primary/10 text-primary"
+                              : selectedGarments.length >= 6
+                                ? "bg-warning/10 text-warning"
+                                : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {selectedGarments.length} / 6
+                        </span>
+                      </div>
+                      {selectedGarments.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            for (let i = selectedGarments.length - 1; i >= 0; i--) {
+                              handleGarmentDeselect(i);
+                            }
+                          }}
+                          className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
+                          aria-label="Effacer toutes les sélections"
+                        >
+                          <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                          <span>Effacer tout</span>
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Validation Message */}
+                    {selectedGarments.length < 1 && (
+                      <div
+                        role="alert"
+                        className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                      >
+                        Sélectionnez au moins 1 article pour continuer
+                      </div>
+                    )}
+
+                    {selectedGarments.length >= 6 && (
+                      <div
+                        role="alert"
+                        className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                      >
+                        Maximum 6 articles sélectionnés
+                      </div>
+                    )}
+
+                    {/* Garment Grid */}
+                    {availableImages.length === 0 ? (
+                      <div role="alert" aria-live="polite">
+                        <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
+                          <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
+                            Aucune image de vêtement détectée
+                          </p>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+                            Assurez-vous d'avoir des articles dans votre panier ou sur la page
+                          </p>
+                        </Card>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                        {availableImages.map((imageUrl, index) => {
+                          const garment: ProductImage = {
+                            url: imageUrl,
+                            id: availableImagesWithIds.get(imageUrl),
+                          };
+                          const selected = selectedGarments.some((g) => g.url === imageUrl);
+                          const canSelectMore = selectedGarments.length < 6;
+                          const selectedIndex = selectedGarments.findIndex((g) => g.url === imageUrl);
+
+                          return (
+                            <Card
+                              key={`${imageUrl}-${index}`}
+                              className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                selected
+                                  ? "ring-4 ring-primary shadow-lg scale-105"
+                                  : canSelectMore
+                                    ? "hover:ring-2 hover:ring-primary/50"
+                                    : "opacity-60 cursor-not-allowed"
+                              }`}
+                              onClick={() => {
+                                if (selected) {
+                                  handleGarmentDeselect(selectedIndex);
+                                } else if (canSelectMore) {
+                                  handleGarmentSelect(garment);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={canSelectMore ? 0 : -1}
+                              aria-label={`${selected ? "Désélectionner" : "Sélectionner"} l'article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                              aria-pressed={selected}
+                              onKeyDown={(e) => {
+                                if (canSelectMore && (e.key === "Enter" || e.key === " ")) {
+                                  e.preventDefault();
+                                  if (selected) {
+                                    handleGarmentDeselect(selectedIndex);
+                                  } else {
+                                    handleGarmentSelect(garment);
+                                  }
+                                }
+                              }}
+                            >
+                              <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
+                                <img
+                                  src={imageUrl}
+                                  alt={`Article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                                  className="w-full h-full object-contain"
+                                  loading="lazy"
+                                />
+                                {selected && (
+                                  <>
+                                    <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1.5 shadow-lg">
+                                        <Check className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                                      </div>
+                                    </div>
+                                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs sm:text-sm font-bold shadow-lg">
+                                      {selectedIndex + 1}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Selected Garments Summary */}
+                    {selectedGarments.length > 0 && (
+                      <Card className="p-3 sm:p-4 border-border bg-card">
+                        <h3 className="text-sm sm:text-base font-semibold mb-3">
+                          Articles Sélectionnés ({selectedGarments.length})
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedGarments.map((garment, index) => (
+                            <div key={`selected-${index}`} className="relative group">
+                              <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30">
+                                <img
+                                  src={garment.url}
+                                  alt={`Article sélectionné ${index + 1}`}
+                                  className="w-full h-full object-contain"
+                                />
+                                <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center">
+                                  {index + 1}
+                                </div>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => handleGarmentDeselect(index)}
+                                  className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  aria-label={`Retirer l'article ${index + 1}`}
+                                >
+                                  <XCircle className="h-3 w-3" aria-hidden="true" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                </Card>
+              </section>
+            </div>
+
+            {/* Generate button */}
+            {!isGeneratingMultiple && (
+              <div className="pt-1 sm:pt-2">
+                <Button
+                  onClick={handleCartMultipleGenerate}
+                  disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label="Générer l'essayage virtuel"
+                >
+                  <Sparkles
+                    className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                    aria-hidden="true"
+                  />
+                  Générer {selectedGarments.length} Image{selectedGarments.length > 1 ? "s" : ""}
+                </Button>
+              </div>
+            )}
+
+            {/* Progress Tracker */}
+            {isGeneratingMultiple && (
+              <Card className="p-4 sm:p-6 border-border bg-card">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Loader2
+                          className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary"
+                          aria-hidden="true"
+                        />
+                        <span className="text-sm sm:text-base font-semibold">
+                          Génération en cours...
+                        </span>
+                      </div>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        {batchProgress
+                          ? Math.round((batchProgress.completed / batchProgress.total) * 100)
+                          : progressMultiple}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={
+                        batchProgress
+                          ? Math.round((batchProgress.completed / batchProgress.total) * 100)
+                          : progressMultiple
+                      }
+                      className="h-2"
+                    />
+                  </div>
+
+                  {batchProgress && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
+                        <span className="text-muted-foreground">
+                          Articles traités: {batchProgress.completed} / {batchProgress.total}
+                        </span>
+                        {batchProgress.failed > 0 && (
+                          <span className="text-warning">
+                            Échecs: {batchProgress.failed}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Results section */}
+            <section
+              className="pt-2 sm:pt-4"
+              aria-labelledby="results-multiple-heading"
+              aria-live="polite"
+              aria-busy={isGeneratingMultiple}
+            >
+              <h2 id="results-multiple-heading" className="sr-only">
+                Résultats de l'essayage virtuel - Mode Multiple
+              </h2>
+              {isGeneratingMultiple ? (
+                <Card className="p-4 sm:p-6 border-border bg-card">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <h2 className="text-base sm:text-lg font-semibold">
+                        Génération en cours...
+                      </h2>
+                    </div>
+                    <Skeleton className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg" />
+                  </div>
+                </Card>
+              ) : cartResults ? (
+                <Card className="p-4 sm:p-6 border-border bg-card">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                        <h2 className="text-base sm:text-lg font-semibold">
+                          Résultats Générés
+                        </h2>
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        {cartResults.summary.successful} / {cartResults.summary.totalGarments} réussis
+                        {cartResults.summary.cached > 0 && ` • ${cartResults.summary.cached} en cache`}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {cartResults.results
+                        .filter((r) => r.status === "success")
+                        .map((result, index) => {
+                          const imageUrl = result.image || result.imageUrl;
+                          if (!imageUrl) return null;
+
+                          return (
+                            <Card
+                              key={result.index}
+                              className="p-3 sm:p-4 border-border bg-card"
+                            >
+                              <div className="space-y-3">
+                                <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 aspect-[3/4] flex items-center justify-center">
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Résultat de l'essayage virtuel ${index + 1}`}
+                                    className="w-full h-full object-contain"
+                                    loading="lazy"
+                                  />
+                                  {result.cached && (
+                                    <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-[10px] px-2 py-1 rounded">
+                                      Cache
+                                    </div>
+                                  )}
+                                  {result.status === "success" && (
+                                    <div className="absolute top-2 left-2">
+                                      <CheckCircle
+                                        className="h-5 w-5 text-green-500 bg-background rounded-full"
+                                        aria-hidden="true"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <Button
+                                  onClick={() => handleCartMultipleDownload(imageUrl, index)}
+                                  disabled={downloadingIndex === index}
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                  aria-label={`Télécharger l'image ${index + 1}`}
+                                >
+                                  {downloadingIndex === index ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : (
+                                    <Download className="h-4 w-4 mr-2" />
+                                  )}
+                                  Télécharger
+                                </Button>
+
+                                {result.processingTime > 0 && (
+                                  <p className="text-[10px] text-muted-foreground text-center">
+                                    {(result.processingTime / 1000).toFixed(1)}s
+                                  </p>
+                                )}
+                              </div>
+                            </Card>
+                          );
+                        })}
+                    </div>
+
+                    {cartResults.summary.failed > 0 && (
+                      <div className="mt-4 p-3 bg-warning/10 border border-warning rounded">
+                        <p className="text-sm text-warning font-semibold">
+                          {cartResults.summary.failed} article{cartResults.summary.failed > 1 ? "s" : ""} n'ont
+                          pas pu être généré{cartResults.summary.failed > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-6 text-center">
+                  <div
+                    className="w-full min-h-[400px] flex flex-col items-center justify-center gap-3 text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
+                      Aucun résultat généré
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </section>
+
+            {/* Error Display */}
+            {errorMultiple && (
               <div role="alert" aria-live="assertive">
                 <Card className="p-6 bg-error/10 border-error">
-                  <p className="text-error font-medium" id="error-message">
-                    {error}
+                  <p className="text-error font-medium" id="error-multiple-message">
+                    {errorMultiple}
                   </p>
                   <Button
                     variant="secondary"
-                    onClick={handleReset}
+                    onClick={() => {
+                      setErrorMultiple(null);
+                      setCartMultipleImage(null);
+                      setCartMultipleDemoPhotoUrl(null);
+                      setSelectedGarments([]);
+                      setCartResults(null);
+                      setProgressMultiple(0);
+                      setBatchProgress(null);
+                    }}
                     className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     aria-label="Réessayer après une erreur"
-                    aria-describedby="error-message"
+                    aria-describedby="error-multiple-message"
                   >
                     <RotateCcw
                       className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
@@ -1074,30 +1937,506 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             )}
           </TabsContent>
 
-          {/* Try Multiple Tab - Cart Mode */}
-          <TabsContent value="multiple" className="mt-0">
-            <div className="w-full -mx-3 sm:-mx-4 md:-mx-5 lg:-mx-6">
-              <CartOutfitWidget
-                isOpen={true}
-                initialMode="cart"
-                cartItems={cartItems}
-                onClose={onClose}
-                hideHeader={true}
-              />
-            </div>
-          </TabsContent>
-
           {/* Try Look Tab - Outfit Mode */}
-          <TabsContent value="look" className="mt-0">
-            <div className="w-full -mx-3 sm:-mx-4 md:-mx-5 lg:-mx-6">
-              <CartOutfitWidget
-                isOpen={true}
-                initialMode="outfit"
-                cartItems={cartItems}
-                onClose={onClose}
-                hideHeader={true}
-              />
+          <TabsContent value="look" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+            {/* Selection sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+              {/* Left Panel: Upload */}
+              <section aria-labelledby="upload-look-heading">
+                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      aria-hidden="true"
+                    >
+                      1
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id="upload-look-heading"
+                        className="text-base sm:text-lg font-semibold"
+                      >
+                        Téléchargez Votre Photo
+                      </h2>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Choisissez une photo claire de vous-même
+                      </p>
+                    </div>
+                  </div>
+
+                  {!cartMultipleImage && (
+                    <PhotoUpload
+                      onPhotoUpload={handleCartMultiplePhotoUpload}
+                      generatedPersonKeys={new Set()}
+                      matchingPersonKeys={[]}
+                    />
+                  )}
+
+                  {cartMultipleImage && (
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
+                        <div className="flex items-center justify-between mb-2 gap-2">
+                          <h3 className="font-semibold text-sm sm:text-base">
+                            Votre Photo
+                          </h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setCartMultipleImage(null);
+                              setCartMultipleDemoPhotoUrl(null);
+                            }}
+                            className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            aria-label="Effacer la photo téléchargée"
+                          >
+                            <XCircle
+                              className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
+                              aria-hidden="true"
+                            />
+                            <span>Effacer</span>
+                          </Button>
+                        </div>
+                        <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
+                          <img
+                            src={cartMultipleImage}
+                            alt="Photo téléchargée pour l'essayage virtuel"
+                            className="h-full w-auto object-contain"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </section>
+
+              {/* Right Panel: Garment Selection */}
+              <section aria-labelledby="garments-look-heading">
+                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      aria-hidden="true"
+                    >
+                      2
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id="garments-look-heading"
+                        className="text-base sm:text-lg font-semibold"
+                      >
+                        Sélectionner les Articles
+                      </h2>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Sélectionnez 2-8 articles pour une tenue complète
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Selection Counter */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm sm:text-base font-semibold">
+                          Articles Sélectionnés
+                        </span>
+                        <span
+                          className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
+                            selectedGarments.length >= 2 && selectedGarments.length < 8
+                              ? "bg-primary/10 text-primary"
+                              : selectedGarments.length >= 8
+                                ? "bg-warning/10 text-warning"
+                                : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {selectedGarments.length} / 8
+                        </span>
+                      </div>
+                      {selectedGarments.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            for (let i = selectedGarments.length - 1; i >= 0; i--) {
+                              handleGarmentDeselect(i);
+                            }
+                          }}
+                          className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
+                          aria-label="Effacer toutes les sélections"
+                        >
+                          <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                          <span>Effacer tout</span>
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Validation Message */}
+                    {selectedGarments.length < 2 && (
+                      <div
+                        role="alert"
+                        className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                      >
+                        Sélectionnez au moins 2 articles pour continuer
+                      </div>
+                    )}
+
+                    {selectedGarments.length >= 8 && (
+                      <div
+                        role="alert"
+                        className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                      >
+                        Maximum 8 articles sélectionnés
+                      </div>
+                    )}
+
+                    {/* Garment Grid */}
+                    {availableImages.length === 0 ? (
+                      <div role="alert" aria-live="polite">
+                        <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
+                          <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
+                            Aucune image de vêtement détectée
+                          </p>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+                            Assurez-vous d'avoir des articles dans votre panier ou sur la page
+                          </p>
+                        </Card>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                        {availableImages.map((imageUrl, index) => {
+                          const garment: ProductImage = {
+                            url: imageUrl,
+                            id: availableImagesWithIds.get(imageUrl),
+                          };
+                          const selected = selectedGarments.some((g) => g.url === imageUrl);
+                          const canSelectMore = selectedGarments.length < 8;
+                          const selectedIndex = selectedGarments.findIndex((g) => g.url === imageUrl);
+
+                          return (
+                            <Card
+                              key={`${imageUrl}-${index}`}
+                              className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                selected
+                                  ? "ring-4 ring-primary shadow-lg scale-105"
+                                  : canSelectMore
+                                    ? "hover:ring-2 hover:ring-primary/50"
+                                    : "opacity-60 cursor-not-allowed"
+                              }`}
+                              onClick={() => {
+                                if (selected) {
+                                  handleGarmentDeselect(selectedIndex);
+                                } else if (canSelectMore) {
+                                  handleGarmentSelect(garment);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={canSelectMore ? 0 : -1}
+                              aria-label={`${selected ? "Désélectionner" : "Sélectionner"} l'article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                              aria-pressed={selected}
+                              onKeyDown={(e) => {
+                                if (canSelectMore && (e.key === "Enter" || e.key === " ")) {
+                                  e.preventDefault();
+                                  if (selected) {
+                                    handleGarmentDeselect(selectedIndex);
+                                  } else {
+                                    handleGarmentSelect(garment);
+                                  }
+                                }
+                              }}
+                            >
+                              <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
+                                <img
+                                  src={imageUrl}
+                                  alt={`Article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                                  className="w-full h-full object-contain"
+                                  loading="lazy"
+                                />
+                                {selected && (
+                                  <>
+                                    <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1.5 shadow-lg">
+                                        <Check className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                                      </div>
+                                    </div>
+                                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs sm:text-sm font-bold shadow-lg">
+                                      {selectedIndex + 1}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Selected Garments Summary */}
+                    {selectedGarments.length > 0 && (
+                      <Card className="p-3 sm:p-4 border-border bg-card">
+                        <h3 className="text-sm sm:text-base font-semibold mb-3">
+                          Articles Sélectionnés ({selectedGarments.length})
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedGarments.map((garment, index) => (
+                            <div key={`selected-${index}`} className="relative group">
+                              <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30">
+                                <img
+                                  src={garment.url}
+                                  alt={`Article sélectionné ${index + 1}`}
+                                  className="w-full h-full object-contain"
+                                />
+                                <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center">
+                                  {index + 1}
+                                </div>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => handleGarmentDeselect(index)}
+                                  className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  aria-label={`Retirer l'article ${index + 1}`}
+                                >
+                                  <XCircle className="h-3 w-3" aria-hidden="true" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                </Card>
+              </section>
             </div>
+
+            {/* Generate button */}
+            {!isGeneratingMultiple && (
+              <div className="pt-1 sm:pt-2">
+                <Button
+                  onClick={handleCartMultipleGenerate}
+                  disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label="Générer la tenue complète"
+                >
+                  <Sparkles
+                    className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                    aria-hidden="true"
+                  />
+                  Générer la Tenue Complète
+                </Button>
+              </div>
+            )}
+
+            {/* Progress Tracker */}
+            {isGeneratingMultiple && (
+              <Card className="p-4 sm:p-6 border-border bg-card">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Loader2
+                          className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary"
+                          aria-hidden="true"
+                        />
+                        <span className="text-sm sm:text-base font-semibold">
+                          Génération de la tenue complète...
+                        </span>
+                      </div>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        {progressMultiple}%
+                      </span>
+                    </div>
+                    <Progress value={progressMultiple} className="h-2" />
+                  </div>
+
+                  <div className="text-xs sm:text-sm text-muted-foreground">
+                    La génération d'une tenue complète peut prendre 10 à 15 secondes...
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Results section */}
+            <section
+              className="pt-2 sm:pt-4"
+              aria-labelledby="results-look-heading"
+              aria-live="polite"
+              aria-busy={isGeneratingMultiple}
+            >
+              <h2 id="results-look-heading" className="sr-only">
+                Résultats de l'essayage virtuel - Mode Tenue
+              </h2>
+              {isGeneratingMultiple ? (
+                <Card className="p-4 sm:p-6 border-border bg-card">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <h2 className="text-base sm:text-lg font-semibold">
+                        Génération en cours...
+                      </h2>
+                    </div>
+                    <Skeleton className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg" />
+                  </div>
+                </Card>
+              ) : outfitResult ? (
+                <Card className="p-4 sm:p-6 border-border bg-card ring-2 ring-primary/20 shadow-lg">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <h2 className="text-base sm:text-lg font-semibold">
+                        Tenue Complète Générée
+                      </h2>
+                    </div>
+
+                    {(() => {
+                      const imageUrl = outfitResult.data.image || outfitResult.data.imageUrl;
+                      if (!imageUrl) {
+                        return (
+                          <Card className="p-6 text-center bg-error/10 border-error">
+                            <XCircle className="h-12 w-12 mx-auto mb-4 text-error" />
+                            <p className="text-error font-semibold">
+                              Erreur lors de la génération
+                            </p>
+                          </Card>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300">
+                            <img
+                              src={imageUrl}
+                              alt="Tenue complète générée par intelligence artificielle"
+                              className="w-full max-h-[80vh] object-contain"
+                              loading="lazy"
+                            />
+                            {outfitResult.data.cached && (
+                              <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground text-xs px-3 py-1.5 rounded">
+                                En cache
+                              </div>
+                            )}
+                          </div>
+
+                          {outfitResult.data.garmentTypes && outfitResult.data.garmentTypes.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {outfitResult.data.garmentTypes.map((type, index) => (
+                                <span
+                                  key={index}
+                                  className="text-xs px-2 py-1 bg-muted rounded text-muted-foreground"
+                                >
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <Button
+                              onClick={() => handleCartMultipleDownload(imageUrl)}
+                              disabled={downloadingIndex !== null}
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              aria-label="Télécharger l'image de la tenue"
+                            >
+                              {downloadingIndex !== null ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <Download className="h-4 w-4 mr-2" />
+                              )}
+                              Télécharger
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                toast.info("Fonctionnalité à venir", {
+                                  description: "L'ajout au panier sera disponible prochainement.",
+                                });
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="w-full border-green-500/80 text-green-600 hover:bg-green-50"
+                              aria-label="Ajouter tous les articles au panier"
+                            >
+                              <ShoppingCart className="h-4 w-4 mr-2" />
+                              Ajouter au Panier
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                toast.info("Fonctionnalité à venir", {
+                                  description: "L'achat immédiat sera disponible prochainement.",
+                                });
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="w-full border-red-500/80 text-red-600 hover:bg-red-50"
+                              aria-label="Acheter tous les articles maintenant"
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Acheter Maintenant
+                            </Button>
+                          </div>
+
+                          {outfitResult.data.processingTime > 0 && (
+                            <p className="text-xs text-muted-foreground text-center">
+                              Temps de traitement: {(outfitResult.data.processingTime / 1000).toFixed(1)}s
+                              {outfitResult.data.creditsDeducted > 0 && ` • ${outfitResult.data.creditsDeducted} crédit${outfitResult.data.creditsDeducted > 1 ? "s" : ""} utilisé${outfitResult.data.creditsDeducted > 1 ? "s" : ""}`}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-6 text-center">
+                  <div
+                    className="w-full min-h-[400px] flex flex-col items-center justify-center gap-3 text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
+                      Aucun résultat généré
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </section>
+
+            {/* Error Display */}
+            {errorMultiple && (
+              <div role="alert" aria-live="assertive">
+                <Card className="p-6 bg-error/10 border-error">
+                  <p className="text-error font-medium" id="error-look-message">
+                    {errorMultiple}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setErrorMultiple(null);
+                      setCartMultipleImage(null);
+                      setCartMultipleDemoPhotoUrl(null);
+                      setSelectedGarments([]);
+                      setOutfitResult(null);
+                      setProgressMultiple(0);
+                      setBatchProgress(null);
+                    }}
+                    className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label="Réessayer après une erreur"
+                    aria-describedby="error-look-message"
+                  >
+                    <RotateCcw
+                      className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                      aria-hidden="true"
+                    />
+                    <span>Réessayer</span>
+                  </Button>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         </div>
       </Tabs>
