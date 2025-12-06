@@ -4,6 +4,76 @@
  */
 
 import * as logger from "./logger.js";
+import * as creditManager from "./creditManager.js";
+
+/**
+ * Determine if app blocks should be available
+ * Blocks are available if:
+ * 1. Subscription is active (ACTIVE, PENDING, or TRIAL), OR
+ * 2. Total credits (trial + plan + coupon + promotion) > 0
+ * @param {Object} client - GraphQL client with authenticated session
+ * @param {string} appInstallationId - App installation ID
+ * @param {string|null} subscriptionStatus - Subscription status (ACTIVE, PENDING, TRIAL, etc.)
+ * @returns {Promise<boolean>} True if blocks should be available
+ */
+export const shouldBlocksBeAvailable = async (
+  client,
+  appInstallationId,
+  subscriptionStatus
+) => {
+  try {
+    // Check if subscription is active (ACTIVE, PENDING, or TRIAL)
+    const hasActiveSubscription = 
+      subscriptionStatus === "ACTIVE" || 
+      subscriptionStatus === "PENDING" ||
+      subscriptionStatus === "TRIAL";
+    
+    if (hasActiveSubscription) {
+      logger.info("[METAFIELD] Blocks available - active subscription", {
+        appInstallationId,
+        subscriptionStatus,
+      });
+      return true;
+    }
+    
+    // Check if total credits > 0 (trial + plan + coupon + promotion credits)
+    try {
+      const creditData = await creditManager.getTotalCreditsAvailable(
+        client,
+        appInstallationId
+      );
+      
+      const totalCredits = creditData?.balance ?? 0;
+      const hasCredits = totalCredits > 0;
+      
+      logger.info("[METAFIELD] Credit check for block availability", {
+        appInstallationId,
+        subscriptionStatus,
+        totalCredits,
+        hasCredits,
+        blocksAvailable: hasCredits,
+      });
+      
+      return hasCredits;
+    } catch (creditError) {
+      // If we can't check credits, log and return false (safer default)
+      logger.warn("[METAFIELD] Failed to check credits for block availability", creditError, null, {
+        appInstallationId,
+        subscriptionStatus,
+        errorMessage: creditError.message,
+      });
+      return false;
+    }
+  } catch (error) {
+    logger.error("[METAFIELD] Error determining block availability", error, null, {
+      appInstallationId,
+      subscriptionStatus,
+      errorMessage: error.message,
+    });
+    // On error, default to false (blocks not available) for safety
+    return false;
+  }
+};
 
 /**
  * Update app-data metafield to reflect subscription status

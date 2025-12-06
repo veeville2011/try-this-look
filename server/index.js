@@ -511,16 +511,25 @@ const fetchManagedSubscriptionStatus = async (
   const subscriptionStatus = mapSubscriptionToPlan(activeSubscription, customTrialStatus);
 
   // Sync metafield to control app block/banner visibility
+  // Blocks available if: subscription active (ACTIVE/PENDING/TRIAL) OR total credits > 0
   // This happens asynchronously to not block the response
   (async () => {
     try {
       const appInstallationId =
         await subscriptionMetafield.getAppInstallationId(client);
+      
+      // Check if blocks should be available: subscription active OR credits > 0
+      const subscriptionStatusValue = subscriptionStatus.subscription?.status || null;
+      const blocksShouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
+        client,
+        appInstallationId,
+        subscriptionStatusValue
+      );
+      
       await subscriptionMetafield.updateSubscriptionMetafield(
         client,
         appInstallationId,
-        subscriptionStatus.hasActiveSubscription &&
-          subscriptionStatus.subscription !== null
+        blocksShouldBeAvailable
       );
     } catch (metafieldError) {
       // Log error but don't fail the request
@@ -531,6 +540,7 @@ const fetchManagedSubscriptionStatus = async (
         {
           shop: normalizedShop,
           errorMessage: metafieldError.message,
+          stack: metafieldError.stack,
         }
       );
     }
@@ -2638,14 +2648,9 @@ app.post(
           }
           
           // CRITICAL: Update metafield to control app block/banner visibility
+          // Blocks available if: subscription active (ACTIVE/PENDING/TRIAL) OR total credits > 0
           // This must happen for ALL subscription statuses to ensure blocks appear/disappear correctly
           try {
-            // Determine if subscription is active - blocks should be available for ACTIVE, PENDING, and TRIAL
-            const hasActiveSubscription = 
-              app_subscription.status === "ACTIVE" || 
-              app_subscription.status === "PENDING" ||
-              app_subscription.status === "TRIAL";
-            
             // Use existing client if available, otherwise create new one
             let metafieldClient = client || webhookClient;
             let metafieldAppInstallationId = appInstallationId || webhookAppInstallationId;
@@ -2697,17 +2702,24 @@ app.post(
             // Update metafield if we have client and appInstallationId
             if (metafieldClient && metafieldAppInstallationId) {
               try {
+                // Check if blocks should be available: subscription active OR credits > 0
+                const blocksShouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
+                  metafieldClient,
+                  metafieldAppInstallationId,
+                  app_subscription?.status || null
+                );
+                
                 await subscriptionMetafield.updateSubscriptionMetafield(
                   metafieldClient,
                   metafieldAppInstallationId,
-                  hasActiveSubscription
+                  blocksShouldBeAvailable
                 );
                 
                 logger.info("[WEBHOOK] Subscription metafield updated successfully", {
                   shop,
                   subscriptionId: app_subscription?.id,
                   status: app_subscription?.status,
-                  hasActiveSubscription,
+                  blocksAvailable: blocksShouldBeAvailable,
                   reusedClient: !!client || !!webhookClient,
                 });
               } catch (metafieldError) {
@@ -2720,7 +2732,6 @@ app.post(
                     shop,
                     subscriptionId: app_subscription?.id,
                     status: app_subscription?.status,
-                    hasActiveSubscription,
                     errorMessage: metafieldError.message,
                     stack: metafieldError.stack,
                   }
