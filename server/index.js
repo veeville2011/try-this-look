@@ -6102,6 +6102,173 @@ app.post("/api/tryon/generate", async (req, res) => {
   }
 });
 
+// Get all store products with images (for Try Multiple and Try Look tabs)
+app.get("/api/products", async (req, res) => {
+  try {
+    // Get shop from request
+    const shop = req.shop || req.query.shop;
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain",
+      });
+    }
+
+    // Get session token from request (already extracted by verifySessionToken middleware)
+    const sessionToken = req.sessionToken;
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+      });
+    }
+
+    logger.info("[PRODUCTS] Fetching all products for store", {
+      shop: shopDomain,
+    });
+
+    // Exchange JWT session token for offline access token
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      logger.error("[PRODUCTS] Token exchange failed", null, req, {
+        shop: shopDomain,
+      });
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Failed to get access token",
+      });
+    }
+
+    // Create GraphQL client with offline access token
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: false,
+      },
+    });
+
+    // GraphQL query to fetch all products with images
+    const productsQuery = `
+      query GetProducts($first: Int!, $after: String) {
+        products(first: $first, after: $after) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          edges {
+            node {
+              id
+              title
+              handle
+              images(first: 10) {
+                edges {
+                  node {
+                    id
+                    url
+                    altText
+                    width
+                    height
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const allProducts = [];
+    let hasNextPage = true;
+    let cursor = null;
+    const pageSize = 50; // Fetch 50 products at a time
+
+    // Paginate through all products
+    while (hasNextPage) {
+      const variables = {
+        first: pageSize,
+        after: cursor,
+      };
+
+      const response = await client.query({
+        data: {
+          query: productsQuery,
+          variables,
+        },
+      });
+
+      const productsData = response?.body?.data?.products;
+      if (!productsData) {
+        logger.error("[PRODUCTS] Failed to fetch products", null, req, {
+          shop: shopDomain,
+        });
+        break;
+      }
+
+      // Extract products and images
+      const edges = productsData.edges || [];
+      edges.forEach((edge) => {
+        const product = edge.node;
+        const images = product.images?.edges || [];
+        
+        images.forEach((imageEdge) => {
+          const image = imageEdge.node;
+          if (image.url) {
+            allProducts.push({
+              productId: product.id,
+              productTitle: product.title,
+              productHandle: product.handle,
+              imageUrl: image.url,
+              imageId: image.id,
+              altText: image.altText || product.title,
+            });
+          }
+        });
+      });
+
+      hasNextPage = productsData.pageInfo?.hasNextPage || false;
+      cursor = productsData.pageInfo?.endCursor || null;
+    }
+
+    logger.info("[PRODUCTS] Successfully fetched products", {
+      shop: shopDomain,
+      totalProducts: allProducts.length,
+    });
+
+    res.json({
+      success: true,
+      products: allProducts,
+      count: allProducts.length,
+    });
+  } catch (error) {
+    logger.error("[PRODUCTS] Failed to fetch products", error, req, {
+      shop: req.shop || req.query.shop,
+    });
+
+    res.status(500).json({
+      error: "Failed to fetch products",
+      message: error.message,
+    });
+  }
+});
+
 // Product data endpoint (public - for widget use)
 app.get("/api/products/:productId", async (req, res) => {
   try {

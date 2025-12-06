@@ -31,6 +31,7 @@ import {
   generateOutfitLook,
   dataURLToBlob as cartDataURLToBlob,
 } from "@/services/cartOutfitApi";
+import { fetchAllStoreProducts } from "@/services/productsApi";
 import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -452,30 +453,94 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   }, [storeInfo, reduxStoreInfo, fetchStoreInfoFromRedux]);
 
-  // Request cart items from parent window when in iframe mode and on multiple/look tabs
+  // Fetch all store products when in "Try Multiple" or "Try Look" tabs
   useEffect(() => {
-    const isInIframe = window.parent !== window;
-    if (isInIframe && (activeTab === "multiple" || activeTab === "look")) {
-      // Request cart items from parent window
-      try {
-        window.parent.postMessage(
-          { type: "NUSENSE_REQUEST_CART_ITEMS" },
-          "*"
-        );
-      } catch (error) {
-        // Error communicating with parent window
-      }
+    if (activeTab === "multiple" || activeTab === "look") {
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
       
-      // Also request product images if we don't have any yet
-      if (availableImages.length === 0) {
-        try {
-          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
-        } catch (error) {
-          // Error communicating with parent window
+      if (shopDomain) {
+        // Normalize shop domain
+        const normalizedShop = shopDomain.replace(".myshopify.com", "");
+        
+        // Fetch all products from the store
+        fetchAllStoreProducts(normalizedShop)
+          .then((response) => {
+            if (response.success && response.products.length > 0) {
+              // Extract image URLs and create ID map
+              const imageUrls = response.products.map((product) => product.imageUrl);
+              const idMap = new Map<string, string | number>();
+              
+              response.products.forEach((product) => {
+                // Use imageId as the key, fallback to productId
+                const id = product.imageId || product.productId;
+                if (id) {
+                  idMap.set(product.imageUrl, id);
+                }
+              });
+              
+              // Update available images with all store products
+              setAvailableImages(imageUrls);
+              setAvailableImagesWithIds(idMap);
+              
+              console.log("[TryOnWidget] Loaded all store products", {
+                count: response.count,
+                imagesCount: imageUrls.length,
+              });
+            } else {
+              console.warn("[TryOnWidget] No products found or fetch failed", {
+                success: response.success,
+                count: response.count,
+              });
+              
+              // Fallback: Request cart items from parent window
+              const isInIframe = window.parent !== window;
+              if (isInIframe) {
+                try {
+                  window.parent.postMessage(
+                    { type: "NUSENSE_REQUEST_CART_ITEMS" },
+                    "*"
+                  );
+                  window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+                } catch (error) {
+                  // Error communicating with parent window
+                }
+              }
+            }
+          })
+          .catch((error) => {
+            console.error("[TryOnWidget] Failed to fetch store products:", error);
+            
+            // Fallback: Request cart items from parent window
+            const isInIframe = window.parent !== window;
+            if (isInIframe) {
+              try {
+                window.parent.postMessage(
+                  { type: "NUSENSE_REQUEST_CART_ITEMS" },
+                  "*"
+                );
+                window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+              } catch (err) {
+                // Error communicating with parent window
+              }
+            }
+          });
+      } else {
+        // No shop domain available, request from parent window
+        const isInIframe = window.parent !== window;
+        if (isInIframe) {
+          try {
+            window.parent.postMessage(
+              { type: "NUSENSE_REQUEST_CART_ITEMS" },
+              "*"
+            );
+            window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+          } catch (error) {
+            // Error communicating with parent window
+          }
         }
       }
     }
-  }, [activeTab, availableImages.length]);
+  }, [activeTab, storeInfo, reduxStoreInfo]);
 
   const handlePhotoUpload = (
     dataURL: string,
