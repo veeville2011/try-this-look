@@ -20,7 +20,7 @@ import {
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
 import { Sparkles, X, RotateCcw, XCircle, CheckCircle } from "lucide-react";
-import StatusBar from "./StatusBar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
@@ -121,6 +121,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   );
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<"single" | "multiple" | "look">("single");
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
@@ -791,18 +792,44 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         </div>
       </header>
 
-      {/* Status Bar */}
-      <section
-        className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
-        aria-label="État de l'application"
-      >
-        <StatusBar message={statusMessage} variant={statusVariant} />
-      </section>
+      {/* Tabs Navigation and Content */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "single" | "multiple" | "look")} className="w-full">
+        {/* Tabs Navigation */}
+        <section
+          className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
+          aria-label="Mode d'essayage"
+        >
+          <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1">
+            <TabsTrigger
+              value="single"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Essayer un seul article"
+            >
+              Try Single
+            </TabsTrigger>
+            <TabsTrigger
+              value="multiple"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Essayer plusieurs articles"
+            >
+              Try Multiple
+            </TabsTrigger>
+            <TabsTrigger
+              value="look"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="Essayer une tenue complète"
+            >
+              Try Look
+            </TabsTrigger>
+          </TabsList>
+        </section>
 
-      {/* Content */}
-      <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
-        {/* Selection sections - always visible */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+        {/* Content */}
+        <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
+          {/* Try Single Tab - Current UI */}
+          <TabsContent value="single" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+            {/* Selection sections - always visible */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left Panel: Upload / Preview */}
           <section aria-labelledby="upload-heading">
             <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
@@ -995,29 +1022,65 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           />
         </section>
 
-        {error && (
-          <div role="alert" aria-live="assertive">
-            <Card className="p-6 bg-error/10 border-error">
-              <p className="text-error font-medium" id="error-message">
-                {error}
-              </p>
-              <Button
-                variant="secondary"
-                onClick={handleReset}
-                className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label="Réessayer après une erreur"
-                aria-describedby="error-message"
-              >
-                <RotateCcw
-                  className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                  aria-hidden="true"
-                />
-                <span>Réessayer</span>
-              </Button>
+            {error && (
+              <div role="alert" aria-live="assertive">
+                <Card className="p-6 bg-error/10 border-error">
+                  <p className="text-error font-medium" id="error-message">
+                    {error}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={handleReset}
+                    className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label="Réessayer après une erreur"
+                    aria-describedby="error-message"
+                  >
+                    <RotateCcw
+                      className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                      aria-hidden="true"
+                    />
+                    <span>Réessayer</span>
+                  </Button>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Try Multiple Tab - Coming Soon */}
+          <TabsContent value="multiple" className="mt-0">
+            <Card className="p-8 sm:p-12 md:p-16 border-border bg-card">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                  <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-primary" aria-hidden="true" />
+                </div>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                  Coming Soon
+                </h2>
+                <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-md">
+                  The "Try Multiple" feature is currently under development. You'll be able to try on multiple clothing items at once soon!
+                </p>
+              </div>
             </Card>
-          </div>
-        )}
-      </div>
+          </TabsContent>
+
+          {/* Try Look Tab - Coming Soon */}
+          <TabsContent value="look" className="mt-0">
+            <Card className="p-8 sm:p-12 md:p-16 border-border bg-card">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                  <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-primary" aria-hidden="true" />
+                </div>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                  Coming Soon
+                </h2>
+                <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-md">
+                  The "Try Look" feature is currently under development. You'll be able to try on complete outfits and looks soon!
+                </p>
+              </div>
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }
