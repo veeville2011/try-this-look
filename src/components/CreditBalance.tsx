@@ -154,7 +154,7 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </span>
                 </div>
               </div>
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 pb-8">
                 <RadialProgress
                   value={totalUsed}
                   max={totalCredited}
@@ -166,13 +166,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                 >
                   <div className="flex flex-col items-center justify-center">
                     <span className={cn(
-                      "text-2xl font-bold",
+                      "text-2xl sm:text-3xl font-bold leading-none",
                       isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
                     )}>
                       {Math.round(usagePercentage)}%
-                    </span>
-                    <span className="text-xs font-medium text-muted-foreground mt-1">
-                      {t("credits.balanceCard.usage")}
                     </span>
                   </div>
                 </RadialProgress>
@@ -245,19 +242,45 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                               value={data.used}
                               max={data.credited}
                               size="sm"
-                              color={isEmpty ? "muted" : (variantUsagePercentage >= 90 ? "destructive" : variantUsagePercentage >= 70 ? "warning" : typeConfig.color as "primary" | "success" | "warning" | "destructive" | "muted")}
+                              color={
+                                isEmpty 
+                                  ? "muted" 
+                                  : variantUsagePercentage >= 90 
+                                    ? "destructive" 
+                                    : variantUsagePercentage >= 70 
+                                      ? "warning" 
+                                      : type === "purchased" 
+                                        ? "success" 
+                                        : "primary"
+                              }
                               showLabel={true}
+                              labelPosition="center"
                             >
                               <span className={cn(
-                                "text-xs font-bold",
-                                isEmpty ? "text-muted-foreground" : variantUsagePercentage >= 90 ? "text-destructive" : variantUsagePercentage >= 70 ? "text-warning" : "text-primary"
+                                "text-[10px] font-bold leading-none",
+                                isEmpty 
+                                  ? "text-muted-foreground" 
+                                  : variantUsagePercentage >= 90 
+                                    ? "text-destructive" 
+                                    : variantUsagePercentage >= 70 
+                                      ? "text-warning" 
+                                      : type === "purchased" 
+                                        ? "text-success" 
+                                        : "text-primary"
                               )}>
                                 {Math.round(variantUsagePercentage)}%
                               </span>
                             </RadialProgress>
                           ) : (
                             <div className="w-16 h-16 rounded-full bg-muted/30 border border-border/40 flex items-center justify-center">
-                              <Icon className={cn("h-5 w-5", isEmpty ? "text-muted-foreground" : "text-primary")} />
+                              <Icon className={cn(
+                                "h-5 w-5",
+                                isEmpty 
+                                  ? "text-muted-foreground" 
+                                  : type === "purchased" 
+                                    ? "text-green-600" 
+                                    : "text-primary"
+                              )} />
                             </div>
                           )}
                         </div>
@@ -265,7 +288,18 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                         {/* Details */}
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="flex items-center gap-1.5">
-                            <Icon className={cn("h-3.5 w-3.5 flex-shrink-0", isEmpty ? "text-muted-foreground" : typeConfig.color === "primary" ? "text-primary" : typeConfig.color === "success" ? "text-success" : "text-muted-foreground")} />
+                            <Icon className={cn(
+                              "h-3.5 w-3.5 flex-shrink-0",
+                              isEmpty 
+                                ? "text-muted-foreground" 
+                                : type === "trial" 
+                                  ? "text-blue-600" 
+                                  : type === "coupon" 
+                                    ? "text-purple-600" 
+                                    : type === "purchased" 
+                                      ? "text-green-600" 
+                                      : "text-primary"
+                            )} />
                             <span className="text-xs font-semibold text-foreground truncate">
                               {typeConfig.label}
                             </span>

@@ -15,10 +15,10 @@ interface RadialProgressProps {
 }
 
 const sizeMap = {
-  sm: { diameter: 64, strokeWidth: 6, fontSize: "text-xs", labelSize: "text-[10px]" },
-  md: { diameter: 80, strokeWidth: 8, fontSize: "text-sm", labelSize: "text-xs" },
-  lg: { diameter: 120, strokeWidth: 10, fontSize: "text-base", labelSize: "text-sm" },
-  xl: { diameter: 160, strokeWidth: 12, fontSize: "text-xl", labelSize: "text-base" },
+  sm: { diameter: 64, strokeWidth: 5, fontSize: "text-[10px]", labelSize: "text-[9px]", containerPadding: "p-0" },
+  md: { diameter: 80, strokeWidth: 6, fontSize: "text-xs", labelSize: "text-[10px]", containerPadding: "p-0" },
+  lg: { diameter: 120, strokeWidth: 8, fontSize: "text-sm", labelSize: "text-xs", containerPadding: "p-0" },
+  xl: { diameter: 180, strokeWidth: 10, fontSize: "text-lg", labelSize: "text-sm", containerPadding: "p-2" },
 };
 
 const colorMap = {
@@ -69,64 +69,72 @@ const RadialProgress = React.forwardRef<HTMLDivElement, RadialProgressProps>(
     return (
       <div
         ref={ref}
-        className={cn("relative inline-flex items-center justify-center", className)}
+        className={cn("relative inline-flex items-center justify-center", sizeConfig.containerPadding, className)}
         {...props}
       >
-        <svg
-          width={diameter}
-          height={diameter}
-          className="transform -rotate-90"
-          aria-label={`Progress: ${Math.round(percentage)}%`}
-        >
-          {/* Background circle */}
-          <circle
-            cx={diameter / 2}
-            cy={diameter / 2}
-            r={radius}
-            fill="none"
-            strokeWidth={actualStrokeWidth}
-            className={cn("stroke-current", effectiveColorConfig.bg)}
-          />
-          {/* Progress circle */}
-          <circle
-            cx={diameter / 2}
-            cy={diameter / 2}
-            r={radius}
-            fill="none"
-            strokeWidth={actualStrokeWidth}
-            className={cn("stroke-current transition-all duration-500 ease-in-out", effectiveColorConfig.stroke)}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-          />
-        </svg>
-        {/* Center content */}
-        {labelPosition === "center" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {children || (
-              <>
-                {showLabel && (
-                  <span className={cn("font-bold", sizeConfig.fontSize, effectiveColorConfig.text)}>
-                    {Math.round(percentage)}%
-                  </span>
-                )}
-                {label && (
-                  <span className={cn("mt-0.5 font-medium text-muted-foreground", sizeConfig.labelSize)}>
-                    {label}
-                  </span>
-                )}
-              </>
+        <div className="relative">
+          <svg
+            width={diameter}
+            height={diameter}
+            className="transform -rotate-90"
+            aria-label={`Progress: ${Math.round(percentage)}%`}
+            style={{ minWidth: diameter, minHeight: diameter }}
+          >
+            {/* Background circle */}
+            <circle
+              cx={diameter / 2}
+              cy={diameter / 2}
+              r={radius}
+              fill="none"
+              strokeWidth={actualStrokeWidth}
+              className={cn("stroke-current", effectiveColorConfig.bg)}
+            />
+            {/* Progress circle */}
+            <circle
+              cx={diameter / 2}
+              cy={diameter / 2}
+              r={radius}
+              fill="none"
+              strokeWidth={actualStrokeWidth}
+              className={cn("stroke-current transition-all duration-700 ease-out", effectiveColorConfig.stroke)}
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+            />
+          </svg>
+          {/* Center content */}
+          {labelPosition === "center" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              {children || (
+                <>
+                  {showLabel && (
+                    <span className={cn("font-bold leading-none", sizeConfig.fontSize, effectiveColorConfig.text)}>
+                      {Math.round(percentage)}%
+                    </span>
+                  )}
+                  {label && (
+                    <span className={cn("mt-1 font-medium text-muted-foreground leading-tight text-center px-1", sizeConfig.labelSize)}>
+                      {label}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Bottom label - positioned outside the SVG container to prevent overlap */}
+        {labelPosition === "bottom" && (
+          <div className={cn(
+            "absolute left-1/2 transform -translate-x-1/2 w-full text-center whitespace-nowrap",
+            size === "xl" ? "-bottom-10" : size === "lg" ? "-bottom-8" : size === "md" ? "-bottom-7" : "-bottom-6"
+          )}>
+            {label && (
+              <span className={cn("font-medium text-muted-foreground block leading-tight", sizeConfig.labelSize)}>
+                {label}
+              </span>
             )}
-          </div>
-        )}
-        {/* Bottom label */}
-        {labelPosition === "bottom" && label && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-full text-center">
-            <span className={cn("font-medium text-muted-foreground block", sizeConfig.labelSize)}>
-              {label}
-            </span>
-            {showLabel && (
-              <span className={cn("font-bold block mt-0.5", sizeConfig.fontSize, effectiveColorConfig.text)}>
+            {showLabel && labelPosition === "bottom" && !children && (
+              <span className={cn("font-bold block leading-tight mt-0.5", sizeConfig.fontSize, effectiveColorConfig.text)}>
                 {Math.round(percentage)}%
               </span>
             )}

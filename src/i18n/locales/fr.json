@@ -85,6 +85,8 @@
       "creditsUsed": "crédits utilisés",
       "totalCredited": "total crédité",
       "breakdown": "Répartition des crédits par type",
+      "totalCredits": "Total des crédits",
+      "available": "disponibles",
       "trial": "Essai",
       "coupon": "Coupon",
       "plan": "Plan",
@@ -158,7 +160,15 @@
       "cancelling": "Annulation...",
       "cancelSubscription": "Annuler l'abonnement",
       "noPlanSelected": "Aucun plan sélectionné",
-      "choosePlan": "Choisir un plan"
+      "choosePlan": "Choisir un plan",
+      "periodInfo": "Période de facturation",
+      "periodStart": "Début de période",
+      "periodEnd": "Fin de période",
+      "subscriptionCreated": "Abonnement créé",
+      "creditsAvailableAfterUpgrade": "Crédits disponibles après la mise à niveau",
+      "loadingCredits": "Chargement des crédits...",
+      "showFeatures": "Afficher toutes les fonctionnalités du plan",
+      "hideFeatures": "Masquer les fonctionnalités du plan"
     },
     "coupon": {
       "label": "Code promo",
