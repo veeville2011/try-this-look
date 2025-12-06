@@ -874,285 +874,127 @@ const Index = () => {
               />
             </div>
 
-            {/* Main Hero Grid - Shopify 3-column layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-              {/* Hero Content - Takes 8 columns */}
-              <div className="lg:col-span-8">
-                <div className="space-y-6">
-                  {/* Brand & Title */}
-                  <div className="space-y-4">
-                    <h1
-                      className="inline-flex items-center font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight"
-                      aria-label="NusenseTryOn"
-                    >
-                      <span className="text-primary" style={{ color: "#ce0003" }}>
-                        Nusense
-                      </span>
-                      <span className="text-foreground" style={{ color: "#564646" }}>
-                        TryOn
-                      </span>
-                    </h1>
-                    <p className="text-xl sm:text-2xl text-foreground font-semibold leading-relaxed">
-                      {t("index.hero.title")}
-                    </p>
-                    <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
-                      {t("index.hero.subtitle")}
-                    </p>
-                  </div>
-
-                  {/* Primary CTAs - Shopify button group style */}
-                  <div className="flex flex-wrap gap-3 pt-2" role="group" aria-label={t("index.hero.primaryActions") || "Primary actions"}>
-                    <Button
-                      size="lg"
-                      onClick={scrollToInstallationGuide}
-                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                      aria-label={t("index.hero.startInstallation")}
-                    >
-                      <Zap className="w-4 h-4 mr-2" aria-hidden="true" />
-                      {t("index.hero.startInstallation")}
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={() => {
-                        handleRequireBilling();
-                      }}
-                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                      aria-label={t("index.hero.viewPricing")}
-                    >
-                      {t("index.hero.viewPricing")}
-                    </Button>
-                  </div>
-                </div>
+            {/* Main Hero Content - Full Width */}
+            <div className="space-y-6">
+              {/* Brand & Title */}
+              <div className="space-y-4">
+                <h1
+                  className="inline-flex items-center font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight"
+                  aria-label="NusenseTryOn"
+                >
+                  <span className="text-primary" style={{ color: "#ce0003" }}>
+                    Nusense
+                  </span>
+                  <span className="text-foreground" style={{ color: "#564646" }}>
+                    TryOn
+                  </span>
+                </h1>
+                <p className="text-xl sm:text-2xl text-foreground font-semibold leading-relaxed">
+                  {t("index.hero.title")}
+                </p>
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
+                  {t("index.hero.subtitle")}
+                </p>
               </div>
 
-              {/* Plan Information Card - Takes 4 columns - Shopify Sidebar Style */}
-              <div className="lg:col-span-4">
-                {subscription && subscription.subscription !== null ? (
-                  <Card className="border border-border shadow-sm bg-card">
-                    {/* Card Header - Shopify Style */}
-                    <CardHeader className="pb-4 border-b border-border">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg font-semibold text-foreground mb-2">
-                            {t("index.planCard.title")}
-                          </CardTitle>
-                          <div className="flex items-center gap-2">
-                            {subscription.isFree ? (
-                              <Badge
-                                variant="outline"
-                                className="gap-1.5 text-xs px-2.5 py-1 font-medium"
-                                aria-label={t("index.planCard.freePlan")}
-                              >
-                                <Zap className="w-3 h-3" aria-hidden="true" />
-                                <span>{t("index.planCard.freePlan")}</span>
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="default"
-                                className="gap-1.5 bg-primary text-primary-foreground text-xs px-2.5 py-1 font-medium"
-                                aria-label={subscription.plan?.name || t("index.planCard.premiumPlan")}
-                              >
-                                <Crown className="w-3 h-3" aria-hidden="true" />
-                                <span>{subscription.plan?.name ||
-                                  t("index.planCard.premiumPlan")}</span>
-                              </Badge>
-                            )}
-                            {subscription.hasActiveSubscription && !subscription.isFree && (
-                              <Badge
-                                variant="secondary"
-                                className="gap-1.5 bg-success/10 text-success border-success/20 text-xs px-2.5 py-1 font-medium"
-                                aria-label={t("index.planCard.active")}
-                              >
-                                <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
-                                <span>{t("index.planCard.active")}</span>
-                              </Badge>
-                            )}
-                          </div>
+              {/* Primary CTAs - Shopify button group style */}
+              <div className="flex flex-wrap gap-3 pt-2" role="group" aria-label={t("index.hero.primaryActions") || "Primary actions"}>
+                <Button
+                  size="lg"
+                  onClick={scrollToInstallationGuide}
+                  className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label={t("index.hero.startInstallation")}
+                >
+                  <Zap className="w-4 h-4 mr-2" aria-hidden="true" />
+                  {t("index.hero.startInstallation")}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    handleRequireBilling();
+                  }}
+                  className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label={t("index.hero.viewPricing")}
+                >
+                  {t("index.hero.viewPricing")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Plan Information Card - Horizontal Layout Below Hero */}
+      <section className="bg-muted/30 border-b border-border py-6 sm:py-8" aria-labelledby="plan-card-heading">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            {subscription && subscription.subscription !== null ? (
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                    {/* Left Section - Plan Info & Status */}
+                    <div className="lg:col-span-3 space-y-4 pb-4 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-6">
+                      <div>
+                        <h2 id="plan-card-heading" className="text-sm sm:text-base font-semibold text-foreground mb-3">
+                          {t("index.planCard.title")}
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {subscription.isFree ? (
+                            <Badge
+                              variant="outline"
+                              className="gap-1.5 text-xs px-2.5 py-1 font-medium"
+                              aria-label={t("index.planCard.freePlan")}
+                            >
+                              <Zap className="w-3 h-3" aria-hidden="true" />
+                              <span>{t("index.planCard.freePlan")}</span>
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="default"
+                              className="gap-1.5 bg-primary text-primary-foreground text-xs px-2.5 py-1 font-medium"
+                              aria-label={subscription.plan?.name || t("index.planCard.premiumPlan")}
+                            >
+                              <Crown className="w-3 h-3" aria-hidden="true" />
+                              <span>{subscription.plan?.name || t("index.planCard.premiumPlan")}</span>
+                            </Badge>
+                          )}
+                          {subscription.hasActiveSubscription && !subscription.isFree && (
+                            <Badge
+                              variant="secondary"
+                              className="gap-1.5 bg-success/10 text-success border-success/20 text-xs px-2.5 py-1 font-medium"
+                              aria-label={t("index.planCard.active")}
+                            >
+                              <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                              <span>{t("index.planCard.active")}</span>
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                    </CardHeader>
 
-                    {/* Card Content - Compact Shopify Style */}
-                    <CardContent className="p-5 space-y-4">
-                      {/* Credits Section - Compact Display */}
-                      {credits && !subscription.isFree && (
-                        <div>
-                          <CreditBalance variant="embedded" />
-                        </div>
-                      )}
-
-                      {/* Trial Days Remaining - Compact Single Line */}
+                      {/* Trial Days Remaining */}
                       {subscription.subscription?.isInTrial &&
                         subscription.subscription?.trialDaysRemaining !== null && (
-                          <div className="px-3 py-2 bg-primary/5 border border-primary/20 rounded-md">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                                <span className="text-xs font-medium text-foreground">
+                          <div className="px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex items-start gap-2.5">
+                              <Sparkle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-muted-foreground mb-0.5">
                                   {t("index.planCard.trialPeriod")}
-                                </span>
+                                </p>
+                                <p className="text-sm font-bold text-primary">
+                                  {subscription.subscription.trialDaysRemaining}{" "}
+                                  {subscription.subscription.trialDaysRemaining === 1
+                                    ? t("index.planCard.trialDayRemaining")
+                                    : t("index.planCard.trialDaysRemaining")}
+                                </p>
                               </div>
-                              <span className="text-xs font-bold text-primary">
-                                {subscription.subscription.trialDaysRemaining}{" "}
-                                {subscription.subscription.trialDaysRemaining === 1
-                                  ? t("index.planCard.trialDayRemaining")
-                                  : t("index.planCard.trialDaysRemaining")}
-                              </span>
                             </div>
                           </div>
                         )}
 
-                      {/* Subscription Details - Collapsible */}
-                      {subscription.subscription && (
-                        <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                          <CollapsibleTrigger
-                            className="w-full flex items-center justify-between py-2 px-0 text-sm font-semibold text-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-md"
-                            aria-label={
-                              isDetailsOpen
-                                ? t("index.planCard.hideDetails") || "Hide subscription details"
-                                : t("index.planCard.showDetails") || "Show subscription details"
-                            }
-                          >
-                            <span className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4" />
-                              {t("index.planCard.subscriptionDetails") || "Subscription Details"}
-                            </span>
-                            {isDetailsOpen ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2 space-y-2">
-                            <dl className="space-y-2">
-                              <div className="flex items-center justify-between gap-4 text-sm">
-                                <dt className="flex items-center gap-1.5 text-muted-foreground">
-                                  <span>{t("index.planCard.planStart")}</span>
-                                </dt>
-                                <dd className="font-medium text-foreground">
-                                  {new Date(
-                                    subscription.subscription.currentPeriodStart ||
-                                      subscription.subscription.createdAt
-                                  ).toLocaleDateString(
-                                    i18n.language === "fr" ? "fr-FR" : "en-US",
-                                    {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    }
-                                  )}
-                                </dd>
-                              </div>
-                              <div className="flex items-center justify-between gap-4 text-sm">
-                                <dt className="flex items-center gap-1.5 text-muted-foreground">
-                                  <span>{t("index.planCard.renewal")}</span>
-                                </dt>
-                                <dd className="font-medium text-foreground">
-                                  {new Date(
-                                    subscription.subscription.currentPeriodEnd
-                                  ).toLocaleDateString(
-                                    i18n.language === "fr" ? "fr-FR" : "en-US",
-                                    {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    }
-                                  )}
-                                </dd>
-                              </div>
-                              <div className="flex items-center justify-between gap-4 text-sm">
-                                <dt className="flex items-center gap-1.5 text-muted-foreground">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-success flex-shrink-0" />
-                                  <span>{t("index.planCard.status")}</span>
-                                </dt>
-                                <dd className="font-medium text-foreground capitalize">
-                                  {subscription.subscription.status.toLowerCase() === "active"
-                                    ? t("subscription.active")
-                                    : subscription.subscription.status.toLowerCase() === "trial"
-                                    ? t("subscription.trial")
-                                    : subscription.subscription.status.toLowerCase()}
-                                </dd>
-                              </div>
-                            </dl>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-
-                      {/* Plan Features - Collapsible with Preview */}
-                      {(() => {
-                        const planName = subscription.plan?.name;
-                        const matchedPlan = availablePlans.find(
-                          (p) => p.name === planName
-                        );
-                        const planFeatures = matchedPlan?.features || [];
-                        const defaultFeatures = [
-                          t("index.planCard.unlimitedTryOn"),
-                          t("index.planCard.prioritySupport"),
-                          t("index.planCard.shopifyIntegration"),
-                        ];
-                        const allFeatures = planFeatures.length > 0 ? planFeatures : defaultFeatures;
-                        const previewFeatures = allFeatures.slice(0, 3);
-                        const remainingFeatures = allFeatures.slice(3);
-
-                        return (
-                          <Collapsible open={isFeaturesOpen} onOpenChange={setIsFeaturesOpen}>
-                            <div className="space-y-2">
-                              <CollapsibleTrigger
-                                className="w-full flex items-center justify-between py-2 px-0 text-sm font-semibold text-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-md"
-                                aria-label={
-                                  isFeaturesOpen
-                                    ? t("index.planCard.hideFeatures") || "Hide plan features"
-                                    : t("index.planCard.showFeatures") || "Show all plan features"
-                                }
-                              >
-                                <span className="flex items-center gap-2">
-                                  <Sparkle className="w-4 h-4 text-primary" />
-                                  {t("index.planCard.featuresTitle")}
-                                </span>
-                                {isFeaturesOpen ? (
-                                  <ChevronUp className="w-4 h-4" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4" />
-                                )}
-                              </CollapsibleTrigger>
-                              <ul className="space-y-1.5">
-                                {previewFeatures.map((feature: string, index: number) => (
-                                  <li
-                                    key={index}
-                                    className="flex items-start gap-2 text-sm"
-                                  >
-                                    <Check className="w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5" />
-                                    <span className="text-muted-foreground leading-snug">
-                                      {feature}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {remainingFeatures.length > 0 && (
-                                <CollapsibleContent className="space-y-1.5 pt-1">
-                                  <ul className="space-y-1.5">
-                                    {remainingFeatures.map((feature: string, index: number) => (
-                                      <li
-                                        key={index + previewFeatures.length}
-                                        className="flex items-start gap-2 text-sm"
-                                      >
-                                        <Check className="w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5" />
-                                        <span className="text-muted-foreground leading-snug">
-                                          {feature}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </CollapsibleContent>
-                              )}
-                            </div>
-                          </Collapsible>
-                        );
-                      })()}
-
-                      {/* Action Buttons - Compact */}
-                      <div className="pt-2 space-y-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
+                      {/* Action Buttons */}
+                      <div className="space-y-2 pt-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                         <Button
                           size="default"
                           className="w-full h-10 min-h-[40px] font-medium text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -1186,48 +1028,198 @@ const Index = () => {
                             </Button>
                           )}
                       </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card className="border border-border shadow-sm bg-card">
-                    <CardHeader className="pb-4 border-b border-border">
-                      <CardTitle className="text-lg font-semibold text-foreground">
-                        {t("index.planCard.title")}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="text-center py-8 space-y-4">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-2">
-                          <CreditCard className="w-8 h-8 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-foreground">
-                            {t("index.planCard.noPlanSelected")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {t("index.planCard.selectPlanToContinue") || "Select a plan to get started"}
-                          </p>
-                        </div>
-                        <Button
-                          size="default"
-                          className="w-full h-11 min-h-[44px] font-medium mt-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          onClick={() => {
-                            handleRequireBilling();
-                          }}
-                          aria-label={t("index.planCard.choosePlan")}
-                        >
-                          <Sparkle className="w-4 h-4 mr-2" aria-hidden="true" />
-                          {t("index.planCard.choosePlan")}
-                        </Button>
+                    </div>
+
+                    {/* Middle Section - Credits (if available) */}
+                    {credits && !subscription.isFree && (
+                      <div className="lg:col-span-4 pb-4 lg:pb-0 border-b border-border lg:border-b-0 lg:border-r lg:border-border lg:pr-6">
+                        <CreditBalance variant="embedded" />
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
+                    )}
+
+                    {/* Right Section - Subscription Details & Features */}
+                    <div className={`space-y-4 lg:pl-6 ${credits && !subscription.isFree ? 'lg:col-span-5' : 'lg:col-span-9'}`}>
+                      {/* Subscription Details - Collapsible */}
+                      {subscription.subscription && (
+                        <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                          <div className="space-y-3">
+                            <CollapsibleTrigger
+                              className="w-full flex items-center justify-between py-2 px-2 -mx-2 rounded-md text-sm font-semibold text-foreground hover:text-primary hover:bg-muted/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                              aria-label={
+                                isDetailsOpen
+                                  ? t("index.planCard.hideDetails") || "Hide subscription details"
+                                  : t("index.planCard.showDetails") || "Show subscription details"
+                              }
+                            >
+                              <span className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4" aria-hidden="true" />
+                                {t("index.planCard.subscriptionDetails") || "Subscription Details"}
+                              </span>
+                              {isDetailsOpen ? (
+                                <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                              )}
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pt-1 overflow-hidden transition-all">
+                              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm bg-muted/30 rounded-lg p-4">
+                                <div>
+                                  <dt className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                                    {t("index.planCard.planStart")}
+                                  </dt>
+                                  <dd className="font-semibold text-foreground">
+                                    {new Date(
+                                      subscription.subscription.currentPeriodStart ||
+                                        subscription.subscription.createdAt
+                                    ).toLocaleDateString(
+                                      i18n.language === "fr" ? "fr-FR" : "en-US",
+                                      {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      }
+                                    )}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                                    {t("index.planCard.renewal")}
+                                  </dt>
+                                  <dd className="font-semibold text-foreground">
+                                    {new Date(
+                                      subscription.subscription.currentPeriodEnd
+                                    ).toLocaleDateString(
+                                      i18n.language === "fr" ? "fr-FR" : "en-US",
+                                      {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      }
+                                    )}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-success" aria-hidden="true" />
+                                    {t("index.planCard.status")}
+                                  </dt>
+                                  <dd className="font-semibold text-foreground capitalize">
+                                    {subscription.subscription.status.toLowerCase() === "active"
+                                      ? t("subscription.active")
+                                      : subscription.subscription.status.toLowerCase() === "trial"
+                                      ? t("subscription.trial")
+                                      : subscription.subscription.status.toLowerCase()}
+                                  </dd>
+                                </div>
+                              </dl>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+                      )}
+
+                      {/* Plan Features - Collapsible */}
+                      {(() => {
+                        const planName = subscription.plan?.name;
+                        const matchedPlan = availablePlans.find(
+                          (p) => p.name === planName
+                        );
+                        const planFeatures = matchedPlan?.features || [];
+                        const defaultFeatures = [
+                          t("index.planCard.unlimitedTryOn"),
+                          t("index.planCard.prioritySupport"),
+                          t("index.planCard.shopifyIntegration"),
+                        ];
+                        const allFeatures = planFeatures.length > 0 ? planFeatures : defaultFeatures;
+                        const previewFeatures = allFeatures.slice(0, 3);
+                        const remainingFeatures = allFeatures.slice(3);
+
+                        return (
+                          <Collapsible open={isFeaturesOpen} onOpenChange={setIsFeaturesOpen}>
+                            <div className="space-y-3">
+                              <CollapsibleTrigger
+                                className="w-full flex items-center justify-between py-2 px-2 -mx-2 rounded-md text-sm font-semibold text-foreground hover:text-primary hover:bg-muted/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                aria-label={
+                                  isFeaturesOpen
+                                    ? t("index.planCard.hideFeatures") || "Hide plan features"
+                                    : t("index.planCard.showFeatures") || "Show all plan features"
+                                }
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Sparkle className="w-4 h-4 text-primary" aria-hidden="true" />
+                                  {t("index.planCard.featuresTitle")}
+                                </span>
+                                {isFeaturesOpen ? (
+                                  <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                                )}
+                              </CollapsibleTrigger>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                {previewFeatures.map((feature: string, index: number) => (
+                                  <div key={index} className="flex items-start gap-2.5 text-sm">
+                                    <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
+                                    <span className="text-foreground leading-relaxed">{feature}</span>
+                                  </div>
+                                ))}
+                                {remainingFeatures.length > 0 && (
+                                  <CollapsibleContent className="sm:col-span-2 overflow-hidden transition-all">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-border/50">
+                                      {remainingFeatures.map((feature: string, index: number) => (
+                                        <div key={index + previewFeatures.length} className="flex items-start gap-2.5 text-sm">
+                                          <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" aria-hidden="true" />
+                                          <span className="text-foreground leading-relaxed">{feature}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </CollapsibleContent>
+                                )}
+                              </div>
+                            </div>
+                          </Collapsible>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-6 sm:p-8">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
+                      <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/5 border border-primary/10">
+                        <CreditCard className="w-7 h-7 text-primary" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <h2 id="plan-card-heading" className="text-base sm:text-lg font-semibold text-foreground mb-1.5">
+                          {t("index.planCard.title")}
+                        </h2>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                          {t("index.planCard.noPlanSelected")}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t("index.planCard.selectPlanToContinue") || "Select a plan to get started"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="lg"
+                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      onClick={() => {
+                        handleRequireBilling();
+                      }}
+                      aria-label={t("index.planCard.choosePlan")}
+                    >
+                      <Sparkle className="w-4 h-4 mr-2" aria-hidden="true" />
+                      {t("index.planCard.choosePlan")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
-      </header>
+      </section>
 
       {/* Quick Actions Section - Shopify Section Style */}
       {subscription && subscription.subscription !== null && (
