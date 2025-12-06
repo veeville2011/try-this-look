@@ -3414,6 +3414,141 @@ app.get("/api/billing/subscription", async (req, res) => {
   }
 });
 
+// Check if app blocks are installed in theme
+app.get("/api/installation/check", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        isInstalled: false,
+      });
+    }
+
+    const normalizedShop = shopify.utils.sanitizeShop(shop);
+    if (!normalizedShop) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        isInstalled: false,
+      });
+    }
+
+    // Get session from shop domain
+    const sessions = await shopify.config.sessionStorage.findSessionsByShop(
+      normalizedShop
+    );
+
+    if (!sessions || sessions.length === 0) {
+      return res.status(401).json({
+        error: "Session not found",
+        isInstalled: false,
+      });
+    }
+
+    const offlineSession = sessions.find((s) => !s.isOnline);
+    if (!offlineSession) {
+      return res.status(401).json({
+        error: "No offline session found",
+        isInstalled: false,
+      });
+    }
+
+    const client = new shopify.clients.Graphql({ session: offlineSession });
+
+    // Check if app block is installed by querying theme files
+    // We'll check the main theme's product template for the app block
+    const query = `
+      query GetMainTheme {
+        themes(first: 1, roles: [MAIN]) {
+          edges {
+            node {
+              id
+              name
+              files(first: 50) {
+                edges {
+                  node {
+                    ... on OnlineStoreThemeFile {
+                      filename
+                      ... on OnlineStoreJsonFile {
+                        jsonContent
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await client.query({ data: query });
+    const themes = response?.body?.data?.themes?.edges || [];
+    
+    if (themes.length === 0) {
+      return res.json({ isInstalled: false });
+    }
+
+    const mainTheme = themes[0].node;
+    const files = mainTheme.files?.edges || [];
+    
+    // Check product template files for app block
+    let isInstalled = false;
+    for (const fileEdge of files) {
+      const file = fileEdge.node;
+      if (file.filename && file.filename.includes("product.json")) {
+        try {
+          const jsonContent = typeof file.jsonContent === 'string' 
+            ? JSON.parse(file.jsonContent) 
+            : file.jsonContent;
+          
+          // Check if app block exists in sections
+          if (jsonContent.sections) {
+            for (const sectionKey in jsonContent.sections) {
+              const section = jsonContent.sections[sectionKey];
+              if (section.blocks) {
+                for (const block of section.blocks) {
+                  if (block.type && block.type.includes("nusense-tryon-button")) {
+                    isInstalled = true;
+                    break;
+                  }
+                }
+              }
+              if (isInstalled) break;
+            }
+          }
+        } catch (parseError) {
+          // Skip files that can't be parsed
+          continue;
+        }
+      }
+      if (isInstalled) break;
+    }
+
+    logger.info("[INSTALLATION_CHECK] Checked app block installation", {
+      requestId,
+      shop: normalizedShop,
+      isInstalled,
+    });
+
+    res.json({ isInstalled });
+  } catch (error) {
+    logger.error("[INSTALLATION_CHECK] Error checking installation", error, req, {
+      requestId,
+      shop: req.query.shop,
+    });
+
+    res.status(500).json({
+      error: "Failed to check installation",
+      isInstalled: false,
+    });
+  }
+});
+
 // Check if installation can proceed (plan selected check)
 // This endpoint verifies from Shopify's side if a plan is selected before allowing theme editor access
 app.get("/api/billing/check-installation", async (req, res) => {

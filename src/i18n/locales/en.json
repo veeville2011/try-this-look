@@ -269,6 +269,16 @@
   "trialNotification": {
     "approving": "Approving...",
     "approvalInitiated": "Subscription approval initiated successfully"
+  },
+  "installationTracker": {
+    "sectionTitle": "Installation Status",
+    "sectionSubtitle": "Check if the app block is installed in your theme",
+    "title": "App Block Installation",
+    "checking": "Checking installation status...",
+    "installed": "App block is installed and active",
+    "notInstalled": "App block is not installed",
+    "addButton": "Add App Block",
+    "selectPlan": "Select Plan"
   }
 }
 
