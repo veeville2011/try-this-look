@@ -95,6 +95,9 @@
       "balance": "Solde",
       "used": "Utilisé",
       "usagePercent": "Utilisation",
+      "type": "Type",
+      "metric": "Métrique",
+      "value": "Valeur",
       "overageDetails": "Détails de facturation du dépassement",
       "overageActive": "La facturation du dépassement est actuellement active",
       "overageType": "Type",
@@ -132,8 +135,8 @@
       "startInstallation": "Commencer l'installation",
       "viewPricing": "Voir les tarifs"
     },
-      "planCard": {
-        "planActions": "Actions du plan",
+    "planCard": {
+      "planActions": "Actions du plan",
       "title": "Votre plan",
       "active": "Actif",
       "freePlan": "Plan Gratuit",
@@ -229,6 +232,9 @@
       "step4Description": "Visitez votre page d'accueil et une page produit de votre boutique pour vérifier que la bannière et le bouton d'essayage virtuel apparaissent correctement. Cliquez sur les éléments pour tester la fonctionnalité.",
       "step4Congratulations": "Félicitations !",
       "step4CongratulationsText": "NusenseTryOn est maintenant configuré. Vos clients peuvent utiliser la fonctionnalité d'essayage virtuel directement sur vos pages produits et découvrir la fonctionnalité via la bannière sur votre page d'accueil."
+    },
+    "quickActions": {
+      "title": "Actions rapides"
     },
     "features": {
       "title": "Pourquoi choisir NusenseTryOn?",

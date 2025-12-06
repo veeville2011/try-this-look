@@ -95,6 +95,9 @@
       "balance": "Balance",
       "used": "Used",
       "usagePercent": "Usage",
+      "type": "Type",
+      "metric": "Metric",
+      "value": "Value",
       "overageDetails": "Overage Billing Details",
       "overageActive": "Overage billing is currently active",
       "overageType": "Type",
@@ -132,8 +135,8 @@
       "startInstallation": "Start Installation",
       "viewPricing": "View Pricing"
     },
-      "planCard": {
-        "planActions": "Plan actions",
+    "planCard": {
+      "planActions": "Plan actions",
       "title": "Your Plan",
       "active": "Active",
       "freePlan": "Free Plan",
@@ -185,8 +188,6 @@
       "seconds": "s"
     },
     "installationGuide": {
-      "title": "Installation Guide",
-      "subtitle": "Follow these steps to get started",
       "title": "Step-by-Step Installation Guide",
       "subtitle": "Quick installation in minutes",
       "appBlockNote": "📦 Single App Block:",
@@ -232,9 +233,10 @@
       "step4Congratulations": "Congratulations!",
       "step4CongratulationsText": "NusenseTryOn is now configured. Your customers can use the virtual try-on feature directly on your product pages and discover the feature via the banner on your homepage."
     },
+    "quickActions": {
+      "title": "Quick Actions"
+    },
     "features": {
-      "title": "Features",
-      "subtitle": "Discover what makes our solution powerful",
       "title": "Why Choose NusenseTryOn?",
       "subtitle": "Powerful features to enhance the shopping experience"
     },

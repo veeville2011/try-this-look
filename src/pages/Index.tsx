@@ -25,6 +25,7 @@ import {
   Sparkle,
   Tag,
   Coins,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -999,11 +1000,8 @@ const Index = () => {
                   <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
                     <CardContent className="p-4">
                       <div className="space-y-3">
-                        {/* Plan Title & Badges - Always visible */}
+                        {/* Plan Badges - Always visible */}
                         <div className="space-y-2">
-                          <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
-                            {t("index.planCard.title")}
-                          </h2>
                           <div className="flex flex-wrap items-center gap-1.5">
                             {subscription.isFree ? (
                               <Badge
@@ -1110,6 +1108,7 @@ const Index = () => {
                                     ? t("index.planCard.cancelling")
                                     : t("index.planCard.cancelSubscription")}
                                 >
+                                  <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
                                   {cancelling
                                     ? t("index.planCard.cancelling")
                                     : t("index.planCard.cancelSubscription")}
@@ -1123,12 +1122,7 @@ const Index = () => {
                         {/* Subscription Period Info - Show when available */}
                         {subscription.subscription && !subscription.isFree && (
                           <div className="pt-1.5 border-t border-border">
-                            <div className="space-y-1.5">
-                              <h4 className="text-[10px] font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
-                                <Calendar className="w-3 h-3 text-primary" aria-hidden="true" />
-                                {t("index.planCard.periodInfo") || "Billing Period"}
-                              </h4>
-                              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
                               {subscription.subscription.currentPeriodStart && (
                                 <div className="p-1.5 rounded bg-muted/30">
                                   <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
@@ -1151,18 +1145,6 @@ const Index = () => {
                                   </p>
                                 </div>
                               )}
-                            </div>
-                            {subscription.subscription.createdAt && (
-                              <div className="p-1.5 rounded bg-muted/30">
-                                <p className="text-[10px] text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.subscriptionCreated") || "Subscription Created"}</p>
-                                <p className="text-[10px] font-medium text-foreground leading-tight">
-                                  {new Date(subscription.subscription.createdAt).toLocaleDateString(
-                                    i18n.language === "fr" ? "fr-FR" : "en-US",
-                                    { year: 'numeric', month: 'short', day: 'numeric' }
-                                  )}
-                                </p>
-                              </div>
-                            )}
                             </div>
                           </div>
                         )}
