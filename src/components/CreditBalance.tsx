@@ -160,62 +160,6 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
 
   const content = (
     <div className="space-y-6">
-      {/* Summary Cards - Quick Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Coins className="h-4 w-4 text-primary" />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {t("credits.balanceCard.totalCredits") || "Total Credits"}
-            </p>
-          </div>
-          <p className={cn(
-            "text-2xl font-bold",
-            isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
-          )}>
-            {totalCredited.toLocaleString()}
-          </p>
-        </div>
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {t("credits.balanceCard.used") || "Used"}
-            </p>
-          </div>
-          <p className="text-2xl font-bold text-foreground">
-            {totalUsed.toLocaleString()}
-          </p>
-          {totalCredited > 0 && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {Math.round(usagePercentage)}% {t("credits.balanceCard.usage") || "usage"}
-            </p>
-          )}
-        </div>
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className={cn(
-              "h-4 w-4",
-              isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-success"
-            )} />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {t("credits.balanceCard.balance") || "Balance"}
-            </p>
-          </div>
-          <p className={cn(
-            "text-2xl font-bold",
-            isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-success"
-          )}>
-            {totalBalance.toLocaleString()}
-          </p>
-          {isLow && !isExhausted && (
-            <p className="text-xs text-warning mt-1 font-medium">
-              {t("credits.balanceCard.lowCreditsRemaining") || "Low balance"}
-            </p>
-          )}
-        </div>
-      </div>
-
       {/* Credit Types Table and Overage Table - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Credit Types Table */}
@@ -234,13 +178,13 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                     <TableHead className="w-[200px] font-semibold text-xs uppercase tracking-wide">
                       {t("credits.balanceCard.type") || "Type"}
                     </TableHead>
-                    <TableHead className="text-right font-semibold text-xs uppercase tracking-wide">
+                    <TableHead className="text-center font-semibold text-xs uppercase tracking-wide">
                       {t("credits.balanceCard.credited") || "Credited"}
                     </TableHead>
-                    <TableHead className="text-right font-semibold text-xs uppercase tracking-wide">
+                    <TableHead className="text-center font-semibold text-xs uppercase tracking-wide">
                       {t("credits.balanceCard.used") || "Used"}
                     </TableHead>
-                    <TableHead className="text-right font-semibold text-xs uppercase tracking-wide">
+                    <TableHead className="text-center font-semibold text-xs uppercase tracking-wide">
                       {t("credits.balanceCard.balance") || "Balance"}
                     </TableHead>
                     <TableHead className="text-right font-semibold text-xs uppercase tracking-wide">
@@ -285,7 +229,7 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <span className={cn(
                             "text-sm font-semibold",
                             isEmpty ? "text-muted-foreground" : "text-foreground"
@@ -293,7 +237,7 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                             {data.credited.toLocaleString()}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <span className={cn(
                             "text-sm font-medium",
                             isEmpty ? "text-muted-foreground" : "text-foreground"
@@ -301,7 +245,7 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                             {data.used.toLocaleString()}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <span className={cn(
                             "text-sm font-semibold",
                             isEmpty 
@@ -342,6 +286,60 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                       </TableRow>
                     );
                   })}
+                  {/* Total Row */}
+                  <TableRow className="bg-muted/50 border-t-2 border-border font-semibold">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Coins className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-bold text-foreground">
+                          {t("credits.balanceCard.totalCredits") || "Total"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={cn(
+                        "text-sm font-bold",
+                        isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
+                      )}>
+                        {totalCredited.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="text-sm font-bold text-foreground">
+                        {totalUsed.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={cn(
+                        "text-sm font-bold",
+                        isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-success"
+                      )}>
+                        {totalBalance.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {totalCredited > 0 ? (
+                        <div className="flex items-center justify-end">
+                          <RadialProgress
+                            value={totalUsed}
+                            max={totalCredited}
+                            size="sm"
+                            color={
+                              isExhausted 
+                                ? "destructive" 
+                                : isLow 
+                                  ? "warning" 
+                                  : "primary"
+                            }
+                            showLabel={true}
+                            labelPosition="center"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
@@ -471,18 +469,6 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                 : credits.canPurchase
                 ? t("credits.balanceCard.purchaseCreditsMessage")
                 : t("credits.balanceCard.contactSupportMessage")}
-            </p>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isLow && !isExhausted && (
-        <Alert className="bg-warning/10 border-warning/30">
-          <AlertCircle className="h-4 w-4 text-warning" />
-          <AlertDescription>
-            <p className="font-semibold text-foreground mb-1">{t("credits.balanceCard.lowCreditsRemaining")}</p>
-            <p className="text-sm text-muted-foreground">
-              {t("credits.balanceCard.lowCreditsMessage", { count: totalBalance })}
             </p>
           </AlertDescription>
         </Alert>
