@@ -36,6 +36,9 @@ export const updateSubscriptionMetafield = async (
       }
     `;
 
+    // CRITICAL: Boolean metafields require lowercase "true"/"false" strings
+    const booleanValue = hasActiveSubscription ? "true" : "false";
+    
     const variables = {
       metafields: [
         {
@@ -43,7 +46,7 @@ export const updateSubscriptionMetafield = async (
           namespace: "subscription",
           key: "active",
           type: "boolean",
-          value: String(hasActiveSubscription),
+          value: booleanValue,
         },
       ],
     };
@@ -69,17 +72,120 @@ export const updateSubscriptionMetafield = async (
       );
     }
 
+    const updatedMetafield = response.data?.metafieldsSet?.metafields?.[0];
+    
+    if (!updatedMetafield) {
+      throw new Error("Metafield update succeeded but no metafield returned in response");
+    }
+
     logger.info("[METAFIELD] Successfully updated subscription metafield", {
       appInstallationId,
       hasActiveSubscription,
-      metafieldId: response.data?.metafieldsSet?.metafields?.[0]?.id,
+      metafieldId: updatedMetafield.id,
+      metafieldValue: updatedMetafield.value,
+      namespace: updatedMetafield.namespace,
+      key: updatedMetafield.key,
     });
 
-    return response.data?.metafieldsSet?.metafields?.[0];
+    // Verify the metafield was actually set correctly
+    try {
+      const verified = await verifySubscriptionMetafield(
+        client,
+        appInstallationId,
+        hasActiveSubscription
+      );
+      if (!verified) {
+        logger.warn("[METAFIELD] Metafield update succeeded but verification failed", {
+          appInstallationId,
+          expectedValue: booleanValue,
+        });
+      } else {
+        logger.info("[METAFIELD] Metafield verified successfully after update", {
+          appInstallationId,
+        });
+      }
+    } catch (verifyError) {
+      // Don't fail the update if verification fails - log and continue
+      logger.warn("[METAFIELD] Failed to verify metafield after update", verifyError, null, {
+        appInstallationId,
+        errorMessage: verifyError.message,
+      });
+    }
+
+    return updatedMetafield;
   } catch (error) {
     logger.error("[METAFIELD] Exception updating subscription metafield", error, null, {
       appInstallationId,
       hasActiveSubscription,
+      errorMessage: error.message,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Verify that the subscription metafield exists and has the correct value
+ * @param {Object} client - GraphQL client with authenticated session
+ * @param {string} appInstallationId - App installation ID
+ * @param {boolean} expectedValue - Expected boolean value
+ * @returns {Promise<boolean>} True if metafield exists and matches expected value
+ */
+export const verifySubscriptionMetafield = async (
+  client,
+  appInstallationId,
+  expectedValue
+) => {
+  try {
+    const query = `
+      query VerifySubscriptionMetafield($ownerId: ID!, $namespace: String!, $key: String!) {
+        appInstallation(id: $ownerId) {
+          metafield(namespace: $namespace, key: $key) {
+            id
+            namespace
+            key
+            value
+            type
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      ownerId: appInstallationId,
+      namespace: "subscription",
+      key: "active",
+    };
+
+    const response = await client.request(query, { variables });
+
+    const metafield = response.data?.appInstallation?.metafield;
+
+    if (!metafield) {
+      logger.warn("[METAFIELD] Verification: Metafield does not exist", {
+        appInstallationId,
+        namespace: variables.namespace,
+        key: variables.key,
+      });
+      return false;
+    }
+
+    // Boolean values are returned as strings "true" or "false"
+    const actualValue = metafield.value === "true" || metafield.value === true;
+    const matches = actualValue === expectedValue;
+
+    logger.info("[METAFIELD] Verification result", {
+      appInstallationId,
+      expectedValue,
+      actualValue: metafield.value,
+      matches,
+      metafieldId: metafield.id,
+    });
+
+    return matches;
+  } catch (error) {
+    logger.error("[METAFIELD] Error verifying subscription metafield", error, null, {
+      appInstallationId,
+      expectedValue,
       errorMessage: error.message,
     });
     throw error;

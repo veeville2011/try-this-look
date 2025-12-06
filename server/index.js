@@ -2637,50 +2637,120 @@ app.post(
             }
           }
           
-          // Update metafield if we have client and appInstallationId
-          if (client && appInstallationId) {
-            try {
-              // Determine if subscription is active - blocks should be available for ACTIVE, PENDING, and TRIAL
-              const hasActiveSubscription = 
-                app_subscription.status === "ACTIVE" || 
-                app_subscription.status === "PENDING" ||
-                app_subscription.status === "TRIAL";
-              
-              await subscriptionMetafield.updateSubscriptionMetafield(
-                client,
-                appInstallationId,
-                hasActiveSubscription
-              );
-              
-              logger.info("[WEBHOOK] Subscription metafield updated successfully", {
-                shop,
-                subscriptionId: app_subscription?.id,
-                status: app_subscription?.status,
-                hasActiveSubscription,
-                reusedClient: !!webhookClient,
-              });
-            } catch (metafieldError) {
-              // Log error but don't fail webhook - metafield will be updated on next GET request
-              logger.error(
-                "[WEBHOOK] Failed to update subscription metafield",
-                metafieldError,
-                null,
-                {
+          // CRITICAL: Update metafield to control app block/banner visibility
+          // This must happen for ALL subscription statuses to ensure blocks appear/disappear correctly
+          try {
+            // Determine if subscription is active - blocks should be available for ACTIVE, PENDING, and TRIAL
+            const hasActiveSubscription = 
+              app_subscription.status === "ACTIVE" || 
+              app_subscription.status === "PENDING" ||
+              app_subscription.status === "TRIAL";
+            
+            // Use existing client if available, otherwise create new one
+            let metafieldClient = client || webhookClient;
+            let metafieldAppInstallationId = appInstallationId || webhookAppInstallationId;
+            
+            // If we don't have a client or appInstallationId, try to get them
+            if (!metafieldClient || !metafieldAppInstallationId) {
+              try {
+                const tokenResult = await shopify.auth.tokenExchange({
+                  shop,
+                  sessionToken: null,
+                  requestedTokenType: RequestedTokenType.OfflineAccessToken,
+                });
+
+                const session = tokenResult?.session;
+                const accessToken =
+                  session?.accessToken || session?.access_token;
+
+                if (session && accessToken) {
+                  metafieldClient = new shopify.clients.Graphql({
+                    session: {
+                      shop: session.shop || shop,
+                      accessToken,
+                      scope: session.scope,
+                      isOnline: session.isOnline || false,
+                    },
+                  });
+
+                  if (!metafieldAppInstallationId) {
+                    metafieldAppInstallationId = await subscriptionMetafield.getAppInstallationId(
+                      metafieldClient
+                    );
+                  }
+                }
+              } catch (tokenError) {
+                logger.error(
+                  "[WEBHOOK] Failed to create client for metafield update",
+                  tokenError,
+                  null,
+                  {
+                    shop,
+                    subscriptionId: app_subscription?.id,
+                    errorMessage: tokenError.message,
+                    stack: tokenError.stack,
+                  }
+                );
+              }
+            }
+            
+            // Update metafield if we have client and appInstallationId
+            if (metafieldClient && metafieldAppInstallationId) {
+              try {
+                await subscriptionMetafield.updateSubscriptionMetafield(
+                  metafieldClient,
+                  metafieldAppInstallationId,
+                  hasActiveSubscription
+                );
+                
+                logger.info("[WEBHOOK] Subscription metafield updated successfully", {
                   shop,
                   subscriptionId: app_subscription?.id,
                   status: app_subscription?.status,
-                  errorMessage: metafieldError.message,
-                }
-              );
+                  hasActiveSubscription,
+                  reusedClient: !!client || !!webhookClient,
+                });
+              } catch (metafieldError) {
+                // Log error but don't fail webhook - metafield will be updated on next GET request
+                logger.error(
+                  "[WEBHOOK] Failed to update subscription metafield",
+                  metafieldError,
+                  null,
+                  {
+                    shop,
+                    subscriptionId: app_subscription?.id,
+                    status: app_subscription?.status,
+                    hasActiveSubscription,
+                    errorMessage: metafieldError.message,
+                    stack: metafieldError.stack,
+                  }
+                );
+              }
+            } else {
+              logger.warn("[WEBHOOK] Cannot update subscription metafield - missing client or appInstallationId after retry", {
+                shop,
+                subscriptionId: app_subscription?.id,
+                hasClient: !!metafieldClient,
+                hasAppInstallationId: !!metafieldAppInstallationId,
+                status: app_subscription?.status,
+                note: "Metafield will be updated on next GET /api/billing/subscription request",
+              });
             }
-          } else {
-            logger.warn("[WEBHOOK] Cannot update metafield - client or appInstallationId not available", {
-              shop,
-              subscriptionId: app_subscription?.id,
-              hasClient: !!client,
-              hasAppInstallationId: !!appInstallationId,
-              note: "Metafield will be updated on next GET /api/billing/subscription request",
-            });
+          } catch (error) {
+            // Catch-all for any unexpected errors in metafield update flow
+            logger.error(
+              "[WEBHOOK] Unexpected error in metafield update flow",
+              error,
+              null,
+              {
+                shop,
+                subscriptionId: app_subscription?.id,
+                status: app_subscription?.status,
+                errorMessage: error.message,
+                stack: error.stack,
+              }
+            );
+            // Don't fail webhook - continue processing
           }
         } catch (error) {
           // Log error but don't fail webhook
