@@ -31,7 +31,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -1296,24 +1295,6 @@ const Index = () => {
                 </CardContent>
               </Card>
             )}
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Actions Section - Shopify Section Style */}
-      <section className="py-12 sm:py-16 lg:py-20 bg-background border-b border-border" aria-labelledby="quick-actions-heading">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <h2 id="quick-actions-heading" className="sr-only">
-              {t("index.quickActions.title") || "Quick Actions"}
-            </h2>
-            <QuickActions
-              showInstall={!currentPlan || currentPlan === "free" || !subscription || subscription.subscription === null}
-              showConfigure={currentPlan && currentPlan !== "free" && subscription && subscription.subscription !== null}
-              onInstallClick={scrollToInstallationGuide}
-              onConfigureClick={scrollToInstallationGuide}
-              onPricingClick={handleRequireBilling}
-            />
           </div>
         </div>
       </section>
