@@ -931,11 +931,11 @@ const Index = () => {
       </nav>
 
       {/* Hero Section - Shopify Style */}
-      <header className="relative bg-card border-b border-border" role="banner">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+      <header className="relative bg-card border-b border-border min-h-[calc(100vh-56px)] flex items-center" role="banner">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
           <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
             {/* Trial Notification Banner */}
-            <div className="mb-8">
+            <div className="mb-6">
               <TrialNotificationBanner
                 onApprovalInitiated={() => {
                   refreshSubscription();
@@ -1256,26 +1256,27 @@ const Index = () => {
               <Card className="border border-border shadow-sm bg-card">
                 <CardContent className="p-6 sm:p-8">
                   <div className="space-y-6">
-                    <h2 id="credits-heading" className="text-sm sm:text-base font-semibold text-foreground">
-                      {t("credits.balanceCard.title") || "Credit Balance"}
-                    </h2>
-                    {/* Credits Card - Consistent spacing whether shown or not */}
-                    <div className="min-h-[200px]">
-                      {credits && !subscription.isFree ? (
-                        <CreditBalance variant="embedded" />
-                      ) : (
-                        <div className="p-4 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
-                          <div className="text-center space-y-2">
-                            <Coins className="w-8 h-8 text-muted-foreground mx-auto opacity-50" aria-hidden="true" />
-                            <p className="text-sm text-muted-foreground">
-                              {subscription.isFree 
-                                ? t("index.planCard.creditsAvailableAfterUpgrade") || "Credits available after upgrade"
-                                : t("index.planCard.loadingCredits") || "Loading credits..."}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2 mb-4">
+                      <Coins className="h-5 w-5 text-primary" aria-hidden="true" />
+                      <h2 id="credits-heading" className="text-lg font-semibold text-foreground">
+                        {t("credits.balanceCard.title") || "Credit Balance"}
+                      </h2>
                     </div>
+                    {/* Credits Table - Clean tabular UI */}
+                    {credits && !subscription.isFree ? (
+                      <CreditBalance variant="embedded" />
+                    ) : (
+                      <div className="p-8 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
+                        <div className="text-center space-y-2">
+                          <Coins className="w-8 h-8 text-muted-foreground mx-auto opacity-50" aria-hidden="true" />
+                          <p className="text-sm text-muted-foreground">
+                            {subscription.isFree 
+                              ? t("index.planCard.creditsAvailableAfterUpgrade") || "Credits available after upgrade"
+                              : t("index.planCard.loadingCredits") || "Loading credits..."}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
