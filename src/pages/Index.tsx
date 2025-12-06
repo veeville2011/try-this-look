@@ -944,7 +944,7 @@ const Index = () => {
             </div>
 
             {/* Main Hero Content - Grid Layout with Plan Info on Right */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
               {/* Left Section - Hero Content */}
               <div className="lg:col-span-7 space-y-8">
                 {/* Brand & Title */}
@@ -997,14 +997,14 @@ const Index = () => {
               <div className="lg:col-span-5">
                 {subscription && subscription.subscription !== null ? (
                   <Card className="border border-border shadow-sm bg-card">
-                    <CardContent className="p-6">
-                      <div className="space-y-5">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
                         {/* Plan Title & Badges - Always visible */}
-                        <div className="space-y-3">
-                          <h2 id="plan-card-heading" className="text-sm sm:text-base font-semibold text-foreground">
+                        <div className="space-y-2">
+                          <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
                             {t("index.planCard.title")}
                           </h2>
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {subscription.isFree ? (
                               <Badge
                                 variant="outline"
@@ -1053,17 +1053,17 @@ const Index = () => {
                         </div>
 
                         {/* Trial Days Remaining - Consistent spacing whether shown or not */}
-                        <div className="min-h-[60px] flex items-start">
+                        <div className="min-h-[50px] flex items-start">
                           {subscription.subscription?.isInTrial &&
                           subscription.subscription?.trialDaysRemaining !== null ? (
-                            <div className="w-full px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
-                              <div className="flex items-start gap-2.5">
-                                <Sparkle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
+                            <div className="w-full px-2.5 py-2 bg-primary/5 border border-primary/20 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                                  <p className="text-[10px] font-medium text-muted-foreground mb-0.5">
                                     {t("index.planCard.trialPeriod")}
                                   </p>
-                                  <p className="text-sm font-bold text-primary">
+                                  <p className="text-xs font-bold text-primary">
                                     {subscription.subscription.trialDaysRemaining}{" "}
                                     {subscription.subscription.trialDaysRemaining === 1
                                       ? t("index.planCard.trialDayRemaining")
@@ -1078,10 +1078,10 @@ const Index = () => {
                         </div>
 
                         {/* Action Buttons - Consistent spacing */}
-                        <div className="space-y-2" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
+                        <div className="space-y-1.5" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                           <Button
-                            size="default"
-                            className="w-full h-10 min-h-[40px] font-medium text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            size="sm"
+                            className="w-full h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                             onClick={() => {
                               handleRequireBilling();
                             }}
@@ -1089,21 +1089,21 @@ const Index = () => {
                               ? t("index.planCard.upgradeToPremium")
                               : t("index.planCard.manageSubscription")}
                           >
-                            <CreditCard className="w-4 h-4 mr-2" aria-hidden="true" />
+                            <CreditCard className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
                             {subscription.isFree
                               ? t("index.planCard.upgradeToPremium")
                               : t("index.planCard.manageSubscription")}
                           </Button>
                           {/* Cancel Button - Consistent spacing whether shown or not */}
-                          <div className="min-h-[40px]">
+                          <div className="min-h-[36px]">
                             {subscription && 
                              subscription.subscription !== null && 
                              !subscription.isFree && 
                              subscription.subscription?.id ? (
                                 <Button
-                                  size="default"
+                                  size="sm"
                                   variant="outline"
-                                  className="w-full h-10 min-h-[40px] font-medium text-sm text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                  className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
                                   onClick={handleCancelSubscription}
                                   disabled={cancelling}
                                   aria-label={cancelling
@@ -1122,58 +1122,58 @@ const Index = () => {
 
                         {/* Subscription Period Info - Show when available */}
                         {subscription.subscription && !subscription.isFree && (
-                          <div className="pt-2 border-t border-border">
-                            <div className="space-y-2">
-                              <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                                <Calendar className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                          <div className="pt-1.5 border-t border-border">
+                            <div className="space-y-1.5">
+                              <h4 className="text-[10px] font-semibold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
+                                <Calendar className="w-3 h-3 text-primary" aria-hidden="true" />
                                 {t("index.planCard.periodInfo") || "Billing Period"}
                               </h4>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                {subscription.subscription.currentPeriodStart && (
-                                  <div className="p-2 rounded bg-muted/30">
-                                    <p className="text-muted-foreground mb-0.5">{t("index.planCard.periodStart") || "Period Start"}</p>
-                                    <p className="font-medium text-foreground">
-                                      {new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
-                                        i18n.language === "fr" ? "fr-FR" : "en-US",
-                                        { year: 'numeric', month: 'short', day: 'numeric' }
-                                      )}
-                                    </p>
-                                  </div>
-                                )}
-                                {subscription.subscription.currentPeriodEnd && (
-                                  <div className="p-2 rounded bg-muted/30">
-                                    <p className="text-muted-foreground mb-0.5">{t("index.planCard.periodEnd") || "Period End"}</p>
-                                    <p className="font-medium text-foreground">
-                                      {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
-                                        i18n.language === "fr" ? "fr-FR" : "en-US",
-                                        { year: 'numeric', month: 'short', day: 'numeric' }
-                                      )}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                              {subscription.subscription.createdAt && (
-                                <div className="p-2 rounded bg-muted/30">
-                                  <p className="text-xs text-muted-foreground mb-0.5">{t("index.planCard.subscriptionCreated") || "Subscription Created"}</p>
-                                  <p className="text-xs font-medium text-foreground">
-                                    {new Date(subscription.subscription.createdAt).toLocaleDateString(
+                              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                              {subscription.subscription.currentPeriodStart && (
+                                <div className="p-1.5 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
+                                  <p className="font-medium text-foreground leading-tight">
+                                    {new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
                                       i18n.language === "fr" ? "fr-FR" : "en-US",
-                                      { year: 'numeric', month: 'long', day: 'numeric' }
+                                      { year: 'numeric', month: 'short', day: 'numeric' }
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+                              {subscription.subscription.currentPeriodEnd && (
+                                <div className="p-1.5 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
+                                  <p className="font-medium text-foreground leading-tight">
+                                    {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
+                                      i18n.language === "fr" ? "fr-FR" : "en-US",
+                                      { year: 'numeric', month: 'short', day: 'numeric' }
                                     )}
                                   </p>
                                 </div>
                               )}
                             </div>
+                            {subscription.subscription.createdAt && (
+                              <div className="p-1.5 rounded bg-muted/30">
+                                <p className="text-[10px] text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.subscriptionCreated") || "Subscription Created"}</p>
+                                <p className="text-[10px] font-medium text-foreground leading-tight">
+                                  {new Date(subscription.subscription.createdAt).toLocaleDateString(
+                                    i18n.language === "fr" ? "fr-FR" : "en-US",
+                                    { year: 'numeric', month: 'short', day: 'numeric' }
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                            </div>
                           </div>
                         )}
 
                         {/* Promo Code Section - Always visible for consistent layout */}
-                        <div className="pt-4 border-t border-border">
-                          <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-xs font-medium text-foreground mb-2">
-                            <Tag className="w-3.5 h-3.5" aria-hidden="true" />
+                        <div className="pt-2 border-t border-border">
+                          <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
+                            <Tag className="w-3 h-3" aria-hidden="true" />
                             {t("index.coupon.label") || "Promo Code"}
                           </label>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <Input
                               id="coupon-code"
                               type="text"
@@ -1186,21 +1186,21 @@ const Index = () => {
                                 }
                               }}
                               disabled={redeemingCoupon}
-                              className="flex-1 h-9 text-sm"
+                              className="flex-1 h-8 text-xs"
                               aria-label={t("index.coupon.inputLabel") || "Promo code input"}
                             />
                             <Button
                               type="button"
-                              size="default"
+                              size="sm"
                               onClick={handleRedeemCoupon}
                               disabled={redeemingCoupon || !couponCode.trim()}
-                              className="h-9 px-4 font-medium text-sm whitespace-nowrap"
+                              className="h-8 px-3 font-medium text-xs whitespace-nowrap"
                               aria-label={redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
                             >
                               {redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1.5">
+                          <p className="text-[10px] text-muted-foreground mt-1">
                             {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
                           </p>
                         </div>
@@ -1209,31 +1209,31 @@ const Index = () => {
                   </Card>
                 ) : (
                   <Card className="border border-border shadow-sm bg-card">
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <h2 id="plan-card-heading" className="text-sm sm:text-base font-semibold text-foreground">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
                           {t("index.planCard.title")}
                         </h2>
-                        <div className="flex flex-col items-center gap-4 text-center">
-                          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/5 border border-primary/10">
-                            <CreditCard className="w-7 h-7 text-primary" aria-hidden="true" />
+                        <div className="flex flex-col items-center gap-3 text-center">
+                          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/5 border border-primary/10">
+                            <CreditCard className="w-6 h-6 text-primary" aria-hidden="true" />
                           </div>
                           <div>
-                            <p className="text-sm text-muted-foreground mb-2">
+                            <p className="text-xs text-muted-foreground mb-1.5">
                               {t("index.planCard.noPlanSelected")}
                             </p>
-                            <p className="text-xs text-muted-foreground mb-4">
+                            <p className="text-[10px] text-muted-foreground mb-3">
                               {t("index.planCard.selectPlanToContinue") || "Select a plan to get started"}
                             </p>
                             <Button
-                              size="default"
-                              className="w-full h-10 min-h-[40px] font-medium text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                              size="sm"
+                              className="w-full h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                               onClick={() => {
                                 handleRequireBilling();
                               }}
                               aria-label={t("index.planCard.choosePlan")}
                             >
-                              <Sparkle className="w-4 h-4 mr-2" aria-hidden="true" />
+                              <Sparkle className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
                               {t("index.planCard.choosePlan")}
                             </Button>
                           </div>
