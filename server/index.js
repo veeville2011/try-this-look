@@ -3421,7 +3421,8 @@ app.get("/api/installation/check", async (req, res) => {
     .substr(2, 9)}`;
 
   try {
-    const shop = req.query.shop;
+    // Get shop from middleware (set from JWT dest field) or query parameter
+    const shop = req.shop || req.query.shop;
     if (!shop) {
       return res.status(400).json({
         error: "Missing shop parameter",
@@ -3437,45 +3438,195 @@ app.get("/api/installation/check", async (req, res) => {
       });
     }
 
-    // Try to get session token from Authorization header (JWT from embedded app)
-    const authHeader = req.get("Authorization");
-    let accessToken = null;
-
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      // Extract token from Bearer header
-      const token = authHeader.substring(7);
-      try {
-        // Verify and decode JWT token to get shop info
-        // For now, we'll use the shop from query param and try to create a session
-        // Note: In production, you should verify the JWT token properly
-        accessToken = token;
-      } catch (tokenError) {
-        logger.debug("[INSTALLATION_CHECK] Could not parse token", {
-          requestId,
-          shop: normalizedShop,
-        });
-      }
+    // Get JWT session token from middleware (set from Authorization header)
+    const encodedSessionToken = req.sessionToken;
+    
+    if (!encodedSessionToken) {
+      logger.warn("[INSTALLATION_CHECK] No JWT session token provided", {
+        requestId,
+        shop: normalizedShop,
+        hasSession: !!req.session,
+      });
+      // Return false if no auth - UI will show "Add" button
+      return res.json({ isInstalled: false });
     }
 
-    // Since we use NoOpSessionStorage, we can't retrieve stored sessions
-    // For now, return false as default - the UI will show "Add" button
-    // In the future, we can implement proper session token verification
-    // or use a different method to check installation status
+    // Exchange JWT session token for an access token using App Bridge token exchange
+    let sessionWithAccessToken;
+    try {
+      logger.info("[INSTALLATION_CHECK] Exchanging JWT session token for access token", {
+        requestId,
+        shop: normalizedShop,
+        hasToken: !!encodedSessionToken,
+      });
+
+      const tokenResult = await shopify.auth.tokenExchange({
+        shop: normalizedShop,
+        sessionToken: encodedSessionToken,
+        requestedTokenType: RequestedTokenType.OfflineAccessToken,
+      });
+
+      const session = tokenResult?.session;
+      if (!tokenResult || !session) {
+        logger.error("[INSTALLATION_CHECK] Token exchange failed - no session returned", null, req, {
+          requestId,
+          shop: normalizedShop,
+          tokenResultKeys: tokenResult ? Object.keys(tokenResult) : [],
+        });
+        return res.json({ isInstalled: false });
+      }
+
+      // Extract accessToken from session (can be accessToken or access_token)
+      const accessToken = session.accessToken || session.access_token;
+      if (!accessToken) {
+        logger.error("[INSTALLATION_CHECK] Token exchange failed - no access token in session", null, req, {
+          requestId,
+          shop: normalizedShop,
+          sessionKeys: session ? Object.keys(session) : [],
+        });
+        return res.json({ isInstalled: false });
+      }
+
+      sessionWithAccessToken = session;
+      
+      logger.info("[INSTALLATION_CHECK] Token exchange successful", {
+        requestId,
+        shop: normalizedShop,
+        hasAccessToken: !!accessToken,
+      });
+    } catch (tokenError) {
+      logger.error("[INSTALLATION_CHECK] Token exchange error", tokenError, req, {
+        requestId,
+        shop: normalizedShop,
+        errorMessage: tokenError.message,
+      });
+      return res.json({ isInstalled: false });
+    }
+
+    // Create GraphQL client with session that has access token
+    const client = new shopify.clients.Graphql({ session: sessionWithAccessToken });
+
+    // Check if app block is installed by querying theme files
+    const query = `
+      query GetMainTheme {
+        themes(first: 1, roles: [MAIN]) {
+          edges {
+            node {
+              id
+              name
+              files(first: 100) {
+                edges {
+                  node {
+                    ... on OnlineStoreThemeFile {
+                      filename
+                      ... on OnlineStoreJsonFile {
+                        jsonContent
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await client.query({ data: query });
+    const themes = response?.body?.data?.themes?.edges || [];
     
-    logger.info("[INSTALLATION_CHECK] Installation check requested", {
+    if (themes.length === 0) {
+      logger.info("[INSTALLATION_CHECK] No main theme found", {
+        requestId,
+        shop: normalizedShop,
+      });
+      return res.json({ isInstalled: false });
+    }
+
+    const mainTheme = themes[0].node;
+    const files = mainTheme.files?.edges || [];
+    
+    // Check all template files for app block
+    // App blocks can be in any template file (product, collection, index, etc.)
+    let isInstalled = false;
+    const appBlockHandle = "nusense-tryon-button"; // App block handle
+    const appHandle = "nutryon"; // App handle from Index.tsx
+    
+    // App block type formats in Shopify:
+    // - @{app-handle}/{block-handle} (e.g., @nutryon/nusense-tryon-button)
+    // - Or just the block handle in some cases
+    const possibleBlockTypes = [
+      `@${appHandle}/${appBlockHandle}`,
+      appBlockHandle,
+      "nusense-tryon-button",
+      "nusense",
+      "tryon",
+    ];
+    
+    for (const fileEdge of files) {
+      const file = fileEdge.node;
+      // Check all JSON template files (not just product.json)
+      if (file.filename && file.filename.endsWith(".json")) {
+        try {
+          let content = null;
+          
+          // Handle JSON files
+          if (file.jsonContent) {
+            content = typeof file.jsonContent === 'string' 
+              ? JSON.parse(file.jsonContent) 
+              : file.jsonContent;
+          }
+          
+          // Check if app block exists in sections (for JSON templates)
+          if (content && content.sections) {
+            for (const sectionKey in content.sections) {
+              const section = content.sections[sectionKey];
+              if (section.blocks && Array.isArray(section.blocks)) {
+                for (const block of section.blocks) {
+                  // Check if block type matches any of the possible formats
+                  if (block.type) {
+                    const blockType = block.type.toLowerCase();
+                    const matches = possibleBlockTypes.some(pattern => 
+                      blockType.includes(pattern.toLowerCase())
+                    );
+                    
+                    if (matches) {
+                      isInstalled = true;
+                      logger.info("[INSTALLATION_CHECK] App block found", {
+                        requestId,
+                        shop: normalizedShop,
+                        filename: file.filename,
+                        blockType: block.type,
+                        sectionKey,
+                      });
+                      break;
+                    }
+                  }
+                }
+              }
+              if (isInstalled) break;
+            }
+          }
+        } catch (parseError) {
+          // Skip files that can't be parsed
+          logger.debug("[INSTALLATION_CHECK] Error parsing file", {
+            requestId,
+            filename: file.filename,
+            error: parseError.message,
+          });
+          continue;
+        }
+      }
+      if (isInstalled) break;
+    }
+
+    logger.info("[INSTALLATION_CHECK] Installation check completed", {
       requestId,
       shop: normalizedShop,
-      hasAuthHeader: !!authHeader,
-      note: "Returning default false - installation check requires proper session management",
+      isInstalled,
     });
 
-    // Return false by default - this allows the UI to work
-    // Users can manually add the app block, and we can improve this check later
-    // with proper session management or a different approach
-    res.json({ 
-      isInstalled: false,
-      note: "Installation check requires proper authentication. Please use the 'Add App Block' button to install."
-    });
+    res.json({ isInstalled });
   } catch (error) {
     logger.error("[INSTALLATION_CHECK] Error checking installation", error, req, {
       requestId,
