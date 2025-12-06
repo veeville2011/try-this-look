@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
-import { getAvailablePlans, subscribeToPlan, cancelSubscription } from "@/services/billingApi";
+import { getAvailablePlans, subscribeToPlan, cancelSubscription, redeemCouponCode } from "@/services/billingApi";
 import {
   Card,
   CardContent,
@@ -26,9 +26,11 @@ import {
   Sparkle,
   ChevronDown,
   ChevronUp,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import QuickActions from "@/components/QuickActions";
 import FeatureHighlights from "@/components/FeatureHighlights";
@@ -60,6 +62,8 @@ const Index = () => {
   const [cancelling, setCancelling] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -203,6 +207,45 @@ const Index = () => {
       alert(error.message || t("index.errors.cancelError"));
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleRedeemCoupon = async () => {
+    const shopDomain =
+      shop || new URLSearchParams(window.location.search).get("shop");
+
+    if (!shopDomain) {
+      toast.error(t("index.errors.shopNotFound") || "Shop domain not found");
+      return;
+    }
+
+    if (!couponCode || couponCode.trim() === "") {
+      toast.error(t("index.errors.couponCodeRequired") || "Please enter a coupon code");
+      return;
+    }
+
+    try {
+      setRedeemingCoupon(true);
+
+      const data = await redeemCouponCode(shopDomain, couponCode.trim().toUpperCase());
+
+      if (data.success) {
+        toast.success(
+          data.message || 
+          t("index.coupon.success") || 
+          `Successfully redeemed ${couponCode}! ${data.credits || 0} credits added.`
+        );
+        setCouponCode("");
+        // Refresh credits to show updated balance
+        await refreshCredits();
+      } else {
+        toast.error(data.message || t("index.errors.couponError") || "Failed to redeem coupon code");
+      }
+    } catch (error: any) {
+      console.error("[Coupon] Failed to redeem coupon", error);
+      toast.error(error.message || t("index.errors.couponError") || "Failed to redeem coupon code");
+    } finally {
+      setRedeemingCoupon(false);
     }
   };
 
@@ -1065,6 +1108,44 @@ const Index = () => {
                                 : t("index.planCard.cancelSubscription")}
                             </Button>
                           )}
+                      </div>
+
+                      {/* Promo Code Section */}
+                      <div className="pt-4 border-t border-border">
+                        <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-xs font-medium text-foreground mb-2">
+                          <Tag className="w-3.5 h-3.5" aria-hidden="true" />
+                          {t("index.coupon.label") || "Promo Code"}
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="coupon-code"
+                            type="text"
+                            placeholder={t("index.coupon.placeholder") || "Enter promo code"}
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !redeemingCoupon) {
+                                handleRedeemCoupon();
+                              }
+                            }}
+                            disabled={redeemingCoupon}
+                            className="flex-1 h-9 text-sm"
+                            aria-label={t("index.coupon.inputLabel") || "Promo code input"}
+                          />
+                          <Button
+                            type="button"
+                            size="default"
+                            onClick={handleRedeemCoupon}
+                            disabled={redeemingCoupon || !couponCode.trim()}
+                            className="h-9 px-4 font-medium text-sm whitespace-nowrap"
+                            aria-label={redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
+                          >
+                            {redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
+                        </p>
                       </div>
                     </div>
 

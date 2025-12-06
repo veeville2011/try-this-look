@@ -232,3 +232,38 @@ export const cancelSubscription = async (
   return response.json();
 };
 
+/**
+ * Redeem Coupon Code
+ * POST /api/credits/redeem-coupon
+ */
+export const redeemCouponCode = async (
+  shop: string,
+  couponCode: string
+): Promise<any> => {
+  const baseUrl = getApiBaseUrl();
+  const normalizedShop = normalizeShopDomain(shop);
+  const url = `${baseUrl}/api/credits/redeem-coupon`;
+  
+  const fetchFn = await getAuthenticatedFetch();
+  
+  const response = await fetchFn(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      shop: normalizedShop,
+      code: couponCode,
+    }),
+    credentials: "same-origin",
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+  }
+  
+  return response.json();
+};
+
