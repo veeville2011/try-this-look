@@ -946,7 +946,7 @@ const Index = () => {
             {/* Main Hero Content - Grid Layout with Plan Info on Right */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
               {/* Left Section - Hero Content */}
-              <div className="lg:col-span-7 space-y-8">
+              <div className="lg:col-span-8 space-y-8">
                 {/* Brand & Title */}
                 <div className="space-y-6">
                   <h1
@@ -994,9 +994,9 @@ const Index = () => {
               </div>
 
               {/* Right Section - Plan Info */}
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-4">
                 {subscription && subscription.subscription !== null ? (
-                  <Card className="border border-border shadow-sm bg-card">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         {/* Plan Title & Badges - Always visible */}
@@ -1208,7 +1208,7 @@ const Index = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-border shadow-sm bg-card">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
