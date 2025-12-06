@@ -160,6 +160,15 @@
       "noPlanSelected": "No plan selected",
       "choosePlan": "Choose a Plan"
     },
+    "coupon": {
+      "label": "Promo Code",
+      "placeholder": "Enter promo code",
+      "inputLabel": "Promo code input",
+      "apply": "Apply",
+      "applying": "Applying...",
+      "hint": "Enter a promo code to redeem credits",
+      "success": "Coupon code redeemed successfully! Credits have been added to your account."
+    },
     "loading": {
       "processingPayment": "Processing your payment...",
       "pleaseWait": "Please wait while we verify your subscription. This may take a few seconds.",
@@ -228,7 +237,10 @@
       "cancelFailed": "Failed to cancel subscription",
       "cancelError": "An error occurred while canceling. Please try again.",
       "missingConfirmationUrl": "Missing confirmation URL. Please try again later.",
-      "subscriptionFailed": "Failed to create subscription. Please try again."
+      "subscriptionFailed": "Failed to create subscription. Please try again.",
+      "shopNotFound": "Shop domain not found",
+      "couponCodeRequired": "Please enter a coupon code",
+      "couponError": "Failed to redeem coupon code"
     }
   },
   "paymentSuccess": {

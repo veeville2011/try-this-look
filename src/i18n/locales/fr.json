@@ -160,6 +160,15 @@
       "noPlanSelected": "Aucun plan sélectionné",
       "choosePlan": "Choisir un plan"
     },
+    "coupon": {
+      "label": "Code promo",
+      "placeholder": "Entrez votre code promo",
+      "inputLabel": "Saisie du code promo",
+      "apply": "Appliquer",
+      "applying": "Application...",
+      "hint": "Entrez un code promo pour obtenir des crédits",
+      "success": "Code promo utilisé avec succès ! Les crédits ont été ajoutés à votre compte."
+    },
     "loading": {
       "processingPayment": "Traitement de votre paiement...",
       "pleaseWait": "Veuillez patienter pendant que nous vérifions votre abonnement. Cela peut prendre quelques secondes.",
@@ -224,7 +233,10 @@
       "cancelFailed": "Échec de l'annulation de l'abonnement",
       "cancelError": "Une erreur s'est produite lors de l'annulation. Veuillez réessayer.",
       "missingConfirmationUrl": "URL de confirmation manquante. Veuillez réessayer plus tard.",
-      "subscriptionFailed": "Échec de la création de l'abonnement. Veuillez réessayer."
+      "subscriptionFailed": "Échec de la création de l'abonnement. Veuillez réessayer.",
+      "shopNotFound": "Domaine de la boutique introuvable",
+      "couponCodeRequired": "Veuillez entrer un code promo",
+      "couponError": "Échec de l'utilisation du code promo"
     }
   },
   "paymentSuccess": {

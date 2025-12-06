@@ -5266,11 +5266,15 @@ app.post("/api/credits/purchase", async (req, res) => {
 // Redeem coupon code
 app.post("/api/credits/redeem-coupon", async (req, res) => {
   try {
-    const { shop, code } = req.body;
+    // Get shop from query parameter or body (prefer query parameter)
+    const shop = req.query.shop || req.body?.shop;
+    // Get couponCode from body (can also accept 'code' for backwards compatibility)
+    const couponCode = req.body?.couponCode || req.body?.code;
 
-    if (!shop || !code) {
+    if (!shop || !couponCode) {
       return res.status(400).json({
         error: "Missing required parameters",
+        details: !shop ? "shop parameter is required (query or body)" : "couponCode is required in request body",
       });
     }
 
@@ -5329,7 +5333,7 @@ app.post("/api/credits/redeem-coupon", async (req, res) => {
     const result = await couponService.redeemCouponCode(
       client,
       appInstallationId,
-      code
+      couponCode
     );
 
     if (!result.success) {

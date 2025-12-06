@@ -234,7 +234,7 @@ export const cancelSubscription = async (
 
 /**
  * Redeem Coupon Code
- * POST /api/credits/redeem-coupon
+ * POST /api/credits/redeem-coupon?shop={shop}
  */
 export const redeemCouponCode = async (
   shop: string,
@@ -242,7 +242,7 @@ export const redeemCouponCode = async (
 ): Promise<any> => {
   const baseUrl = getApiBaseUrl();
   const normalizedShop = normalizeShopDomain(shop);
-  const url = `${baseUrl}/api/credits/redeem-coupon`;
+  const url = `${baseUrl}/api/credits/redeem-coupon?shop=${encodeURIComponent(normalizedShop)}`;
   
   const fetchFn = await getAuthenticatedFetch();
   
@@ -253,8 +253,7 @@ export const redeemCouponCode = async (
       Accept: "application/json",
     },
     body: JSON.stringify({
-      shop: normalizedShop,
-      code: couponCode,
+      couponCode: couponCode,
     }),
     credentials: "same-origin",
   });
