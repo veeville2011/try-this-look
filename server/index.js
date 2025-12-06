@@ -1347,6 +1347,136 @@ app.get("/health", (req, res) => {
 });
 
 // Logs endpoint - view recent logs
+// Debug endpoint to check subscription metafield status
+app.get("/api/debug/metafield", async (req, res) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      return res.status(400).json({ error: "Shop parameter required" });
+    }
+
+    const normalizedShop = shopify.utils.sanitizeShop(shop);
+    if (!normalizedShop) {
+      return res.status(400).json({ error: "Invalid shop domain" });
+    }
+
+    const session = await shopify.config.sessionStorage.findSessionsByShop(
+      normalizedShop
+    );
+
+    if (!session || session.length === 0) {
+      return res.status(404).json({ error: "No session found for shop" });
+    }
+
+    const offlineSession = session.find((s) => !s.isOnline);
+    if (!offlineSession) {
+      return res.status(404).json({ error: "No offline session found" });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: offlineSession,
+    });
+
+    const appInstallationId =
+      await subscriptionMetafield.getAppInstallationId(client);
+
+    // Query the metafield directly
+    const query = `
+      query GetSubscriptionMetafield($ownerId: ID!, $namespace: String!, $key: String!) {
+        appInstallation(id: $ownerId) {
+          id
+          metafield(namespace: $namespace, key: $key) {
+            id
+            namespace
+            key
+            value
+            type
+          }
+          metafields(first: 10, namespace: $namespace) {
+            edges {
+              node {
+                id
+                namespace
+                key
+                value
+                type
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      ownerId: appInstallationId,
+      namespace: "subscription",
+      key: "active",
+    };
+
+    const response = await client.request(query, { variables });
+    const metafield = response.data?.appInstallation?.metafield;
+    const allMetafields = response.data?.appInstallation?.metafields?.edges?.map(
+      (e) => e.node
+    );
+
+    // Also check subscription status
+    const subscriptionQuery = `
+      query GetAppSubscription {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            status
+            name
+          }
+        }
+      }
+    `;
+
+    const subscriptionResponse = await client.request(subscriptionQuery);
+    const activeSubscriptions =
+      subscriptionResponse.data?.currentAppInstallation?.activeSubscriptions ||
+      [];
+
+    // Check credits
+    let creditInfo = null;
+    try {
+      const creditData = await creditManager.getTotalCreditsAvailable(
+        client,
+        appInstallationId
+      );
+      creditInfo = {
+        balance: creditData?.balance || 0,
+        breakdown: creditData || {},
+      };
+    } catch (creditError) {
+      creditInfo = { error: creditError.message };
+    }
+
+    res.json({
+      shop: normalizedShop,
+      appInstallationId,
+      metafield: metafield || null,
+      allMetafieldsInNamespace: allMetafields || [],
+      activeSubscriptions,
+      creditInfo,
+      liquidAccessPath: "app.metafields.subscription.active",
+      expectedValue: metafield?.value || "not set",
+      note:
+        "If metafield is null, it doesn't exist. Blocks won't be visible until metafield is created with value 'true'.",
+    });
+  } catch (error) {
+    logger.error("[DEBUG] Error checking metafield", error, req, {
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({
+      error: "Failed to check metafield",
+      message: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 app.get("/api/logs", (req, res) => {
   try {
     const limit = parseInt(req.query.limit || "100", 10);
@@ -1562,6 +1692,46 @@ app.get("/auth/callback", async (req, res) => {
       hasSession: !!callbackResponse.session,
       sessionId: callbackResponse.session?.id,
     });
+
+    // CRITICAL: Initialize subscription metafield immediately after app installation
+    // This ensures app blocks are visible in theme editor (even if initially false)
+    // The metafield will be updated to true when subscription is active or credits exist
+    (async () => {
+      try {
+        const client = new shopify.clients.Graphql({
+          session: callbackResponse.session,
+        });
+
+        const appInstallationId =
+          await subscriptionMetafield.getAppInstallationId(client);
+
+        // Initialize metafield with false (blocks not available yet)
+        // It will be updated to true when subscription is active or credits > 0
+        await subscriptionMetafield.updateSubscriptionMetafield(
+          client,
+          appInstallationId,
+          false // Start with false, will update on first subscription check
+        );
+
+        logger.info("[OAUTH] Subscription metafield initialized after app installation", {
+          shop,
+          appInstallationId,
+          initialValue: false,
+        });
+      } catch (metafieldError) {
+        // Log error but don't fail OAuth - metafield will be created on first subscription check
+        logger.error(
+          "[OAUTH] Failed to initialize subscription metafield after installation",
+          metafieldError,
+          null,
+          {
+            shop,
+            errorMessage: metafieldError.message,
+            note: "Metafield will be created on first GET /api/billing/subscription request",
+          }
+        );
+      }
+    })();
 
     // For embedded apps, redirect with host parameter
     // Get host from query params (provided by Shopify during OAuth)
