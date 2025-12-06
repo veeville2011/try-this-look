@@ -845,6 +845,14 @@ const Index = () => {
     );
   }
 
+  const scrollToFeatures = () => {
+    const featuresElement = document.getElementById("features-heading");
+    if (!featuresElement) {
+      return;
+    }
+    featuresElement.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Skip Link for Accessibility - Shopify Best Practice */}
@@ -856,10 +864,37 @@ const Index = () => {
         {t("common.skipToContent") || "Skip to main content"}
       </a>
 
-      {/* Language Switcher - Fixed top right */}
-      <div className="fixed top-4 right-4 z-50">
-        <LanguageSwitcher />
-      </div>
+      {/* Navigation Bar - Horizontal Layout */}
+      <nav className="bg-card border-b border-border" role="navigation" aria-label="Main navigation">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between h-14">
+              {/* Navigation Links */}
+              <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                <button
+                  onClick={scrollToInstallationGuide}
+                  className="px-3 sm:px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap"
+                  aria-label={t("index.installationGuide.title")}
+                >
+                  {t("index.installationGuide.title") || "Installation Guide"}
+                </button>
+                <button
+                  onClick={scrollToFeatures}
+                  className="px-3 sm:px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap"
+                  aria-label={t("index.features.title") || "Features"}
+                >
+                  {t("index.features.title") || "Features"}
+                </button>
+              </div>
+
+              {/* Language Switcher */}
+              <div className="flex items-center ml-4 flex-shrink-0">
+                <LanguageSwitcher />
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
 
       {/* Hero Section - Shopify Style */}
       <header className="relative bg-card border-b border-border" role="banner">
@@ -1010,8 +1045,11 @@ const Index = () => {
                             ? t("index.planCard.upgradeToPremium")
                             : t("index.planCard.manageSubscription")}
                         </Button>
-                        {subscription.hasActiveSubscription &&
-                          subscription.subscription?.status === "ACTIVE" && (
+                        {/* Cancel Button - Always show when user has a subscription (not free) */}
+                        {subscription && 
+                         subscription.subscription !== null && 
+                         !subscription.isFree && 
+                         subscription.subscription?.id && (
                             <Button
                               size="default"
                               variant="outline"
