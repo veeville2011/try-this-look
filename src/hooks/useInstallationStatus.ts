@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useShop } from "@/providers/AppBridgeProvider";
+import { useShop, useAppBridge } from "@/providers/AppBridgeProvider";
 
 interface InstallationStatus {
   isInstalled: boolean;
@@ -17,6 +17,7 @@ export const useInstallationStatus = () => {
     error: null,
   });
   const shop = useShop();
+  const appBridge = useAppBridge();
 
   const checkInstallation = useCallback(async () => {
     if (!shop) {
@@ -27,10 +28,18 @@ export const useInstallationStatus = () => {
     setStatus(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      const { authenticatedFetch } = await import("@shopify/app-bridge");
-      const fetch = authenticatedFetch();
+      let fetchFn: typeof fetch;
+      
+      if (appBridge) {
+        // Use authenticated fetch if App Bridge is available
+        const { authenticatedFetch } = await import("@shopify/app-bridge-utils");
+        fetchFn = authenticatedFetch(appBridge);
+      } else {
+        // Fallback to regular fetch
+        fetchFn = fetch;
+      }
 
-      const response = await fetch(`/api/installation/check?shop=${encodeURIComponent(shop)}`);
+      const response = await fetchFn(`/api/installation/check?shop=${encodeURIComponent(shop)}`);
       
       if (!response.ok) {
         throw new Error(`Failed to check installation: ${response.statusText}`);
@@ -50,7 +59,7 @@ export const useInstallationStatus = () => {
         error: error instanceof Error ? error.message : "Failed to check installation",
       });
     }
-  }, [shop]);
+  }, [shop, appBridge]);
 
   useEffect(() => {
     checkInstallation();
