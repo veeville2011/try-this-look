@@ -3458,6 +3458,7 @@ app.get("/api/installation/check", async (req, res) => {
         requestId,
         shop: normalizedShop,
         hasToken: !!encodedSessionToken,
+        tokenLength: encodedSessionToken?.length,
       });
 
       const tokenResult = await shopify.auth.tokenExchange({
@@ -3472,6 +3473,7 @@ app.get("/api/installation/check", async (req, res) => {
           requestId,
           shop: normalizedShop,
           tokenResultKeys: tokenResult ? Object.keys(tokenResult) : [],
+          hasTokenResult: !!tokenResult,
         });
         return res.json({ isInstalled: false });
       }
@@ -3483,6 +3485,7 @@ app.get("/api/installation/check", async (req, res) => {
           requestId,
           shop: normalizedShop,
           sessionKeys: session ? Object.keys(session) : [],
+          hasSession: !!session,
         });
         return res.json({ isInstalled: false });
       }
@@ -3493,12 +3496,15 @@ app.get("/api/installation/check", async (req, res) => {
         requestId,
         shop: normalizedShop,
         hasAccessToken: !!accessToken,
+        accessTokenLength: accessToken?.length,
       });
     } catch (tokenError) {
       logger.error("[INSTALLATION_CHECK] Token exchange error", tokenError, req, {
         requestId,
         shop: normalizedShop,
-        errorMessage: tokenError.message,
+        errorMessage: tokenError?.message,
+        errorStack: tokenError?.stack,
+        errorName: tokenError?.constructor?.name,
       });
       return res.json({ isInstalled: false });
     }
@@ -3507,6 +3513,7 @@ app.get("/api/installation/check", async (req, res) => {
     const client = new shopify.clients.Graphql({ session: sessionWithAccessToken });
 
     // Check if app block is installed by querying theme files
+    // Using OnlineStore 2.0 theme files query
     const query = `
       query GetMainTheme {
         themes(first: 1, roles: [MAIN]) {
@@ -3514,14 +3521,15 @@ app.get("/api/installation/check", async (req, res) => {
             node {
               id
               name
-              files(first: 100) {
+              files(first: 200) {
                 edges {
                   node {
                     ... on OnlineStoreThemeFile {
                       filename
-                      ... on OnlineStoreJsonFile {
-                        jsonContent
-                      }
+                    }
+                    ... on OnlineStoreJsonFile {
+                      filename
+                      jsonContent
                     }
                   }
                 }
@@ -3532,8 +3540,63 @@ app.get("/api/installation/check", async (req, res) => {
       }
     `;
 
-    const response = await client.query({ data: query });
-    const themes = response?.body?.data?.themes?.edges || [];
+    let response;
+    try {
+      logger.info("[INSTALLATION_CHECK] Executing GraphQL query", {
+        requestId,
+        shop: normalizedShop,
+      });
+      
+      response = await client.query({ data: query });
+      
+      logger.info("[INSTALLATION_CHECK] GraphQL query completed", {
+        requestId,
+        shop: normalizedShop,
+        hasResponse: !!response,
+        hasBody: !!response?.body,
+        hasData: !!response?.body?.data,
+        hasErrors: !!response?.body?.errors,
+      });
+    } catch (queryError) {
+      logger.error("[INSTALLATION_CHECK] GraphQL query failed with exception", queryError, req, {
+        requestId,
+        shop: normalizedShop,
+        errorMessage: queryError?.message,
+        errorStack: queryError?.stack,
+        errorName: queryError?.constructor?.name,
+      });
+      return res.json({ isInstalled: false });
+    }
+
+    // Handle GraphQL errors in response body
+    if (response?.body?.errors) {
+      logger.error("[INSTALLATION_CHECK] GraphQL errors in response", null, req, {
+        requestId,
+        shop: normalizedShop,
+        errors: JSON.stringify(response.body.errors, null, 2),
+        errorCount: response.body.errors.length,
+      });
+      return res.json({ isInstalled: false });
+    }
+
+    // Check if we have data
+    if (!response?.body?.data) {
+      logger.warn("[INSTALLATION_CHECK] No data in GraphQL response", {
+        requestId,
+        shop: normalizedShop,
+        responseKeys: response?.body ? Object.keys(response.body) : [],
+        responseBody: JSON.stringify(response?.body, null, 2).substring(0, 500),
+      });
+      return res.json({ isInstalled: false });
+    }
+
+    const themes = response.body.data.themes?.edges || [];
+    
+    logger.info("[INSTALLATION_CHECK] Themes query result", {
+      requestId,
+      shop: normalizedShop,
+      themeCount: themes.length,
+    });
     
     if (themes.length === 0) {
       logger.info("[INSTALLATION_CHECK] No main theme found", {
@@ -3624,19 +3687,22 @@ app.get("/api/installation/check", async (req, res) => {
       requestId,
       shop: normalizedShop,
       isInstalled,
+      filesChecked: files.length,
     });
 
     res.json({ isInstalled });
   } catch (error) {
-    logger.error("[INSTALLATION_CHECK] Error checking installation", error, req, {
+    logger.error("[INSTALLATION_CHECK] Unexpected error checking installation", error, req, {
       requestId,
-      shop: req.query.shop,
+      shop: req.query.shop || req.shop,
+      errorMessage: error?.message,
+      errorStack: error?.stack,
+      errorName: error?.constructor?.name,
     });
 
     // Return false on error so UI still works
     res.json({
       isInstalled: false,
-      error: "Failed to check installation status",
     });
   }
 });
