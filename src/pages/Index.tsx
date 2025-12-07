@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
@@ -39,6 +40,7 @@ import CreditBalance from "@/components/CreditBalance";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
+  const location = useLocation();
   // Deep linking configuration
   const API_KEY = "f8de7972ae23d3484581d87137829385"; // From shopify.app.toml client_id
   const APP_BLOCK_HANDLE = "nusense-tryon-button";
@@ -905,20 +907,61 @@ const Index = () => {
             <div className="flex items-center justify-between h-14">
               {/* Navigation Links */}
               <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                <button
-                  onClick={scrollToInstallationGuide}
-                  className="px-3 sm:px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap"
-                  aria-label={t("index.installationGuide.title")}
+                <Link
+                  to="/"
+                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
+                    location.pathname === "/"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label="Dashboard"
                 >
-                  {t("index.installationGuide.title") || "Installation Guide"}
-                </button>
-                <button
-                  onClick={scrollToFeatures}
-                  className="px-3 sm:px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap"
-                  aria-label={t("index.features.title") || "Features"}
+                  Dashboard
+                </Link>
+                <Link
+                  to="/nucopy"
+                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
+                    location.pathname === "/nucopy"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label="NU Copy"
                 >
-                  {t("index.features.title") || "Features"}
-                </button>
+                  NU Copy
+                </Link>
+                <Link
+                  to="/nulight"
+                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
+                    location.pathname === "/nulight"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label="NU Light"
+                >
+                  NU Light
+                </Link>
+                <Link
+                  to="/nu3d"
+                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
+                    location.pathname === "/nu3d"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label="Nu3d"
+                >
+                  Nu3d
+                </Link>
+                <Link
+                  to="/nuscene"
+                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
+                    location.pathname === "/nuscene"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label="Nu Scene"
+                >
+                  Nu Scene
+                </Link>
               </div>
 
               {/* Language Switcher */}

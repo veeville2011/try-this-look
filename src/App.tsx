@@ -11,6 +11,10 @@ import Widget from "./pages/Widget";
 import CartOutfitWidget from "./pages/CartOutfitWidget";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import Nucopy from "./pages/Nucopy";
+import Nulight from "./pages/Nulight";
+import Nu3d from "./pages/Nu3d";
+import Nuscene from "./pages/Nuscene";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +43,10 @@ const App = () => {
               <Route path="/widget" element={<Widget />} />
               <Route path="/cart-outfit-widget" element={<CartOutfitWidget />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/nucopy" element={<Nucopy />} />
+              <Route path="/nulight" element={<Nulight />} />
+              <Route path="/nu3d" element={<Nu3d />} />
+              <Route path="/nuscene" element={<Nuscene />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

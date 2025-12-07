@@ -1,0 +1,475 @@
+{
+  "info": {
+    "_postman_id": "c417846e-6e23-4460-9962-693bc4d85396",
+    "name": "NULIGHT API Collection",
+    "description": "Complete API collection for NULIGHT services including Image Relighting, Fashion Editorial, AI Prompt Generation, Object Mask Generation, 3D Model Generation, and Virtual Try-On",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "updatedAt": "2025-12-07T13:01:01.000Z",
+    "createdAt": "2025-12-07T13:01:01.000Z",
+    "lastUpdatedBy": "50543399",
+    "uid": "50543399-c417846e-6e23-4460-9962-693bc4d85396"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://your-api-domain.com",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "YOUR_TOKEN_HERE",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Image Relighting (NULIGHT)",
+      "item": [
+        {
+          "name": "Submit NULIGHT Job",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Product image file (OR use image_url instead)"
+                },
+                {
+                  "key": "image_url",
+                  "value": "",
+                  "type": "text",
+                  "description": "Image URL (alternative to image file)"
+                },
+                {
+                  "key": "prompt",
+                  "value": "studio product photography",
+                  "type": "text",
+                  "description": "Optional - Auto-generated if omitted"
+                },
+                {
+                  "key": "variation_types",
+                  "value": "studio,lifestyle",
+                  "type": "text",
+                  "description": "Options: studio, lifestyle, dramatic, minimal, outdoor. Combine with commas."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/nulight_webhook",
+              "host": ["{{base_url}}"],
+              "path": ["nulight_webhook"]
+            },
+            "description": "Transform product images with professional lighting variations.\n\n**Parameters:**\n- `image` (file) OR `image_url` (string) - Required\n- `prompt` (string) - Optional, auto-generated if omitted\n- `variation_types` (string) - Optional, default: \"studio\"\n  - Options: `studio`, `lifestyle`, `dramatic`, `minimal`, `outdoor`\n  - Combine with commas: `studio,lifestyle,dramatic`\n\n**Response:** Job submission confirmation with `image_id`"
+          },
+          "response": []
+        },
+        {
+          "name": "Check NULIGHT Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/nulight/status/:image_id",
+              "host": ["{{base_url}}"],
+              "path": ["nulight", "status", ":image_id"],
+              "variable": [
+                {
+                  "key": "image_id",
+                  "value": "123",
+                  "description": "Image ID from job submission"
+                }
+              ]
+            },
+            "description": "Poll to check job completion.\n\n**Response:**\n```json\n{\n  \"status\": \"completed\",\n  \"result_image_urls\": [\n    \"https://s3.../studio_image.jpg\",\n    \"https://s3.../lifestyle_image.jpg\"\n  ],\n  \"original_image_url\": \"https://s3.../original.jpg\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Transform product images with professional lighting variations. Processing time: 30-60 seconds."
+    },
+    {
+      "name": "2. Lookmaker (Fashion Editorial)",
+      "item": [
+        {
+          "name": "Submit Lookmaker Job",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image file (1-6 images required)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/lookmaker_webhook",
+              "host": ["{{base_url}}"],
+              "path": ["lookmaker_webhook"]
+            },
+            "description": "Create fashion editorial images from outfit photos.\n\n**Parameters:**\n- `images` (files) - Required, 1-6 image files\n\n**Response:** Job submission confirmation with `image_id`"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Lookmaker Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/lookmaker/status/:image_id",
+              "host": ["{{base_url}}"],
+              "path": ["lookmaker", "status", ":image_id"],
+              "variable": [
+                {
+                  "key": "image_id",
+                  "value": "789",
+                  "description": "Image ID from job submission"
+                }
+              ]
+            },
+            "description": "Check fashion editorial job status.\n\n**Response:**\n```json\n{\n  \"status\": \"completed\",\n  \"result_image_urls\": [\"https://s3.../editorial.jpg\"],\n  \"original_image_url\": \"https://s3.../original.jpg\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Create fashion editorial images from outfit photos. Processing time: 30-60 seconds."
+    },
+    {
+      "name": "3. AI Prompt Generation",
+      "item": [
+        {
+          "name": "Submit Prompt Generation Job",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Product image file (OR use image_url instead)"
+                },
+                {
+                  "key": "image_url",
+                  "value": "",
+                  "type": "text",
+                  "description": "Image URL (alternative to image file)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/generate_prompt_webhook",
+              "host": ["{{base_url}}"],
+              "path": ["generate_prompt_webhook"]
+            },
+            "description": "Auto-generate optimized product prompts with category detection.\n\n**Parameters:**\n- `image` (file) OR `image_url` (string) - Required\n\n**Response:** Job submission confirmation with `image_id`"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Prompt Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/prompt/status/:image_id",
+              "host": ["{{base_url}}"],
+              "path": ["prompt", "status", ":image_id"],
+              "variable": [
+                {
+                  "key": "image_id",
+                  "value": "555",
+                  "description": "Image ID from job submission"
+                }
+              ]
+            },
+            "description": "Check prompt generation status.\n\n**Response:**\n```json\n{\n  \"status\": \"completed\",\n  \"prompt\": \"professional studio photography of luxury watch...\",\n  \"category\": \"accessories\",\n  \"original_image_url\": \"https://s3.../product.jpg\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Auto-generate optimized product prompts with category detection. Processing time: 10-20 seconds."
+    },
+    {
+      "name": "4. Object Mask Generation (Synchronous)",
+      "item": [
+        {
+          "name": "Generate Object Masks - Auto Detect",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image file (OR use image_url instead)"
+                },
+                {
+                  "key": "image_url",
+                  "value": "",
+                  "type": "text",
+                  "description": "Image URL (alternative to image file)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/make_masks",
+              "host": ["{{base_url}}"],
+              "path": ["make_masks"]
+            },
+            "description": "Generate segmentation masks for objects detected in an image (auto-detect all objects).\n\n**⚠️ NOTE:** This is a **synchronous (blocking)** endpoint. The request will block until processing completes (~30-60 seconds). No polling required - result is returned directly.\n\n**Parameters:**\n- `image` (file) OR `image_url` (string) - Required\n\n**Response:**\n```json\n{\n  \"original_image_url\": \"https://s3.../image.jpg\",\n  \"object_masks\": [\n    {\n      \"object\": [\"baseball cap\"],\n      \"mask_url\": \"https://s3.../mask1.png\",\n      \"image_id\": 123\n    }\n  ]\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Object Masks - Specific Objects",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image file"
+                },
+                {
+                  "key": "prompt",
+                  "value": "[\"chair\", \"table\", \"lamp\"]",
+                  "type": "text",
+                  "description": "JSON array of object names to detect"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/make_masks",
+              "host": ["{{base_url}}"],
+              "path": ["make_masks"]
+            },
+            "description": "Generate masks for specific objects.\n\n**Parameters:**\n- `image` (file) OR `image_url` (string) - Required\n- `prompt` (JSON array of strings) - Required for specific object detection\n\n**Example prompt value:** `[\"chair\", \"table\", \"lamp\"]`"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Object Masks - With Bounding Boxes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image_url",
+                  "value": "https://example.com/image.jpg",
+                  "type": "text",
+                  "description": "Image URL"
+                },
+                {
+                  "key": "bboxes",
+                  "value": "{\"chair\": [{\"xmin\": 100, \"ymin\": 200, \"xmax\": 300, \"ymax\": 400}]}",
+                  "type": "text",
+                  "description": "JSON object with bounding boxes (skips object detection)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/make_masks",
+              "host": ["{{base_url}}"],
+              "path": ["make_masks"]
+            },
+            "description": "Generate masks using pre-computed bounding boxes.\n\n**Parameters:**\n- `image_url` (string) - Required\n- `bboxes` (JSON object) - Required, skips object detection if provided\n\n**Example bboxes value:** `{\"chair\": [{\"xmin\": 100, \"ymin\": 200, \"xmax\": 300, \"ymax\": 400}]}`"
+          },
+          "response": []
+        }
+      ],
+      "description": "Generate segmentation masks for objects detected in an image. ⚠️ **Synchronous (blocking)** - Processing time: 30-60 seconds."
+    },
+    {
+      "name": "5. 3D Model Generation",
+      "item": [
+        {
+          "name": "Submit 3D Generation Job - With Prompt",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Product image file (OR use image_url instead)"
+                },
+                {
+                  "key": "image_url",
+                  "value": "",
+                  "type": "text",
+                  "description": "Image URL (alternative to image file)"
+                },
+                {
+                  "key": "prompt",
+                  "value": "baseball cap",
+                  "type": "text",
+                  "description": "REQUIRED (if mask_urls not provided) - Text prompt to specify objects to reconstruct. Examples: 'chair', 'product', 'person', 'baseball cap'"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/generate3d_webhook",
+              "host": ["{{base_url}}"],
+              "path": ["generate3d_webhook"]
+            },
+            "description": "Generate 3D models (Gaussian splat + GLB) from product images using SAM 3D.\n\n**Parameters:**\n- `image` (file) OR `image_url` (string) - Required\n- `prompt` (string) - **REQUIRED** (if mask_urls not provided). Text prompt to specify objects to reconstruct\n  - Examples: `'chair'`, `'product'`, `'person'`, `'baseball cap'`\n\n**Note:** You must provide at least one selection method (`prompt` or `mask_urls`)\n\n**Response:** Job submission confirmation with `image_id`"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit 3D Generation Job - With Mask URLs",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Product image file (OR use image_url instead)"
+                },
+                {
+                  "key": "image_url",
+                  "value": "",
+                  "type": "text",
+                  "description": "Image URL (alternative to image file)"
+                },
+                {
+                  "key": "mask_urls",
+                  "value": "[\"https://s3.../mask1.png\"]",
+                  "type": "text",
+                  "description": "REQUIRED (if prompt not provided) - JSON array of pre-computed mask URLs"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/generate3d_webhook",
+              "host": ["{{base_url}}"],
+              "path": ["generate3d_webhook"]
+            },
+            "description": "Generate 3D models using pre-computed mask URLs.\n\n**Parameters:**\n- `image` (file) OR `image_url` (string) - Required\n- `mask_urls` (JSON array) - **REQUIRED** (if prompt not provided). Pre-computed mask URLs\n  - Example: `'[\"https://s3.../mask1.png\"]'`\n\n**Note:** You must provide at least one selection method (`prompt` or `mask_urls`)"
+          },
+          "response": []
+        },
+        {
+          "name": "Check 3D Generation Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/generate3d/status/:image_id",
+              "host": ["{{base_url}}"],
+              "path": ["generate3d", "status", ":image_id"],
+              "variable": [
+                {
+                  "key": "image_id",
+                  "value": "999",
+                  "description": "Image ID from job submission"
+                }
+              ]
+            },
+            "description": "Poll to check 3D generation job completion.\n\n**Response:**\n```json\n{\n  \"status\": \"completed\",\n  \"gaussian_splat_url\": \"https://s3.../model.ply\",\n  \"model_glb_url\": \"https://s3.../model.glb\",\n  \"metadata\": [{\n    \"rotation\": [0, 0, 0],\n    \"translation\": [0, 0, 0],\n    \"scale\": [1, 1, 1]\n  }],\n  \"original_url\": \"https://s3.../original.jpg\"\n}\n```\n\n**Output Formats:**\n- **Gaussian Splat (.ply)**: Optimized for web-based 3D viewers\n- **GLB Model (.glb)**: Standard 3D format for AR/VR applications\n- **Metadata**: Per-object rotation, translation, and scale values"
+          },
+          "response": []
+        }
+      ],
+      "description": "Generate 3D models (Gaussian splat + GLB) from product images using SAM 3D. Processing time: 60-120 seconds."
+    },
+    {
+      "name": "6. Virtual Try-On",
+      "item": [
+        {
+          "name": "Submit Virtual Try-On Job",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "person_image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Person image file"
+                },
+                {
+                  "key": "garment_image",
+                  "type": "file",
+                  "src": [],
+                  "description": "Garment image file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/tryon_webhook",
+              "host": ["{{base_url}}"],
+              "path": ["tryon_webhook"]
+            },
+            "description": "Apply garments to person images.\n\n**Parameters:**\n- `person_image` (file) - Required\n- `garment_image` (file) - Required\n\n**Response:** Job submission confirmation with `image_id`"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Virtual Try-On Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tryon/status/:image_id",
+              "host": ["{{base_url}}"],
+              "path": ["tryon", "status", ":image_id"],
+              "variable": [
+                {
+                  "key": "image_id",
+                  "value": "456",
+                  "description": "Image ID from job submission"
+                }
+              ]
+            },
+            "description": "Check virtual try-on job status.\n\n**Response:**\n```json\n{\n  \"status\": \"completed\",\n  \"tryon_image_url\": \"https://s3.../tryon_result.jpg\",\n  \"original_image_url\": \"https://s3.../person.jpg\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Apply garments to person images. Processing time: 30-60 seconds."
+    }
+  ]
+}
+
