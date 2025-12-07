@@ -1,67 +1,54 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Sparkles, Clock, Loader2, Image as ImageIcon, Package } from "lucide-react";
-import { fetchAllStoreProducts, type ProductImage } from "@/services/productsApi";
+import { Sparkles, Image as ImageIcon, Package } from "lucide-react";
+import { useProducts } from "@/hooks/useProducts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Nulight = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const [products, setProducts] = useState<ProductImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch products on component mount
+  // Use products hook to get products from Redux state
+  const {
+    products,
+    loading,
+    error,
+    fetchProducts,
+    lastFetchedShop,
+  } = useProducts();
+
+  // Fetch products on component mount if not already fetched
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    // Get shop domain from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const shopParam = urlParams.get("shop");
 
-        // Get shop domain from URL params
-        const urlParams = new URLSearchParams(window.location.search);
-        const shopParam = urlParams.get("shop");
+    if (!shopParam) {
+      return;
+    }
 
-        if (!shopParam) {
-          setError(t("nulight.error.noShop") || "Shop parameter is required. Please access this page from Shopify admin.");
-          setLoading(false);
-          return;
-        }
+    // Normalize shop domain (remove .myshopify.com if present, API will handle it)
+    const normalizedShop = shopParam.replace(".myshopify.com", "");
 
-        // Normalize shop domain (remove .myshopify.com if present, API will handle it)
-        const normalizedShop = shopParam.replace(".myshopify.com", "");
-
-        // Fetch all products with ACTIVE status
-        const response = await fetchAllStoreProducts(normalizedShop, {
+    // Only fetch if we haven't fetched for this shop yet, or if products are empty
+    if (
+      lastFetchedShop !== normalizedShop ||
+      (products.length === 0 && !loading)
+    ) {
+      fetchProducts({
+        shop: normalizedShop,
+        options: {
           status: "ACTIVE",
-        });
-
-        if (response.success) {
-          setProducts(response.products);
-          console.log("[Nulight] Products loaded:", {
-            count: response.count,
-            shop: normalizedShop,
-          });
-        } else {
-          setError(t("nulight.error.fetchFailed") || "Failed to load products. Please try again later.");
-        }
-      } catch (err) {
-        console.error("[Nulight] Error loading products:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : t("nulight.error.unknown") || "An unexpected error occurred while loading products."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [t]);
+        },
+      }).catch((error) => {
+        console.warn("[Nulight] Failed to fetch products:", error);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastFetchedShop, products.length, loading, fetchProducts]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -189,6 +176,25 @@ const Nulight = () => {
                     </h2>
                     <p className="text-sm sm:text-base text-muted-foreground">
                       {error}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* No Shop Parameter Error */}
+            {!loading && !error && products.length === 0 && (
+              <Card className="p-6 sm:p-8 border-warning bg-warning/10">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-warning/20">
+                    <Package className="w-8 h-8 text-warning" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-semibold text-warning mb-2">
+                      {t("nulight.error.noShop") || "Shop parameter required"}
+                    </h2>
+                    <p className="text-sm sm:text-base text-muted-foreground">
+                      {t("nulight.error.noShopDescription") || "Please access this page from Shopify admin to view products."}
                     </p>
                   </div>
                 </div>
