@@ -36,7 +36,7 @@ const Nulight = () => {
     // Only fetch if we haven't fetched for this shop yet, or if products are empty
     if (
       lastFetchedShop !== normalizedShop ||
-      (products.length === 0 && !loading)
+      ((products?.length ?? 0) === 0 && !loading)
     ) {
       fetchProducts({
         shop: normalizedShop,
@@ -49,7 +49,7 @@ const Nulight = () => {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastFetchedShop, products.length, loading, fetchProducts]);
+  }, [lastFetchedShop, products?.length, loading, fetchProducts]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -184,7 +184,7 @@ const Nulight = () => {
             )}
 
             {/* No Shop Parameter Error */}
-            {!loading && !error && products.length === 0 && (
+            {!loading && !error && (products?.length ?? 0) === 0 && (
               <Card className="p-6 sm:p-8 border-warning bg-warning/10">
                 <div className="text-center space-y-4">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-warning/20">
@@ -205,7 +205,7 @@ const Nulight = () => {
             {/* Products Grid */}
             {!loading && !error && (
               <>
-                {products.length === 0 ? (
+                {(products?.length ?? 0) === 0 ? (
                   <Card className="p-8 sm:p-12 border-border bg-card">
                     <div className="text-center space-y-4">
                       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted">
@@ -226,24 +226,24 @@ const Nulight = () => {
                     {/* Products Count */}
                     <div className="flex items-center justify-between">
                       <p className="text-sm sm:text-base text-muted-foreground">
-                        {t("nulight.productsCount", { count: products.length }) || `${products.length} product${products.length !== 1 ? "s" : ""} found`}
+                        {t("nulight.productsCount", { count: products?.length ?? 0 }) || `${products?.length ?? 0} product${(products?.length ?? 0) !== 1 ? "s" : ""} found`}
                       </p>
                     </div>
 
                     {/* Products Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                      {products.map((product) => (
+                      {(products ?? []).map((product) => (
                         <Card
-                          key={product.productId}
+                          key={product?.productId ?? `product-${Math.random()}`}
                           className="group border-border bg-card overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/50"
                         >
                           <CardContent className="p-0">
                             {/* Product Image */}
                             <div className="relative aspect-[3/4] bg-muted/30 overflow-hidden">
-                              {product.imageUrl ? (
+                              {product?.imageUrl ? (
                                 <img
                                   src={product.imageUrl}
-                                  alt={product.altText || product.productTitle}
+                                  alt={product?.altText ?? product?.productTitle ?? "Product image"}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   loading="lazy"
                                 />
@@ -257,9 +257,9 @@ const Nulight = () => {
                             {/* Product Info */}
                             <div className="p-4 space-y-2">
                               <h3 className="font-semibold text-sm sm:text-base text-foreground line-clamp-2 min-h-[2.5rem]">
-                                {product.productTitle}
+                                {product?.productTitle ?? "Untitled Product"}
                               </h3>
-                              {product.productHandle && (
+                              {product?.productHandle && (
                                 <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
                                   {product.productHandle}
                                 </p>

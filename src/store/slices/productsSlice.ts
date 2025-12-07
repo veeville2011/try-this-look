@@ -80,9 +80,10 @@ const productsSlice = createSlice({
         (state, action: PayloadAction<ProductsResponse & { shop: string }>) => {
           state.loading = false;
           state.error = null;
-          state.products = action.payload.products;
-          state.count = action.payload.count;
-          state.lastFetchedShop = action.payload.shop;
+          // Safely access products with optional chaining and nullish coalescing
+          state.products = action.payload?.products ?? [];
+          state.count = action.payload?.count ?? action.payload?.products?.length ?? 0;
+          state.lastFetchedShop = action.payload?.shop ?? null;
         }
       )
       .addCase(fetchProductsThunk.rejected, (state, action) => {

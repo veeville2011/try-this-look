@@ -11,8 +11,19 @@ export interface ProductImage {
 
 export interface ProductsResponse {
   success: boolean;
-  products: ProductImage[];
-  count: number;
+  message?: string;
+  data?: {
+    products?: ProductImage[];
+    total?: number;
+    pagesFetched?: number;
+    filters?: {
+      query?: string;
+      limitPerPage?: number;
+    };
+  };
+  // Legacy format support
+  products?: ProductImage[];
+  count?: number;
 }
 
 /**
@@ -88,7 +99,17 @@ export const fetchAllStoreProducts = async (
         }
 
         const data: ProductsResponse = await response.json();
-        return data;
+        // Handle nested response structure with optional chaining
+        const products = data?.data?.products ?? data?.products ?? [];
+        const count = data?.data?.total ?? data?.count ?? products.length;
+        
+        return {
+          success: data?.success ?? false,
+          message: data?.message,
+          data: data?.data,
+          products,
+          count,
+        };
       } catch (error) {
         console.warn("[ProductsAPI] Failed to fetch with authenticated fetch:", error);
       }
@@ -111,7 +132,17 @@ export const fetchAllStoreProducts = async (
     }
 
     const data: ProductsResponse = await response.json();
-    return data;
+    // Handle nested response structure with optional chaining
+    const products = data?.data?.products ?? data?.products ?? [];
+    const count = data?.data?.total ?? data?.count ?? products.length;
+    
+    return {
+      success: data?.success ?? false,
+      message: data?.message,
+      data: data?.data,
+      products,
+      count,
+    };
   } catch (error) {
     console.error("[ProductsAPI] Failed to fetch products:", error);
     return {
