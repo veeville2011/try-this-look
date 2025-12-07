@@ -4,7 +4,6 @@ import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
-import { useProducts } from "@/hooks/useProducts";
 import { getAvailablePlans, subscribeToPlan, cancelSubscription, redeemCouponCode } from "@/services/billingApi";
 import {
   Card,
@@ -75,14 +74,6 @@ const Index = () => {
     refresh: refreshCredits,
   } = useCredits();
 
-  // Use products hook to get products from Redux state
-  const {
-    products: reduxProducts,
-    loading: productsLoading,
-    error: productsError,
-    lastFetchedShop: reduxLastFetchedShop,
-    fetchProducts: fetchProductsFromRedux,
-  } = useProducts();
 
   // Sync store information to remote backend on first load
   useEffect(() => {
@@ -386,35 +377,6 @@ const Index = () => {
     }
   }, []);
 
-  // Fetch products on mount and store in Redux
-  useEffect(() => {
-    const shopDomain =
-      shop || new URLSearchParams(window.location.search).get("shop");
-
-    if (!shopDomain) {
-      return;
-    }
-
-    // Normalize shop domain (remove .myshopify.com if present, API will handle it)
-    const normalizedShop = shopDomain.replace(".myshopify.com", "");
-
-    // Only fetch if we haven't fetched for this shop yet, or if products are empty
-    if (
-      reduxLastFetchedShop !== normalizedShop ||
-      (reduxProducts.length === 0 && !productsLoading)
-    ) {
-      fetchProductsFromRedux({
-        shop: normalizedShop,
-        options: {
-          status: "ACTIVE",
-          productType: "Apparel",
-          limit: 50,
-        },
-      }).catch((error) => {
-        console.warn("[Index] Failed to fetch products:", error);
-      });
-    }
-  }, [shop, reduxLastFetchedShop, reduxProducts.length, productsLoading, fetchProductsFromRedux]);
 
   // Refresh credits when subscription changes
   useEffect(() => {
