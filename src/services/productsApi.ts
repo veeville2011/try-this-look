@@ -24,6 +24,7 @@ export const fetchAllStoreProducts = async (
   options?: {
     status?: string;
     productType?: string;
+    limit?: number;
   }
 ): Promise<ProductsResponse> => {
   if (!shop) {
@@ -49,6 +50,9 @@ export const fetchAllStoreProducts = async (
   }
   if (options?.productType) {
     queryParams.append("productType", options.productType);
+  }
+  if (options?.limit) {
+    queryParams.append("limit", String(options.limit));
   }
 
   const url = `${API_BASE_URL}/api/products?${queryParams.toString()}`;

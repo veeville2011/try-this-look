@@ -399,6 +399,7 @@ const Index = () => {
         options: {
           status: "ACTIVE",
           productType: "Apparel",
+          limit: 50,
         },
       }).catch((error) => {
         console.warn("[Index] Failed to fetch products:", error);
@@ -428,6 +429,7 @@ const Index = () => {
         options: {
           status: "ACTIVE",
           productType: "Apparel",
+          limit: 50,
         },
       }).catch((error) => {
         console.warn("[Index] Failed to fetch products:", error);
@@ -1756,25 +1758,24 @@ const Index = () => {
         </div>
       )}
 
-      {/* Loading Overlay - Show on top of content when loading */}
+      {/* Loading Indicator - Non-blocking, shows in top-right corner */}
       {shouldShowLoading && (
-        <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="text-center space-y-4 bg-card border border-border rounded-lg p-8 shadow-lg">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            {shouldShowPaymentLoading && (
-              <div className="space-y-2">
-                <p className="text-lg font-semibold text-foreground">
+        <div className="fixed top-20 right-4 z-40 bg-card border border-border rounded-lg p-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            {shouldShowPaymentLoading ? (
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">
                   {t("index.loading.processingPayment")}
                 </p>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  {t("index.loading.pleaseWait")}
-                </p>
                 <p className="text-xs text-muted-foreground">
-                  {Math.round(paymentSuccessElapsedTime / 1000)}
-                  {t("index.loading.seconds")} / {maxWaitTime / 1000}
-                  {t("index.loading.seconds")}
+                  {Math.round(paymentSuccessElapsedTime / 1000)}s / {maxWaitTime / 1000}s
                 </p>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t("index.loading.loading") || "Loading..."}
+              </p>
             )}
           </div>
         </div>

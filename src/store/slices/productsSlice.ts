@@ -26,6 +26,7 @@ interface FetchProductsParams {
   options?: {
     status?: string;
     productType?: string;
+    limit?: number;
   };
 }
 

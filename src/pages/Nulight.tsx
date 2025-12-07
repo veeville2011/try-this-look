@@ -42,6 +42,7 @@ const Nulight = () => {
         shop: normalizedShop,
         options: {
           status: "ACTIVE",
+          limit: 50,
         },
       }).catch((error) => {
         console.warn("[Nulight] Failed to fetch products:", error);
