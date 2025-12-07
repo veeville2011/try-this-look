@@ -992,46 +992,8 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* Loading State - Show below navigation bar */}
-      {shouldShowLoading && (
-        <div className="min-h-[calc(100vh-56px)] flex items-center justify-center bg-background">
-          <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            {shouldShowPaymentLoading && (
-              <div className="space-y-2">
-                <p className="text-lg font-semibold text-foreground">
-                  {t("index.loading.processingPayment")}
-                </p>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  {t("index.loading.pleaseWait")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {Math.round(paymentSuccessElapsedTime / 1000)}
-                  {t("index.loading.seconds")} / {maxWaitTime / 1000}
-                  {t("index.loading.seconds")}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Plan Selection UI - Show below navigation bar */}
-      {showPlanSelection && !shouldShowLoading && (
-        <div className="min-h-[calc(100vh-56px)] bg-background flex items-center justify-center">
-          <PlanSelection
-            plans={availablePlans}
-            onSelectPlan={handleSelectPlan}
-            loading={billingLoading}
-            subscription={subscription}
-            onBack={() => setShowPlanSelection(false)}
-          />
-        </div>
-      )}
-
-      {/* Main Content - Only show when not loading and not showing plan selection */}
-      {!shouldShowLoading && !showPlanSelection && (
-        <>
+      {/* Main Content - Always visible */}
+      <>
           {/* Hero Section - Shopify Style */}
           <header className="relative bg-card border-b border-border min-h-[calc(100vh-56px)] flex items-center" role="banner">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
@@ -1758,26 +1720,64 @@ const Index = () => {
         </div>
       </section>
 
-          {/* Footer - Shopify Footer Style */}
-          <footer className="bg-card border-t border-border py-12 sm:py-16" role="contentinfo">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="max-w-7xl mx-auto text-center">
-                <div className="flex items-center justify-center gap-3 mb-6">
-                  <Sparkles
-                    className="w-6 h-6 text-primary flex-shrink-0"
-                    aria-hidden="true"
-                  />
-                  <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-                    NusenseTryOn
-                  </h2>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("index.footer.copyright", { year: new Date().getFullYear() })}
+        {/* Footer - Shopify Footer Style */}
+        <footer className="bg-card border-t border-border py-12 sm:py-16" role="contentinfo">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto text-center">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Sparkles
+                  className="w-6 h-6 text-primary flex-shrink-0"
+                  aria-hidden="true"
+                />
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+                  NusenseTryOn
+                </h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t("index.footer.copyright", { year: new Date().getFullYear() })}
+              </p>
+            </div>
+          </div>
+        </footer>
+      </>
+
+      {/* Plan Selection UI - Modal Overlay */}
+      {showPlanSelection && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <PlanSelection
+              plans={availablePlans}
+              onSelectPlan={handleSelectPlan}
+              loading={billingLoading}
+              subscription={subscription}
+              onBack={() => setShowPlanSelection(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay - Show on top of content when loading */}
+      {shouldShowLoading && (
+        <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="text-center space-y-4 bg-card border border-border rounded-lg p-8 shadow-lg">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            {shouldShowPaymentLoading && (
+              <div className="space-y-2">
+                <p className="text-lg font-semibold text-foreground">
+                  {t("index.loading.processingPayment")}
+                </p>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  {t("index.loading.pleaseWait")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round(paymentSuccessElapsedTime / 1000)}
+                  {t("index.loading.seconds")} / {maxWaitTime / 1000}
+                  {t("index.loading.seconds")}
                 </p>
               </div>
-            </div>
-          </footer>
-        </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
