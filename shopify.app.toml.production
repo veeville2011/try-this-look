@@ -38,10 +38,11 @@ api_version = "2024-01"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-  # APP_SUBSCRIPTIONS_UPDATE webhook - for subscription updates and credit allocation
+  # app/subscriptions/update webhook - for subscription updates and credit allocation
   # This webhook automatically allocates plan credits when trial ends and handles subscription updates
+  # Note: The topic format must be lowercase with slashes (app/subscriptions/update)
   [[webhooks.subscriptions]]
-  topics = [ "APP_SUBSCRIPTIONS_UPDATE" ]
+  topics = [ "app/subscriptions/update" ]
   uri = "/api/webhooks/subscriptions"
 
 [pos]
