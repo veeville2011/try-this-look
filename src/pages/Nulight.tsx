@@ -20,7 +20,7 @@ const Nulight = () => {
     lastFetchedShop,
   } = useProducts();
 
-  // Fetch products once when component mounts
+  // Fetch products only when needed (if shop changes or no products available)
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const shopParam = urlParams.get("shop");
@@ -31,16 +31,25 @@ const Nulight = () => {
 
     const normalizedShop = shopParam.replace(".myshopify.com", "");
 
-    fetchProducts({
-      shop: normalizedShop,
-      options: {
-        status: "ACTIVE",
-        limit: 50,
-      },
-    }).catch((error) => {
-      console.warn("[Nulight] Failed to fetch products:", error);
-    });
-  }, []);
+    // Check if we already have products for this shop
+    const hasProductsForShop =
+      lastFetchedShop === normalizedShop &&
+      products &&
+      products.length > 0;
+
+    // Only fetch if we don't have products for this shop
+    if (!hasProductsForShop) {
+      fetchProducts({
+        shop: normalizedShop,
+        options: {
+          status: "ACTIVE",
+          limit: 50,
+        },
+      }).catch((error) => {
+        console.warn("[Nulight] Failed to fetch products:", error);
+      });
+    }
+  }, [location.search, lastFetchedShop, products?.length, fetchProducts]);
 
   return (
     <div className="min-h-screen bg-background">
