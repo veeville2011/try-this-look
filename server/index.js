@@ -3060,6 +3060,237 @@ app.post(
   }
 );
 
+// Alias route for backend webhook endpoint at /api/webhooks/subscriptions
+// This endpoint handles APP_SUBSCRIPTIONS_UPDATE webhook topic
+// Registered in Shopify Partner Dashboard: Topic: APP_SUBSCRIPTIONS_UPDATE, URL: https://your-domain.com/api/webhooks/subscriptions
+app.post(
+  "/api/webhooks/subscriptions",
+  verifyWebhookSignature,
+  async (req, res) => {
+    try {
+      // Log that we received the webhook at the alias endpoint
+      logger.info("[WEBHOOK] /api/webhooks/subscriptions - alias endpoint called", {
+        shop: req.webhookShop,
+        topic: req.webhookTopic,
+        note: "Forwarding to subscription update handler logic",
+      });
+
+      // Extract subscription data - Shopify may send it in different formats:
+      // 1. Direct: { id, status, ... } (root level)
+      // 2. Nested: { app_subscription: { id, status, ... } }
+      // 3. Array: { app_subscriptions: [{ id, status, ... }] }
+      let app_subscription = null;
+
+      if (req.webhookData) {
+        // Try nested format first (most common)
+        if (req.webhookData.app_subscription) {
+          app_subscription = req.webhookData.app_subscription;
+        }
+        // Try array format
+        else if (
+          req.webhookData.app_subscriptions &&
+          Array.isArray(req.webhookData.app_subscriptions) &&
+          req.webhookData.app_subscriptions.length > 0
+        ) {
+          app_subscription = req.webhookData.app_subscriptions[0];
+        }
+        // Try direct format (if payload IS the subscription object)
+        else if (req.webhookData.id && req.webhookData.status) {
+          app_subscription = req.webhookData;
+        }
+      }
+
+      const shop = req.webhookShop;
+
+      if (!shop) {
+        logger.error(
+          "[WEBHOOK] /api/webhooks/subscriptions - missing shop domain",
+          {
+            headers: req.headers,
+            webhookData: req.webhookData,
+          }
+        );
+        return res.status(400).json({
+          error: "Missing shop domain",
+          received: true,
+        });
+      }
+
+      logger.info("[WEBHOOK] /api/webhooks/subscriptions received", {
+        shop,
+        subscriptionId: app_subscription?.id,
+        status: app_subscription?.status,
+        webhookTopic: req.webhookTopic,
+        hasSubscription: !!app_subscription,
+      });
+
+      // Use the same handler logic as /webhooks/app/subscriptions/update
+      // The handler will:
+      // 1. Automatically allocate plan credits when trial ends
+      // 2. Handle subscription updates in real-time
+      // 3. Log all activities for debugging
+
+      if (app_subscription) {
+        // Process subscription update using the same logic as the main webhook handler
+        // This ensures consistent behavior across both endpoints
+        
+        // Process and store subscription data for immediate availability
+        try {
+          const { processWebhookSubscription, setSubscription } = await import(
+            "./utils/subscriptionStorage.js"
+          );
+          const processedData = processWebhookSubscription(
+            app_subscription,
+            shop
+          );
+
+          if (processedData) {
+            setSubscription(shop, processedData);
+            logger.info("[WEBHOOK] Subscription data stored successfully via alias endpoint", {
+              shop,
+              status: processedData.subscription?.status,
+              hasActiveSubscription: processedData.hasActiveSubscription,
+            });
+
+            // Handle credit allocation and subscription updates for ACTIVE subscriptions
+            if (app_subscription.status === "ACTIVE") {
+              try {
+                // Get offline access token for the shop
+                const tokenResult = await shopify.auth.tokenExchange({
+                  shop,
+                  sessionToken: null, // Webhooks don't have session tokens
+                  requestedTokenType: RequestedTokenType.OfflineAccessToken,
+                });
+
+                const session = tokenResult?.session;
+                const accessToken =
+                  session?.accessToken || session?.access_token;
+
+                if (session && accessToken) {
+                  const client = new shopify.clients.Graphql({
+                    session: {
+                      shop: session.shop || shop,
+                      accessToken,
+                      scope: session.scope,
+                      isOnline: session.isOnline || false,
+                    },
+                  });
+
+                  const appInstallationId = await subscriptionMetafield.getAppInstallationId(client);
+
+                  if (appInstallationId) {
+                    // Check if subscription was in trial and is now becoming ACTIVE (paid)
+                    const metafields = await creditMetafield.getCreditMetafields(
+                      client,
+                      appInstallationId
+                    );
+
+                    const wasInTrial = metafields.is_trial_period === true || metafields.is_trial_period === "true";
+                    const isNowActive = app_subscription.status === "ACTIVE";
+                    const hasNoTrialDays = !app_subscription.trialDays || app_subscription.trialDays === 0;
+
+                    // Automatically allocate plan credits when trial ends
+                    if (wasInTrial && isNowActive && hasNoTrialDays) {
+                      const plan = processedData.plan;
+                      const includedCredits = plan?.limits?.includedCredits || 100;
+
+                      const trialEndResult = await trialManager.endTrialPeriod(
+                        client,
+                        appInstallationId,
+                        includedCredits
+                      );
+
+                      logger.info("[WEBHOOK] Trial ended, plan credits allocated via alias endpoint", {
+                        shop,
+                        planCreditsAdded: includedCredits,
+                        previousBalance: trialEndResult.previousBalance,
+                        newBalance: trialEndResult.newBalance,
+                      });
+                    }
+
+                    // Update subscription metafield to control app block/banner visibility
+                    const subscriptionStatusValue = app_subscription?.status || null;
+                    await subscriptionMetafield.ensureSubscriptionMetafieldExists(
+                      client,
+                      appInstallationId,
+                      subscriptionStatusValue
+                    );
+
+                    const blocksShouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
+                      client,
+                      appInstallationId,
+                      subscriptionStatusValue
+                    );
+
+                    await subscriptionMetafield.updateSubscriptionMetafield(
+                      client,
+                      appInstallationId,
+                      blocksShouldBeAvailable
+                    );
+
+                    logger.info("[WEBHOOK] Subscription metafield updated via alias endpoint", {
+                      shop,
+                      subscriptionId: app_subscription.id,
+                      status: app_subscription.status,
+                      blocksAvailable: blocksShouldBeAvailable,
+                    });
+                  }
+                }
+              } catch (creditError) {
+                logger.error(
+                  "[WEBHOOK] Failed to handle credit allocation via alias endpoint",
+                  creditError,
+                  null,
+                  {
+                    shop,
+                    subscriptionId: app_subscription?.id,
+                  }
+                );
+                // Don't fail webhook - log error and continue
+              }
+            }
+          }
+        } catch (storageError) {
+          logger.error(
+            "[WEBHOOK] Failed to store subscription data via alias endpoint",
+            storageError,
+            null,
+            {
+              shop,
+              subscriptionId: app_subscription?.id,
+            }
+          );
+        }
+      }
+
+      logger.info("[WEBHOOK] /api/webhooks/subscriptions processed successfully", {
+        shop,
+        subscriptionId: app_subscription?.id,
+        status: app_subscription?.status,
+      });
+
+      res.status(200).json({ received: true });
+    } catch (error) {
+      logger.error(
+        "[WEBHOOK ERROR] /api/webhooks/subscriptions failed",
+        error,
+        req,
+        {
+          shop: req.webhookShop,
+          webhookTopic: req.webhookTopic,
+          errorMessage: error.message,
+        }
+      );
+
+      // Always return 200 to Shopify to prevent retries
+      res.status(200).json({
+        received: true,
+        error: "Webhook processed but encountered an error",
+      });
+    }
+  }
+);
+
 // One-time purchase update webhook - for credit purchases
 app.post(
   "/webhooks/app/purchases/one_time/update",

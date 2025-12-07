@@ -22,6 +22,28 @@ redirect_urls = [
 [webhooks]
 api_version = "2024-01"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/redact"
+  compliance_topics = [ "customers/redact" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/shop/redact"
+  compliance_topics = [ "shop/redact" ]
+
+  # APP_SUBSCRIPTIONS_UPDATE webhook - for subscription updates and credit allocation
+  # This webhook automatically allocates plan credits when trial ends and handles subscription updates
+  [[webhooks.subscriptions]]
+  topics = [ "APP_SUBSCRIPTIONS_UPDATE" ]
+  uri = "/api/webhooks/subscriptions"
+
 [pos]
 embedded = false
 
