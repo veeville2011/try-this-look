@@ -39,6 +39,7 @@ export const AppBridgeProvider = ({ children }: AppBridgeProviderProps) => {
       
       // Store in window for global access
       (window as any).__APP_BRIDGE = appBridgeInstance;
+      setLoading(false);
     } else {
       // If not in embedded context, try to get from localStorage
       const storedShop = localStorage.getItem("shop");
@@ -60,9 +61,9 @@ export const AppBridgeProvider = ({ children }: AppBridgeProviderProps) => {
           );
         }
       }
+      // Don't block rendering if shop/host are missing - allow app to work in non-embedded mode
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   // Store shop and host in localStorage when available
