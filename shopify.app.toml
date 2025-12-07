@@ -28,30 +28,28 @@ api_version = "2024-01"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-  # app/subscriptions/update webhook - for subscription updates and credit allocation
-  # This webhook automatically allocates plan credits when trial ends and handles subscription updates
-  # Registered via shopify.app.toml - will be automatically set up when you run: shopify app deploy
-  # Note: The topic format must be lowercase with slashes (app/subscriptions/update)
-  [[webhooks.subscriptions]]
-  topics = [ "app/subscriptions/update" ]
-  uri = "/api/webhooks/subscriptions"
-
   # IMPORTANT: app/subscriptions/update webhook configuration
   # ============================================================
-  # The app/subscriptions/update webhook is NOT configurable in shopify.app.toml
+  # The app/subscriptions/update webhook CANNOT be registered in shopify.app.toml
   # because it is automatically registered by Shopify for Managed App Pricing apps.
   #
   # Shopify automatically sends webhooks to: /webhooks/app/subscriptions/update
   # when subscription status changes (created, updated, cancelled, etc.)
   #
-  # The webhook handler is implemented in server/index.js and will:
-  # 1. Verify webhook signature (HMAC)
-  # 2. Process subscription data
-  # 3. Store in cache for fast retrieval
+  # We have TWO endpoints that handle subscription updates:
+  # 1. /webhooks/app/subscriptions/update - Automatically registered by Shopify
+  # 2. /api/webhooks/subscriptions - Custom endpoint for backend integration
   #
-  # Note: We also have /api/webhooks/subscriptions for APP_SUBSCRIPTIONS_UPDATE topic above
-  # Both endpoints handle subscription updates, but APP_SUBSCRIPTIONS_UPDATE is the specific
-  # topic requested by the backend for automatic credit allocation.
+  # Both endpoints use the same handler logic and will:
+  # - Verify webhook signature (HMAC)
+  # - Process subscription data
+  # - Automatically allocate plan credits when trial ends
+  # - Update subscription metafields
+  # - Log all activities for debugging
+  #
+  # To use /api/webhooks/subscriptions endpoint, you must register it via:
+  # - GraphQL Admin API (webhookSubscriptionCreate mutation)
+  # - OR Shopify Partner Dashboard (App setup > Webhooks)
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes

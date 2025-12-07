@@ -38,12 +38,14 @@ api_version = "2024-01"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-  # app/subscriptions/update webhook - for subscription updates and credit allocation
-  # This webhook automatically allocates plan credits when trial ends and handles subscription updates
-  # Note: The topic format must be lowercase with slashes (app/subscriptions/update)
-  [[webhooks.subscriptions]]
-  topics = [ "app/subscriptions/update" ]
-  uri = "/api/webhooks/subscriptions"
+  # IMPORTANT: app/subscriptions/update webhook configuration
+  # ============================================================
+  # The app/subscriptions/update webhook CANNOT be registered in shopify.app.toml
+  # because it is automatically registered by Shopify for Managed App Pricing apps.
+  #
+  # Shopify automatically sends webhooks to: /webhooks/app/subscriptions/update
+  # We also have /api/webhooks/subscriptions endpoint available for backend integration.
+  # To register /api/webhooks/subscriptions, use GraphQL Admin API or Partner Dashboard.
 
 [pos]
 embedded = false
