@@ -40,7 +40,7 @@ const Nulight = () => {
         shop: normalizedShop,
         options: {
           status: "ACTIVE",
-          productType: "Apparel",
+          productType: "Flats",
           limit: 50,
         },
       });
