@@ -133,7 +133,9 @@
       "title": "Virtual Try-On for Shopify",
       "subtitle": "Transform your customers' shopping experience with our AI-powered virtual try-on technology",
       "startInstallation": "Start Installation",
-      "viewPricing": "View Pricing"
+      "viewPricing": "View Pricing",
+      "fetchProducts": "Fetch Products",
+      "fetchingProducts": "Fetching..."
     },
     "planCard": {
       "planActions": "Plan actions",
@@ -185,7 +187,12 @@
     "loading": {
       "processingPayment": "Processing your payment...",
       "pleaseWait": "Please wait while we verify your subscription. This may take a few seconds.",
-      "seconds": "s"
+      "seconds": "s",
+      "loading": "Loading..."
+    },
+    "products": {
+      "fetchSuccess": "Successfully fetched {{count}} product",
+      "fetchSuccess_plural": "Successfully fetched {{count}} products"
     },
     "installationGuide": {
       "title": "Step-by-Step Installation Guide",
@@ -252,7 +259,8 @@
       "subscriptionFailed": "Failed to create subscription. Please try again.",
       "shopNotFound": "Shop domain not found",
       "couponCodeRequired": "Please enter a coupon code",
-      "couponError": "Failed to redeem coupon code"
+      "couponError": "Failed to redeem coupon code",
+      "fetchProductsError": "Failed to fetch products. Please try again."
     }
   },
   "paymentSuccess": {
@@ -269,6 +277,21 @@
   "trialNotification": {
     "approving": "Approving...",
     "approvalInitiated": "Subscription approval initiated successfully"
+  },
+  "nulight": {
+    "description": "Browse all products from your store",
+    "info": {
+      "title": "Products Management",
+      "description": "Fetch products from your store to view and manage them here."
+    }
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "nuCopy": "NU Copy",
+    "nuLight": "NU Light",
+    "nu3d": "Nu3d",
+    "nuScene": "Nu Scene",
+    "mainNavigation": "Main navigation"
   }
 }
 

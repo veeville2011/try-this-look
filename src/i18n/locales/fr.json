@@ -133,7 +133,9 @@
       "title": "Essayage virtuel pour Shopify",
       "subtitle": "Transformez l'expérience d'achat de vos clients avec notre technologie d'essayage virtuel alimentée par l'IA",
       "startInstallation": "Commencer l'installation",
-      "viewPricing": "Voir les tarifs"
+      "viewPricing": "Voir les tarifs",
+      "fetchProducts": "Récupérer les produits",
+      "fetchingProducts": "Récupération..."
     },
     "planCard": {
       "planActions": "Actions du plan",
@@ -185,7 +187,12 @@
     "loading": {
       "processingPayment": "Traitement de votre paiement...",
       "pleaseWait": "Veuillez patienter pendant que nous vérifions votre abonnement. Cela peut prendre quelques secondes.",
-      "seconds": "s"
+      "seconds": "s",
+      "loading": "Chargement..."
+    },
+    "products": {
+      "fetchSuccess": "{{count}} produit récupéré avec succès",
+      "fetchSuccess_plural": "{{count}} produits récupérés avec succès"
     },
     "installationGuide": {
       "title": "Guide d'installation étape par étape",
@@ -252,7 +259,8 @@
       "subscriptionFailed": "Échec de la création de l'abonnement. Veuillez réessayer.",
       "shopNotFound": "Domaine de la boutique introuvable",
       "couponCodeRequired": "Veuillez entrer un code promo",
-      "couponError": "Échec de l'utilisation du code promo"
+      "couponError": "Échec de l'utilisation du code promo",
+      "fetchProductsError": "Échec de la récupération des produits. Veuillez réessayer."
     }
   },
   "paymentSuccess": {
@@ -269,6 +277,21 @@
   "trialNotification": {
     "approving": "Approbation...",
     "approvalInitiated": "Approbation de l'abonnement initiée avec succès"
+  },
+  "nulight": {
+    "description": "Parcourir tous les produits de votre boutique",
+    "info": {
+      "title": "Gestion des produits",
+      "description": "Récupérez les produits de votre boutique pour les visualiser et les gérer ici."
+    }
+  },
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "nuCopy": "NU Copy",
+    "nuLight": "NU Light",
+    "nu3d": "Nu3d",
+    "nuScene": "Nu Scene",
+    "mainNavigation": "Navigation principale"
   }
 }
 

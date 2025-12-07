@@ -10,7 +10,7 @@ const Nucopy = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Bar - Horizontal Layout */}
-      <nav className="bg-card border-b border-border" role="navigation" aria-label="Main navigation">
+      <nav className="bg-card border-b border-border" role="navigation" aria-label={t("navigation.mainNavigation") || "Main navigation"}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between h-14">
@@ -23,9 +23,9 @@ const Nucopy = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="Dashboard"
+                  aria-label={t("navigation.dashboard") || "Dashboard"}
                 >
-                  Dashboard
+                  {t("navigation.dashboard") || "Dashboard"}
                 </Link>
                 <Link
                   to="/nucopy"
@@ -34,9 +34,9 @@ const Nucopy = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="NU Copy"
+                  aria-label={t("navigation.nuCopy") || "NU Copy"}
                 >
-                  NU Copy
+                  {t("navigation.nuCopy") || "NU Copy"}
                 </Link>
                 <Link
                   to="/nulight"
@@ -45,9 +45,9 @@ const Nucopy = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="NU Light"
+                  aria-label={t("navigation.nuLight") || "NU Light"}
                 >
-                  NU Light
+                  {t("navigation.nuLight") || "NU Light"}
                 </Link>
                 <Link
                   to="/nu3d"
@@ -56,9 +56,9 @@ const Nucopy = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="Nu3d"
+                  aria-label={t("navigation.nu3d") || "Nu3d"}
                 >
-                  Nu3d
+                  {t("navigation.nu3d") || "Nu3d"}
                 </Link>
                 <Link
                   to="/nuscene"
@@ -67,9 +67,9 @@ const Nucopy = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="Nu Scene"
+                  aria-label={t("navigation.nuScene") || "Nu Scene"}
                 >
-                  Nu Scene
+                  {t("navigation.nuScene") || "Nu Scene"}
                 </Link>
               </div>
 

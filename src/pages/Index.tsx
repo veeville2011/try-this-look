@@ -4,7 +4,6 @@ import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
-import { useProducts } from "@/hooks/useProducts";
 import { getAvailablePlans, subscribeToPlan, cancelSubscription, redeemCouponCode } from "@/services/billingApi";
 import {
   Card,
@@ -75,14 +74,6 @@ const Index = () => {
     refresh: refreshCredits,
   } = useCredits();
 
-  // Use products hook to get products from Redux state
-  const {
-    products: reduxProducts,
-    loading: productsLoading,
-    error: productsError,
-    lastFetchedShop: reduxLastFetchedShop,
-    fetchProducts: fetchProductsFromRedux,
-  } = useProducts();
 
   // Sync store information to remote backend on first load
   useEffect(() => {
@@ -386,48 +377,6 @@ const Index = () => {
     }
   }, []);
 
-  // Handle manual product fetch
-  const handleFetchProducts = async () => {
-    const shopDomain =
-      shop || new URLSearchParams(window.location.search).get("shop");
-
-    if (!shopDomain) {
-      toast.error(t("index.errors.shopNotFound") || "Shop domain not found");
-      return;
-    }
-
-    // Normalize shop domain (remove .myshopify.com if present, API will handle it)
-    const normalizedShop = shopDomain.replace(".myshopify.com", "");
-
-    try {
-      const result = await fetchProductsFromRedux({
-        shop: normalizedShop,
-        options: {
-          status: "ACTIVE",
-          productType: "Apparel",
-          limit: 50,
-        },
-      });
-      
-      // Get the product count from the result payload
-      const productCount = 
-        (result.payload as any)?.products?.length || 
-        (result.payload as any)?.count || 
-        reduxProducts.length || 
-        0;
-      
-      toast.success(
-        t("index.products.fetchSuccess", { count: productCount }) || 
-        `Successfully fetched ${productCount} product${productCount !== 1 ? "s" : ""}`
-      );
-    } catch (error) {
-      console.warn("[Index] Failed to fetch products:", error);
-      toast.error(
-        t("index.errors.fetchProductsError") || 
-        "Failed to fetch products. Please try again."
-      );
-    }
-  };
 
   // Refresh credits when subscription changes
   useEffect(() => {
@@ -914,7 +863,7 @@ const Index = () => {
       </a>
 
       {/* Navigation Bar - Horizontal Layout */}
-      <nav className="bg-card border-b border-border" role="navigation" aria-label="Main navigation">
+      <nav className="bg-card border-b border-border" role="navigation" aria-label={t("navigation.mainNavigation") || "Main navigation"}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between h-14">
@@ -927,9 +876,9 @@ const Index = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="Dashboard"
+                  aria-label={t("navigation.dashboard") || "Dashboard"}
                 >
-                  Dashboard
+                  {t("navigation.dashboard") || "Dashboard"}
                 </Link>
                 <Link
                   to="/nucopy"
@@ -938,9 +887,9 @@ const Index = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="NU Copy"
+                  aria-label={t("navigation.nuCopy") || "NU Copy"}
                 >
-                  NU Copy
+                  {t("navigation.nuCopy") || "NU Copy"}
                 </Link>
                 <Link
                   to="/nulight"
@@ -949,9 +898,9 @@ const Index = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="NU Light"
+                  aria-label={t("navigation.nuLight") || "NU Light"}
                 >
-                  NU Light
+                  {t("navigation.nuLight") || "NU Light"}
                 </Link>
                 <Link
                   to="/nu3d"
@@ -960,9 +909,9 @@ const Index = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="Nu3d"
+                  aria-label={t("navigation.nu3d") || "Nu3d"}
                 >
-                  Nu3d
+                  {t("navigation.nu3d") || "Nu3d"}
                 </Link>
                 <Link
                   to="/nuscene"
@@ -971,9 +920,9 @@ const Index = () => {
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
-                  aria-label="Nu Scene"
+                  aria-label={t("navigation.nuScene") || "Nu Scene"}
                 >
-                  Nu Scene
+                  {t("navigation.nuScene") || "Nu Scene"}
                 </Link>
               </div>
 
@@ -1047,19 +996,6 @@ const Index = () => {
                     aria-label={t("index.hero.viewPricing")}
                   >
                     {t("index.hero.viewPricing")}
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    onClick={handleFetchProducts}
-                    disabled={productsLoading}
-                    className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
-                  >
-                    <Store className="w-4 h-4 mr-2" aria-hidden="true" />
-                    {productsLoading 
-                      ? (t("index.hero.fetchingProducts") || "Fetching...") 
-                      : (t("index.hero.fetchProducts") || "Fetch Products")}
                   </Button>
                 </div>
               </div>
