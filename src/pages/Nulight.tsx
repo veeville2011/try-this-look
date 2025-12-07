@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -20,24 +20,29 @@ const Nulight = () => {
     lastFetchedShop,
   } = useProducts();
 
-  // Fetch products on component mount if not already fetched
+  // Track if we've already initiated a fetch for the current shop
+  const fetchedShopRef = useRef<string | null>(null);
+
+  // Fetch products on component mount - only once per shop
   useEffect(() => {
     // Get shop domain from URL params
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(location.search);
     const shopParam = urlParams.get("shop");
 
     if (!shopParam) {
+      fetchedShopRef.current = null;
       return;
     }
 
     // Normalize shop domain (remove .myshopify.com if present, API will handle it)
     const normalizedShop = shopParam.replace(".myshopify.com", "");
 
-    // Only fetch if we haven't fetched for this shop yet, or if products are empty
-    if (
-      lastFetchedShop !== normalizedShop ||
-      ((products?.length ?? 0) === 0 && !loading)
-    ) {
+    // Only fetch if we haven't fetched for this shop yet
+    // Check both the ref (to prevent duplicate fetches) and lastFetchedShop (from Redux state)
+    const hasNotFetched = fetchedShopRef.current !== normalizedShop && lastFetchedShop !== normalizedShop;
+    
+    if (hasNotFetched && !loading) {
+      fetchedShopRef.current = normalizedShop;
       fetchProducts({
         shop: normalizedShop,
         options: {
@@ -46,10 +51,15 @@ const Nulight = () => {
         },
       }).catch((error) => {
         console.warn("[Nulight] Failed to fetch products:", error);
+        // Reset ref on error so we can retry if shop changes
+        if (fetchedShopRef.current === normalizedShop) {
+          fetchedShopRef.current = null;
+        }
       });
     }
+    // Only depend on location.search and lastFetchedShop to prevent infinite loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastFetchedShop, products?.length, loading, fetchProducts]);
+  }, [location.search, lastFetchedShop]);
 
   return (
     <div className="min-h-screen bg-background">
