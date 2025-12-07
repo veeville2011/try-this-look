@@ -20,7 +20,11 @@ export interface ProductsResponse {
  * This requires authentication via session token
  */
 export const fetchAllStoreProducts = async (
-  shop: string
+  shop: string,
+  options?: {
+    status?: string;
+    productType?: string;
+  }
 ): Promise<ProductsResponse> => {
   if (!shop) {
     return {
@@ -38,6 +42,14 @@ export const fetchAllStoreProducts = async (
   const queryParams = new URLSearchParams({
     shop: normalizedShop,
   });
+
+  // Add optional query parameters
+  if (options?.status) {
+    queryParams.append("status", options.status);
+  }
+  if (options?.productType) {
+    queryParams.append("productType", options.productType);
+  }
 
   const url = `${API_BASE_URL}/api/products?${queryParams.toString()}`;
 

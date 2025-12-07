@@ -167,6 +167,36 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only fetch once on mount
 
+  // Fetch products with ACTIVE status and Apparel productType when component opens
+  useEffect(() => {
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+    
+    if (shopDomain) {
+      // Normalize shop domain (remove .myshopify.com if present, API will handle it)
+      const normalizedShop = shopDomain.replace(".myshopify.com", "");
+      
+      fetchAllStoreProducts(normalizedShop, {
+        status: "ACTIVE",
+        productType: "Apparel",
+      })
+        .then((response) => {
+          if (response.success) {
+            console.log("[TryOnWidget] Products loaded on mount:", {
+              count: response.count,
+              shop: normalizedShop,
+            });
+          } else {
+            console.warn("[TryOnWidget] Failed to load products on mount:", {
+              shop: normalizedShop,
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("[TryOnWidget] Error loading products on mount:", error);
+        });
+    }
+  }, [storeInfo, reduxStoreInfo]); // Call when store info is available
+
   // Expose store info globally for access
   useEffect(() => {
     if (storeInfo && typeof window !== "undefined") {
