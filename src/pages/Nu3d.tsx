@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNu3dProducts } from "@/hooks/useNu3dProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import "@google/model-viewer";
 import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap, EyeOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -299,20 +300,6 @@ const ProductDetailsDialog = ({
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [show3dViewer, setShow3dViewer] = useState(true);
   const [modelLoading, setModelLoading] = useState(true);
-  const [modelViewerReady, setModelViewerReady] = useState(false);
-
-  // Check if model-viewer is loaded
-  useEffect(() => {
-    const checkModelViewer = () => {
-      if (customElements.get("model-viewer")) {
-        setModelViewerReady(true);
-      } else {
-        // Retry after a short delay
-        setTimeout(checkModelViewer, 100);
-      }
-    };
-    checkModelViewer();
-  }, []);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
@@ -591,34 +578,26 @@ const ProductDetailsDialog = ({
                         {/* 3D Model Viewer */}
                         {show3dViewer && currentImage.model_glb_url ? (
                           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-primary/20">
-                            {modelViewerReady ? (
-                              <>
-                                <model-viewer
-                                  src={currentImage.model_glb_url}
-                                  alt={t("nu3d.image.model3d") || "3D Model"}
-                                  camera-controls
-                                  auto-rotate
-                                  ar
-                                  ar-modes="webxr scene-viewer quick-look"
-                                  shadow-intensity="1"
-                                  exposure="1"
-                                  environment-image="neutral"
-                                  onLoad={() => setModelLoading(false)}
-                                  onError={() => setModelLoading(false)}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    backgroundColor: "transparent",
-                                  }}
-                                />
-                                {modelLoading && (
-                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
-                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center">
+                            <model-viewer
+                              src={currentImage.model_glb_url}
+                              alt={t("nu3d.image.model3d") || "3D Model"}
+                              camera-controls
+                              auto-rotate
+                              ar
+                              ar-modes="webxr scene-viewer quick-look"
+                              shadow-intensity="1"
+                              exposure="1"
+                              environment-image="neutral"
+                              onLoad={() => setModelLoading(false)}
+                              onError={() => setModelLoading(false)}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                backgroundColor: "transparent",
+                              }}
+                            />
+                            {modelLoading && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                               </div>
                             )}
