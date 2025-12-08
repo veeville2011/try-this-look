@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNusceneProducts } from "@/hooks/useNusceneProducts";
 import NavigationBar from "@/components/NavigationBar";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Play, Video } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Play, Video, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -863,59 +863,6 @@ const Nuscene = () => {
     await refresh();
   };
 
-  // Show skeleton loading when products are loading
-  if (productsLoading && products.length === 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        <NavigationBar />
-
-        <main className="min-h-[calc(100vh-56px)] py-6" role="main">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div>
-                    <Skeleton className="h-6 w-48 mb-2" />
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                </div>
-                <Skeleton className="h-9 w-40" />
-              </div>
-
-              <Card className="border border-border shadow-sm bg-card">
-                <CardContent className="p-0">
-                  <div className="space-y-4 p-4">
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-10 w-32" />
-                      <Skeleton className="h-10 w-24" />
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {[1, 2, 3, 4, 5].map((row) => (
-                        <div key={row} className="flex items-center gap-4 p-4 border-b border-border">
-                          <Skeleton className="w-5 h-5 rounded" />
-                          <Skeleton className="w-16 h-16 rounded-md" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-48" />
-                            <Skeleton className="h-3 w-32" />
-                          </div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-4 w-20" />
-                          <Skeleton className="h-8 w-8 rounded" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <NavigationBar />
@@ -950,14 +897,16 @@ const Nuscene = () => {
                 <Button
                   onClick={handleFetchProducts}
                   disabled={productsLoading}
-                  size="sm"
-                  className="h-9 px-4 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label={t("nuscene.refresh") || "Refresh products"}
                 >
-                  <Store className="w-4 h-4 mr-2" aria-hidden="true" />
-                  {productsLoading 
-                    ? (t("index.hero.fetchingProducts") || "Fetching...") 
-                    : (t("index.hero.fetchProducts") || "Fetch Products")}
+                  {productsLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -970,7 +919,45 @@ const Nuscene = () => {
               </Card>
             )}
 
-            {products.length > 0 && (
+            {productsLoading && products.length === 0 ? (
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"><Skeleton className="h-4 w-4" /></TableHead>
+                        <TableHead className="w-20"><Skeleton className="h-4 w-12" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead className="text-right"><Skeleton className="h-4 w-20" /></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                          <TableCell><Skeleton className="h-16 w-16" /></TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-48 mb-1" />
+                            <Skeleton className="h-3 w-32" />
+                          </TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-8 w-24 ml-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : products.length > 0 ? (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
                   <div className="flex items-center gap-3">

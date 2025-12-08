@@ -811,65 +811,6 @@ const Nucopy = () => {
     await refresh();
   };
 
-  // Show skeleton loading when products are loading
-  if (productsLoading && products.length === 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        {/* Navigation Bar */}
-        <NavigationBar />
-
-        {/* Main Content - Skeleton Loading */}
-        <main className="min-h-[calc(100vh-56px)] py-6" role="main">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              {/* Header Skeleton */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div>
-                    <Skeleton className="h-6 w-48 mb-2" />
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                </div>
-                <Skeleton className="h-9 w-40" />
-              </div>
-
-              {/* Table Skeleton */}
-              <Card className="border border-border shadow-sm bg-card">
-                <CardContent className="p-0">
-                  <div className="space-y-4 p-4">
-                    {/* Table Header Skeleton */}
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-10 w-32" />
-                      <Skeleton className="h-10 w-24" />
-                    </div>
-                    
-                    {/* Table Rows Skeleton */}
-                    <div className="space-y-3">
-                      {[1, 2, 3, 4, 5].map((row) => (
-                        <div key={row} className="flex items-center gap-4 p-4 border-b border-border">
-                          <Skeleton className="w-5 h-5 rounded" />
-                          <Skeleton className="w-16 h-16 rounded-md" />
-                          <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-48" />
-                            <Skeleton className="h-3 w-32" />
-                          </div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-4 w-20" />
-                          <Skeleton className="h-8 w-8 rounded" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Bar */}
@@ -929,7 +870,39 @@ const Nucopy = () => {
             )}
 
             {/* Products Table */}
-            {products.length > 0 && (
+            {productsLoading && products.length === 0 ? (
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px]"><Skeleton className="h-4 w-4" /></TableHead>
+                        <TableHead className="w-[80px]"><Skeleton className="h-4 w-12" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead className="text-right"><Skeleton className="h-4 w-20" /></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                          <TableCell><Skeleton className="h-16 w-16" /></TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-48 mb-1" />
+                            <Skeleton className="h-3 w-32" />
+                          </TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-8 w-24 ml-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : products.length > 0 ? (
               <div className="space-y-4">
                 {/* Bulk Actions Bar */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
