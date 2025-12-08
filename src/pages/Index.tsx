@@ -30,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
@@ -848,6 +849,115 @@ const Index = () => {
     }
     featuresElement.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Show skeleton loading when subscription is loading
+  if (subscriptionLoading && !isWaitingForPaymentSuccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        {/* Skip Link for Accessibility - Shopify Best Practice */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          tabIndex={0}
+        >
+          {t("common.skipToContent") || "Skip to main content"}
+        </a>
+
+        {/* Navigation Bar */}
+        <NavigationBar />
+
+        {/* Skeleton Loading State */}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
+          <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
+            {/* Hero Section Skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center mb-12">
+              {/* Left Section Skeleton */}
+              <div className="lg:col-span-8 space-y-8">
+                <div className="space-y-6">
+                  <Skeleton className="h-12 sm:h-16 md:h-20 lg:h-24 w-64" />
+                  <Skeleton className="h-8 sm:h-10 w-full max-w-2xl" />
+                  <Skeleton className="h-6 sm:h-8 w-full max-w-xl" />
+                </div>
+                <div className="flex flex-wrap gap-4 mt-8">
+                  <Skeleton className="h-11 w-48" />
+                  <Skeleton className="h-11 w-40" />
+                </div>
+              </div>
+
+              {/* Right Section - Plan Info Skeleton */}
+              <div className="lg:col-span-4">
+                <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <Skeleton className="h-6 w-32" />
+                      <Skeleton className="h-20 w-full" />
+                      <Skeleton className="h-9 w-full" />
+                      <Skeleton className="h-9 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Credits Section Skeleton */}
+            <div className="bg-muted/30 border-b border-border py-12 sm:py-16 lg:py-20 mb-12">
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-6 sm:p-8">
+                  <Skeleton className="h-6 w-40 mb-4" />
+                  <Skeleton className="h-64 w-full" />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Installation Guide Skeleton */}
+            <div className="py-12 sm:py-16 lg:py-20 bg-background mb-12">
+              <div className="space-y-6">
+                <Skeleton className="h-10 w-64 mb-4" />
+                <Card className="border border-border shadow-sm bg-card">
+                  <CardContent className="p-6 sm:p-8 lg:p-10">
+                    <div className="space-y-10">
+                      {[1, 2, 3, 4].map((step) => (
+                        <div key={step} className="flex gap-4 sm:gap-6">
+                          <Skeleton className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex-shrink-0" />
+                          <div className="flex-1 space-y-3">
+                            <Skeleton className="h-6 w-48" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-32 w-full" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Features Section Skeleton */}
+            <div className="py-12 sm:py-16 lg:py-20 bg-muted/30">
+              <div className="text-center mb-12">
+                <Skeleton className="h-10 w-64 mx-auto mb-2" />
+                <Skeleton className="h-6 w-96 mx-auto" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((item) => (
+                  <Card key={item} className="border border-border shadow-sm bg-card">
+                    <CardContent className="p-6">
+                      <Skeleton className="h-12 w-12 rounded-lg mb-4" />
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

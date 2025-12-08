@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { approveRejectBulk, approveRejectProduct, approveRejectImage, NulightProduct } from "@/services/nulightApi";
@@ -778,6 +779,65 @@ const Nulight = () => {
   const handleProductUpdate = async () => {
     await refresh();
   };
+
+  // Show skeleton loading when products are loading
+  if (productsLoading && products.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        {/* Navigation Bar */}
+        <NavigationBar />
+
+        {/* Main Content - Skeleton Loading */}
+        <main className="min-h-[calc(100vh-56px)] py-6" role="main">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+              {/* Header Skeleton */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-lg" />
+                  <div>
+                    <Skeleton className="h-6 w-48 mb-2" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                </div>
+                <Skeleton className="h-9 w-40" />
+              </div>
+
+              {/* Table Skeleton */}
+              <Card className="border border-border shadow-sm bg-card">
+                <CardContent className="p-0">
+                  <div className="space-y-4 p-4">
+                    {/* Table Header Skeleton */}
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-10 w-32" />
+                      <Skeleton className="h-10 w-24" />
+                    </div>
+                    
+                    {/* Table Rows Skeleton */}
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4, 5].map((row) => (
+                        <div key={row} className="flex items-center gap-4 p-4 border-b border-border">
+                          <Skeleton className="w-5 h-5 rounded" />
+                          <Skeleton className="w-16 h-16 rounded-md" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-8 w-8 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
