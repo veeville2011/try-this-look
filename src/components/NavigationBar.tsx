@@ -17,7 +17,7 @@ const NavigationBar = () => {
   // Check if shop domain includes "vto-demo" (handles both "vto-demo" and "vto-demo.myshopify.com")
   const isVtoDemoStore = shop && shop.includes("vto-demo");
 
-  if (isVtoDemoStore) {
+  if (!isVtoDemoStore) {
     return null;
   }
 
