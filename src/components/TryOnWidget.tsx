@@ -32,8 +32,9 @@ import {
   generateOutfitLook,
   dataURLToBlob as cartDataURLToBlob,
 } from "@/services/cartOutfitApi";
-import { fetchAllStoreProducts, fetchCategorizedProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check } from "lucide-react";
+import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
+import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,6 +49,7 @@ import { toast } from "sonner";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
+import { useCategorizedProducts } from "@/hooks/useCategorizedProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface TryOnWidgetProps {
@@ -74,6 +76,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Redux state for store info
   const { fetchStoreInfo: fetchStoreInfoFromRedux, storeInfo: reduxStoreInfo } =
     useStoreInfo();
+
+  // Redux state for categorized products
+  const {
+    categories: reduxCategories,
+    uncategorized: reduxUncategorized,
+    categoryMethod: reduxCategoryMethod,
+    statistics: reduxStatistics,
+    loading: isLoadingCategoriesRedux,
+    error: categorizedProductsError,
+    lastFetchedShop: reduxLastFetchedShop,
+    fetchCategorizedProducts: fetchCategorizedProductsFromRedux,
+  } = useCategorizedProducts();
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -230,20 +244,25 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const [cartItems, setCartItems] = useState<ProductImage[]>([]);
   
-  // Store products organized by category
-  const [store_products, setStore_products] = useState<{
-    categories: Category[];
-    uncategorized: { categoryName: string; productCount: number; products: CategorizedProduct[] };
-    categoryMethod: string;
-    statistics: {
-      totalCategories: number;
-      totalProducts: number;
-      categorizedProducts: number;
-      uncategorizedProducts: number;
-    } | null;
-  } | null>(null);
+  // Selected category for filtering (local state for UI)
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  
+  // Derive store_products from Redux state for backward compatibility
+  const store_products = reduxCategories.length > 0 || reduxUncategorized
+    ? {
+        categories: reduxCategories,
+        uncategorized: reduxUncategorized || {
+          categoryName: "Uncategorized",
+          productCount: 0,
+          products: [],
+        },
+        categoryMethod: reduxCategoryMethod || "collections",
+        statistics: reduxStatistics,
+      }
+    : null;
+  
+  // Use Redux loading state
+  const isLoadingCategories = isLoadingCategoriesRedux;
   
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
@@ -603,46 +622,36 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   useEffect(() => {
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
     
-    if (shopDomain && !store_products) {
-      setIsLoadingCategories(true);
+    if (shopDomain && !store_products && reduxLastFetchedShop !== shopDomain.replace(".myshopify.com", "")) {
       // Normalize shop domain
       const normalizedShop = shopDomain.replace(".myshopify.com", "");
       
-      // Fetch categorized products (default: by collections)
-      fetchCategorizedProducts(normalizedShop, {
+      // Fetch categorized products using Redux (default: by collections)
+      fetchCategorizedProductsFromRedux(normalizedShop, {
         categoryBy: "collections",
       })
-        .then((response) => {
-          if (response.success && response.data) {
-            setStore_products({
-              categories: response.data.categories,
-              uncategorized: response.data.uncategorized,
-              categoryMethod: response.data.categoryMethod,
-              statistics: response.data.statistics,
-            });
-            
-            console.log("[TryOnWidget] Loaded categorized products", {
-              totalCategories: response.data.statistics.totalCategories,
-              totalProducts: response.data.statistics.totalProducts,
-              categoryMethod: response.data.categoryMethod,
+        .then((result) => {
+          if (fetchCategorizedProductsThunk.fulfilled.match(result)) {
+            console.log("[TryOnWidget] Loaded categorized products via Redux", {
+              totalCategories: result.payload?.statistics?.totalCategories || 0,
+              totalProducts: result.payload?.statistics?.totalProducts || 0,
+              categoryMethod: result.payload?.categoryMethod || "collections",
             });
           } else {
-            console.warn("[TryOnWidget] Failed to fetch categorized products:", response.error);
+            console.warn("[TryOnWidget] Failed to fetch categorized products:", result.payload);
           }
         })
         .catch((error) => {
           console.error("[TryOnWidget] Error fetching categorized products:", error);
-        })
-        .finally(() => {
-          setIsLoadingCategories(false);
         });
     }
-  }, [storeInfo, reduxStoreInfo, store_products]);
+  }, [storeInfo, reduxStoreInfo, store_products, reduxLastFetchedShop, fetchCategorizedProductsFromRedux]);
 
   // Update images based on selected category for Try Multiple tab
   useEffect(() => {
     if (activeTab === "multiple" && store_products) {
       let productsToShow: CategorizedProduct[] = [];
+      let categoryName = "";
       
       if (selectedCategory === "all") {
         // Show all products from all categories
@@ -653,9 +662,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         if (store_products.uncategorized.products.length > 0) {
           productsToShow = [...productsToShow, ...store_products.uncategorized.products];
         }
+        categoryName = t("tryOnWidget.filters.allCategories") || "Toutes les catégories";
       } else if (selectedCategory === "uncategorized") {
         // Show only uncategorized products
         productsToShow = store_products.uncategorized.products;
+        categoryName = store_products.uncategorized.categoryName;
       } else {
         // Show products from selected category
         const category = store_products.categories.find(
@@ -663,6 +674,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         );
         if (category) {
           productsToShow = category.products;
+          categoryName = category.categoryName;
         }
       }
       
@@ -693,16 +705,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setMultipleTabImagesWithIds(idMap);
       
       console.log("[TryOnWidget] Updated Try Multiple tab images for category", {
-        category: selectedCategory,
+        category: categoryName,
+        categoryId: selectedCategory,
         imageCount: imageUrls.length,
       });
     }
-  }, [activeTab, selectedCategory, store_products]);
+  }, [activeTab, selectedCategory, store_products, t]);
 
   // Update images based on selected category for Try Look tab
   useEffect(() => {
     if (activeTab === "look" && store_products) {
       let productsToShow: CategorizedProduct[] = [];
+      let categoryName = "";
       
       if (selectedCategory === "all") {
         // Show all products from all categories
@@ -713,9 +727,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         if (store_products.uncategorized.products.length > 0) {
           productsToShow = [...productsToShow, ...store_products.uncategorized.products];
         }
+        categoryName = t("tryOnWidget.filters.allCategories") || "Toutes les catégories";
       } else if (selectedCategory === "uncategorized") {
         // Show only uncategorized products
         productsToShow = store_products.uncategorized.products;
+        categoryName = store_products.uncategorized.categoryName;
       } else {
         // Show products from selected category
         const category = store_products.categories.find(
@@ -723,6 +739,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         );
         if (category) {
           productsToShow = category.products;
+          categoryName = category.categoryName;
         }
       }
       
@@ -753,11 +770,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setLookTabImagesWithIds(idMap);
       
       console.log("[TryOnWidget] Updated Try Look tab images for category", {
-        category: selectedCategory,
+        category: categoryName,
+        categoryId: selectedCategory,
         imageCount: imageUrls.length,
       });
     }
-  }, [activeTab, selectedCategory, store_products]);
+  }, [activeTab, selectedCategory, store_products, t]);
 
   // Fallback: Fetch all store products when in "Try Multiple" or "Try Look" tabs if categorized products not available
   useEffect(() => {
@@ -1933,77 +1951,148 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   </div>
 
-                  {/* Category Filter Dropdown */}
+                  {/* Category Filter Dropdown - Enhanced UI/UX */}
                   {isLoadingCategories && (
-                    <div className="mb-3 sm:mb-4">
-                      <label className="block text-xs sm:text-sm font-medium mb-2">
-                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                      </label>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>{t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}</span>
+                    <div className="mb-4 sm:mb-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Filter className="h-4 w-4 text-muted-foreground" />
+                        <label className="text-sm font-semibold">
+                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted/30">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">
+                          {t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}
+                        </span>
                       </div>
                     </div>
                   )}
                   {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
-                    <div className="mb-3 sm:mb-4">
-                      <label
-                        htmlFor="category-filter-multiple"
-                        className="block text-xs sm:text-sm font-medium mb-2"
-                      >
-                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                      </label>
+                    <div className="mb-4 sm:mb-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Filter className="h-4 w-4 text-primary" />
+                        <label
+                          htmlFor="category-filter-multiple"
+                          className="text-sm font-semibold"
+                        >
+                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                        </label>
+                        {selectedCategory !== "all" && (
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {(() => {
+                              if (selectedCategory === "uncategorized") {
+                                return `${store_products.uncategorized.productCount} ${t("tryOnWidget.filters.products") || "produits"}`;
+                              }
+                              const selectedCat = store_products.categories.find(
+                                (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
+                              );
+                              return selectedCat ? `${selectedCat.productCount} ${t("tryOnWidget.filters.products") || "produits"}` : "";
+                            })()}
+                          </span>
+                        )}
+                      </div>
                       <Select
                         value={selectedCategory}
-                        onValueChange={setSelectedCategory}
+                        onValueChange={(value) => {
+                          setSelectedCategory(value);
+                          // Clear selected garments when category changes for better UX
+                          setSelectedGarments([]);
+                        }}
                       >
                         <SelectTrigger
                           id="category-filter-multiple"
-                          className="w-full"
+                          className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
                           aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
                         >
-                          <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                          <div className="flex items-center gap-2 flex-1">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                          </div>
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            {t("tryOnWidget.filters.allCategories") || "Toutes les catégories"} ({store_products.statistics?.totalProducts || 0})
+                        <SelectContent className="max-h-[300px]">
+                          <SelectItem 
+                            value="all"
+                            className="font-medium cursor-pointer focus:bg-primary/10"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2">
+                                <Grid3x3 className="h-4 w-4" />
+                                <span>{t("tryOnWidget.filters.allCategories") || "Toutes les catégories"}</span>
+                              </div>
+                              <span className="ml-4 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                                {store_products.statistics?.totalProducts || 0}
+                              </span>
+                            </div>
                           </SelectItem>
                           {store_products.categories.map((category) => (
                             <SelectItem
                               key={category.categoryId || category.categoryName}
                               value={category.categoryId || category.categoryName}
+                              className="cursor-pointer focus:bg-primary/10"
                             >
-                              {category.categoryName} ({category.productCount})
+                              <div className="flex items-center justify-between w-full">
+                                <span className="truncate flex-1">{category.categoryName}</span>
+                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                  {category.productCount}
+                                </span>
+                              </div>
                             </SelectItem>
                           ))}
                           {store_products.uncategorized.productCount > 0 && (
-                            <SelectItem value="uncategorized">
-                              {store_products.uncategorized.categoryName} ({store_products.uncategorized.productCount})
+                            <SelectItem 
+                              value="uncategorized"
+                              className="cursor-pointer focus:bg-primary/10 border-t border-border mt-1 pt-1"
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-muted-foreground">{store_products.uncategorized.categoryName}</span>
+                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                  {store_products.uncategorized.productCount}
+                                </span>
+                              </div>
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
                     </div>
                   )}
+                  {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
+                    <div className="mb-4 sm:mb-5 p-4 rounded-lg border border-border bg-muted/30">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Package className="h-4 w-4" />
+                        <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3 sm:space-y-4">
-                    {/* Selection Counter */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm sm:text-base font-semibold">
-                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
-                        </span>
-                        <span
-                          className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
-                            selectedGarments.length >= 1 && selectedGarments.length < 6
-                              ? "bg-primary/10 text-primary"
-                              : selectedGarments.length >= 6
-                                ? "bg-warning/10 text-warning"
-                                : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {selectedGarments.length} / 6
-                        </span>
+                    {/* Products Count & Selection Counter */}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm sm:text-base font-semibold">
+                            {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
+                          </span>
+                          <span
+                            className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
+                              selectedGarments.length >= 1 && selectedGarments.length < 6
+                                ? "bg-primary/10 text-primary"
+                                : selectedGarments.length >= 6
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {selectedGarments.length} / 6
+                          </span>
+                        </div>
+                        {multipleTabImages.length > 0 && (
+                          <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                            <Grid3x3 className="h-3.5 w-3.5" />
+                            <span>
+                              {multipleTabImages.length} {t("tryOnWidget.filters.availableProducts") || "produits disponibles"}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       {selectedGarments.length > 0 && (
                         <Button
@@ -2045,17 +2134,28 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {/* Garment Grid */}
                     {multipleTabImages.length === 0 ? (
                       <div role="alert" aria-live="polite">
-                        <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
-                          <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
-                            {t("tryOnWidget.errors.noGarmentImages") || "Aucune image de vêtement détectée"}
-                          </p>
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                            {t("tryOnWidget.errors.noGarmentImagesDescription") || "Assurez-vous d'avoir des articles dans votre panier ou sur la page"}
-                          </p>
+                        <Card className="p-6 sm:p-8 md:p-10 text-center bg-muted/30 border-border">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted flex items-center justify-center">
+                              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-foreground text-sm sm:text-base md:text-lg mb-1">
+                                {selectedCategory === "all"
+                                  ? t("tryOnWidget.errors.noProducts") || "Aucun produit disponible"
+                                  : t("tryOnWidget.errors.noProductsInCategory") || "Aucun produit dans cette catégorie"}
+                              </p>
+                              <p className="text-xs sm:text-sm text-muted-foreground">
+                                {selectedCategory === "all"
+                                  ? t("tryOnWidget.errors.noProductsDescription") || "Les produits seront disponibles une fois chargés"
+                                  : t("tryOnWidget.errors.noProductsInCategoryDescription") || "Essayez de sélectionner une autre catégorie"}
+                              </p>
+                            </div>
+                          </div>
                         </Card>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 animate-in fade-in-0 duration-300">
                         {multipleTabImages.map((imageUrl, index) => {
                           const garment: ProductImage = {
                             url: imageUrl,
@@ -2486,77 +2586,148 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   </div>
 
-                  {/* Category Filter Dropdown */}
+                  {/* Category Filter Dropdown - Enhanced UI/UX */}
                   {isLoadingCategories && (
-                    <div className="mb-3 sm:mb-4">
-                      <label className="block text-xs sm:text-sm font-medium mb-2">
-                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                      </label>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>{t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}</span>
+                    <div className="mb-4 sm:mb-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Filter className="h-4 w-4 text-muted-foreground" />
+                        <label className="text-sm font-semibold">
+                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted/30">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">
+                          {t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}
+                        </span>
                       </div>
                     </div>
                   )}
                   {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
-                    <div className="mb-3 sm:mb-4">
-                      <label
-                        htmlFor="category-filter-look"
-                        className="block text-xs sm:text-sm font-medium mb-2"
-                      >
-                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                      </label>
+                    <div className="mb-4 sm:mb-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Filter className="h-4 w-4 text-primary" />
+                        <label
+                          htmlFor="category-filter-look"
+                          className="text-sm font-semibold"
+                        >
+                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                        </label>
+                        {selectedCategory !== "all" && (
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {(() => {
+                              if (selectedCategory === "uncategorized") {
+                                return `${store_products.uncategorized.productCount} ${t("tryOnWidget.filters.products") || "produits"}`;
+                              }
+                              const selectedCat = store_products.categories.find(
+                                (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
+                              );
+                              return selectedCat ? `${selectedCat.productCount} ${t("tryOnWidget.filters.products") || "produits"}` : "";
+                            })()}
+                          </span>
+                        )}
+                      </div>
                       <Select
                         value={selectedCategory}
-                        onValueChange={setSelectedCategory}
+                        onValueChange={(value) => {
+                          setSelectedCategory(value);
+                          // Clear selected garments when category changes for better UX
+                          setSelectedGarments([]);
+                        }}
                       >
                         <SelectTrigger
                           id="category-filter-look"
-                          className="w-full"
+                          className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
                           aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
                         >
-                          <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                          <div className="flex items-center gap-2 flex-1">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                          </div>
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            {t("tryOnWidget.filters.allCategories") || "Toutes les catégories"} ({store_products.statistics?.totalProducts || 0})
+                        <SelectContent className="max-h-[300px]">
+                          <SelectItem 
+                            value="all"
+                            className="font-medium cursor-pointer focus:bg-primary/10"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2">
+                                <Grid3x3 className="h-4 w-4" />
+                                <span>{t("tryOnWidget.filters.allCategories") || "Toutes les catégories"}</span>
+                              </div>
+                              <span className="ml-4 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                                {store_products.statistics?.totalProducts || 0}
+                              </span>
+                            </div>
                           </SelectItem>
                           {store_products.categories.map((category) => (
                             <SelectItem
                               key={category.categoryId || category.categoryName}
                               value={category.categoryId || category.categoryName}
+                              className="cursor-pointer focus:bg-primary/10"
                             >
-                              {category.categoryName} ({category.productCount})
+                              <div className="flex items-center justify-between w-full">
+                                <span className="truncate flex-1">{category.categoryName}</span>
+                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                  {category.productCount}
+                                </span>
+                              </div>
                             </SelectItem>
                           ))}
                           {store_products.uncategorized.productCount > 0 && (
-                            <SelectItem value="uncategorized">
-                              {store_products.uncategorized.categoryName} ({store_products.uncategorized.productCount})
+                            <SelectItem 
+                              value="uncategorized"
+                              className="cursor-pointer focus:bg-primary/10 border-t border-border mt-1 pt-1"
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-muted-foreground">{store_products.uncategorized.categoryName}</span>
+                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                  {store_products.uncategorized.productCount}
+                                </span>
+                              </div>
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
                     </div>
                   )}
+                  {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
+                    <div className="mb-4 sm:mb-5 p-4 rounded-lg border border-border bg-muted/30">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Package className="h-4 w-4" />
+                        <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3 sm:space-y-4">
-                    {/* Selection Counter */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm sm:text-base font-semibold">
-                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
-                        </span>
-                        <span
-                          className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
-                            selectedGarments.length >= 2 && selectedGarments.length < 8
-                              ? "bg-primary/10 text-primary"
-                              : selectedGarments.length >= 8
-                                ? "bg-warning/10 text-warning"
-                                : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {selectedGarments.length} / 8
-                        </span>
+                    {/* Products Count & Selection Counter */}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm sm:text-base font-semibold">
+                            {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
+                          </span>
+                          <span
+                            className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
+                              selectedGarments.length >= 2 && selectedGarments.length < 8
+                                ? "bg-primary/10 text-primary"
+                                : selectedGarments.length >= 8
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {selectedGarments.length} / 8
+                          </span>
+                        </div>
+                        {lookTabImages.length > 0 && (
+                          <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                            <Grid3x3 className="h-3.5 w-3.5" />
+                            <span>
+                              {lookTabImages.length} {t("tryOnWidget.filters.availableProducts") || "produits disponibles"}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       {selectedGarments.length > 0 && (
                         <Button
@@ -2598,17 +2769,28 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {/* Garment Grid */}
                     {lookTabImages.length === 0 ? (
                       <div role="alert" aria-live="polite">
-                        <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
-                          <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
-                            {t("tryOnWidget.errors.noGarmentImages") || "Aucune image de vêtement détectée"}
-                          </p>
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                            {t("tryOnWidget.errors.noGarmentImagesDescription") || "Assurez-vous d'avoir des articles dans votre panier ou sur la page"}
-                          </p>
+                        <Card className="p-6 sm:p-8 md:p-10 text-center bg-muted/30 border-border">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted flex items-center justify-center">
+                              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-foreground text-sm sm:text-base md:text-lg mb-1">
+                                {selectedCategory === "all"
+                                  ? t("tryOnWidget.errors.noProducts") || "Aucun produit disponible"
+                                  : t("tryOnWidget.errors.noProductsInCategory") || "Aucun produit dans cette catégorie"}
+                              </p>
+                              <p className="text-xs sm:text-sm text-muted-foreground">
+                                {selectedCategory === "all"
+                                  ? t("tryOnWidget.errors.noProductsDescription") || "Les produits seront disponibles une fois chargés"
+                                  : t("tryOnWidget.errors.noProductsInCategoryDescription") || "Essayez de sélectionner une autre catégorie"}
+                              </p>
+                            </div>
+                          </div>
                         </Card>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 animate-in fade-in-0 duration-300">
                         {lookTabImages.map((imageUrl, index) => {
                           const garment: ProductImage = {
                             url: imageUrl,

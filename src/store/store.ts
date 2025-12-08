@@ -3,6 +3,7 @@ import imageGenerationsReducer from "./slices/imageGenerationsSlice";
 import keyMappingsReducer from "./slices/keyMappingsSlice";
 import storeInfoReducer from "./slices/storeInfoSlice";
 import productsReducer from "./slices/productsSlice";
+import categorizedProductsReducer from "./slices/categorizedProductsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     keyMappings: keyMappingsReducer,
     storeInfo: storeInfoReducer,
     products: productsReducer,
+    categorizedProducts: categorizedProductsReducer,
   },
 });
 
