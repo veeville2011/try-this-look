@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
-import { useNulightProducts } from "@/hooks/useNulightProducts";
+import { useNusceneProducts } from "@/hooks/useNusceneProducts";
 import NavigationBar from "@/components/NavigationBar";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Play, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { approveRejectBulk, approveRejectProduct, approveRejectImage, NulightProduct } from "@/services/nulightApi";
+import { approveRejectBulk, approveRejectProduct, approveRejectVideo, NusceneProduct } from "@/services/nusceneApi";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/dialog";
 
 interface VariantRowData {
-  product: NulightProduct;
-  variant: NulightProduct["variants"]["nodes"][0];
+  product: NusceneProduct;
+  variant: NusceneProduct["variants"]["nodes"][0];
   variantIndex: number;
 }
 
@@ -92,12 +92,12 @@ const VariantTableRow = ({
   };
 
   const getVariantApprovalStatusBadge = () => {
-    const variantImages = variant.images || [];
-    const hasApprovedImages = variantImages.some((img) => img.approvalStatus === "approved");
-    const hasRejectedImages = variantImages.some((img) => img.approvalStatus === "rejected");
-    const hasPendingImages = variantImages.some((img) => img.approvalStatus === "pending");
+    const variantVideos = variant.images || [];
+    const hasApprovedVideos = variantVideos.some((vid) => vid.approvalStatus === "approved");
+    const hasRejectedVideos = variantVideos.some((vid) => vid.approvalStatus === "rejected");
+    const hasPendingVideos = variantVideos.some((vid) => vid.approvalStatus === "pending");
 
-    if (hasApprovedImages && !hasPendingImages) {
+    if (hasApprovedVideos && !hasPendingVideos) {
       return (
         <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 text-xs">
           <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -105,7 +105,7 @@ const VariantTableRow = ({
         </Badge>
       );
     }
-    if (hasRejectedImages && !hasPendingImages) {
+    if (hasRejectedVideos && !hasPendingVideos) {
       return (
         <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-xs">
           <XCircle className="w-3 h-3 mr-1" />
@@ -113,10 +113,10 @@ const VariantTableRow = ({
         </Badge>
       );
     }
-    if (variantImages.length === 0) {
+    if (variantVideos.length === 0) {
       return (
         <Badge className="bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20 text-xs">
-          {t("nuscene.dialog.noImages") || "No Images"}
+          {t("nuscene.dialog.noVideos") || "No Videos"}
         </Badge>
       );
     }
@@ -127,8 +127,8 @@ const VariantTableRow = ({
     );
   };
 
-  // Get variant image or fallback to product image
-  const variantImage = variant.image?.url || product.images.nodes[0]?.url || "";
+  // Get variant image from media or fallback to product image
+  const variantImage = variant.media?.nodes[0]?.image?.url || product.media?.nodes[0]?.image?.url || "";
   const variantPrice = `${variant.price ? parseFloat(variant.price).toFixed(2) : "0.00"}`;
   const currencyCode = product.priceRangeV2.minVariantPrice.currencyCode;
   
@@ -254,7 +254,7 @@ const VariantTableRow = ({
 };
 
 interface ProductDetailsDialogProps {
-  product: NulightProduct;
+  product: NusceneProduct;
   shop: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -279,56 +279,55 @@ const ProductDetailsDialog = ({
       setSelectedVariantIndex(initialVariantIndex);
     }
   }, [open, initialVariantIndex]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [processingImageId, setProcessingImageId] = useState<string | null>(null);
+  
+  const [selectedVideoIndex, setSelectedVideoIndex] = useState(0);
+  const [processingVideoId, setProcessingVideoId] = useState<string | null>(null);
   const [processingProduct, setProcessingProduct] = useState(false);
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
-  const variantImages = variant?.images || [];
-  const relightedImages = variantImages.filter(
-    (img) => img.relightingStatus === "completed" && img.transformedImageUrls.length > 0
+  const variantVideos = variant?.images || [];
+  const completedVideos = variantVideos.filter(
+    (vid) => vid.videoStatus === "completed" && vid.video_url
   );
-  const displayImages = relightedImages.length > 0 ? relightedImages : variantImages;
-  const currentImage = displayImages[selectedImageIndex] || displayImages[0];
+  const displayVideos = completedVideos.length > 0 ? completedVideos : variantVideos;
+  const currentVideo = displayVideos[selectedVideoIndex] || displayVideos[0];
 
-  const handleImageAction = async (
+  const handleVideoAction = async (
     action: "approve" | "reject",
     imageId: string,
-    relightingImageId: number,
-    transformedImageUrl?: string
+    videoId: number,
+    videoUrl?: string
   ) => {
     if (!variant) return;
 
-    setProcessingImageId(imageId);
+    setProcessingVideoId(imageId);
     try {
-      await approveRejectImage({
+      await approveRejectVideo({
         shop,
         productId: product.id,
         variantId: variant.id,
         imageId,
-        relightingImageId,
-        action,
-        transformedImageUrl,
+        videoId,
+        videoUrl,
       });
 
-      const successKey = action === "approve" ? "nuscene.image.approveSuccess" : "nuscene.image.rejectSuccess";
+      const successKey = action === "approve" ? "nuscene.video.approveSuccess" : "nuscene.video.rejectSuccess";
       toast.success(
         t(successKey) ||
-          `Image ${action === "approve" ? "approved" : "rejected"} successfully`
+          `Video ${action === "approve" ? "approved" : "rejected"} successfully`
       );
       onUpdate();
     } catch (error) {
-      console.error(`[ProductDetailsDialog] Failed to ${action} image:`, error);
-      const errorKey = action === "approve" ? "nuscene.image.approveError" : "nuscene.image.rejectError";
+      console.error(`[ProductDetailsDialog] Failed to ${action} video:`, error);
+      const errorKey = action === "approve" ? "nuscene.video.approveError" : "nuscene.video.rejectError";
       toast.error(
         error instanceof Error
           ? error.message
           : t(errorKey) ||
-              `Failed to ${action} image. Please try again.`
+              `Failed to ${action} video. Please try again.`
       );
     } finally {
-      setProcessingImageId(null);
+      setProcessingVideoId(null);
     }
   };
 
@@ -386,237 +385,290 @@ const ProductDetailsDialog = ({
     }
   };
 
+  const getVideoStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return (
+          <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 text-xs">
+            {t("nuscene.video.completed") || "Completed"}
+          </Badge>
+        );
+      case "processing":
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-xs">
+            {t("nuscene.video.processing") || "Processing"}
+          </Badge>
+        );
+      case "failed":
+        return (
+          <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-xs">
+            {t("nuscene.video.failed") || "Failed"}
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20 text-xs">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{product.title}</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Product Info */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{product.title}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Product Info */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">{t("nuscene.dialog.price") || "Price"}:</span>
+              <span className="ml-2 font-medium">
+                {product.priceRangeV2.minVariantPrice.currencyCode} {product.priceRangeV2.minVariantPrice.amount}
+              </span>
+            </div>
+            {product.vendor && (
               <div>
-                <span className="text-muted-foreground">{t("nuscene.dialog.price") || "Price"}:</span>
-                <span className="ml-2 font-medium">
-                  {product.priceRangeV2.minVariantPrice.currencyCode} {product.priceRangeV2.minVariantPrice.amount}
-                </span>
+                <span className="text-muted-foreground">{t("nuscene.dialog.vendor") || "Vendor"}:</span>
+                <span className="ml-2">{product.vendor}</span>
               </div>
-              {product.vendor && (
-                <div>
-                  <span className="text-muted-foreground">{t("nuscene.dialog.vendor") || "Vendor"}:</span>
-                  <span className="ml-2">{product.vendor}</span>
+            )}
+            <div>
+              <span className="text-muted-foreground">{t("nuscene.dialog.status") || "Status"}:</span>
+              <span className="ml-2">{product.status}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{t("nuscene.dialog.variants") || "Variants"}:</span>
+              <span className="ml-2">{product.variants.nodes.length}</span>
+            </div>
+          </div>
+
+          {/* Variant Selector */}
+          {product.variants.nodes.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {product.variants.nodes.map((v, index) => (
+                <Button
+                  key={v.id}
+                  size="sm"
+                  variant={selectedVariantIndex === index ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedVariantIndex(index);
+                    setSelectedVideoIndex(0);
+                  }}
+                  className="h-8 text-xs"
+                >
+                  {v.title}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {/* Video Display */}
+          {currentVideo && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Video className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {t("nuscene.video.videoOf", { current: selectedVideoIndex + 1, total: displayVideos.length }) || `Video ${selectedVideoIndex + 1} of ${displayVideos.length}`}
+                  </span>
+                  {currentVideo.videoStatus && getVideoStatusBadge(currentVideo.videoStatus)}
+                </div>
+                {displayVideos.length > 1 && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8"
+                      onClick={() =>
+                        setSelectedVideoIndex((prev) =>
+                          prev > 0 ? prev - 1 : displayVideos.length - 1
+                        )
+                      }
+                      aria-label={t("nuscene.video.previous") || "Previous video"}
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8"
+                      onClick={() =>
+                        setSelectedVideoIndex((prev) =>
+                          prev < displayVideos.length - 1 ? prev + 1 : 0
+                        )
+                      }
+                      aria-label={t("nuscene.video.next") || "Next video"}
+                    >
+                      <ChevronRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground">{t("nuscene.video.original") || "Original Image"}</span>
+                  <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                    <img
+                      src={currentVideo.originalImageUrl || currentVideo.original_url}
+                      alt={t("nuscene.video.original") || "Original"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">{t("nuscene.video.generated") || "Generated Video"}</span>
+                    {currentVideo.approvalStatus && getApprovalStatusBadge(currentVideo.approvalStatus)}
+                  </div>
+                  {currentVideo.videoStatus === "completed" && currentVideo.video_url ? (
+                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                      <video
+                        src={currentVideo.video_url}
+                        controls
+                        className="w-full h-full object-cover"
+                        preload="metadata"
+                      >
+                        {t("nuscene.video.notSupported") || "Your browser does not support the video tag."}
+                      </video>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="bg-black/20 rounded-full p-2">
+                          <Play className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : currentVideo.videoStatus === "processing" ? (
+                    <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mb-2" />
+                      <span className="text-xs text-muted-foreground">{t("nuscene.video.processing") || "Processing..."}</span>
+                    </div>
+                  ) : (
+                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
+                      <span className="text-xs text-muted-foreground">{t("nuscene.video.notAvailable") || "Video not available"}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Video Info */}
+              {currentVideo.videoStatus === "completed" && currentVideo.video_url && (
+                <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                  {currentVideo.duration && (
+                    <div>
+                      <span className="font-medium">{t("nuscene.video.duration") || "Duration"}:</span>
+                      <span className="ml-2">{currentVideo.duration}s</span>
+                    </div>
+                  )}
+                  {currentVideo.resolution && (
+                    <div>
+                      <span className="font-medium">{t("nuscene.video.resolution") || "Resolution"}:</span>
+                      <span className="ml-2">{currentVideo.resolution}</span>
+                    </div>
+                  )}
+                  {currentVideo.aspect_ratio && (
+                    <div>
+                      <span className="font-medium">{t("nuscene.video.aspectRatio") || "Aspect Ratio"}:</span>
+                      <span className="ml-2">{currentVideo.aspect_ratio}</span>
+                    </div>
+                  )}
+                  {currentVideo.prompt && (
+                    <div className="col-span-2">
+                      <span className="font-medium">{t("nuscene.video.prompt") || "Prompt"}:</span>
+                      <p className="mt-1 text-xs line-clamp-2">{currentVideo.prompt}</p>
+                    </div>
+                  )}
                 </div>
               )}
-              <div>
-                <span className="text-muted-foreground">{t("nuscene.dialog.status") || "Status"}:</span>
-                <span className="ml-2">{product.status}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">{t("nuscene.dialog.variants") || "Variants"}:</span>
-                <span className="ml-2">{product.variants.nodes.length}</span>
-              </div>
-            </div>
 
-            {/* Variant Selector */}
-            {product.variants.nodes.length > 1 && (
-              <div className="flex flex-wrap gap-2">
-                {product.variants.nodes.map((v, index) => (
-                  <Button
-                    key={v.id}
-                    size="sm"
-                    variant={selectedVariantIndex === index ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedVariantIndex(index);
-                      setSelectedImageIndex(0);
-                    }}
-                    className="h-8 text-xs"
-                  >
-                    {v.title}
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            {/* Image Comparison */}
-            {currentImage && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      {t("nuscene.image.imageOf", { current: selectedImageIndex + 1, total: displayImages.length }) || `Image ${selectedImageIndex + 1} of ${displayImages.length}`}
-                    </span>
+              {/* Video Actions */}
+              {currentVideo.videoStatus === "completed" &&
+                currentVideo.approvalStatus === "pending" &&
+                currentVideo.video_url && (
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleVideoAction(
+                          "reject",
+                          currentVideo.id,
+                          currentVideo.videoId || currentVideo.video_id,
+                          currentVideo.video_url || undefined
+                        )
+                      }
+                      disabled={processingVideoId === currentVideo.id}
+                      className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
+                    >
+                      {processingVideoId === currentVideo.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
+                      ) : (
+                        <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
+                      )}
+                      <span className="text-red-700 dark:text-red-300">{t("nuscene.dialog.reject") || "Reject"}</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        handleVideoAction(
+                          "approve",
+                          currentVideo.id,
+                          currentVideo.videoId || currentVideo.video_id,
+                          currentVideo.video_url || undefined
+                        )
+                      }
+                      disabled={processingVideoId === currentVideo.id}
+                      className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
+                    >
+                      {processingVideoId === currentVideo.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                      ) : (
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                      )}
+                      {t("nuscene.dialog.approve") || "Approve"}
+                    </Button>
                   </div>
-                  {displayImages.length > 1 && (
-                    <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          setSelectedImageIndex((prev) =>
-                            prev > 0 ? prev - 1 : displayImages.length - 1
-                          )
-                        }
-                        aria-label={t("nuscene.image.previous") || "Previous image"}
-                      >
-                        <ChevronLeft className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          setSelectedImageIndex((prev) =>
-                            prev < displayImages.length - 1 ? prev + 1 : 0
-                          )
-                        }
-                        aria-label={t("nuscene.image.next") || "Next image"}
-                      >
-                        <ChevronRight className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground">{t("nuscene.image.original") || "Original"}</span>
-                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-                      <img
-                        src={currentImage.originalImageUrl}
-                        alt={t("nuscene.image.original") || "Original"}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">{t("nuscene.image.relighted") || "Relighted"}</span>
-                      {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
-                    </div>
-                    {currentImage.transformedImageUrls.length > 0 ? (
-                      <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-                        <img
-                          src={currentImage.transformedImageUrls[0]}
-                          alt={t("nuscene.image.relighted") || "Relighted"}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                        <span className="text-xs text-muted-foreground">{t("nuscene.image.processing") || "Processing..."}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Image Actions */}
-                {currentImage.relightingStatus === "completed" &&
-                  currentImage.approvalStatus === "pending" &&
-                  currentImage.transformedImageUrls.length > 0 && (
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          handleImageAction(
-                            "reject",
-                            currentImage.id,
-                            currentImage.relightingImageId,
-                            currentImage.transformedImageUrls[0]
-                          )
-                        }
-                        disabled={processingImageId === currentImage.id}
-                        className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
-                      >
-                        {processingImageId === currentImage.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
-                        ) : (
-                          <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
-                        )}
-                        <span className="text-red-700 dark:text-red-300">{t("nuscene.dialog.reject") || "Reject"}</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          handleImageAction(
-                            "approve",
-                            currentImage.id,
-                            currentImage.relightingImageId,
-                            currentImage.transformedImageUrls[0]
-                          )
-                        }
-                        disabled={processingImageId === currentImage.id}
-                        className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
-                      >
-                        {processingImageId === currentImage.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                        ) : (
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                        )}
-                        {t("nuscene.dialog.approve") || "Approve"}
-                      </Button>
-                    </div>
-                  )}
-              </div>
-            )}
-
-            {/* Product Actions */}
-            <div className="flex gap-2 justify-end pt-4 border-t">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleProductAction("approve")}
-                disabled={processingProduct}
-                className="border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700"
-              >
-                {processingProduct ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1 text-green-600 dark:text-green-400" />
-                ) : (
-                  <CheckCircle2 className="w-3 h-3 mr-1 text-green-600 dark:text-green-400" />
                 )}
-                <span className="text-green-700 dark:text-green-300">{t("nuscene.dialog.approveAll") || "Approve All"}</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleProductAction("reject")}
-                disabled={processingProduct}
-                className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
-              >
-                {processingProduct ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
-                ) : (
-                  <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
-                )}
-                <span className="text-red-700 dark:text-red-300">{t("nuscene.dialog.rejectAll") || "Reject All"}</span>
-              </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          )}
 
-      {/* Zoom Dialog */}
-      <Dialog open={!!zoomImage} onOpenChange={() => setZoomImage(null)}>
-        <DialogContent className="max-w-4xl p-0">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle>{t("nuscene.image.preview") || "Image Preview"}</DialogTitle>
-          </DialogHeader>
-          <div className="p-6">
-            {zoomImage && (
-              <img
-                src={zoomImage}
-                alt="Zoomed image"
-                className="w-full h-auto rounded-lg"
-              />
-            )}
+          {/* Product Actions */}
+          <div className="flex gap-2 justify-end pt-4 border-t">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleProductAction("approve")}
+              disabled={processingProduct}
+              className="border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700"
+            >
+              {processingProduct ? (
+                <Loader2 className="w-3 h-3 animate-spin mr-1 text-green-600 dark:text-green-400" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3 mr-1 text-green-600 dark:text-green-400" />
+              )}
+              <span className="text-green-700 dark:text-green-300">{t("nuscene.dialog.approveAll") || "Approve All"}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleProductAction("reject")}
+              disabled={processingProduct}
+              className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
+            >
+              {processingProduct ? (
+                <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
+              ) : (
+                <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
+              )}
+              <span className="text-red-700 dark:text-red-300">{t("nuscene.dialog.rejectAll") || "Reject All"}</span>
+            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -628,7 +680,7 @@ const Nuscene = () => {
   const shopDomain =
     shop || new URLSearchParams(window.location.search).get("shop");
 
-  // Use nulight products hook
+  // Use nuscene products hook
   const {
     products,
     loading: productsLoading,
@@ -638,7 +690,7 @@ const Nuscene = () => {
     fetchProducts,
     loadMore,
     refresh,
-  } = useNulightProducts(shopDomain);
+  } = useNusceneProducts(shopDomain);
 
   // Bulk selection state - using variant IDs (format: "productId-variantId")
   const [selectedVariants, setSelectedVariants] = useState<Set<string>>(new Set());
@@ -682,7 +734,7 @@ const Nuscene = () => {
       // Reset ref on error so it can retry if needed
       hasFetchedOnMountRef.current = false;
     });
-  }, [shopDomain, fetchProducts]); // Only depend on shopDomain and fetchProducts
+  }, [shopDomain, fetchProducts]);
 
   // Handle manual product fetch
   const handleFetchProducts = async () => {
@@ -815,14 +867,11 @@ const Nuscene = () => {
   if (productsLoading && products.length === 0) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Navigation Bar */}
         <NavigationBar />
 
-        {/* Main Content - Skeleton Loading */}
         <main className="min-h-[calc(100vh-56px)] py-6" role="main">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
-              {/* Header Skeleton */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <Skeleton className="w-10 h-10 rounded-lg" />
@@ -834,17 +883,14 @@ const Nuscene = () => {
                 <Skeleton className="h-9 w-40" />
               </div>
 
-              {/* Table Skeleton */}
               <Card className="border border-border shadow-sm bg-card">
                 <CardContent className="p-0">
                   <div className="space-y-4 p-4">
-                    {/* Table Header Skeleton */}
                     <div className="flex items-center justify-between">
                       <Skeleton className="h-10 w-32" />
                       <Skeleton className="h-10 w-24" />
                     </div>
                     
-                    {/* Table Rows Skeleton */}
                     <div className="space-y-3">
                       {[1, 2, 3, 4, 5].map((row) => (
                         <div key={row} className="flex items-center gap-4 p-4 border-b border-border">
@@ -872,14 +918,11 @@ const Nuscene = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation Bar */}
       <NavigationBar />
 
-      {/* Main Content */}
       <main className="min-h-[calc(100vh-56px)] py-6" role="main">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            {/* Compact Header with Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
                 <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 border border-primary/20">
@@ -890,7 +933,7 @@ const Nuscene = () => {
                     {t("nuscene.title") || "Nuscene Products"}
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    {t("nuscene.description") || "Manage products created today"}
+                    {t("nuscene.description") || "Manage products with generated videos"}
                   </p>
                 </div>
               </div>
@@ -919,7 +962,6 @@ const Nuscene = () => {
               </div>
             </div>
 
-            {/* Error Display */}
             {productsError && (
               <Card className="mb-6 p-4 border-destructive/50 bg-destructive/10">
                 <p className="text-sm text-destructive">
@@ -928,28 +970,26 @@ const Nuscene = () => {
               </Card>
             )}
 
-            {/* Products Table */}
             {products.length > 0 && (
               <div className="space-y-4">
-                {/* Bulk Actions Bar */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
                   <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="select-all"
+                    <Checkbox
+                      id="select-all"
                       checked={selectedVariants.size === variantRows.length && variantRows.length > 0}
-                          onCheckedChange={handleSelectAll}
+                      onCheckedChange={handleSelectAll}
                       aria-label={t("nuscene.selectAll") || "Select all variants"}
-                        />
-                        <label
-                          htmlFor="select-all"
+                    />
+                    <label
+                      htmlFor="select-all"
                       className="text-sm font-medium text-foreground cursor-pointer"
-                        >
-                          {t("nuscene.selectAll") || "Select All"}
-                        </label>
+                    >
+                      {t("nuscene.selectAll") || "Select All"}
+                    </label>
                     {selectedVariants.size > 0 && (
                       <span className="text-sm text-muted-foreground">
                         ({selectedVariants.size} {t("nuscene.selected") || "selected"})
-                  </span>
+                      </span>
                     )}
                   </div>
                   
@@ -989,7 +1029,6 @@ const Nuscene = () => {
                   )}
                 </div>
 
-                {/* Table */}
                 <Card className="border-border">
                   <div className="overflow-x-auto">
                     <Table>
@@ -1014,19 +1053,18 @@ const Nuscene = () => {
                             <VariantTableRow
                               key={variantKey}
                               variantRow={variantRow}
-                      shop={shopDomain || ""}
+                              shop={shopDomain || ""}
                               isSelected={selectedVariants.has(variantKey)}
                               onToggleSelect={() => handleToggleVariant(variantRow.product.id, variantRow.variant.id)}
-                      onUpdate={handleProductUpdate}
-                    />
+                              onUpdate={handleProductUpdate}
+                            />
                           );
                         })}
                       </TableBody>
                     </Table>
-                </div>
+                  </div>
                 </Card>
 
-                {/* Load More Button */}
                 {hasNextPage && (
                   <div className="flex justify-center pt-4">
                     <Button
@@ -1046,7 +1084,6 @@ const Nuscene = () => {
               </div>
             )}
 
-            {/* Empty State */}
             {!productsLoading && products.length === 0 && !productsError && (
               <Card className="p-12 text-center border-border bg-card">
                 <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" aria-hidden="true" />
@@ -1075,4 +1112,3 @@ const Nuscene = () => {
 };
 
 export default Nuscene;
-
