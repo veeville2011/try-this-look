@@ -4,13 +4,576 @@ import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNulightProducts } from "@/hooks/useNulightProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import NulightProductCard from "@/components/NulightProductCard";
-import { Sparkles, Package, Store, ChevronDown, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { approveRejectBulk } from "@/services/nulightApi";
+import { approveRejectBulk, approveRejectProduct, approveRejectImage, NulightProduct } from "@/services/nulightApi";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface ProductTableRowProps {
+  product: NulightProduct;
+  shop: string;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  onUpdate: () => void;
+}
+
+const ProductTableRow = ({
+  product,
+  shop,
+  isSelected,
+  onToggleSelect,
+  onUpdate,
+}: ProductTableRowProps) => {
+  const { t } = useTranslation();
+  const [processingProduct, setProcessingProduct] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const handleProductAction = async (action: "approve" | "reject") => {
+    setProcessingProduct(true);
+    try {
+      await approveRejectProduct({
+        shop,
+        productId: product.id,
+        action,
+      });
+
+      toast.success(
+        t(`nulight.product.${action}Success`) ||
+          `Product ${action === "approve" ? "approved" : "rejected"} successfully`
+      );
+      onUpdate();
+    } catch (error) {
+      console.error(`[ProductTableRow] Failed to ${action} product:`, error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t(`nulight.product.${action}Error`) ||
+              `Failed to ${action} product. Please try again.`
+      );
+    } finally {
+      setProcessingProduct(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "ACTIVE":
+        return (
+          <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 text-xs">
+            {status}
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20 text-xs">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
+  const getApprovalStatusBadge = () => {
+    // Check if all variants have approved images
+    const allVariants = product.variants.nodes;
+    const hasApprovedImages = allVariants.some((variant) =>
+      variant.images.some((img) => img.approvalStatus === "approved")
+    );
+    const hasRejectedImages = allVariants.some((variant) =>
+      variant.images.some((img) => img.approvalStatus === "rejected")
+    );
+    const hasPendingImages = allVariants.some((variant) =>
+      variant.images.some((img) => img.approvalStatus === "pending")
+    );
+
+    if (hasApprovedImages && !hasPendingImages) {
+      return (
+        <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 text-xs">
+          <CheckCircle2 className="w-3 h-3 mr-1" />
+          Approved
+        </Badge>
+      );
+    }
+    if (hasRejectedImages && !hasPendingImages) {
+      return (
+        <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-xs">
+          <XCircle className="w-3 h-3 mr-1" />
+          Rejected
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-xs">
+        Pending
+      </Badge>
+    );
+  };
+
+  const mainImage = product.images.nodes[0]?.url || "";
+  const variantCount = product.variants.nodes.length;
+  const price = `${product.priceRangeV2.minVariantPrice.currencyCode} ${product.priceRangeV2.minVariantPrice.amount}`;
+
+  return (
+    <>
+      <TableRow className="hover:bg-muted/50">
+        <TableCell>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            aria-label={`Select ${product.title}`}
+          />
+        </TableCell>
+        <TableCell>
+          {mainImage ? (
+            <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
+              <img
+                src={mainImage}
+                alt={product.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-md bg-muted border border-border flex items-center justify-center">
+              <ImageIcon className="w-5 h-5 text-muted-foreground" />
+            </div>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-foreground line-clamp-2">
+              {product.title}
+            </span>
+            {product.vendor && (
+              <span className="text-xs text-muted-foreground">
+                {product.vendor}
+              </span>
+            )}
+          </div>
+        </TableCell>
+        <TableCell>{getStatusBadge(product.status)}</TableCell>
+        <TableCell>
+          <span className="font-medium text-foreground">{price}</span>
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline" className="text-xs">
+            {variantCount} {variantCount === 1 ? "variant" : "variants"}
+          </Badge>
+        </TableCell>
+        <TableCell>{getApprovalStatusBadge()}</TableCell>
+        <TableCell>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowDetails(true)}
+              className="h-8 w-8 p-0"
+              aria-label={`View details for ${product.title}`}
+            >
+              <Eye className="w-4 h-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleProductAction("approve")}
+              disabled={processingProduct}
+              className="h-8 text-xs"
+              aria-label={`Approve ${product.title}`}
+            >
+              {processingProduct ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => handleProductAction("reject")}
+              disabled={processingProduct}
+              className="h-8 text-xs"
+              aria-label={`Reject ${product.title}`}
+            >
+              {processingProduct ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <XCircle className="w-3 h-3" />
+              )}
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+
+      {/* Product Details Dialog */}
+      <ProductDetailsDialog
+        product={product}
+        shop={shop}
+        open={showDetails}
+        onOpenChange={setShowDetails}
+        onUpdate={onUpdate}
+      />
+    </>
+  );
+};
+
+interface ProductDetailsDialogProps {
+  product: NulightProduct;
+  shop: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: () => void;
+}
+
+const ProductDetailsDialog = ({
+  product,
+  shop,
+  open,
+  onOpenChange,
+  onUpdate,
+}: ProductDetailsDialogProps) => {
+  const { t } = useTranslation();
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [processingImageId, setProcessingImageId] = useState<string | null>(null);
+  const [processingProduct, setProcessingProduct] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
+  const variantImages = variant?.images || [];
+  const relightedImages = variantImages.filter(
+    (img) => img.relightingStatus === "completed" && img.transformedImageUrls.length > 0
+  );
+  const displayImages = relightedImages.length > 0 ? relightedImages : variantImages;
+  const currentImage = displayImages[selectedImageIndex] || displayImages[0];
+
+  const handleImageAction = async (
+    action: "approve" | "reject",
+    imageId: string,
+    relightingImageId: number,
+    transformedImageUrl?: string
+  ) => {
+    if (!variant) return;
+
+    setProcessingImageId(imageId);
+    try {
+      await approveRejectImage({
+        shop,
+        productId: product.id,
+        variantId: variant.id,
+        imageId,
+        relightingImageId,
+        action,
+        transformedImageUrl,
+      });
+
+      toast.success(
+        t(`nulight.image.${action}Success`) ||
+          `Image ${action === "approve" ? "approved" : "rejected"} successfully`
+      );
+      onUpdate();
+    } catch (error) {
+      console.error(`[ProductDetailsDialog] Failed to ${action} image:`, error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t(`nulight.image.${action}Error`) ||
+              `Failed to ${action} image. Please try again.`
+      );
+    } finally {
+      setProcessingImageId(null);
+    }
+  };
+
+  const handleProductAction = async (action: "approve" | "reject") => {
+    setProcessingProduct(true);
+    try {
+      await approveRejectProduct({
+        shop,
+        productId: product.id,
+        action,
+      });
+
+      toast.success(
+        t(`nulight.product.${action}Success`) ||
+          `Product ${action === "approve" ? "approved" : "rejected"} successfully`
+      );
+      onUpdate();
+    } catch (error) {
+      console.error(`[ProductDetailsDialog] Failed to ${action} product:`, error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t(`nulight.product.${action}Error`) ||
+              `Failed to ${action} product. Please try again.`
+      );
+    } finally {
+      setProcessingProduct(false);
+    }
+  };
+
+  const getApprovalStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return (
+          <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Approved
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20">
+            <XCircle className="w-3 h-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
+            Pending
+          </Badge>
+        );
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{product.title}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Product Info */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Price:</span>
+                <span className="ml-2 font-medium">
+                  {product.priceRangeV2.minVariantPrice.currencyCode} {product.priceRangeV2.minVariantPrice.amount}
+                </span>
+              </div>
+              {product.vendor && (
+                <div>
+                  <span className="text-muted-foreground">Vendor:</span>
+                  <span className="ml-2">{product.vendor}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-muted-foreground">Status:</span>
+                <span className="ml-2">{product.status}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Variants:</span>
+                <span className="ml-2">{product.variants.nodes.length}</span>
+              </div>
+            </div>
+
+            {/* Variant Selector */}
+            {product.variants.nodes.length > 1 && (
+              <div className="flex flex-wrap gap-2">
+                {product.variants.nodes.map((v, index) => (
+                  <Button
+                    key={v.id}
+                    size="sm"
+                    variant={selectedVariantIndex === index ? "default" : "outline"}
+                    onClick={() => {
+                      setSelectedVariantIndex(index);
+                      setSelectedImageIndex(0);
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    {v.title}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {/* Image Comparison */}
+            {currentImage && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      Image {selectedImageIndex + 1} of {displayImages.length}
+                    </span>
+                  </div>
+                  {displayImages.length > 1 && (
+                    <div className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() =>
+                          setSelectedImageIndex((prev) =>
+                            prev > 0 ? prev - 1 : displayImages.length - 1
+                          )
+                        }
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() =>
+                          setSelectedImageIndex((prev) =>
+                            prev < displayImages.length - 1 ? prev + 1 : 0
+                          )
+                        }
+                        aria-label="Next image"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-muted-foreground">Original</span>
+                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                      <img
+                        src={currentImage.originalImageUrl}
+                        alt="Original"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Relighted</span>
+                      {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
+                    </div>
+                    {currentImage.transformedImageUrls.length > 0 ? (
+                      <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                        <img
+                          src={currentImage.transformedImageUrls[0]}
+                          alt="Relighted"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
+                        <span className="text-xs text-muted-foreground">Processing...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Image Actions */}
+                {currentImage.relightingStatus === "completed" &&
+                  currentImage.approvalStatus === "pending" &&
+                  currentImage.transformedImageUrls.length > 0 && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleImageAction(
+                            "reject",
+                            currentImage.id,
+                            currentImage.relightingImageId,
+                            currentImage.transformedImageUrls[0]
+                          )
+                        }
+                        disabled={processingImageId === currentImage.id}
+                      >
+                        {processingImageId === currentImage.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <XCircle className="w-3 h-3 mr-1" />
+                        )}
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          handleImageAction(
+                            "approve",
+                            currentImage.id,
+                            currentImage.relightingImageId,
+                            currentImage.transformedImageUrls[0]
+                          )
+                        }
+                        disabled={processingImageId === currentImage.id}
+                      >
+                        {processingImageId === currentImage.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                        )}
+                        Approve
+                      </Button>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {/* Product Actions */}
+            <div className="flex gap-2 justify-end pt-4 border-t">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleProductAction("approve")}
+                disabled={processingProduct}
+              >
+                {processingProduct ? (
+                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                ) : (
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                )}
+                Approve All
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleProductAction("reject")}
+                disabled={processingProduct}
+              >
+                {processingProduct ? (
+                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                ) : (
+                  <XCircle className="w-3 h-3 mr-1" />
+                )}
+                Reject All
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zoom Dialog */}
+      <Dialog open={!!zoomImage} onOpenChange={() => setZoomImage(null)}>
+        <DialogContent className="max-w-4xl p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>Image Preview</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            {zoomImage && (
+              <img
+                src={zoomImage}
+                alt="Zoomed image"
+                className="w-full h-auto rounded-lg"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
 
 const Nulight = () => {
   const { t } = useTranslation();
@@ -226,43 +789,37 @@ const Nulight = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="min-h-[calc(100vh-56px)] py-8 sm:py-12 lg:py-16" role="main">
+      <main className="min-h-[calc(100vh-56px)] py-6" role="main">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            {/* Header Section */}
-            <div className="mb-8 sm:mb-12">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 border border-primary/20">
-                  <Sparkles className="w-6 h-6 text-primary" aria-hidden="true" />
-                </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-                  Nulight
-                </h1>
-              </div>
-              <p className="text-base sm:text-lg text-muted-foreground">
-                {t("nulight.description") || "Browse all products from your store"}
-              </p>
-            </div>
-
-            {/* Fetch Products Section */}
-            <Card className="p-8 sm:p-12 border-border bg-card">
-              <div className="text-center space-y-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted">
-                  <Package className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
+            {/* Compact Header with Actions */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 border border-primary/20">
+                  <Sparkles className="w-5 h-5 text-primary" aria-hidden="true" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">
-                    {t("nulight.info.title") || "Products Management"}
-                  </h2>
-                  <p className="text-sm sm:text-base text-muted-foreground mb-6">
-                    {t("nulight.info.description") || "Fetch products created today with ACTIVE status from your store."}
+                  <h1 className="text-xl font-semibold text-foreground">
+                    {t("nulight.title") || "Nulight Products"}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {t("nulight.description") || "Manage products created today"}
                   </p>
                 </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {products.length > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Package className="w-4 h-4" />
+                    <span>{total} {t("nulight.products") || "products"}</span>
+                  </div>
+                )}
                 <Button
-                  size="lg"
                   onClick={handleFetchProducts}
                   disabled={productsLoading}
-                  className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  size="sm"
+                  className="h-9 px-4 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
                 >
                   <Store className="w-4 h-4 mr-2" aria-hidden="true" />
@@ -271,49 +828,44 @@ const Nulight = () => {
                     : (t("index.hero.fetchProducts") || "Fetch Products")}
                 </Button>
               </div>
-            </Card>
+            </div>
 
             {/* Error Display */}
             {productsError && (
-              <Card className="mt-6 p-4 border-destructive/50 bg-destructive/10">
-                <p className="text-sm text-destructive text-center">
+              <Card className="mb-6 p-4 border-destructive/50 bg-destructive/10">
+                <p className="text-sm text-destructive">
                   {productsError}
                 </p>
               </Card>
             )}
 
-            {/* Products Display */}
+            {/* Products Table */}
             {products.length > 0 && (
-              <div className="mt-8 space-y-6">
-                {/* Header with Bulk Actions */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
-                      {t("nulight.products.title") || "Products"} ({total})
-                    </h2>
-                    {products.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="select-all"
-                          checked={selectedProducts.size === products.length && products.length > 0}
-                          onCheckedChange={handleSelectAll}
-                          aria-label={t("nulight.selectAll") || "Select all products"}
-                        />
-                        <label
-                          htmlFor="select-all"
-                          className="text-sm text-muted-foreground cursor-pointer"
-                        >
-                          {t("nulight.selectAll") || "Select All"}
-                        </label>
-                      </div>
+              <div className="space-y-4">
+                {/* Bulk Actions Bar */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="select-all"
+                      checked={selectedProducts.size === products.length && products.length > 0}
+                      onCheckedChange={handleSelectAll}
+                      aria-label={t("nulight.selectAll") || "Select all products"}
+                    />
+                    <label
+                      htmlFor="select-all"
+                      className="text-sm font-medium text-foreground cursor-pointer"
+                    >
+                      {t("nulight.selectAll") || "Select All"}
+                    </label>
+                    {selectedProducts.size > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        ({selectedProducts.size} {t("nulight.selected") || "selected"})
+                      </span>
                     )}
                   </div>
                   
                   {selectedProducts.size > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {selectedProducts.size} {t("nulight.selected") || "selected"}
-                      </span>
                       <Button
                         size="sm"
                         variant="outline"
@@ -327,7 +879,7 @@ const Nulight = () => {
                         ) : (
                           <CheckCircle2 className="w-3 h-3 mr-1" />
                         )}
-                        {t("nulight.bulk.approve") || "Approve Selected"}
+                        {t("nulight.bulk.approve") || "Approve"}
                       </Button>
                       <Button
                         size="sm"
@@ -342,32 +894,54 @@ const Nulight = () => {
                         ) : (
                           <XCircle className="w-3 h-3 mr-1" />
                         )}
-                        {t("nulight.bulk.reject") || "Reject Selected"}
+                        {t("nulight.bulk.reject") || "Reject"}
                       </Button>
                     </div>
                   )}
                 </div>
 
-                {/* Products Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {products.map((product) => (
-                    <NulightProductCard
-                      key={product.id}
-                      product={product}
-                      shop={shopDomain || ""}
-                      onUpdate={handleProductUpdate}
-                    />
-                  ))}
-                </div>
+                {/* Table */}
+                <Card className="border-border">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">
+                            <span className="sr-only">{t("nulight.select") || "Select"}</span>
+                          </TableHead>
+                          <TableHead className="w-20">{t("nulight.image") || "Image"}</TableHead>
+                          <TableHead className="min-w-[200px]">{t("nulight.product") || "Product"}</TableHead>
+                          <TableHead className="w-24">{t("nulight.status") || "Status"}</TableHead>
+                          <TableHead className="w-32">{t("nulight.price") || "Price"}</TableHead>
+                          <TableHead className="w-24">{t("nulight.variants") || "Variants"}</TableHead>
+                          <TableHead className="w-32">{t("nulight.approval") || "Approval"}</TableHead>
+                          <TableHead className="w-40 text-right">{t("nulight.actions") || "Actions"}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {products.map((product) => (
+                          <ProductTableRow
+                            key={product.id}
+                            product={product}
+                            shop={shopDomain || ""}
+                            isSelected={selectedProducts.has(product.id)}
+                            onToggleSelect={() => handleToggleProduct(product.id)}
+                            onUpdate={handleProductUpdate}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </Card>
 
                 {/* Load More Button */}
                 {hasNextPage && (
-                  <div className="flex justify-center mt-6">
+                  <div className="flex justify-center pt-4">
                     <Button
                       onClick={handleLoadMore}
                       disabled={productsLoading}
                       variant="outline"
-                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      className="h-10 px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       aria-label={t("nulight.loadMore") || "Load More Products"}
                     >
                       <ChevronDown className="w-4 h-4 mr-2" aria-hidden="true" />
@@ -382,11 +956,23 @@ const Nulight = () => {
 
             {/* Empty State */}
             {!productsLoading && products.length === 0 && !productsError && (
-              <Card className="mt-6 p-8 text-center border-border bg-card">
+              <Card className="p-12 text-center border-border bg-card">
                 <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" aria-hidden="true" />
-                <p className="text-muted-foreground">
-                  {t("nulight.empty") || "No products found. Click 'Fetch Products' to load products created today."}
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {t("nulight.empty.title") || "No products found"}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {t("nulight.empty.description") || "Click 'Fetch Products' to load products created today with ACTIVE status."}
                 </p>
+                <Button
+                  onClick={handleFetchProducts}
+                  disabled={productsLoading}
+                  className="h-10 px-6 font-medium"
+                  aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
+                >
+                  <Store className="w-4 h-4 mr-2" aria-hidden="true" />
+                  {t("index.hero.fetchProducts") || "Fetch Products"}
+                </Button>
               </Card>
             )}
           </div>
