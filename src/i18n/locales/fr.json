@@ -589,6 +589,155 @@
     "nu3d": "nu3d",
     "nuScene": "nuscene",
     "mainNavigation": "Navigation principale"
+  },
+  "tryOnWidget": {
+    "brand": {
+      "subtitle": "Essayage Virtuel Alimenté par IA",
+      "ariaLabel": "NULOOK - Essayage Virtuel Alimenté par IA"
+    },
+    "ariaLabels": {
+      "mainApplication": "Application d'essayage virtuel",
+      "uploadedPhoto": "Photo téléchargée pour l'essayage virtuel",
+      "photoAlreadyGenerated": "Cette photo a déjà été générée",
+      "selectGarment": "Sélectionner l'article {{index}}",
+      "deselectGarment": "Désélectionner l'article {{index}}",
+      "garment": "Article {{index}}",
+      "selectedGarment": "Article sélectionné {{index}}",
+      "removeGarment": "Retirer l'article {{index}}",
+      "tryOnResult": "Résultat de l'essayage virtuel {{index}}",
+      "downloadImage": "Télécharger l'image {{index}}",
+      "downloadOutfit": "Télécharger l'image de la tenue",
+      "addAllToCart": "Ajouter tous les articles au panier",
+      "buyAllNow": "Acheter tous les articles maintenant",
+      "outfitGenerated": "Tenue complète générée par intelligence artificielle"
+    },
+    "status": {
+      "initial": "Téléchargez votre photo puis choisissez un article à essayer",
+      "photoUploaded": "Photo chargée. Sélectionnez un vêtement.",
+      "readyToGenerate": "Prêt à générer. Cliquez sur Générer.",
+      "resultReady": "Résultat prêt. Utilisez les actions ci-dessous.",
+      "resultReadyActions": "Résultat prêt. Vous pouvez acheter ou télécharger.",
+      "photoCleared": "Photo effacée. Téléchargez votre photo.",
+      "generating": "Génération en cours. Cela peut prendre 15 à 20 secondes…",
+      "generatingOutfit": "Génération de la tenue complète...",
+      "generatingOutfitTime": "La génération d'une tenue complète peut prendre 10 à 15 secondes..."
+    },
+    "buttons": {
+      "reset": "Réinitialiser",
+      "close": "Fermer",
+      "clear": "Effacer",
+      "clearPhoto": "Effacer la photo téléchargée",
+      "clearAll": "Effacer tout",
+      "generate": "Générer l'essayage virtuel",
+      "generateImage": "Générer Image",
+      "generateMultiple": "Générer {{count}} Image",
+      "generateMultiple_plural": "Générer {{count}} Images",
+      "generateOutfit": "Générer la Tenue Complète",
+      "download": "Télécharger",
+      "retry": "Réessayer",
+      "addToCart": "Ajouter au Panier",
+      "buyNow": "Acheter Maintenant",
+      "generateHelp": "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"
+    },
+    "tabs": {
+      "ariaLabel": "Mode d'essayage",
+      "single": {
+        "label": "Try Single",
+        "ariaLabel": "Essayer un seul article"
+      },
+      "multiple": {
+        "label": "Try Multiple",
+        "ariaLabel": "Essayer plusieurs articles"
+      },
+      "look": {
+        "label": "Try Look",
+        "ariaLabel": "Essayer une tenue complète"
+      }
+    },
+    "sections": {
+      "uploadPhoto": {
+        "title": "Téléchargez Votre Photo",
+        "description": "Choisissez une photo claire de vous-même"
+      },
+      "yourPhoto": {
+        "title": "Votre Photo"
+      },
+      "selectClothing": {
+        "title": "Sélectionner un Article de Vêtement",
+        "description": "Sélectionnez un article de vêtement sur cette page"
+      },
+      "selectGarments": {
+        "title": "Sélectionner les Articles",
+        "multiple": {
+          "description": "Sélectionnez 1-6 articles"
+        },
+        "look": {
+          "description": "Sélectionnez 2-8 articles pour une tenue complète"
+        }
+      },
+      "selectedGarments": {
+        "title": "Articles Sélectionnés"
+      },
+      "results": {
+        "title": "Résultats de l'essayage virtuel",
+        "multiple": {
+          "title": "Résultats de l'essayage virtuel - Mode Multiple"
+        },
+        "look": {
+          "title": "Résultats de l'essayage virtuel - Mode Tenue"
+        },
+        "generated": "Résultats Générés",
+        "noResults": "Aucun résultat généré"
+      }
+    },
+    "validation": {
+      "minGarmentsMultiple": "Sélectionnez au moins 1 article pour continuer",
+      "maxGarmentsMultiple": "Maximum 6 articles sélectionnés",
+      "minGarmentsLook": "Sélectionnez au moins 2 articles pour continuer",
+      "maxGarmentsLook": "Maximum 8 articles sélectionnés"
+    },
+    "errors": {
+      "errorPrefix": "Erreur",
+      "missingPhotoOrClothing": "La génération nécessite une photo et un article sélectionné.",
+      "missingPhotoOrGarments": "La génération nécessite une photo et au moins {{count}} article sélectionné.",
+      "missingPhotoOrGarments_plural": "La génération nécessite une photo et au moins {{count}} articles sélectionnés.",
+      "unexpectedError": "Une erreur inattendue s'est produite",
+      "generationError": "Erreur de génération",
+      "storeInfoUnavailable": "Informations de magasin non disponibles",
+      "failedToLoadGarmentImage": "Impossible de charger l'image de l'article: {{url}}",
+      "failedToLoadImage": "Échec du chargement de l'image",
+      "failedToCreateBlob": "Échec de la création du blob",
+      "failedToConvertCanvas": "Échec de la conversion du canvas en blob",
+      "noGarmentImages": "Aucune image de vêtement détectée",
+      "noGarmentImagesDescription": "Assurez-vous d'avoir des articles dans votre panier ou sur la page",
+      "failedGenerations": "{{count}} article n'a pas pu être généré",
+      "failedGenerations_plural": "{{count}} articles n'ont pas pu être générés"
+    },
+    "progress": {
+      "garmentsProcessed": "Articles traités",
+      "failed": "Échecs"
+    },
+    "results": {
+      "successful": "{{successful}} / {{total}} réussis",
+      "cached": "En cache",
+      "cachedCount": "{{count}} en cache",
+      "processingTime": "Temps de traitement:",
+      "creditsUsed": "{{count}} crédit utilisé",
+      "creditsUsed_plural": "{{count}} crédits utilisés"
+    },
+    "download": {
+      "success": "Téléchargement réussi",
+      "successDescription": "L'image a été téléchargée avec succès.",
+      "openingInNewTab": "Ouverture dans un nouvel onglet",
+      "openingInNewTabDescription": "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+      "error": "Erreur de téléchargement",
+      "errorDescription": "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran."
+    },
+    "toast": {
+      "comingSoon": "Fonctionnalité à venir",
+      "addToCartComingSoon": "L'ajout au panier sera disponible prochainement.",
+      "buyNowComingSoon": "L'achat immédiat sera disponible prochainement."
+    }
   }
 }
 

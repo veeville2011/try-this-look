@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -1239,6 +1240,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <span>{t("tryOnWidget.buttons.reset") || "Réinitialiser"}</span>
               </Button>
             )}
+            <LanguageSwitcher />
             <Button
               variant="destructive"
               size="icon"
