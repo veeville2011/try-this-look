@@ -1017,7 +1017,7 @@ const Nulight = () => {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Empty State */}
             {!productsLoading && products.length === 0 && !productsError && (

@@ -1189,7 +1189,7 @@ const Nu3d = () => {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Empty State */}
             {!productsLoading && products.length === 0 && !productsError && (

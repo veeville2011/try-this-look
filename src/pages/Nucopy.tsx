@@ -1017,7 +1017,7 @@ const Nucopy = () => {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Empty State */}
             {!productsLoading && products.length === 0 && !productsError && (

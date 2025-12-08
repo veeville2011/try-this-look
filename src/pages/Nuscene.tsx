@@ -1069,7 +1069,7 @@ const Nuscene = () => {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {!productsLoading && products.length === 0 && !productsError && (
               <Card className="p-12 text-center border-border bg-card">
