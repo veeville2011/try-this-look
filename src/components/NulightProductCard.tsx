@@ -40,7 +40,12 @@ const NulightProductCard = ({
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  const variant = product.variants.nodes[selectedVariantIndex];
+  // Ensure we have a valid variant, use first one if selected index is invalid
+  const validVariantIndex = 
+    selectedVariantIndex >= 0 && selectedVariantIndex < product.variants.nodes.length
+      ? selectedVariantIndex
+      : 0;
+  const variant = product.variants.nodes[validVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
 
   const handleImageAction = async (
@@ -156,47 +161,32 @@ const NulightProductCard = ({
     }
   };
 
-  if (!variant) {
-    return (
-      <Card className="overflow-hidden border-border bg-card">
-        <CardContent className="p-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            No variants available for this product
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Always show the full UI, even if no variant is selected
+  // Use first variant if available, otherwise show product-level UI
 
   // Filter images that have relighting data
   const relightedImages = variantImages.filter(
     (img) => img.relightingStatus === "completed" && img.transformedImageUrls.length > 0
   );
 
-  if (relightedImages.length === 0 && variantImages.length === 0) {
-    return (
-      <Card className="overflow-hidden border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-foreground line-clamp-2">
-            {product.title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            No relighted images available for review
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Use relighted images if available, otherwise use all variant images
+  // If no variant images exist, use product images as fallback
+  const displayImages = relightedImages.length > 0 
+    ? relightedImages 
+    : variantImages.length > 0 
+    ? variantImages 
+    : [];
 
-  // Use relighted images if available, otherwise use all images
-  const displayImages = relightedImages.length > 0 ? relightedImages : variantImages;
-  const currentImage = displayImages[selectedImageIndex] || displayImages[0];
-
-  const currentImage = variantImages[selectedImageIndex];
-  const hasMultipleImages = variantImages.length > 1;
+  const hasMultipleImages = displayImages.length > 1;
   const hasMultipleVariants = product.variants.nodes.length > 1;
+  
+  // If no variant images, use product images for display
+  const fallbackToProductImages = displayImages.length === 0 && product.images.nodes.length > 0;
+  
+  // Get current image, fallback to first product image if no variant images
+  const currentImage = fallbackToProductImages 
+    ? null 
+    : (displayImages[selectedImageIndex] || displayImages[0]);
 
   return (
     <>
@@ -286,50 +276,94 @@ const NulightProductCard = ({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Image Comparison */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">
-                  Image {selectedImageIndex + 1} of {displayImages.length}
-                </span>
-                {currentImage && getRelightingStatusBadge(currentImage.relightingStatus)}
-              </div>
-              {hasMultipleImages && (
-                <div className="flex gap-1">
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7"
-                    onClick={() =>
-                      setSelectedImageIndex((prev) =>
-                        prev > 0 ? prev - 1 : displayImages.length - 1
-                      )
-                    }
-                    aria-label="Previous image"
-                  >
-                    <ChevronLeft className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7"
-                    onClick={() =>
-                      setSelectedImageIndex((prev) =>
-                        prev < displayImages.length - 1 ? prev + 1 : 0
-                      )
-                    }
-                    aria-label="Next image"
-                  >
-                    <ChevronRight className="w-3 h-3" />
-                  </Button>
+            {/* Image Comparison */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">
+                    {fallbackToProductImages 
+                      ? `Image ${selectedImageIndex + 1} of ${product.images.nodes.length}`
+                      : displayImages.length > 0
+                      ? `Image ${selectedImageIndex + 1} of ${displayImages.length}`
+                      : variant
+                      ? "No relighted images yet"
+                      : "No images"}
+                  </span>
+                  {currentImage && currentImage.relightingStatus && getRelightingStatusBadge(currentImage.relightingStatus)}
                 </div>
-              )}
-            </div>
+                {(hasMultipleImages || (fallbackToProductImages && product.images.nodes.length > 1)) && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7"
+                      onClick={() =>
+                        setSelectedImageIndex((prev) =>
+                          prev > 0 ? prev - 1 : (fallbackToProductImages ? product.images.nodes.length : displayImages.length) - 1
+                        )
+                      }
+                      disabled={selectedImageIndex === 0}
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7"
+                      onClick={() =>
+                        setSelectedImageIndex((prev) => {
+                          const maxIndex = fallbackToProductImages 
+                            ? product.images.nodes.length - 1
+                            : displayImages.length - 1;
+                          return prev < maxIndex ? prev + 1 : 0;
+                        })
+                      }
+                      disabled={
+                        fallbackToProductImages 
+                          ? selectedImageIndex >= product.images.nodes.length - 1
+                          : selectedImageIndex >= displayImages.length - 1
+                      }
+                      aria-label="Next image"
+                    >
+                      <ChevronRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
 
             {/* Original vs Transformed Comparison */}
-            {currentImage && (
+            {fallbackToProductImages ? (
+              // Fallback: Show product images when no variant images available
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Product Images
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {product.images.nodes.slice(0, 4).map((img, idx) => (
+                    <div key={img.id} className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
+                      <img
+                        src={img.url}
+                        alt={img.altText || `Product image ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <button
+                        onClick={() => setZoomImage(img.url)}
+                        className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                        aria-label="Zoom image"
+                      >
+                        <ZoomIn className="w-6 h-6 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  No relighted images available yet. Images will appear here once relighting is processed.
+                </p>
+              </div>
+            ) : currentImage ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Original Image */}
                 <div className="space-y-2">
@@ -361,9 +395,9 @@ const NulightProductCard = ({
                     <span className="text-xs font-medium text-muted-foreground">
                       Relighted
                     </span>
-                    {getApprovalStatusBadge(currentImage.approvalStatus)}
+                    {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                   </div>
-                  {currentImage.transformedImageUrls.length > 0 ? (
+                  {currentImage.transformedImageUrls && currentImage.transformedImageUrls.length > 0 ? (
                     <div className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
                       <img
                         src={currentImage.transformedImageUrls[0]}
@@ -382,12 +416,24 @@ const NulightProductCard = ({
                       </button>
                     </div>
                   ) : (
-                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                      <span className="text-xs text-muted-foreground">
-                        No transformed image
-                      </span>
+                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
+                      <div className="text-center p-4">
+                        <ImageIcon className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <span className="text-xs text-muted-foreground">
+                          Relighting in progress...
+                        </span>
+                      </div>
                     </div>
                   )}
+                </div>
+              </div>
+            ) : (
+              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
+                <div className="text-center p-4">
+                  <ImageIcon className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                  <span className="text-xs text-muted-foreground">
+                    No images available
+                  </span>
                 </div>
               </div>
             )}
@@ -395,7 +441,9 @@ const NulightProductCard = ({
             {/* Image Actions */}
             {currentImage &&
               currentImage.relightingStatus === "completed" &&
-              currentImage.approvalStatus === "pending" && (
+              currentImage.approvalStatus === "pending" &&
+              currentImage.transformedImageUrls &&
+              currentImage.transformedImageUrls.length > 0 && (
                 <div className="flex gap-2 justify-end">
                   <Button
                     size="sm"
