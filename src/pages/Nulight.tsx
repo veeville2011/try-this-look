@@ -198,42 +198,42 @@ const VariantTableRow = ({
         </TableCell>
         <TableCell>{getVariantApprovalStatusBadge()}</TableCell>
         <TableCell>
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1">
             <Button
               size="sm"
               variant="ghost"
               onClick={() => setShowDetails(true)}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 hover:bg-muted"
               aria-label={`View details for ${product.title} - ${variant.title}`}
             >
-              <Eye className="w-4 h-4" />
+              <Eye className="w-4 h-4 text-muted-foreground" />
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={() => handleProductAction("approve")}
               disabled={processingProduct}
-              className="h-8 text-xs"
+              className="h-8 w-8 p-0 hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
               aria-label={`Approve ${product.title}`}
             >
               {processingProduct ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-green-600 dark:text-green-400" />
               ) : (
-                <CheckCircle2 className="w-3 h-3" />
+                <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
               )}
             </Button>
             <Button
               size="sm"
-              variant="destructive"
+              variant="ghost"
               onClick={() => handleProductAction("reject")}
               disabled={processingProduct}
-              className="h-8 text-xs"
+              className="h-8 w-8 p-0 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
               aria-label={`Reject ${product.title}`}
             >
               {processingProduct ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-red-600 dark:text-red-400" />
               ) : (
-                <XCircle className="w-3 h-3" />
+                <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
               )}
             </Button>
           </div>
@@ -530,13 +530,14 @@ const ProductDetailsDialog = ({
                           )
                         }
                         disabled={processingImageId === currentImage.id}
+                        className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
                       >
                         {processingImageId === currentImage.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                          <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
                         ) : (
-                          <XCircle className="w-3 h-3 mr-1" />
+                          <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
                         )}
-                        {t("nulight.dialog.reject") || "Reject"}
+                        <span className="text-red-700 dark:text-red-300">{t("nulight.dialog.reject") || "Reject"}</span>
                       </Button>
                       <Button
                         size="sm"
@@ -549,6 +550,7 @@ const ProductDetailsDialog = ({
                           )
                         }
                         disabled={processingImageId === currentImage.id}
+                        className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
                       >
                         {processingImageId === currentImage.id ? (
                           <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -569,26 +571,28 @@ const ProductDetailsDialog = ({
                 variant="outline"
                 onClick={() => handleProductAction("approve")}
                 disabled={processingProduct}
+                className="border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700"
               >
                 {processingProduct ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                  <Loader2 className="w-3 h-3 animate-spin mr-1 text-green-600 dark:text-green-400" />
                 ) : (
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  <CheckCircle2 className="w-3 h-3 mr-1 text-green-600 dark:text-green-400" />
                 )}
-                {t("nulight.dialog.approveAll") || "Approve All"}
+                <span className="text-green-700 dark:text-green-300">{t("nulight.dialog.approveAll") || "Approve All"}</span>
               </Button>
               <Button
                 size="sm"
-                variant="destructive"
+                variant="outline"
                 onClick={() => handleProductAction("reject")}
                 disabled={processingProduct}
+                className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
               >
                 {processingProduct ? (
-                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                  <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
                 ) : (
-                  <XCircle className="w-3 h-3 mr-1" />
+                  <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
                 )}
-                {t("nulight.dialog.rejectAll") || "Reject All"}
+                <span className="text-red-700 dark:text-red-300">{t("nulight.dialog.rejectAll") || "Reject All"}</span>
               </Button>
             </div>
           </div>
@@ -937,30 +941,30 @@ const Nulight = () => {
                         variant="outline"
                         onClick={() => handleBulkAction("approve")}
                         disabled={processingBulk}
-                        className="h-8 text-xs"
+                        className="h-8 text-xs border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700"
                         aria-label={t("nulight.bulk.approve") || "Approve Selected"}
                       >
                         {processingBulk ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                          <Loader2 className="w-3 h-3 animate-spin mr-1 text-green-600 dark:text-green-400" />
                         ) : (
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          <CheckCircle2 className="w-3 h-3 mr-1 text-green-600 dark:text-green-400" />
                         )}
-                        {t("nulight.bulk.approve") || "Approve"}
+                        <span className="text-green-700 dark:text-green-300">{t("nulight.bulk.approve") || "Approve"}</span>
                       </Button>
                       <Button
                         size="sm"
-                        variant="destructive"
+                        variant="outline"
                         onClick={() => handleBulkAction("reject")}
                         disabled={processingBulk}
-                        className="h-8 text-xs"
+                        className="h-8 text-xs border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
                         aria-label={t("nulight.bulk.reject") || "Reject Selected"}
                       >
                         {processingBulk ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                          <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
                         ) : (
-                          <XCircle className="w-3 h-3 mr-1" />
+                          <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
                         )}
-                        {t("nulight.bulk.reject") || "Reject"}
+                        <span className="text-red-700 dark:text-red-300">{t("nulight.bulk.reject") || "Reject"}</span>
                       </Button>
                     </div>
                   )}
@@ -975,8 +979,8 @@ const Nulight = () => {
                           <TableHead className="w-12">
                             <span className="sr-only">{t("nulight.select") || "Select"}</span>
                           </TableHead>
-                          <TableHead className="w-20">{t("nulight.image") || "Image"}</TableHead>
-                          <TableHead className="min-w-[200px]">{t("nulight.product") || "Product / Variant"}</TableHead>
+                          <TableHead className="w-20">{t("nulight.imageLabel") || "Image"}</TableHead>
+                          <TableHead className="min-w-[200px]">{t("nulight.productLabel") || "Product / Variant"}</TableHead>
                           <TableHead className="w-24">{t("nulight.status") || "Status"}</TableHead>
                           <TableHead className="w-32">{t("nulight.price") || "Price"}</TableHead>
                           <TableHead className="w-32">{t("nulight.sku") || "SKU / Inventory"}</TableHead>
