@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
-import { useProducts } from "@/hooks/useProducts";
+import { useNulightProducts } from "@/hooks/useNulightProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Sparkles, Package, Store } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -13,20 +13,23 @@ const Nulight = () => {
   const location = useLocation();
   const shop = useShop();
 
-  // Use products hook to get products from Redux state
+  // Get shop domain from hook or URL params
+  const shopDomain =
+    shop || new URLSearchParams(window.location.search).get("shop");
+
+  // Use nulight products hook
   const {
-    products: reduxProducts,
+    products,
     loading: productsLoading,
     error: productsError,
-    lastFetchedShop: reduxLastFetchedShop,
-    fetchProducts: fetchProductsFromRedux,
-  } = useProducts();
+    hasNextPage,
+    total,
+    fetchProducts,
+    loadMore,
+  } = useNulightProducts(shopDomain);
 
   // Handle manual product fetch
   const handleFetchProducts = async () => {
-    const shopDomain =
-      shop || new URLSearchParams(window.location.search).get("shop");
-
     if (!shopDomain) {
       toast.error(t("index.errors.shopNotFound") || "Shop domain not found");
       return;
@@ -36,21 +39,11 @@ const Nulight = () => {
     const normalizedShop = shopDomain.replace(".myshopify.com", "");
 
     try {
-      const result = await fetchProductsFromRedux({
+      const result = await fetchProducts({
         shop: normalizedShop,
-        options: {
-          status: "ACTIVE",
-          // productType: "Flats",
-          // limit: 50,
-        },
       });
       
-      // Get the product count from the result payload
-      const productCount = 
-        (result.payload as any)?.products?.length || 
-        (result.payload as any)?.count || 
-        reduxProducts.length || 
-        0;
+      const productCount = result.data.total || result.data.products.length || 0;
       
       toast.success(
         t("index.products.fetchSuccess", { count: productCount }) || 
@@ -58,9 +51,27 @@ const Nulight = () => {
       );
     } catch (error) {
       console.warn("[Nulight] Failed to fetch products:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : t("index.errors.fetchProductsError") || "Failed to fetch products. Please try again.";
+      toast.error(errorMessage);
+    }
+  };
+
+  // Handle load more
+  const handleLoadMore = async () => {
+    try {
+      await loadMore();
+      toast.success(
+        t("nulight.loadMoreSuccess") || 
+        "More products loaded successfully"
+      );
+    } catch (error) {
+      console.warn("[Nulight] Failed to load more products:", error);
       toast.error(
-        t("index.errors.fetchProductsError") || 
-        "Failed to fetch products. Please try again."
+        t("nulight.loadMoreError") || 
+        "Failed to load more products. Please try again."
       );
     }
   };
@@ -170,7 +181,7 @@ const Nulight = () => {
                     {t("nulight.info.title") || "Products Management"}
                   </h2>
                   <p className="text-sm sm:text-base text-muted-foreground mb-6">
-                    {t("nulight.info.description") || "Fetch products from your store to view and manage them here."}
+                    {t("nulight.info.description") || "Fetch products created today with ACTIVE status from your store."}
                   </p>
                 </div>
                 <Button
@@ -187,6 +198,122 @@ const Nulight = () => {
                 </Button>
               </div>
             </Card>
+
+            {/* Error Display */}
+            {productsError && (
+              <Card className="mt-6 p-4 border-destructive/50 bg-destructive/10">
+                <p className="text-sm text-destructive text-center">
+                  {productsError}
+                </p>
+              </Card>
+            )}
+
+            {/* Products Display */}
+            {products.length > 0 && (
+              <div className="mt-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+                    {t("nulight.products.title") || "Products"} ({total})
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {products.map((product) => (
+                    <Card
+                      key={product.id}
+                      className="overflow-hidden border-border bg-card hover:shadow-md transition-shadow"
+                    >
+                      <div className="aspect-square bg-muted relative overflow-hidden">
+                        {product.images.nodes[0] ? (
+                          <img
+                            src={product.images.nodes[0].url}
+                            alt={product.images.nodes[0].altText || product.title}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-12 h-12 text-muted-foreground" aria-hidden="true" />
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
+                          {product.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {product.description || product.vendor}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-semibold text-foreground">
+                            {product.priceRangeV2.minVariantPrice.currencyCode}{" "}
+                            {product.priceRangeV2.minVariantPrice.amount}
+                            {product.priceRangeV2.minVariantPrice.amount !==
+                              product.priceRangeV2.maxVariantPrice.amount && (
+                              <span className="text-sm text-muted-foreground">
+                                {" "}
+                                - {product.priceRangeV2.maxVariantPrice.amount}
+                              </span>
+                            )}
+                          </span>
+                          {product.status && (
+                            <span
+                              className={`text-xs px-2 py-1 rounded ${
+                                product.status === "ACTIVE"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                              }`}
+                            >
+                              {product.status}
+                            </span>
+                          )}
+                        </div>
+                        {product.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {product.tags.slice(0, 3).map((tag, index) => (
+                              <span
+                                key={index}
+                                className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Load More Button */}
+                {hasNextPage && (
+                  <div className="flex justify-center mt-6">
+                    <Button
+                      onClick={handleLoadMore}
+                      disabled={productsLoading}
+                      variant="outline"
+                      className="h-11 min-h-[44px] px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      aria-label={t("nulight.loadMore") || "Load More Products"}
+                    >
+                      <ChevronDown className="w-4 h-4 mr-2" aria-hidden="true" />
+                      {productsLoading
+                        ? (t("nulight.loading") || "Loading...")
+                        : (t("nulight.loadMore") || "Load More")}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!productsLoading && products.length === 0 && !productsError && (
+              <Card className="mt-6 p-8 text-center border-border bg-card">
+                <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" aria-hidden="true" />
+                <p className="text-muted-foreground">
+                  {t("nulight.empty") || "No products found. Click 'Fetch Products' to load products created today."}
+                </p>
+              </Card>
+            )}
           </div>
         </div>
       </main>
