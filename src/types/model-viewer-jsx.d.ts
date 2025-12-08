@@ -1,6 +1,6 @@
 // JSX type declarations for @google/model-viewer web component
 // This extends the package's types for React/JSX usage
-import '@google/model-viewer';
+// DO NOT import the module here to avoid circular dependencies
 
 declare global {
   namespace JSX {

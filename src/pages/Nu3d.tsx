@@ -4,7 +4,6 @@ import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNu3dProducts } from "@/hooks/useNu3dProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import "@google/model-viewer";
 import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap, EyeOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -300,6 +299,7 @@ const ProductDetailsDialog = ({
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [show3dViewer, setShow3dViewer] = useState(true);
   const [modelLoading, setModelLoading] = useState(true);
+  const [modelViewerLoaded, setModelViewerLoaded] = useState(false);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
@@ -308,6 +308,27 @@ const ProductDetailsDialog = ({
   );
   const displayImages = completed3dImages.length > 0 ? completed3dImages : variantImages;
   const currentImage = displayImages[selectedImageIndex] || displayImages[0];
+
+  // Dynamically load model-viewer only when dialog is open and viewer is shown
+  useEffect(() => {
+    if (open && show3dViewer && currentImage?.model_glb_url && !modelViewerLoaded) {
+      import("@google/model-viewer")
+        .then(() => {
+          setModelViewerLoaded(true);
+        })
+        .catch((error) => {
+          console.error("[ProductDetailsDialog] Failed to load model-viewer:", error);
+        });
+    }
+  }, [open, show3dViewer, currentImage?.model_glb_url, modelViewerLoaded]);
+
+  // Reset model viewer loaded state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setModelViewerLoaded(false);
+      setModelLoading(true);
+    }
+  }, [open]);
 
   const handleImageAction = async (
     action: "approve" | "reject",
@@ -578,27 +599,38 @@ const ProductDetailsDialog = ({
                         {/* 3D Model Viewer */}
                         {show3dViewer && currentImage.model_glb_url ? (
                           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-primary/20">
-                            <model-viewer
-                              src={currentImage.model_glb_url}
-                              alt={t("nu3d.image.model3d") || "3D Model"}
-                              camera-controls
-                              auto-rotate
-                              ar
-                              ar-modes="webxr scene-viewer quick-look"
-                              shadow-intensity="1"
-                              exposure="1"
-                              environment-image="neutral"
-                              onLoad={() => setModelLoading(false)}
-                              onError={() => setModelLoading(false)}
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                backgroundColor: "transparent",
-                              }}
-                            />
-                            {modelLoading && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
+                            {modelViewerLoaded ? (
+                              <>
+                                <model-viewer
+                                  src={currentImage.model_glb_url}
+                                  alt={t("nu3d.image.model3d") || "3D Model"}
+                                  camera-controls
+                                  auto-rotate
+                                  ar
+                                  ar-modes="webxr scene-viewer quick-look"
+                                  shadow-intensity="1"
+                                  exposure="1"
+                                  environment-image="neutral"
+                                  onLoad={() => setModelLoading(false)}
+                                  onError={() => setModelLoading(false)}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "transparent",
+                                  }}
+                                />
+                                {modelLoading && (
+                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  {t("nu3d.image.loadingViewer") || "Loading 3D viewer..."}
+                                </span>
                               </div>
                             )}
                           </div>
