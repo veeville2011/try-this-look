@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNu3dProducts } from "@/hooks/useNu3dProducts";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import NavigationBar from "@/components/NavigationBar";
 import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -794,7 +793,6 @@ const ProductDetailsDialog = ({
 
 const Nu3d = () => {
   const { t } = useTranslation();
-  const location = useLocation();
   const shop = useShop();
 
   // Get shop domain from hook or URL params
@@ -955,78 +953,8 @@ const Nu3d = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation Bar - Horizontal Layout */}
-      <nav className="bg-card border-b border-border" role="navigation" aria-label={t("navigation.mainNavigation") || "Main navigation"}>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between h-14">
-              {/* Navigation Links */}
-              <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                <Link
-                  to="/"
-                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                    location.pathname === "/"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  aria-label={t("navigation.dashboard") || "Dashboard"}
-                >
-                  {t("navigation.dashboard") || "Dashboard"}
-                </Link>
-                <Link
-                  to="/nucopy"
-                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                    location.pathname === "/nucopy"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  aria-label={t("navigation.nuCopy") || "NU Copy"}
-                >
-                  {t("navigation.nuCopy") || "NU Copy"}
-                </Link>
-                <Link
-                  to="/nulight"
-                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                    location.pathname === "/nulight"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  aria-label={t("navigation.nuLight") || "NU Light"}
-                >
-                  {t("navigation.nuLight") || "NU Light"}
-                </Link>
-                <Link
-                  to="/nu3d"
-                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                    location.pathname === "/nu3d"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  aria-label={t("navigation.nu3d") || "Nu3d"}
-                >
-                  {t("navigation.nu3d") || "Nu3d"}
-                </Link>
-                <Link
-                  to="/nuscene"
-                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                    location.pathname === "/nuscene"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  aria-label={t("navigation.nuScene") || "Nu Scene"}
-                >
-                  {t("navigation.nuScene") || "Nu Scene"}
-                </Link>
-              </div>
-
-              {/* Language Switcher */}
-              <div className="flex items-center ml-4 flex-shrink-0">
-                <LanguageSwitcher />
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* Navigation Bar */}
+      <NavigationBar />
 
       {/* Main Content */}
       <main className="min-h-[calc(100vh-56px)] py-6" role="main">
