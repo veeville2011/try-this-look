@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNu3dProducts } from "@/hooks/useNu3dProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Download, Info, Box, Zap } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -285,18 +285,13 @@ const ProductDetailsDialog = ({
   useEffect(() => {
     if (open) {
       setSelectedVariantIndex(initialVariantIndex);
-      setModelLoading(true);
     }
   }, [open, initialVariantIndex]);
-
-  // Reset model loading when image changes
-  useEffect(() => {
-    setModelLoading(true);
-  }, [selectedImageIndex, selectedVariantIndex]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [processingImageId, setProcessingImageId] = useState<string | null>(null);
   const [processingProduct, setProcessingProduct] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
   const completed3dImages = variantImages.filter(
@@ -540,7 +535,7 @@ const ProductDetailsDialog = ({
                     )}
                   </div>
 
-                  {/* 3D Model Downloads */}
+                  {/* 3D Model */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.model3d") || "3D Model"}</span>
@@ -548,37 +543,48 @@ const ProductDetailsDialog = ({
                     </div>
                     {currentImage.status === "completed" && (currentImage.model_glb_url || currentImage.gaussian_splat_url) ? (
                       <div className="space-y-3">
-                        {/* Download Buttons */}
-                        <div className="flex flex-col gap-2">
-                          {currentImage.model_glb_url && (
-                            <a
-                              href={currentImage.model_glb_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download
-                              className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
-                            >
-                              <Download className="w-3 h-3" />
-                              {t("nu3d.image.downloadGlb") || "Download GLB"}
-                            </a>
-                          )}
-                          {currentImage.gaussian_splat_url && (
-                            <a
-                              href={currentImage.gaussian_splat_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download
-                              className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors text-xs font-medium"
-                            >
-                              <Download className="w-3 h-3" />
-                              {t("nu3d.image.downloadSplat") || "Download Gaussian Splat"}
-                            </a>
-                          )}
+                        <div className="relative aspect-square bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg overflow-hidden border-2 border-primary/20 flex flex-col items-center justify-center p-6 gap-3">
+                          <Box className="w-12 h-12 text-primary" />
+                          <div className="text-center space-y-1">
+                            <span className="text-sm font-semibold text-foreground block">
+                              {t("nu3d.image.model3dReady") || "3D Model Ready"}
+                            </span>
+                            <span className="text-xs text-muted-foreground block">
+                              {t("nu3d.image.downloadFormats") || "Download available formats"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-2 w-full">
+                            {currentImage.model_glb_url && (
+                              <a
+                                href={currentImage.model_glb_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
+                              >
+                                <Download className="w-3 h-3" />
+                                {t("nu3d.image.downloadGlb") || "Download GLB"}
+                              </a>
+                            )}
+                            {currentImage.gaussian_splat_url && (
+                              <a
+                                href={currentImage.gaussian_splat_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors text-xs font-medium"
+                              >
+                                <Download className="w-3 h-3" />
+                                {t("nu3d.image.downloadSplat") || "Download Gaussian Splat"}
+                              </a>
+                            )}
+                          </div>
                         </div>
                         
-                        {/* View Metadata Button */}
+                        {/* Metadata Display */}
+                        {/* Metadata Display */}
                         {currentImage.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
-                          <>
+                          <div className="space-y-2">
                             <button
                               onClick={() => setZoomImage(JSON.stringify(currentImage.metadata, null, 2))}
                               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full p-2 rounded-md hover:bg-muted"
@@ -586,8 +592,6 @@ const ProductDetailsDialog = ({
                               <Info className="w-3 h-3" />
                               <span>{t("nu3d.image.viewMetadata") || "View Full Metadata"}</span>
                             </button>
-                            
-                            {/* Metadata Summary */}
                             <div className="text-xs space-y-1 p-2 bg-muted rounded-md">
                               {currentImage.metadata[0].scale && currentImage.metadata[0].scale[0] && (
                                 <div className="flex justify-between">
@@ -602,7 +606,7 @@ const ProductDetailsDialog = ({
                                 </div>
                               )}
                             </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     ) : currentImage.status === "processing" ? (
