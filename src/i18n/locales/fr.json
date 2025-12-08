@@ -676,7 +676,8 @@
         }
       },
       "selectedGarments": {
-        "title": "Articles Sélectionnés"
+        "title": "Articles Sélectionnés",
+        "hint": "💡 Astuce: Vous pouvez changer de catégorie pour ajouter des articles de différentes catégories à votre sélection"
       },
       "results": {
         "title": "Résultats de l'essayage virtuel",
@@ -687,7 +688,8 @@
           "title": "Résultats de l'essayage virtuel - Mode Tenue"
         },
         "generated": "Résultats Générés",
-        "noResults": "Aucun résultat généré"
+        "noResults": "Aucun résultat généré",
+        "outfitGenerated": "Tenue Complète Générée"
       }
     },
     "validation": {
@@ -695,6 +697,16 @@
       "maxGarmentsMultiple": "Maximum 6 articles sélectionnés",
       "minGarmentsLook": "Sélectionnez au moins 2 articles pour continuer",
       "maxGarmentsLook": "Maximum 8 articles sélectionnés"
+    },
+    "filters": {
+      "category": "Filtrer par catégorie",
+      "categoryAriaLabel": "Sélectionner une catégorie",
+      "selectCategory": "Toutes les catégories",
+      "allCategories": "Toutes les catégories",
+      "loadingCategories": "Chargement des catégories...",
+      "products": "produits",
+      "availableProducts": "produits disponibles",
+      "noCategories": "Aucune catégorie disponible"
     },
     "errors": {
       "errorPrefix": "Erreur",
@@ -711,7 +723,11 @@
       "noGarmentImages": "Aucune image de vêtement détectée",
       "noGarmentImagesDescription": "Assurez-vous d'avoir des articles dans votre panier ou sur la page",
       "failedGenerations": "{{count}} article n'a pas pu être généré",
-      "failedGenerations_plural": "{{count}} articles n'ont pas pu être générés"
+      "failedGenerations_plural": "{{count}} articles n'ont pas pu être générés",
+      "noProducts": "Aucun produit disponible",
+      "noProductsInCategory": "Aucun produit dans cette catégorie",
+      "noProductsDescription": "Les produits seront disponibles une fois chargés",
+      "noProductsInCategoryDescription": "Essayez de sélectionner une autre catégorie"
     },
     "progress": {
       "garmentsProcessed": "Articles traités",

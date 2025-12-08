@@ -1994,11 +1994,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                       <Select
                         value={selectedCategory}
-                        onValueChange={(value) => {
-                          setSelectedCategory(value);
-                          // Clear selected garments when category changes for better UX
-                          setSelectedGarments([]);
-                        }}
+                        onValueChange={setSelectedCategory}
                       >
                         <SelectTrigger
                           id="category-filter-multiple"
@@ -2223,29 +2219,51 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     )}
 
-                    {/* Selected Garments Summary */}
+                    {/* Selected Garments Summary - Always visible when garments are selected */}
                     {selectedGarments.length > 0 && (
-                      <Card className="p-3 sm:p-4 border-border bg-card">
-                        <h3 className="text-sm sm:text-base font-semibold mb-3">
-                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"} ({selectedGarments.length})
-                        </h3>
+                      <Card className="p-3 sm:p-4 border-2 border-primary/20 bg-primary/5 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                            <h3 className="text-sm sm:text-base font-semibold">
+                              {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                              {selectedGarments.length} / {activeTab === "multiple" ? 6 : 8}
+                            </span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              for (let i = selectedGarments.length - 1; i >= 0; i--) {
+                                handleGarmentDeselect(i);
+                              }
+                            }}
+                            className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
+                            aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
+                          >
+                            <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                            <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
+                          </Button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {selectedGarments.map((garment, index) => (
                             <div key={`selected-${index}`} className="relative group">
-                              <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30">
+                              <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30 shadow-md">
                                 <img
                                   src={garment.url}
                                   alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
                                   className="w-full h-full object-contain"
                                 />
-                                <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center">
+                                <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br">
                                   {index + 1}
                                 </div>
                                 <Button
                                   variant="destructive"
                                   size="icon"
                                   onClick={() => handleGarmentDeselect(index)}
-                                  className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl"
                                   aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
                                 >
                                   <XCircle className="h-3 w-3" aria-hidden="true" />
@@ -2254,6 +2272,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </div>
                           ))}
                         </div>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          {t("tryOnWidget.sections.selectedGarments.hint") || "💡 Astuce: Vous pouvez changer de catégorie pour ajouter des articles de différentes catégories à votre sélection"}
+                        </p>
                       </Card>
                     )}
                   </div>
@@ -2484,7 +2505,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
                       aria-hidden="true"
                     />
-                    <span>Réessayer</span>
+                    <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
                   </Button>
                 </Card>
               </div>
@@ -2578,7 +2599,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         id="garments-look-heading"
                         className="text-base sm:text-lg font-semibold"
                       >
-                        Sélectionner les Articles
+                        {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
                       </h2>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">
                         {t("tryOnWidget.sections.selectGarments.look.description") || "Sélectionnez 2-8 articles pour une tenue complète"}
@@ -2629,11 +2650,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                       <Select
                         value={selectedCategory}
-                        onValueChange={(value) => {
-                          setSelectedCategory(value);
-                          // Clear selected garments when category changes for better UX
-                          setSelectedGarments([]);
-                        }}
+                        onValueChange={setSelectedCategory}
                       >
                         <SelectTrigger
                           id="category-filter-look"
@@ -2858,29 +2875,51 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     )}
 
-                    {/* Selected Garments Summary */}
+                    {/* Selected Garments Summary - Always visible when garments are selected */}
                     {selectedGarments.length > 0 && (
-                      <Card className="p-3 sm:p-4 border-border bg-card">
-                        <h3 className="text-sm sm:text-base font-semibold mb-3">
-                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"} ({selectedGarments.length})
-                        </h3>
+                      <Card className="p-3 sm:p-4 border-2 border-primary/20 bg-primary/5 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                            <h3 className="text-sm sm:text-base font-semibold">
+                              {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                              {selectedGarments.length} / {activeTab === "multiple" ? 6 : 8}
+                            </span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              for (let i = selectedGarments.length - 1; i >= 0; i--) {
+                                handleGarmentDeselect(i);
+                              }
+                            }}
+                            className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
+                            aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
+                          >
+                            <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                            <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
+                          </Button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {selectedGarments.map((garment, index) => (
                             <div key={`selected-${index}`} className="relative group">
-                              <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30">
+                              <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30 shadow-md">
                                 <img
                                   src={garment.url}
                                   alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
                                   className="w-full h-full object-contain"
                                 />
-                                <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center">
+                                <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br">
                                   {index + 1}
                                 </div>
                                 <Button
                                   variant="destructive"
                                   size="icon"
                                   onClick={() => handleGarmentDeselect(index)}
-                                  className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl"
                                   aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
                                 >
                                   <XCircle className="h-3 w-3" aria-hidden="true" />
@@ -2889,6 +2928,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </div>
                           ))}
                         </div>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          {t("tryOnWidget.sections.selectedGarments.hint") || "💡 Astuce: Vous pouvez changer de catégorie pour ajouter des articles de différentes catégories à votre sélection"}
+                        </p>
                       </Card>
                     )}
                   </div>
@@ -3031,7 +3073,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               ) : (
                                 <Download className="h-4 w-4 mr-2" />
                               )}
-                              Télécharger
+                              {t("tryOnWidget.buttons.download") || "Télécharger"}
                             </Button>
                             <Button
                               onClick={() => {
@@ -3121,7 +3163,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
                       aria-hidden="true"
                     />
-                    <span>Réessayer</span>
+                    <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
                   </Button>
                 </Card>
               </div>

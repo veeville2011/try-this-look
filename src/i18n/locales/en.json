@@ -676,7 +676,8 @@
         }
       },
       "selectedGarments": {
-        "title": "Selected Items"
+        "title": "Selected Items",
+        "hint": "💡 Tip: You can change categories to add items from different categories to your selection"
       },
       "results": {
         "title": "Virtual Try-On Results",
@@ -687,7 +688,8 @@
           "title": "Virtual Try-On Results - Outfit Mode"
         },
         "generated": "Generated Results",
-        "noResults": "No results generated"
+        "noResults": "No results generated",
+        "outfitGenerated": "Complete Outfit Generated"
       }
     },
     "validation": {
@@ -695,6 +697,16 @@
       "maxGarmentsMultiple": "Maximum 6 items selected",
       "minGarmentsLook": "Select at least 2 items to continue",
       "maxGarmentsLook": "Maximum 8 items selected"
+    },
+    "filters": {
+      "category": "Filter by Category",
+      "categoryAriaLabel": "Select a category",
+      "selectCategory": "All Categories",
+      "allCategories": "All Categories",
+      "loadingCategories": "Loading categories...",
+      "products": "products",
+      "availableProducts": "products available",
+      "noCategories": "No categories available"
     },
     "errors": {
       "errorPrefix": "Error",
@@ -711,7 +723,11 @@
       "noGarmentImages": "No garment images detected",
       "noGarmentImagesDescription": "Make sure you have items in your cart or on the page",
       "failedGenerations": "{{count}} item could not be generated",
-      "failedGenerations_plural": "{{count}} items could not be generated"
+      "failedGenerations_plural": "{{count}} items could not be generated",
+      "noProducts": "No products available",
+      "noProductsInCategory": "No products in this category",
+      "noProductsDescription": "Products will be available once loaded",
+      "noProductsInCategoryDescription": "Try selecting another category"
     },
     "progress": {
       "garmentsProcessed": "Items processed",
