@@ -256,7 +256,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           productCount: 0,
           products: [],
         },
-        categoryMethod: reduxCategoryMethod || "collections",
+        categoryMethod: reduxCategoryMethod || "category",
         statistics: reduxStatistics,
       }
     : null;
@@ -626,16 +626,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Normalize shop domain
       const normalizedShop = shopDomain.replace(".myshopify.com", "");
       
-      // Fetch categorized products using Redux (default: by collections)
+      // Fetch categorized products using Redux (default: by category)
       fetchCategorizedProductsFromRedux(normalizedShop, {
-        categoryBy: "collections",
+        categoryBy: "category",
       })
         .then((result) => {
           if (fetchCategorizedProductsThunk.fulfilled.match(result)) {
             console.log("[TryOnWidget] Loaded categorized products via Redux", {
               totalCategories: result.payload?.statistics?.totalCategories || 0,
               totalProducts: result.payload?.statistics?.totalProducts || 0,
-              categoryMethod: result.payload?.categoryMethod || "collections",
+              categoryMethod: result.payload?.categoryMethod || "category",
             });
           } else {
             console.warn("[TryOnWidget] Failed to fetch categorized products:", result.payload);
