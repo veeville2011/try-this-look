@@ -1161,6 +1161,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Check if we're inside an iframe
   const isInIframe = typeof window !== "undefined" && window.parent !== window;
 
+  // Check if store is vto-demo (only show tabs for vto-demo store)
+  const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+  const isVtoDemoStore = shopDomain && shopDomain.includes("vto-demo");
+
+  // Force activeTab to "single" for non-vto-demo stores
+  useEffect(() => {
+    if (!isVtoDemoStore && activeTab !== "single") {
+      setActiveTab("single");
+    }
+  }, [isVtoDemoStore, activeTab]);
+
   // Handle close - if in iframe, notify parent window
   const handleClose = () => {
     if (isInIframe) {
@@ -1262,6 +1273,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
+          // Only allow tab switching for vto-demo store
+          if (!isVtoDemoStore) {
+            return;
+          }
+          
           const newTab = value as "single" | "multiple" | "look";
           setActiveTab(newTab);
           
@@ -1289,35 +1305,37 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         }}
         className="w-full"
       >
-        {/* Tabs Navigation */}
-      <section
-        className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
-          aria-label={t("tryOnWidget.tabs.ariaLabel") || "Mode d'essayage"}
-        >
-          <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1">
-            <TabsTrigger
-              value="single"
-              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={t("tryOnWidget.tabs.single.ariaLabel") || "Essayer un seul article"}
-            >
-              {t("tryOnWidget.tabs.single.label") || "Try Single"}
-            </TabsTrigger>
-            <TabsTrigger
-              value="multiple"
-              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={t("tryOnWidget.tabs.multiple.ariaLabel") || "Essayer plusieurs articles"}
-            >
-              {t("tryOnWidget.tabs.multiple.label") || "Try Multiple"}
-            </TabsTrigger>
-            <TabsTrigger
-              value="look"
-              className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={t("tryOnWidget.tabs.look.ariaLabel") || "Essayer une tenue complète"}
-            >
-              {t("tryOnWidget.tabs.look.label") || "Try Look"}
-            </TabsTrigger>
-          </TabsList>
-      </section>
+        {/* Tabs Navigation - Only show for vto-demo store */}
+        {isVtoDemoStore && (
+          <section
+            className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
+            aria-label={t("tryOnWidget.tabs.ariaLabel") || "Mode d'essayage"}
+          >
+            <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1">
+              <TabsTrigger
+                value="single"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label={t("tryOnWidget.tabs.single.ariaLabel") || "Essayer un seul article"}
+              >
+                {t("tryOnWidget.tabs.single.label") || "Try Single"}
+              </TabsTrigger>
+              <TabsTrigger
+                value="multiple"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label={t("tryOnWidget.tabs.multiple.ariaLabel") || "Essayer plusieurs articles"}
+              >
+                {t("tryOnWidget.tabs.multiple.label") || "Try Multiple"}
+              </TabsTrigger>
+              <TabsTrigger
+                value="look"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label={t("tryOnWidget.tabs.look.ariaLabel") || "Essayer une tenue complète"}
+              >
+                {t("tryOnWidget.tabs.look.label") || "Try Look"}
+              </TabsTrigger>
+            </TabsList>
+          </section>
+        )}
 
       {/* Content */}
       <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
