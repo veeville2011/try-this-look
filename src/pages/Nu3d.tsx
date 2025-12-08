@@ -2,16 +2,16 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
-import { useNulightProducts } from "@/hooks/useNulightProducts";
+import { useNu3dProducts } from "@/hooks/useNu3dProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { approveRejectBulk, approveRejectProduct, approveRejectImage, NulightProduct } from "@/services/nulightApi";
+import { approveRejectBulk, approveRejectProduct, approveRejectImage, Nu3dProduct } from "@/services/nu3dApi";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/dialog";
 
 interface VariantRowData {
-  product: NulightProduct;
-  variant: NulightProduct["variants"]["nodes"][0];
+  product: Nu3dProduct;
+  variant: Nu3dProduct["variants"]["nodes"][0];
   variantIndex: number;
 }
 
@@ -96,6 +96,7 @@ const VariantTableRow = ({
     const hasApprovedImages = variantImages.some((img) => img.approvalStatus === "approved");
     const hasRejectedImages = variantImages.some((img) => img.approvalStatus === "rejected");
     const hasPendingImages = variantImages.some((img) => img.approvalStatus === "pending");
+    const hasCompleted3dImages = variantImages.some((img) => img.status === "completed" && (img.model_glb_url || img.gaussian_splat_url));
 
     if (hasApprovedImages && !hasPendingImages) {
       return (
@@ -117,6 +118,13 @@ const VariantTableRow = ({
       return (
         <Badge className="bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20 text-xs">
           {t("nu3d.dialog.noImages") || "No Images"}
+        </Badge>
+      );
+    }
+    if (!hasCompleted3dImages) {
+      return (
+        <Badge className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 text-xs">
+          {t("nu3d.dialog.processing3d") || "Processing 3D"}
         </Badge>
       );
     }
@@ -254,7 +262,7 @@ const VariantTableRow = ({
 };
 
 interface ProductDetailsDialogProps {
-  product: NulightProduct;
+  product: Nu3dProduct;
   shop: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -286,10 +294,10 @@ const ProductDetailsDialog = ({
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
-  const relightedImages = variantImages.filter(
-    (img) => img.relightingStatus === "completed" && img.transformedImageUrls.length > 0
+  const completed3dImages = variantImages.filter(
+    (img) => img.status === "completed" && (img.model_glb_url || img.gaussian_splat_url)
   );
-  const displayImages = relightedImages.length > 0 ? relightedImages : variantImages;
+  const displayImages = completed3dImages.length > 0 ? completed3dImages : variantImages;
   const currentImage = displayImages[selectedImageIndex] || displayImages[0];
 
   const handleImageAction = async (
@@ -309,7 +317,7 @@ const ProductDetailsDialog = ({
         imageId,
         relightingImageId,
         action,
-        transformedImageUrl,
+        transformedImageUrl: transformedImageUrl || currentImage.model_glb_url || currentImage.gaussian_splat_url,
       });
 
       const successKey = action === "approve" ? "nu3d.image.approveSuccess" : "nu3d.image.rejectSuccess";
@@ -443,11 +451,33 @@ const ProductDetailsDialog = ({
             {currentImage && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <ImageIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">
                       {t("nu3d.image.imageOf", { current: selectedImageIndex + 1, total: displayImages.length }) || `Image ${selectedImageIndex + 1} of ${displayImages.length}`}
                     </span>
+                    {currentImage.cached && (
+                      <Badge variant="outline" className="text-xs">
+                        <Zap className="w-3 h-3 mr-1" />
+                        {t("nu3d.image.cached") || "Cached"}
+                      </Badge>
+                    )}
+                    {currentImage.status && (
+                      <Badge 
+                        className={`text-xs ${
+                          currentImage.status === "completed" 
+                            ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+                            : currentImage.status === "processing"
+                            ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+                            : "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20"
+                        }`}
+                      >
+                        {currentImage.status === "completed" && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                        {currentImage.status === "processing" && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                        {currentImage.status === "failed" && <XCircle className="w-3 h-3 mr-1" />}
+                        {currentImage.status.toUpperCase()}
+                      </Badge>
+                    )}
                   </div>
                   {displayImages.length > 1 && (
                     <div className="flex gap-1">
@@ -481,42 +511,140 @@ const ProductDetailsDialog = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Original Image */}
                   <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.original") || "Original"}</span>
-                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.original") || "Original Image"}</span>
+                      {currentImage.image_id && (
+                        <span className="text-xs text-muted-foreground">ID: {currentImage.image_id}</span>
+                      )}
+                    </div>
+                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border border-border">
                       <img
                         src={currentImage.originalImageUrl}
                         alt={t("nu3d.image.original") || "Original"}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     </div>
+                    {currentImage.job_id && (
+                      <div className="text-xs text-muted-foreground truncate">
+                        <span className="font-medium">Job ID:</span> {currentImage.job_id}
+                      </div>
+                    )}
                   </div>
+
+                  {/* 3D Model */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.relighted") || "Relighted"}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.model3d") || "3D Model"}</span>
                       {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                     </div>
-                    {currentImage.transformedImageUrls.length > 0 ? (
-                      <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-                        <img
-                          src={currentImage.transformedImageUrls[0]}
-                          alt={t("nu3d.image.relighted") || "Relighted"}
-                          className="w-full h-full object-cover"
-                        />
+                    {currentImage.status === "completed" && (currentImage.model_glb_url || currentImage.gaussian_splat_url) ? (
+                      <div className="space-y-3">
+                        <div className="relative aspect-square bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg overflow-hidden border-2 border-primary/20 flex flex-col items-center justify-center p-6 gap-3">
+                          <Box className="w-12 h-12 text-primary" />
+                          <div className="text-center space-y-1">
+                            <span className="text-sm font-semibold text-foreground block">
+                              {t("nu3d.image.model3dReady") || "3D Model Ready"}
+                            </span>
+                            <span className="text-xs text-muted-foreground block">
+                              {t("nu3d.image.downloadFormats") || "Download available formats"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-2 w-full">
+                            {currentImage.model_glb_url && (
+                              <a
+                                href={currentImage.model_glb_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
+                              >
+                                <Download className="w-3 h-3" />
+                                {t("nu3d.image.downloadGlb") || "Download GLB"}
+                              </a>
+                            )}
+                            {currentImage.gaussian_splat_url && (
+                              <a
+                                href={currentImage.gaussian_splat_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors text-xs font-medium"
+                              >
+                                <Download className="w-3 h-3" />
+                                {t("nu3d.image.downloadSplat") || "Download Gaussian Splat"}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Metadata Display */}
+                        {/* Metadata Display */}
+                        {currentImage.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => setZoomImage(JSON.stringify(currentImage.metadata, null, 2))}
+                              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full p-2 rounded-md hover:bg-muted"
+                            >
+                              <Info className="w-3 h-3" />
+                              <span>{t("nu3d.image.viewMetadata") || "View Full Metadata"}</span>
+                            </button>
+                            <div className="text-xs space-y-1 p-2 bg-muted rounded-md">
+                              {currentImage.metadata[0].scale && currentImage.metadata[0].scale[0] && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Scale:</span>
+                                  <span className="font-mono">[{currentImage.metadata[0].scale[0].map((v: number) => v.toFixed(2)).join(", ")}]</span>
+                                </div>
+                              )}
+                              {currentImage.metadata[0].translation && currentImage.metadata[0].translation[0] && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Position:</span>
+                                  <span className="font-mono">[{currentImage.metadata[0].translation[0].map((v: number) => v.toFixed(2)).join(", ")}]</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : currentImage.status === "processing" ? (
+                      <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-blue-500/20 gap-2">
+                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                        <span className="text-sm font-medium text-foreground">
+                          {t("nu3d.image.processing3d") || "Processing 3D Model..."}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t("nu3d.image.pleaseWait") || "This may take 60-120 seconds"}
+                        </span>
+                      </div>
+                    ) : currentImage.status === "failed" ? (
+                      <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-red-500/20 gap-2">
+                        <XCircle className="w-8 h-8 text-red-500" />
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                          {t("nu3d.image.failed") || "3D Generation Failed"}
+                        </span>
+                        {currentImage.message && (
+                          <span className="text-xs text-muted-foreground text-center px-4">
+                            {currentImage.message}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                        <span className="text-xs text-muted-foreground">{t("nu3d.image.processing") || "Processing..."}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t("nu3d.image.notAvailable") || "3D Model Not Available"}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Image Actions */}
-                {currentImage.relightingStatus === "completed" &&
+                {currentImage.status === "completed" &&
                   currentImage.approvalStatus === "pending" &&
-                  currentImage.transformedImageUrls.length > 0 && (
+                  (currentImage.model_glb_url || currentImage.gaussian_splat_url) && (
                     <div className="flex gap-2 justify-end">
                       <Button
                         size="sm"
@@ -525,8 +653,8 @@ const ProductDetailsDialog = ({
                           handleImageAction(
                             "reject",
                             currentImage.id,
-                            currentImage.relightingImageId,
-                            currentImage.transformedImageUrls[0]
+                            currentImage.image_id,
+                            currentImage.model_glb_url || currentImage.gaussian_splat_url
                           )
                         }
                         disabled={processingImageId === currentImage.id}
@@ -545,8 +673,8 @@ const ProductDetailsDialog = ({
                           handleImageAction(
                             "approve",
                             currentImage.id,
-                            currentImage.relightingImageId,
-                            currentImage.transformedImageUrls[0]
+                            currentImage.image_id,
+                            currentImage.model_glb_url || currentImage.gaussian_splat_url
                           )
                         }
                         disabled={processingImageId === currentImage.id}
@@ -599,19 +727,63 @@ const ProductDetailsDialog = ({
         </DialogContent>
       </Dialog>
 
-      {/* Zoom Dialog */}
+      {/* Metadata Dialog */}
       <Dialog open={!!zoomImage} onOpenChange={() => setZoomImage(null)}>
-        <DialogContent className="max-w-4xl p-0">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle>{t("nu3d.image.preview") || "Image Preview"}</DialogTitle>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("nu3d.image.metadata") || "3D Model Metadata"}</DialogTitle>
           </DialogHeader>
-          <div className="p-6">
+          <div className="space-y-4">
             {zoomImage && (
-              <img
-                src={zoomImage}
-                alt="Zoomed image"
-                className="w-full h-auto rounded-lg"
-              />
+              <pre className="p-4 bg-muted rounded-lg overflow-x-auto text-xs font-mono max-h-96 overflow-y-auto">
+                {zoomImage}
+              </pre>
+            )}
+            {currentImage && currentImage.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">{t("nu3d.image.formattedMetadata") || "Formatted Metadata"}</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {currentImage.metadata[0].scale && currentImage.metadata[0].scale[0] && (
+                    <div>
+                      <span className="text-muted-foreground font-medium">Scale:</span>
+                      <div className="mt-1 font-mono text-xs">
+                        X: {currentImage.metadata[0].scale[0][0]?.toFixed(4)}<br />
+                        Y: {currentImage.metadata[0].scale[0][1]?.toFixed(4)}<br />
+                        Z: {currentImage.metadata[0].scale[0][2]?.toFixed(4)}
+                      </div>
+                    </div>
+                  )}
+                  {currentImage.metadata[0].translation && currentImage.metadata[0].translation[0] && (
+                    <div>
+                      <span className="text-muted-foreground font-medium">Translation:</span>
+                      <div className="mt-1 font-mono text-xs">
+                        X: {currentImage.metadata[0].translation[0][0]?.toFixed(4)}<br />
+                        Y: {currentImage.metadata[0].translation[0][1]?.toFixed(4)}<br />
+                        Z: {currentImage.metadata[0].translation[0][2]?.toFixed(4)}
+                      </div>
+                    </div>
+                  )}
+                  {currentImage.metadata[0].rotation && currentImage.metadata[0].rotation[0] && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground font-medium">Rotation (Quaternion):</span>
+                      <div className="mt-1 font-mono text-xs">
+                        W: {currentImage.metadata[0].rotation[0][0]?.toFixed(4)}<br />
+                        X: {currentImage.metadata[0].rotation[0][1]?.toFixed(4)}<br />
+                        Y: {currentImage.metadata[0].rotation[0][2]?.toFixed(4)}<br />
+                        Z: {currentImage.metadata[0].rotation[0][3]?.toFixed(4)}
+                      </div>
+                    </div>
+                  )}
+                  {currentImage.metadata[0].object_index !== undefined && (
+                    <div>
+                      <span className="text-muted-foreground font-medium">Object Index:</span>
+                      <div className="mt-1 font-mono text-xs">
+                        {currentImage.metadata[0].object_index}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </DialogContent>
@@ -629,7 +801,7 @@ const Nu3d = () => {
   const shopDomain =
     shop || new URLSearchParams(window.location.search).get("shop");
 
-  // Use nulight products hook
+  // Use nu3d products hook
   const {
     products,
     loading: productsLoading,
@@ -639,7 +811,7 @@ const Nu3d = () => {
     fetchProducts,
     loadMore,
     refresh,
-  } = useNulightProducts(shopDomain);
+  } = useNu3dProducts(shopDomain);
 
   // Bulk selection state - using variant IDs (format: "productId-variantId")
   const [selectedVariants, setSelectedVariants] = useState<Set<string>>(new Set());
