@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNu3dProducts } from "@/hooks/useNu3dProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap, EyeOff } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Download, Info, Box, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -297,11 +297,6 @@ const ProductDetailsDialog = ({
   const [processingImageId, setProcessingImageId] = useState<string | null>(null);
   const [processingProduct, setProcessingProduct] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const [show3dViewer, setShow3dViewer] = useState(true);
-  const [modelLoading, setModelLoading] = useState(true);
-  const [modelViewerLoaded, setModelViewerLoaded] = useState(false);
-  const viewerContainerRef = useRef<HTMLDivElement>(null);
-
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
   const completed3dImages = variantImages.filter(
@@ -309,114 +304,6 @@ const ProductDetailsDialog = ({
   );
   const displayImages = completed3dImages.length > 0 ? completed3dImages : variantImages;
   const currentImage = displayImages[selectedImageIndex] || displayImages[0];
-
-  // Helper function to create model-viewer element
-  const createModelViewer = (container: HTMLDivElement, glbUrl: string) => {
-    const modelViewer = document.createElement("model-viewer");
-    modelViewer.setAttribute("src", glbUrl);
-    modelViewer.setAttribute("alt", t("nu3d.image.model3d") || "3D Model");
-    modelViewer.setAttribute("camera-controls", "");
-    modelViewer.setAttribute("auto-rotate", "");
-    modelViewer.setAttribute("ar", "");
-    modelViewer.setAttribute("ar-modes", "webxr scene-viewer quick-look");
-    modelViewer.setAttribute("shadow-intensity", "1");
-    modelViewer.setAttribute("exposure", "1");
-    modelViewer.setAttribute("environment-image", "neutral");
-    modelViewer.style.width = "100%";
-    modelViewer.style.height = "100%";
-    modelViewer.style.backgroundColor = "transparent";
-
-    // Add event listeners
-    modelViewer.addEventListener("load", () => {
-      setModelLoading(false);
-    });
-    modelViewer.addEventListener("error", () => {
-      setModelLoading(false);
-    });
-
-    container.appendChild(modelViewer);
-    setModelViewerLoaded(true);
-  };
-
-  // Load model-viewer script dynamically and create element manually to avoid JSX/import issues
-  useEffect(() => {
-    if (!open || !show3dViewer || !currentImage?.model_glb_url || !viewerContainerRef.current) {
-      return;
-    }
-
-    const container = viewerContainerRef.current;
-    const glbUrl = currentImage.model_glb_url;
-    
-    // Clear any existing viewer
-    container.innerHTML = '';
-    setModelLoading(true);
-    setModelViewerLoaded(false);
-
-    // Check if script is already loaded
-    const existingScript = document.querySelector('script[src*="model-viewer"]');
-    
-    const loadModelViewer = () => {
-      // Wait for custom element to be defined
-      const checkAndCreate = () => {
-        if (customElements.get("model-viewer")) {
-          createModelViewer(container, glbUrl);
-        } else {
-          // Retry after a short delay (max 10 attempts = 1 second)
-          let attempts = 0;
-          const maxAttempts = 10;
-          const interval = setInterval(() => {
-            attempts++;
-            if (customElements.get("model-viewer")) {
-              clearInterval(interval);
-              createModelViewer(container, glbUrl);
-            } else if (attempts >= maxAttempts) {
-              clearInterval(interval);
-              console.error("[ProductDetailsDialog] model-viewer custom element not available after loading");
-              setModelLoading(false);
-            }
-          }, 100);
-        }
-      };
-      checkAndCreate();
-    };
-
-    if (existingScript) {
-      // Script already loaded, just create the element
-      loadModelViewer();
-    } else if (customElements.get("model-viewer")) {
-      // Already defined, create immediately
-      loadModelViewer();
-    } else {
-      // Load script dynamically
-      const script = document.createElement("script");
-      script.type = "module";
-      script.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js";
-      script.onload = loadModelViewer;
-      script.onerror = () => {
-        console.error("[ProductDetailsDialog] Failed to load model-viewer script");
-        setModelLoading(false);
-      };
-      document.head.appendChild(script);
-    }
-
-    // Cleanup function
-    return () => {
-      if (container) {
-        container.innerHTML = '';
-      }
-    };
-  }, [open, show3dViewer, currentImage?.model_glb_url, t]);
-
-  // Reset when dialog closes
-  useEffect(() => {
-    if (!open) {
-      setModelViewerLoaded(false);
-      setModelLoading(true);
-      if (viewerContainerRef.current) {
-        viewerContainerRef.current.innerHTML = '';
-      }
-    }
-  }, [open]);
 
   const handleImageAction = async (
     action: "approve" | "reject",
@@ -653,114 +540,45 @@ const ProductDetailsDialog = ({
                     )}
                   </div>
 
-                  {/* 3D Model */}
+                  {/* 3D Model Downloads */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.model3d") || "3D Model"}</span>
-                      <div className="flex items-center gap-2">
-                        {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
-                        {currentImage.status === "completed" && currentImage.model_glb_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setShow3dViewer(!show3dViewer)}
-                            className="h-7 px-2 text-xs"
-                            aria-label={show3dViewer ? "Hide 3D Viewer" : "Show 3D Viewer"}
-                          >
-                            {show3dViewer ? (
-                              <>
-                                <EyeOff className="w-3 h-3 mr-1" />
-                                {t("nu3d.image.hideViewer") || "Hide"}
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="w-3 h-3 mr-1" />
-                                {t("nu3d.image.showViewer") || "Show"}
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                     </div>
                     {currentImage.status === "completed" && (currentImage.model_glb_url || currentImage.gaussian_splat_url) ? (
                       <div className="space-y-3">
-                        {/* 3D Model Viewer */}
-                        {show3dViewer && currentImage.model_glb_url ? (
-                          <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-primary/20">
-                            <div 
-                              ref={viewerContainerRef}
-                              className="w-full h-full"
-                            />
-                            {modelLoading && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
-                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  {t("nu3d.image.loadingViewer") || "Loading 3D viewer..."}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ) : show3dViewer && !currentImage.model_glb_url ? (
-                          <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
-                            <div className="text-center space-y-2 p-4">
-                              <Box className="w-8 h-8 mx-auto text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground block">
-                                {t("nu3d.image.glbNotAvailable") || "GLB model not available"}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/20 flex items-center justify-center">
-                            <div className="text-center space-y-2 p-4">
-                              <EyeOff className="w-8 h-8 mx-auto text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground block">
-                                {t("nu3d.image.viewerHidden") || "3D Viewer is hidden"}
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setShow3dViewer(true)}
-                                className="mt-2"
-                              >
-                                <Eye className="w-3 h-3 mr-1" />
-                                {t("nu3d.image.showViewer") || "Show Viewer"}
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                        {/* Download Buttons */}
+                        <div className="flex flex-col gap-2">
+                          {currentImage.model_glb_url && (
+                            <a
+                              href={currentImage.model_glb_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                              className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
+                            >
+                              <Download className="w-3 h-3" />
+                              {t("nu3d.image.downloadGlb") || "Download GLB"}
+                            </a>
+                          )}
+                          {currentImage.gaussian_splat_url && (
+                            <a
+                              href={currentImage.gaussian_splat_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                              className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors text-xs font-medium"
+                            >
+                              <Download className="w-3 h-3" />
+                              {t("nu3d.image.downloadSplat") || "Download Gaussian Splat"}
+                            </a>
+                          )}
+                        </div>
                         
-                        {/* Metadata and Download Section */}
+                        {/* View Metadata Button */}
                         {currentImage.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
-                          <div className="space-y-2">
-                            {/* Download Buttons */}
-                            <div className="flex flex-col gap-2">
-                              {currentImage.model_glb_url && (
-                                <a
-                                  href={currentImage.model_glb_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  download
-                                  className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
-                                >
-                                  <Download className="w-3 h-3" />
-                                  {t("nu3d.image.downloadGlb") || "Download GLB"}
-                                </a>
-                              )}
-                              {currentImage.gaussian_splat_url && (
-                                <a
-                                  href={currentImage.gaussian_splat_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  download
-                                  className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors text-xs font-medium"
-                                >
-                                  <Download className="w-3 h-3" />
-                                  {t("nu3d.image.downloadSplat") || "Download Gaussian Splat"}
-                                </a>
-                              )}
-                            </div>
-                            
-                            {/* View Metadata Button */}
+                          <>
                             <button
                               onClick={() => setZoomImage(JSON.stringify(currentImage.metadata, null, 2))}
                               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full p-2 rounded-md hover:bg-muted"
@@ -784,7 +602,7 @@ const ProductDetailsDialog = ({
                                 </div>
                               )}
                             </div>
-                          </div>
+                          </>
                         )}
                       </div>
                     ) : currentImage.status === "processing" ? (
