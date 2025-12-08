@@ -13,8 +13,8 @@ export interface NulightProduct {
   createdAt: string;
   updatedAt: string;
   publishedAt: string;
-  onlineStoreUrl: string;
-  onlineStorePreviewUrl: string;
+  onlineStoreUrl: string | null;
+  onlineStorePreviewUrl: string | null;
   totalInventory: number;
   hasOnlyDefaultVariant: boolean;
   hasOutOfStockVariants: boolean;
@@ -67,13 +67,26 @@ export interface NulightProduct {
         name: string;
         value: string;
       }>;
+      images: Array<{
+        id: string;
+        originalImageUrl: string;
+        altText: string | null;
+        width: number | null;
+        height: number | null;
+        transformedImageUrls: string[];
+        relightingStatus: "completed" | "pending" | "failed";
+        relightingImageId: number;
+        approvalStatus: "pending" | "approved" | "rejected";
+        approvedTransformedImageUrl: string | null;
+        processedAt: string;
+      }>;
     }>;
   };
-  options?: {
+  options?: Array<{
     id: string;
     name: string;
     values: string[];
-  };
+  }>;
   media?: {
     nodes: Array<{
       id: string;
@@ -124,6 +137,32 @@ export interface NulightResponse {
 export interface FetchNulightProductsParams {
   shop: string;
   after?: string;
+}
+
+/**
+ * Fetch nulight products (products created today with ACTIVE status)
+ * This requires authentication via session token
+ */
+export interface ApproveRejectImageParams {
+  shop: string;
+  productId: string;
+  variantId: string;
+  imageId: string;
+  relightingImageId: number;
+  action: "approve" | "reject";
+  transformedImageUrl?: string;
+}
+
+export interface ApproveRejectProductParams {
+  shop: string;
+  productId: string;
+  action: "approve" | "reject";
+}
+
+export interface ApproveRejectBulkParams {
+  shop: string;
+  productIds: string[];
+  action: "approve" | "reject";
 }
 
 /**
@@ -205,6 +244,236 @@ export const fetchNulightProducts = async (
     return data;
   } catch (error) {
     console.error("[NulightAPI] Failed to fetch nulight products:", error);
+    throw error;
+  }
+};
+
+/**
+ * Approve or reject a specific relighted image
+ */
+export const approveRejectImage = async (
+  params: ApproveRejectImageParams
+): Promise<{ success: boolean; message: string }> => {
+  if (!params.shop) {
+    throw new Error("Shop parameter is required");
+  }
+
+  const normalizedShop = params.shop.replace(".myshopify.com", "");
+  const url = `${API_BASE_URL}/api/nulight/images/${params.action}`;
+
+  try {
+    let headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (typeof window !== "undefined" && (window as any).__APP_BRIDGE) {
+      try {
+        const { authenticatedFetch } = await import(
+          "@shopify/app-bridge-utils"
+        );
+        const appBridge = (window as any).__APP_BRIDGE;
+        const fetchFn = authenticatedFetch(appBridge);
+
+        const response = await fetchFn(url, {
+          method: "POST",
+          headers,
+          credentials: "same-origin",
+          body: JSON.stringify({
+            shop: normalizedShop,
+            productId: params.productId,
+            variantId: params.variantId,
+            imageId: params.imageId,
+            relightingImageId: params.relightingImageId,
+            transformedImageUrl: params.transformedImageUrl,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to ${params.action} image: ${response.statusText}`
+          );
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.warn("[NulightAPI] Failed to approve/reject with authenticated fetch:", error);
+        throw error;
+      }
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      credentials: "same-origin",
+      body: JSON.stringify({
+        shop: normalizedShop,
+        productId: params.productId,
+        variantId: params.variantId,
+        imageId: params.imageId,
+        relightingImageId: params.relightingImageId,
+        transformedImageUrl: params.transformedImageUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `Failed to ${params.action} image: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[NulightAPI] Failed to ${params.action} image:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Approve or reject all images for a product
+ */
+export const approveRejectProduct = async (
+  params: ApproveRejectProductParams
+): Promise<{ success: boolean; message: string }> => {
+  if (!params.shop) {
+    throw new Error("Shop parameter is required");
+  }
+
+  const normalizedShop = params.shop.replace(".myshopify.com", "");
+  const url = `${API_BASE_URL}/api/nulight/products/${params.action}`;
+
+  try {
+    let headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (typeof window !== "undefined" && (window as any).__APP_BRIDGE) {
+      try {
+        const { authenticatedFetch } = await import(
+          "@shopify/app-bridge-utils"
+        );
+        const appBridge = (window as any).__APP_BRIDGE;
+        const fetchFn = authenticatedFetch(appBridge);
+
+        const response = await fetchFn(url, {
+          method: "POST",
+          headers,
+          credentials: "same-origin",
+          body: JSON.stringify({
+            shop: normalizedShop,
+            productId: params.productId,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to ${params.action} product: ${response.statusText}`
+          );
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.warn("[NulightAPI] Failed to approve/reject product with authenticated fetch:", error);
+        throw error;
+      }
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      credentials: "same-origin",
+      body: JSON.stringify({
+        shop: normalizedShop,
+        productId: params.productId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `Failed to ${params.action} product: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[NulightAPI] Failed to ${params.action} product:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Approve or reject all products (bulk action)
+ */
+export const approveRejectBulk = async (
+  params: ApproveRejectBulkParams
+): Promise<{ success: boolean; message: string; processed: number }> => {
+  if (!params.shop) {
+    throw new Error("Shop parameter is required");
+  }
+
+  const normalizedShop = params.shop.replace(".myshopify.com", "");
+  const url = `${API_BASE_URL}/api/nulight/bulk/${params.action}`;
+
+  try {
+    let headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (typeof window !== "undefined" && (window as any).__APP_BRIDGE) {
+      try {
+        const { authenticatedFetch } = await import(
+          "@shopify/app-bridge-utils"
+        );
+        const appBridge = (window as any).__APP_BRIDGE;
+        const fetchFn = authenticatedFetch(appBridge);
+
+        const response = await fetchFn(url, {
+          method: "POST",
+          headers,
+          credentials: "same-origin",
+          body: JSON.stringify({
+            shop: normalizedShop,
+            productIds: params.productIds,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to ${params.action} products: ${response.statusText}`
+          );
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.warn("[NulightAPI] Failed to bulk approve/reject with authenticated fetch:", error);
+        throw error;
+      }
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      credentials: "same-origin",
+      body: JSON.stringify({
+        shop: normalizedShop,
+        productIds: params.productIds,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `Failed to ${params.action} products: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[NulightAPI] Failed to bulk ${params.action}:`, error);
     throw error;
   }
 };

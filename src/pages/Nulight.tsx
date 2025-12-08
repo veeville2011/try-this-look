@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNulightProducts } from "@/hooks/useNulightProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Sparkles, Package, Store, ChevronDown } from "lucide-react";
+import NulightProductCard from "@/components/NulightProductCard";
+import { Sparkles, Package, Store, ChevronDown, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { approveRejectBulk } from "@/services/nulightApi";
 
 const Nulight = () => {
   const { t } = useTranslation();
@@ -26,7 +30,12 @@ const Nulight = () => {
     total,
     fetchProducts,
     loadMore,
+    refresh,
   } = useNulightProducts(shopDomain);
+
+  // Bulk selection state
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [processingBulk, setProcessingBulk] = useState(false);
 
   // Handle manual product fetch
   const handleFetchProducts = async () => {
@@ -74,6 +83,71 @@ const Nulight = () => {
         "Failed to load more products. Please try again."
       );
     }
+  };
+
+  // Handle product selection
+  const handleToggleProduct = (productId: string) => {
+    setSelectedProducts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.size === products.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(products.map((p) => p.id)));
+    }
+  };
+
+  // Handle bulk actions
+  const handleBulkAction = async (action: "approve" | "reject") => {
+    if (!shopDomain || selectedProducts.size === 0) {
+      toast.error(
+        t("nulight.bulk.noSelection") || 
+        "Please select at least one product"
+      );
+      return;
+    }
+
+    setProcessingBulk(true);
+    try {
+      const normalizedShop = shopDomain.replace(".myshopify.com", "");
+      const result = await approveRejectBulk({
+        shop: normalizedShop,
+        productIds: Array.from(selectedProducts),
+        action,
+      });
+
+      toast.success(
+        t(`nulight.bulk.${action}Success`, { count: result.processed }) ||
+          `Successfully ${action === "approve" ? "approved" : "rejected"} ${result.processed} product${result.processed !== 1 ? "s" : ""}`
+      );
+      
+      setSelectedProducts(new Set());
+      await refresh();
+    } catch (error) {
+      console.error(`[Nulight] Failed to bulk ${action}:`, error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t(`nulight.bulk.${action}Error`) ||
+              `Failed to ${action} products. Please try again.`
+      );
+    } finally {
+      setProcessingBulk(false);
+    }
+  };
+
+  // Handle product update after approval/rejection
+  const handleProductUpdate = async () => {
+    await refresh();
   };
 
   return (
@@ -211,77 +285,78 @@ const Nulight = () => {
             {/* Products Display */}
             {products.length > 0 && (
               <div className="mt-8 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
-                    {t("nulight.products.title") || "Products"} ({total})
-                  </h2>
+                {/* Header with Bulk Actions */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+                      {t("nulight.products.title") || "Products"} ({total})
+                    </h2>
+                    {products.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="select-all"
+                          checked={selectedProducts.size === products.length && products.length > 0}
+                          onCheckedChange={handleSelectAll}
+                          aria-label={t("nulight.selectAll") || "Select all products"}
+                        />
+                        <label
+                          htmlFor="select-all"
+                          className="text-sm text-muted-foreground cursor-pointer"
+                        >
+                          {t("nulight.selectAll") || "Select All"}
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedProducts.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {selectedProducts.size} {t("nulight.selected") || "selected"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleBulkAction("approve")}
+                        disabled={processingBulk}
+                        className="h-8 text-xs"
+                        aria-label={t("nulight.bulk.approve") || "Approve Selected"}
+                      >
+                        {processingBulk ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                        )}
+                        {t("nulight.bulk.approve") || "Approve Selected"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleBulkAction("reject")}
+                        disabled={processingBulk}
+                        className="h-8 text-xs"
+                        aria-label={t("nulight.bulk.reject") || "Reject Selected"}
+                      >
+                        {processingBulk ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <XCircle className="w-3 h-3 mr-1" />
+                        )}
+                        {t("nulight.bulk.reject") || "Reject Selected"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {/* Products Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {products.map((product) => (
-                    <Card
+                    <NulightProductCard
                       key={product.id}
-                      className="overflow-hidden border-border bg-card hover:shadow-md transition-shadow"
-                    >
-                      <div className="aspect-square bg-muted relative overflow-hidden">
-                        {product.images.nodes[0] ? (
-                          <img
-                            src={product.images.nodes[0].url}
-                            alt={product.images.nodes[0].altText || product.title}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-12 h-12 text-muted-foreground" aria-hidden="true" />
-                          </div>
-                        )}
-                      </div>
-                      <CardContent className="p-4">
-                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                          {product.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                          {product.description || product.vendor}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg font-semibold text-foreground">
-                            {product.priceRangeV2.minVariantPrice.currencyCode}{" "}
-                            {product.priceRangeV2.minVariantPrice.amount}
-                            {product.priceRangeV2.minVariantPrice.amount !==
-                              product.priceRangeV2.maxVariantPrice.amount && (
-                              <span className="text-sm text-muted-foreground">
-                                {" "}
-                                - {product.priceRangeV2.maxVariantPrice.amount}
-                              </span>
-                            )}
-                          </span>
-                          {product.status && (
-                            <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                product.status === "ACTIVE"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                              }`}
-                            >
-                              {product.status}
-                            </span>
-                          )}
-                        </div>
-                        {product.tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {product.tags.slice(0, 3).map((tag, index) => (
-                              <span
-                                key={index}
-                                className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                      product={product}
+                      shop={shopDomain || ""}
+                      onUpdate={handleProductUpdate}
+                    />
                   ))}
                 </div>
 
