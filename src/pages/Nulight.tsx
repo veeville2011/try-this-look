@@ -54,17 +54,19 @@ const VariantTableRow = ({
         action,
       });
 
+      const successKey = action === "approve" ? "nulight.product.approveSuccess" : "nulight.product.rejectSuccess";
       toast.success(
-        t(`nulight.product.${action}Success`) ||
+        t(successKey) ||
           `Product ${action === "approve" ? "approved" : "rejected"} successfully`
       );
       onUpdate();
     } catch (error) {
       console.error(`[VariantTableRow] Failed to ${action} product:`, error);
+      const errorKey = action === "approve" ? "nulight.product.approveError" : "nulight.product.rejectError";
       toast.error(
         error instanceof Error
           ? error.message
-          : t(`nulight.product.${action}Error`) ||
+          : t(errorKey) ||
               `Failed to ${action} product. Please try again.`
       );
     } finally {
@@ -99,7 +101,7 @@ const VariantTableRow = ({
       return (
         <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 text-xs">
           <CheckCircle2 className="w-3 h-3 mr-1" />
-          Approved
+          {t("nulight.dialog.approved") || "Approved"}
         </Badge>
       );
     }
@@ -107,7 +109,7 @@ const VariantTableRow = ({
       return (
         <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-xs">
           <XCircle className="w-3 h-3 mr-1" />
-          Rejected
+          {t("nulight.dialog.rejected") || "Rejected"}
         </Badge>
       );
     }
@@ -120,7 +122,7 @@ const VariantTableRow = ({
     }
     return (
       <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-xs">
-        Pending
+        {t("nulight.dialog.pending") || "Pending"}
       </Badge>
     );
   };
@@ -310,17 +312,19 @@ const ProductDetailsDialog = ({
         transformedImageUrl,
       });
 
+      const successKey = action === "approve" ? "nulight.image.approveSuccess" : "nulight.image.rejectSuccess";
       toast.success(
-        t(`nulight.image.${action}Success`) ||
+        t(successKey) ||
           `Image ${action === "approve" ? "approved" : "rejected"} successfully`
       );
       onUpdate();
     } catch (error) {
       console.error(`[ProductDetailsDialog] Failed to ${action} image:`, error);
+      const errorKey = action === "approve" ? "nulight.image.approveError" : "nulight.image.rejectError";
       toast.error(
         error instanceof Error
           ? error.message
-          : t(`nulight.image.${action}Error`) ||
+          : t(errorKey) ||
               `Failed to ${action} image. Please try again.`
       );
     } finally {
@@ -337,17 +341,19 @@ const ProductDetailsDialog = ({
         action,
       });
 
+      const successKey = action === "approve" ? "nulight.product.approveSuccess" : "nulight.product.rejectSuccess";
       toast.success(
-        t(`nulight.product.${action}Success`) ||
+        t(successKey) ||
           `Product ${action === "approve" ? "approved" : "rejected"} successfully`
       );
       onUpdate();
     } catch (error) {
       console.error(`[ProductDetailsDialog] Failed to ${action} product:`, error);
+      const errorKey = action === "approve" ? "nulight.product.approveError" : "nulight.product.rejectError";
       toast.error(
         error instanceof Error
           ? error.message
-          : t(`nulight.product.${action}Error`) ||
+          : t(errorKey) ||
               `Failed to ${action} product. Please try again.`
       );
     } finally {
@@ -744,8 +750,9 @@ const Nulight = () => {
         action,
       });
 
+      const successKey = action === "approve" ? "nulight.bulk.approveSuccess" : "nulight.bulk.rejectSuccess";
       toast.success(
-        t(`nulight.bulk.${action}Success`, { count: result.processed }) ||
+        t(successKey, { count: result.processed }) ||
           `Successfully ${action === "approve" ? "approved" : "rejected"} ${result.processed} product${result.processed !== 1 ? "s" : ""}`
       );
       
@@ -753,10 +760,11 @@ const Nulight = () => {
       await refresh();
     } catch (error) {
       console.error(`[Nulight] Failed to bulk ${action}:`, error);
+      const errorKey = action === "approve" ? "nulight.bulk.approveError" : "nulight.bulk.rejectError";
       toast.error(
         error instanceof Error
           ? error.message
-          : t(`nulight.bulk.${action}Error`) ||
+          : t(errorKey) ||
               `Failed to ${action} products. Please try again.`
       );
     } finally {
@@ -903,18 +911,18 @@ const Nulight = () => {
                 {/* Bulk Actions Bar */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
                   <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="select-all"
+                        <Checkbox
+                          id="select-all"
                       checked={selectedVariants.size === variantRows.length && variantRows.length > 0}
-                      onCheckedChange={handleSelectAll}
+                          onCheckedChange={handleSelectAll}
                       aria-label={t("nulight.selectAll") || "Select all variants"}
-                    />
-                    <label
-                      htmlFor="select-all"
+                        />
+                        <label
+                          htmlFor="select-all"
                       className="text-sm font-medium text-foreground cursor-pointer"
-                    >
-                      {t("nulight.selectAll") || "Select All"}
-                    </label>
+                        >
+                          {t("nulight.selectAll") || "Select All"}
+                        </label>
                     {selectedVariants.size > 0 && (
                       <span className="text-sm text-muted-foreground">
                         ({selectedVariants.size} {t("nulight.selected") || "selected"})
@@ -983,16 +991,16 @@ const Nulight = () => {
                             <VariantTableRow
                               key={variantKey}
                               variantRow={variantRow}
-                              shop={shopDomain || ""}
+                      shop={shopDomain || ""}
                               isSelected={selectedVariants.has(variantKey)}
                               onToggleSelect={() => handleToggleVariant(variantRow.product.id, variantRow.variant.id)}
-                              onUpdate={handleProductUpdate}
-                            />
+                      onUpdate={handleProductUpdate}
+                    />
                           );
                         })}
                       </TableBody>
                     </Table>
-                  </div>
+                </div>
                 </Card>
 
                 {/* Load More Button */}
