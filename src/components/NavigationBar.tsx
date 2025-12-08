@@ -1,14 +1,25 @@
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useShop } from "@/providers/AppBridgeProvider";
 
 /**
  * Reusable Navigation Bar Component
  * Used across all main pages for consistent navigation
+ * Only shown for vto-demo store
  */
 const NavigationBar = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  const shop = useShop();
+
+  // Only show navigation bar for vto-demo store
+  // Check if shop domain includes "vto-demo" (handles both "vto-demo" and "vto-demo.myshopify.com")
+  const isVtoDemoStore = shop && shop.includes("vto-demo");
+
+  if (isVtoDemoStore) {
+    return null;
+  }
 
   return (
     <nav 
