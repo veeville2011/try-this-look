@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PhotoUpload, { DEMO_PHOTO_ID_MAP } from "./PhotoUpload";
@@ -47,6 +48,9 @@ interface TryOnWidgetProps {
 }
 
 export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
+  // i18next translation hook
+  const { t } = useTranslation();
+
   // Redux state for image generations
   const { fetchGenerations, records } = useImageGenerations();
 
@@ -132,9 +136,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(
-    "Téléchargez votre photo puis choisissez un article à essayer"
-  );
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [activeTab, setActiveTab] = useState<"single" | "multiple" | "look">("single");
@@ -156,6 +158,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
   console.log({ storeInfo });
+  // Set initial status message
+  useEffect(() => {
+    if (!statusMessage) {
+      setStatusMessage(t("tryOnWidget.status.initial") || "Téléchargez votre photo puis choisissez un article à essayer");
+    }
+  }, [t, statusMessage]);
+
   // Fetch image generations on component load
   useEffect(() => {
     fetchGenerations({
@@ -211,17 +220,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (savedImage) {
       setUploadedImage(savedImage);
       setCurrentStep(2);
-      setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
+      setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
     }
     if (savedClothing) {
       setSelectedClothing(savedClothing);
-      setStatusMessage("Prêt à générer. Cliquez sur Générer Image.");
+      setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer Image.");
       // Note: clothingKey will be restored when images are loaded (see useEffect below)
     }
     if (savedResult) {
       setGeneratedImage(savedResult);
       setCurrentStep(4);
-      setStatusMessage("Résultat prêt. Utilisez les actions ci-dessous.");
+      setStatusMessage(t("tryOnWidget.status.resultReady") || "Résultat prêt. Utilisez les actions ci-dessous.");
     }
 
     const isInIframe = window.parent !== window;
@@ -591,7 +600,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setReduxPersonKey(null);
     }
     setStatusVariant("info");
-    setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
+    setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
   };
 
   const handleClothingSelect = (imageUrl: string) => {
@@ -608,13 +617,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setReduxClothingKey(clothingKey);
 
       setStatusVariant("info");
-      setStatusMessage("Prêt à générer. Cliquez sur Générer.");
+      setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
     } else {
       setSelectedClothingKey(null);
       // Clear clothingKey in Redux
       setReduxClothingKey(null);
       setStatusVariant("info");
-      setStatusMessage("Photo chargée. Sélectionnez un vêtement.");
+      setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
     }
   };
 
@@ -622,7 +631,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (!uploadedImage || !selectedClothing) {
       setStatusVariant("error");
       setStatusMessage(
-        "La génération nécessite une photo et un article sélectionné."
+        t("tryOnWidget.errors.missingPhotoOrClothing") || "La génération nécessite une photo et un article sélectionné."
       );
       return;
     }
@@ -633,7 +642,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setCurrentStep(3);
     setStatusVariant("info");
     setStatusMessage(
-      "Génération en cours. Cela peut prendre 15 à 20 secondes…"
+      t("tryOnWidget.status.generating") || "Génération en cours. Cela peut prendre 15 à 20 secondes…"
     );
     try {
       localStorage.setItem(INFLIGHT_KEY, "1");
@@ -675,7 +684,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         storage.saveGeneratedImage(result.image);
         setCurrentStep(4);
         setStatusVariant("info");
-        setStatusMessage("Résultat prêt. Vous pouvez acheter ou télécharger.");
+        setStatusMessage(t("tryOnWidget.status.resultReadyActions") || "Résultat prêt. Vous pouvez acheter ou télécharger.");
 
         // Fetch all generations to update Redux state with the new generation
         fetchGenerations({
@@ -686,14 +695,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         });
       } else {
         throw new Error(
-          result.error_message?.message || "Erreur de génération"
+          result.error_message?.message || t("tryOnWidget.errors.generationError") || "Erreur de génération"
         );
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error
           ? err.message
-          : "Une erreur inattendue s'est produite";
+          : t("tryOnWidget.errors.unexpectedError") || "Une erreur inattendue s'est produite";
       setError(errorMessage);
       setStatusVariant("error");
       setStatusMessage(errorMessage);
@@ -808,7 +817,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     } catch {}
     setCurrentStep(1);
     setStatusVariant("info");
-    setStatusMessage("Photo effacée. Téléchargez votre photo.");
+    setStatusMessage(t("tryOnWidget.status.photoCleared") || "Photo effacée. Téléchargez votre photo.");
   };
 
   const handleReset = () => {
@@ -825,7 +834,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     storage.clearSession();
     setStatusVariant("info");
     setStatusMessage(
-      "Téléchargez votre photo puis choisissez un article à essayer"
+      t("tryOnWidget.status.initial") || "Téléchargez votre photo puis choisissez un article à essayer"
     );
     
     // Reset cart/outfit state
@@ -875,6 +884,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     if (!cartMultipleImage || selectedGarments.length < minItems) {
       setErrorMultiple(
+        t("tryOnWidget.errors.missingPhotoOrGarments", { count: minItems }) || 
         `La génération nécessite une photo et au moins ${minItems} article${minItems > 1 ? "s" : ""} sélectionné${minItems > 1 ? "s" : ""}.`
       );
       return;
@@ -894,7 +904,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const storeName = storeInfo?.shopDomain || storeInfo?.domain || "";
 
       if (!storeName) {
-        throw new Error("Informations de magasin non disponibles");
+        throw new Error(t("tryOnWidget.errors.storeInfoUnavailable") || "Informations de magasin non disponibles");
       }
 
       // Get personKey from demo photo if available
@@ -919,7 +929,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           }
         } catch (fetchError) {
           console.error("Failed to fetch garment image:", garment.url, fetchError);
-          throw new Error(`Impossible de charger l'image de l'article: ${garment.url}`);
+          throw new Error(t("tryOnWidget.errors.failedToLoadGarmentImage", { url: garment.url }) || `Impossible de charger l'image de l'article: ${garment.url}`);
         }
       }
 
@@ -993,7 +1003,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const errorMessage =
         err instanceof Error
           ? err.message
-          : "Une erreur inattendue s'est produite";
+          : t("tryOnWidget.errors.unexpectedError") || "Une erreur inattendue s'est produite";
       setErrorMultiple(errorMessage);
       setProgressMultiple(0);
       setBatchProgress(null);
@@ -1052,21 +1062,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   if (blobResult) {
                     resolve(blobResult);
                   } else {
-                    reject(new Error("Failed to convert canvas to blob"));
+                    reject(new Error(t("tryOnWidget.errors.failedToConvertCanvas") || "Failed to convert canvas to blob"));
                   }
                 }, "image/png");
               } catch (error) {
                 reject(error);
               }
             };
-            img.onerror = () => reject(new Error("Failed to load image"));
+            img.onerror = () => reject(new Error(t("tryOnWidget.errors.failedToLoadImage") || "Failed to load image"));
             img.src = imageUrl;
           });
         }
       }
 
       if (!blob) {
-        throw new Error("Failed to create blob");
+        throw new Error(t("tryOnWidget.errors.failedToCreateBlob") || "Failed to create blob");
       }
 
       const url = URL.createObjectURL(blob);
@@ -1091,8 +1101,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       if (index !== undefined) {
         setDownloadingIndex(null);
       }
-      toast.success("Téléchargement réussi", {
-        description: "L'image a été téléchargée avec succès.",
+      toast.success(t("tryOnWidget.download.success") || "Téléchargement réussi", {
+        description: t("tryOnWidget.download.successDescription") || "L'image a été téléchargée avec succès.",
       });
     } catch (error) {
       if (index !== undefined) {
@@ -1101,14 +1111,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       try {
         window.open(imageUrl, "_blank");
-        toast.info("Ouverture dans un nouvel onglet", {
-          description:
-            "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+        toast.info(t("tryOnWidget.download.openingInNewTab") || "Ouverture dans un nouvel onglet", {
+          description: t("tryOnWidget.download.openingInNewTabDescription") || "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
         });
       } catch (openError) {
-        toast.error("Erreur de téléchargement", {
-          description:
-            "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
+        toast.error(t("tryOnWidget.download.error") || "Erreur de téléchargement", {
+          description: t("tryOnWidget.download.errorDescription") || "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
         });
       }
     }
@@ -1172,7 +1180,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       className="w-full h-full overflow-y-auto"
       style={{ backgroundColor: "#fef3f3", minHeight: "100vh" }}
       role="main"
-      aria-label="Application d'essayage virtuel"
+      aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
     >
       {/* ARIA Live Region for Status Updates */}
       <div
@@ -1192,7 +1200,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           className="sr-only"
           role="alert"
         >
-          Erreur: {error}
+          {t("tryOnWidget.errors.errorPrefix") || "Erreur"}: {error}
         </div>
       )}
 
@@ -1202,7 +1210,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           <div className="inline-flex flex-col flex-shrink-0 min-w-0">
             <h1
               className="inline-flex items-center tracking-wide leading-none whitespace-nowrap text-2xl sm:text-3xl md:text-4xl font-bold"
-              aria-label="NULOOK - Essayage Virtuel Alimenté par IA"
+              aria-label={t("tryOnWidget.brand.ariaLabel") || "NULOOK - Essayage Virtuel Alimenté par IA"}
             >
               <span style={{ color: "#ce0003" }} aria-hidden="true">
                 NU
@@ -1212,7 +1220,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </span>
             </h1>
             <p className="mt-0.5 sm:mt-1 text-left leading-tight tracking-tight whitespace-nowrap text-[10px] sm:text-xs md:text-sm text-[#3D3232] font-medium">
-              Essayage Virtuel Alimenté par IA
+              {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3 flex-shrink-0">
@@ -1222,13 +1230,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 size="sm"
                 onClick={handleReset}
                 className="group text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 text-xs sm:text-sm px-3 sm:px-4 h-[44px] sm:h-9 md:h-10 whitespace-nowrap shadow-sm hover:shadow-md gap-2 flex items-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label="Réinitialiser l'application"
+                aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
               >
                 <RotateCcw
                   className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
                   aria-hidden="true"
                 />
-                <span>Réinitialiser</span>
+                <span>{t("tryOnWidget.buttons.reset") || "Réinitialiser"}</span>
               </Button>
             )}
             <Button
@@ -1236,8 +1244,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               size="icon"
               onClick={handleClose}
               className="h-[44px] w-[44px] sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md bg-error text-error-foreground hover:bg-error/90 border-error transition-all duration-200 group shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2"
-              aria-label="Fermer l'application"
-              title="Fermer"
+              aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
+              title={t("tryOnWidget.buttons.close") || "Fermer"}
             >
               <X
                 className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:rotate-90 duration-300"
@@ -1282,29 +1290,29 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {/* Tabs Navigation */}
       <section
         className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
-          aria-label="Mode d'essayage"
+          aria-label={t("tryOnWidget.tabs.ariaLabel") || "Mode d'essayage"}
         >
           <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1">
             <TabsTrigger
               value="single"
               className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Essayer un seul article"
+              aria-label={t("tryOnWidget.tabs.single.ariaLabel") || "Essayer un seul article"}
             >
-              Try Single
+              {t("tryOnWidget.tabs.single.label") || "Try Single"}
             </TabsTrigger>
             <TabsTrigger
               value="multiple"
               className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Essayer plusieurs articles"
+              aria-label={t("tryOnWidget.tabs.multiple.ariaLabel") || "Essayer plusieurs articles"}
             >
-              Try Multiple
+              {t("tryOnWidget.tabs.multiple.label") || "Try Multiple"}
             </TabsTrigger>
             <TabsTrigger
               value="look"
               className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Essayer une tenue complète"
+              aria-label={t("tryOnWidget.tabs.look.ariaLabel") || "Essayer une tenue complète"}
             >
-              Try Look
+              {t("tryOnWidget.tabs.look.label") || "Try Look"}
             </TabsTrigger>
           </TabsList>
       </section>
@@ -1330,10 +1338,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     id="upload-heading"
                     className="text-base sm:text-lg font-semibold"
                   >
-                    Téléchargez Votre Photo
+                    {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
                   </h2>
                   <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    Choisissez une photo claire de vous-même
+                    {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
                   </p>
                 </div>
               </div>
@@ -1351,27 +1359,27 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
                     <div className="flex items-center justify-between mb-2 gap-2">
                       <h3 className="font-semibold text-sm sm:text-base">
-                        Votre Photo
+                        {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                       </h3>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handleClearUploadedImage}
                         className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                        aria-label="Effacer la photo téléchargée"
+                        aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
                         aria-describedby="upload-heading"
                       >
                         <XCircle
                           className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
                           aria-hidden="true"
                         />
-                        <span>Effacer</span>
+                        <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                       </Button>
                     </div>
                     <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
                       <img
                         src={uploadedImage}
-                        alt="Photo téléchargée pour l'essayage virtuel"
+                        alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
                         className="h-full w-auto object-contain"
                       />
                       {/* Single tick indicator with outlined circle for generated demo photos */}
@@ -1406,7 +1414,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   aria-hidden="true"
                                 />
                                 <span className="sr-only">
-                                  Cette photo a déjà été générée
+                                  {t("tryOnWidget.ariaLabels.photoAlreadyGenerated") || "Cette photo a déjà été générée"}
                                 </span>
                               </div>
                             )
@@ -1434,10 +1442,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     id="clothing-heading"
                     className="text-base sm:text-lg font-semibold"
                   >
-                    Sélectionner un Article de Vêtement
+                    {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un Article de Vêtement"}
                   </h2>
                   <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    Sélectionnez un article de vêtement sur cette page
+                    {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
                   </p>
                 </div>
               </div>
@@ -1466,7 +1474,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               onClick={handleGenerate}
               disabled={!selectedClothing || !uploadedImage || isGenerating}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="Générer l'essayage virtuel"
+              aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
               aria-describedby={
                 !selectedClothing || !uploadedImage
                   ? "generate-help"
@@ -1477,12 +1485,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                 aria-hidden="true"
               />
-              Générer Image
+              {t("tryOnWidget.buttons.generateImage") || "Générer Image"}
             </Button>
             {(!selectedClothing || !uploadedImage) && (
               <p id="generate-help" className="sr-only">
-                Veuillez télécharger une photo et sélectionner un vêtement pour
-                générer l'essayage virtuel
+                {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
               </p>
             )}
           </div>
@@ -1496,7 +1503,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           aria-busy={isGenerating}
         >
           <h2 id="results-heading" className="sr-only">
-            Résultats de l'essayage virtuel
+            {t("tryOnWidget.sections.results.title") || "Résultats de l'essayage virtuel"}
           </h2>
           <ResultDisplay
             generatedImage={generatedImage}
@@ -1517,14 +1524,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 variant="secondary"
                 onClick={handleReset}
                 className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label="Réessayer après une erreur"
+                aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
                 aria-describedby="error-message"
               >
                 <RotateCcw
                   className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
                   aria-hidden="true"
                 />
-                <span>Réessayer</span>
+                <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
               </Button>
             </Card>
           </div>
@@ -1550,10 +1557,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         id="upload-multiple-heading"
                         className="text-base sm:text-lg font-semibold"
                       >
-                        Téléchargez Votre Photo
+                        {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
                       </h2>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        Choisissez une photo claire de vous-même
+                        {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
                       </p>
     </div>
                   </div>
@@ -1571,7 +1578,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
                         <div className="flex items-center justify-between mb-2 gap-2">
                           <h3 className="font-semibold text-sm sm:text-base">
-                            Votre Photo
+                            {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
                           <Button
                             variant="outline"
@@ -1581,19 +1588,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               setCartMultipleDemoPhotoUrl(null);
                             }}
                             className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                            aria-label="Effacer la photo téléchargée"
+                            aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
                           >
                             <XCircle
                               className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
                               aria-hidden="true"
                             />
-                            <span>Effacer</span>
+                            <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                           </Button>
                         </div>
                         <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
                           <img
                             src={cartMultipleImage}
-                            alt="Photo téléchargée pour l'essayage virtuel"
+                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
                             className="h-full w-auto object-contain"
                           />
                         </div>
@@ -1618,10 +1625,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         id="garments-multiple-heading"
                         className="text-base sm:text-lg font-semibold"
                       >
-                        Sélectionner les Articles
+                        {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
                       </h2>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        Sélectionnez 1-6 articles
+                        {t("tryOnWidget.sections.selectGarments.multiple.description") || "Sélectionnez 1-6 articles"}
                       </p>
                     </div>
                   </div>
@@ -1631,7 +1638,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm sm:text-base font-semibold">
-                          Articles Sélectionnés
+                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
                         </span>
                         <span
                           className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
@@ -1655,10 +1662,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             }
                           }}
                           className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
-                          aria-label="Effacer toutes les sélections"
+                          aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
                         >
                           <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-                          <span>Effacer tout</span>
+                          <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
                         </Button>
                       )}
                     </div>
@@ -1669,7 +1676,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         role="alert"
                         className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
                       >
-                        Sélectionnez au moins 1 article pour continuer
+                        {t("tryOnWidget.validation.minGarmentsMultiple") || "Sélectionnez au moins 1 article pour continuer"}
                       </div>
                     )}
 
@@ -1678,7 +1685,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         role="alert"
                         className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
                       >
-                        Maximum 6 articles sélectionnés
+                        {t("tryOnWidget.validation.maxGarmentsMultiple") || "Maximum 6 articles sélectionnés"}
                       </div>
                     )}
 
@@ -1687,10 +1694,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <div role="alert" aria-live="polite">
                         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
                           <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
-                            Aucune image de vêtement détectée
+                            {t("tryOnWidget.errors.noGarmentImages") || "Aucune image de vêtement détectée"}
                           </p>
                           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                            Assurez-vous d'avoir des articles dans votre panier ou sur la page
+                            {t("tryOnWidget.errors.noGarmentImagesDescription") || "Assurez-vous d'avoir des articles dans votre panier ou sur la page"}
                           </p>
                         </Card>
                       </div>
@@ -1724,7 +1731,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               }}
                               role="button"
                               tabIndex={canSelectMore ? 0 : -1}
-                              aria-label={`${selected ? "Désélectionner" : "Sélectionner"} l'article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                              aria-label={selected ? t("tryOnWidget.ariaLabels.deselectGarment", { index: index + 1 }) || `Désélectionner l'article ${index + 1}` : t("tryOnWidget.ariaLabels.selectGarment", { index: index + 1 }) || `Sélectionner l'article ${index + 1}`}
                               aria-pressed={selected}
                               onKeyDown={(e) => {
                                 if (canSelectMore && (e.key === "Enter" || e.key === " ")) {
@@ -1740,7 +1747,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
                                 <img
                                   src={imageUrl}
-                                  alt={`Article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                                  alt={selected ? t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article ${index + 1} - Sélectionné` : t("tryOnWidget.ariaLabels.garment", { index: index + 1 }) || `Article ${index + 1}`}
                                   className="w-full h-full object-contain"
                                   loading="lazy"
                                 />
@@ -1767,7 +1774,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {selectedGarments.length > 0 && (
                       <Card className="p-3 sm:p-4 border-border bg-card">
                         <h3 className="text-sm sm:text-base font-semibold mb-3">
-                          Articles Sélectionnés ({selectedGarments.length})
+                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"} ({selectedGarments.length})
                         </h3>
                         <div className="flex flex-wrap gap-2">
                           {selectedGarments.map((garment, index) => (
@@ -1775,7 +1782,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30">
                                 <img
                                   src={garment.url}
-                                  alt={`Article sélectionné ${index + 1}`}
+                                  alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
                                   className="w-full h-full object-contain"
                                 />
                                 <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center">
@@ -1786,7 +1793,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   size="icon"
                                   onClick={() => handleGarmentDeselect(index)}
                                   className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  aria-label={`Retirer l'article ${index + 1}`}
+                                  aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
                                 >
                                   <XCircle className="h-3 w-3" aria-hidden="true" />
                                 </Button>
@@ -1808,13 +1815,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   onClick={handleCartMultipleGenerate}
                   disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  aria-label="Générer l'essayage virtuel"
+                  aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
                 >
                   <Sparkles
                     className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                     aria-hidden="true"
                   />
-                  Générer {selectedGarments.length} Image{selectedGarments.length > 1 ? "s" : ""}
+                  {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
                 </Button>
               </div>
             )}
@@ -1831,7 +1838,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           aria-hidden="true"
                         />
                         <span className="text-sm sm:text-base font-semibold">
-                          Génération en cours...
+                          {t("tryOnWidget.status.generating") || "Génération en cours..."}
                         </span>
                       </div>
                       <span className="text-xs sm:text-sm text-muted-foreground">
@@ -1854,11 +1861,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs sm:text-sm">
                         <span className="text-muted-foreground">
-                          Articles traités: {batchProgress.completed} / {batchProgress.total}
+                          {t("tryOnWidget.progress.garmentsProcessed") || "Articles traités"}: {batchProgress.completed} / {batchProgress.total}
                         </span>
                         {batchProgress.failed > 0 && (
                           <span className="text-warning">
-                            Échecs: {batchProgress.failed}
+                            {t("tryOnWidget.progress.failed") || "Échecs"}: {batchProgress.failed}
                           </span>
                         )}
                       </div>
@@ -1876,7 +1883,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               aria-busy={isGeneratingMultiple}
             >
               <h2 id="results-multiple-heading" className="sr-only">
-                Résultats de l'essayage virtuel - Mode Multiple
+                {t("tryOnWidget.sections.results.multiple.title") || "Résultats de l'essayage virtuel - Mode Multiple"}
               </h2>
               {isGeneratingMultiple ? (
                 <Card className="p-4 sm:p-6 border-border bg-card">
@@ -1884,7 +1891,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       <h2 className="text-base sm:text-lg font-semibold">
-                        Génération en cours...
+                        {t("tryOnWidget.status.generating") || "Génération en cours..."}
                       </h2>
                     </div>
                     <Skeleton className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg" />
@@ -1897,12 +1904,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                         <h2 className="text-base sm:text-lg font-semibold">
-                          Résultats Générés
+                          {t("tryOnWidget.sections.results.generated") || "Résultats Générés"}
                         </h2>
                       </div>
                       <div className="text-xs sm:text-sm text-muted-foreground">
-                        {cartResults.summary.successful} / {cartResults.summary.totalGarments} réussis
-                        {cartResults.summary.cached > 0 && ` • ${cartResults.summary.cached} en cache`}
+                        {t("tryOnWidget.results.successful", { successful: cartResults.summary.successful, total: cartResults.summary.totalGarments }) || `${cartResults.summary.successful} / ${cartResults.summary.totalGarments} réussis`}
+                        {cartResults.summary.cached > 0 && ` • ${t("tryOnWidget.results.cachedCount", { count: cartResults.summary.cached }) || `${cartResults.summary.cached} en cache`}`}
                       </div>
                     </div>
 
@@ -1922,13 +1929,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                 <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 aspect-[3/4] flex items-center justify-center">
                                   <img
                                     src={imageUrl}
-                                    alt={`Résultat de l'essayage virtuel ${index + 1}`}
+                                    alt={t("tryOnWidget.ariaLabels.tryOnResult", { index: index + 1 }) || `Résultat de l'essayage virtuel ${index + 1}`}
                                     className="w-full h-full object-contain"
                                     loading="lazy"
                                   />
                                   {result.cached && (
                                     <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-[10px] px-2 py-1 rounded">
-                                      Cache
+                                      {t("tryOnWidget.results.cached") || "Cache"}
                                     </div>
                                   )}
                                   {result.status === "success" && (
@@ -1947,14 +1954,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   variant="outline"
                                   size="sm"
                                   className="w-full"
-                                  aria-label={`Télécharger l'image ${index + 1}`}
+                                  aria-label={t("tryOnWidget.ariaLabels.downloadImage", { index: index + 1 }) || `Télécharger l'image ${index + 1}`}
                                 >
                                   {downloadingIndex === index ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                   ) : (
                                     <Download className="h-4 w-4 mr-2" />
                                   )}
-                                  Télécharger
+                                  {t("tryOnWidget.buttons.download") || "Télécharger"}
                                 </Button>
 
                                 {result.processingTime > 0 && (
@@ -1971,8 +1978,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {cartResults.summary.failed > 0 && (
                       <div className="mt-4 p-3 bg-warning/10 border border-warning rounded">
                         <p className="text-sm text-warning font-semibold">
-                          {cartResults.summary.failed} article{cartResults.summary.failed > 1 ? "s" : ""} n'ont
-                          pas pu être généré{cartResults.summary.failed > 1 ? "s" : ""}
+                          {t("tryOnWidget.errors.failedGenerations", { count: cartResults.summary.failed }) || `${cartResults.summary.failed} article${cartResults.summary.failed > 1 ? "s" : ""} n'ont pas pu être généré${cartResults.summary.failed > 1 ? "s" : ""}`}
                         </p>
                       </div>
                     )}
@@ -1992,7 +1998,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-                      Aucun résultat généré
+                      {t("tryOnWidget.sections.results.noResults") || "Aucun résultat généré"}
                     </p>
                   </div>
                 </Card>
@@ -2018,7 +2024,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       setBatchProgress(null);
                     }}
                     className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    aria-label="Réessayer après une erreur"
+                    aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
                     aria-describedby="error-multiple-message"
                   >
                     <RotateCcw
@@ -2051,10 +2057,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         id="upload-look-heading"
                         className="text-base sm:text-lg font-semibold"
                       >
-                        Téléchargez Votre Photo
+                        {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
                       </h2>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        Choisissez une photo claire de vous-même
+                        {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
                       </p>
                     </div>
                   </div>
@@ -2072,7 +2078,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
                         <div className="flex items-center justify-between mb-2 gap-2">
                           <h3 className="font-semibold text-sm sm:text-base">
-                            Votre Photo
+                            {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
                           <Button
                             variant="outline"
@@ -2082,19 +2088,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               setCartMultipleDemoPhotoUrl(null);
                             }}
                             className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                            aria-label="Effacer la photo téléchargée"
+                            aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
                           >
                             <XCircle
                               className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
                               aria-hidden="true"
                             />
-                            <span>Effacer</span>
+                            <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                           </Button>
                         </div>
                         <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
                           <img
                             src={cartMultipleImage}
-                            alt="Photo téléchargée pour l'essayage virtuel"
+                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
                             className="h-full w-auto object-contain"
                           />
                         </div>
@@ -2122,7 +2128,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         Sélectionner les Articles
                       </h2>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        Sélectionnez 2-8 articles pour une tenue complète
+                        {t("tryOnWidget.sections.selectGarments.look.description") || "Sélectionnez 2-8 articles pour une tenue complète"}
                       </p>
                     </div>
                   </div>
@@ -2132,7 +2138,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm sm:text-base font-semibold">
-                          Articles Sélectionnés
+                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
                         </span>
                         <span
                           className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
@@ -2156,10 +2162,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             }
                           }}
                           className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
-                          aria-label="Effacer toutes les sélections"
+                          aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
                         >
                           <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-                          <span>Effacer tout</span>
+                          <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
                         </Button>
                       )}
                     </div>
@@ -2170,7 +2176,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         role="alert"
                         className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
                       >
-                        Sélectionnez au moins 2 articles pour continuer
+                        {t("tryOnWidget.validation.minGarmentsLook") || "Sélectionnez au moins 2 articles pour continuer"}
                       </div>
                     )}
 
@@ -2179,7 +2185,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         role="alert"
                         className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
                       >
-                        Maximum 8 articles sélectionnés
+                        {t("tryOnWidget.validation.maxGarmentsLook") || "Maximum 8 articles sélectionnés"}
                       </div>
                     )}
 
@@ -2188,10 +2194,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <div role="alert" aria-live="polite">
                         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
                           <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
-                            Aucune image de vêtement détectée
+                            {t("tryOnWidget.errors.noGarmentImages") || "Aucune image de vêtement détectée"}
                           </p>
                           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                            Assurez-vous d'avoir des articles dans votre panier ou sur la page
+                            {t("tryOnWidget.errors.noGarmentImagesDescription") || "Assurez-vous d'avoir des articles dans votre panier ou sur la page"}
                           </p>
                         </Card>
                       </div>
@@ -2225,7 +2231,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               }}
                               role="button"
                               tabIndex={canSelectMore ? 0 : -1}
-                              aria-label={`${selected ? "Désélectionner" : "Sélectionner"} l'article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                              aria-label={selected ? t("tryOnWidget.ariaLabels.deselectGarment", { index: index + 1 }) || `Désélectionner l'article ${index + 1}` : t("tryOnWidget.ariaLabels.selectGarment", { index: index + 1 }) || `Sélectionner l'article ${index + 1}`}
                               aria-pressed={selected}
                               onKeyDown={(e) => {
                                 if (canSelectMore && (e.key === "Enter" || e.key === " ")) {
@@ -2241,7 +2247,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
                                 <img
                                   src={imageUrl}
-                                  alt={`Article ${index + 1}${selected ? " - Sélectionné" : ""}`}
+                                  alt={selected ? t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article ${index + 1} - Sélectionné` : t("tryOnWidget.ariaLabels.garment", { index: index + 1 }) || `Article ${index + 1}`}
                                   className="w-full h-full object-contain"
                                   loading="lazy"
                                 />
@@ -2268,7 +2274,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {selectedGarments.length > 0 && (
                       <Card className="p-3 sm:p-4 border-border bg-card">
                         <h3 className="text-sm sm:text-base font-semibold mb-3">
-                          Articles Sélectionnés ({selectedGarments.length})
+                          {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"} ({selectedGarments.length})
                         </h3>
                         <div className="flex flex-wrap gap-2">
                           {selectedGarments.map((garment, index) => (
@@ -2276,7 +2282,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30">
                                 <img
                                   src={garment.url}
-                                  alt={`Article sélectionné ${index + 1}`}
+                                  alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
                                   className="w-full h-full object-contain"
                                 />
                                 <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center">
@@ -2287,7 +2293,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   size="icon"
                                   onClick={() => handleGarmentDeselect(index)}
                                   className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  aria-label={`Retirer l'article ${index + 1}`}
+                                  aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
                                 >
                                   <XCircle className="h-3 w-3" aria-hidden="true" />
                                 </Button>
@@ -2315,7 +2321,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                     aria-hidden="true"
                   />
-                  Générer la Tenue Complète
+                  {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
                 </Button>
               </div>
             )}
@@ -2332,7 +2338,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           aria-hidden="true"
                         />
                         <span className="text-sm sm:text-base font-semibold">
-                          Génération de la tenue complète...
+                          {t("tryOnWidget.status.generatingOutfit") || "Génération de la tenue complète..."}
                         </span>
                       </div>
                       <span className="text-xs sm:text-sm text-muted-foreground">
@@ -2343,7 +2349,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </div>
 
                   <div className="text-xs sm:text-sm text-muted-foreground">
-                    La génération d'une tenue complète peut prendre 10 à 15 secondes...
+                    {t("tryOnWidget.status.generatingOutfitTime") || "La génération d'une tenue complète peut prendre 10 à 15 secondes..."}
                   </div>
                 </div>
               </Card>
@@ -2357,7 +2363,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               aria-busy={isGeneratingMultiple}
             >
               <h2 id="results-look-heading" className="sr-only">
-                Résultats de l'essayage virtuel - Mode Tenue
+                {t("tryOnWidget.sections.results.look.title") || "Résultats de l'essayage virtuel - Mode Tenue"}
               </h2>
               {isGeneratingMultiple ? (
                 <Card className="p-4 sm:p-6 border-border bg-card">
@@ -2365,7 +2371,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       <h2 className="text-base sm:text-lg font-semibold">
-                        Génération en cours...
+                        {t("tryOnWidget.status.generating") || "Génération en cours..."}
                       </h2>
                     </div>
                     <Skeleton className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg" />
@@ -2377,7 +2383,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       <h2 className="text-base sm:text-lg font-semibold">
-                        Tenue Complète Générée
+                        {t("tryOnWidget.sections.results.outfitGenerated") || "Tenue Complète Générée"}
                       </h2>
                     </div>
 
@@ -2388,7 +2394,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           <Card className="p-6 text-center bg-error/10 border-error">
                             <XCircle className="h-12 w-12 mx-auto mb-4 text-error" />
                             <p className="text-error font-semibold">
-                              Erreur lors de la génération
+                              {t("tryOnWidget.errors.generationError") || "Erreur lors de la génération"}
                             </p>
                           </Card>
                         );
@@ -2399,13 +2405,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300">
                             <img
                               src={imageUrl}
-                              alt="Tenue complète générée par intelligence artificielle"
+                              alt={t("tryOnWidget.ariaLabels.outfitGenerated") || "Tenue complète générée par intelligence artificielle"}
                               className="w-full max-h-[80vh] object-contain"
                               loading="lazy"
                             />
                             {outfitResult.data.cached && (
                               <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground text-xs px-3 py-1.5 rounded">
-                                En cache
+                                {t("tryOnWidget.results.cached") || "En cache"}
                               </div>
                             )}
                           </div>
@@ -2430,7 +2436,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               variant="outline"
                               size="sm"
                               className="w-full"
-                              aria-label="Télécharger l'image de la tenue"
+                              aria-label={t("tryOnWidget.ariaLabels.downloadOutfit") || "Télécharger l'image de la tenue"}
                             >
                               {downloadingIndex !== null ? (
                                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -2441,38 +2447,38 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </Button>
                             <Button
                               onClick={() => {
-                                toast.info("Fonctionnalité à venir", {
-                                  description: "L'ajout au panier sera disponible prochainement.",
+                                toast.info(t("tryOnWidget.toast.comingSoon") || "Fonctionnalité à venir", {
+                                  description: t("tryOnWidget.toast.addToCartComingSoon") || "L'ajout au panier sera disponible prochainement.",
                                 });
                               }}
                               variant="outline"
                               size="sm"
                               className="w-full border-green-500/80 text-green-600 hover:bg-green-50"
-                              aria-label="Ajouter tous les articles au panier"
+                              aria-label={t("tryOnWidget.ariaLabels.addAllToCart") || "Ajouter tous les articles au panier"}
                             >
                               <ShoppingCart className="h-4 w-4 mr-2" />
-                              Ajouter au Panier
+                              {t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
                             </Button>
                             <Button
                               onClick={() => {
-                                toast.info("Fonctionnalité à venir", {
-                                  description: "L'achat immédiat sera disponible prochainement.",
+                                toast.info(t("tryOnWidget.toast.comingSoon") || "Fonctionnalité à venir", {
+                                  description: t("tryOnWidget.toast.buyNowComingSoon") || "L'achat immédiat sera disponible prochainement.",
                                 });
                               }}
                               variant="outline"
                               size="sm"
                               className="w-full border-red-500/80 text-red-600 hover:bg-red-50"
-                              aria-label="Acheter tous les articles maintenant"
+                              aria-label={t("tryOnWidget.ariaLabels.buyAllNow") || "Acheter tous les articles maintenant"}
                             >
                               <CreditCard className="h-4 w-4 mr-2" />
-                              Acheter Maintenant
+                              {t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
                             </Button>
                           </div>
 
                           {outfitResult.data.processingTime > 0 && (
                             <p className="text-xs text-muted-foreground text-center">
-                              Temps de traitement: {(outfitResult.data.processingTime / 1000).toFixed(1)}s
-                              {outfitResult.data.creditsDeducted > 0 && ` • ${outfitResult.data.creditsDeducted} crédit${outfitResult.data.creditsDeducted > 1 ? "s" : ""} utilisé${outfitResult.data.creditsDeducted > 1 ? "s" : ""}`}
+                              {t("tryOnWidget.results.processingTime") || "Temps de traitement:"} {(outfitResult.data.processingTime / 1000).toFixed(1)}s
+                              {outfitResult.data.creditsDeducted > 0 && ` • ${t("tryOnWidget.results.creditsUsed", { count: outfitResult.data.creditsDeducted }) || `${outfitResult.data.creditsDeducted} crédit${outfitResult.data.creditsDeducted > 1 ? "s" : ""} utilisé${outfitResult.data.creditsDeducted > 1 ? "s" : ""}`}`}
                             </p>
                           )}
                         </>
@@ -2494,7 +2500,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
                     </div>
                     <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-                      Aucun résultat généré
+                      {t("tryOnWidget.sections.results.noResults") || "Aucun résultat généré"}
                     </p>
                   </div>
                 </Card>
@@ -2520,7 +2526,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       setBatchProgress(null);
                     }}
                     className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    aria-label="Réessayer après une erreur"
+                    aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
                     aria-describedby="error-look-message"
                   >
                     <RotateCcw
