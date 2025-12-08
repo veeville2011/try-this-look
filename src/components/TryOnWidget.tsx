@@ -32,11 +32,18 @@ import {
   generateOutfitLook,
   dataURLToBlob as cartDataURLToBlob,
 } from "@/services/cartOutfitApi";
-import { fetchAllStoreProducts } from "@/services/productsApi";
+import { fetchAllStoreProducts, fetchCategorizedProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
@@ -127,11 +134,79 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<
     string | null
   >(null);
-  const [availableImages, setAvailableImages] = useState<string[]>([]);
-  const [availableImagesWithIds, setAvailableImagesWithIds] = useState<
+  // Try Single Tab - Independent image state (from parent window or page extraction)
+  const [singleTabImages, setSingleTabImages] = useState<string[]>([]);
+  const [singleTabImagesWithIds, setSingleTabImagesWithIds] = useState<
+    Map<string, string | number>
+  >(new Map());
+  
+  // Try Multiple Tab - Independent image state (from categorized products)
+  const [multipleTabImages, setMultipleTabImages] = useState<string[]>([]);
+  const [multipleTabImagesWithIds, setMultipleTabImagesWithIds] = useState<
+    Map<string, string | number>
+  >(new Map());
+  
+  // Try Look Tab - Independent image state (from categorized products)
+  const [lookTabImages, setLookTabImages] = useState<string[]>([]);
+  const [lookTabImagesWithIds, setLookTabImagesWithIds] = useState<
     Map<string, string | number>
   >(new Map());
   const [recommendedImages, setRecommendedImages] = useState<string[]>([]);
+  
+  // Helper functions to get tab-specific images
+  const getCurrentTabImages = (): string[] => {
+    switch (activeTab) {
+      case "single":
+        return singleTabImages;
+      case "multiple":
+        return multipleTabImages;
+      case "look":
+        return lookTabImages;
+      default:
+        return singleTabImages;
+    }
+  };
+  
+  const getCurrentTabImagesWithIds = (): Map<string, string | number> => {
+    switch (activeTab) {
+      case "single":
+        return singleTabImagesWithIds;
+      case "multiple":
+        return multipleTabImagesWithIds;
+      case "look":
+        return lookTabImagesWithIds;
+      default:
+        return singleTabImagesWithIds;
+    }
+  };
+  
+  const setCurrentTabImages = (images: string[]) => {
+    switch (activeTab) {
+      case "single":
+        setSingleTabImages(images);
+        break;
+      case "multiple":
+        setMultipleTabImages(images);
+        break;
+      case "look":
+        setLookTabImages(images);
+        break;
+    }
+  };
+  
+  const setCurrentTabImagesWithIds = (idMap: Map<string, string | number>) => {
+    switch (activeTab) {
+      case "single":
+        setSingleTabImagesWithIds(idMap);
+        break;
+      case "multiple":
+        setMultipleTabImagesWithIds(idMap);
+        break;
+      case "look":
+        setLookTabImagesWithIds(idMap);
+        break;
+    }
+  };
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +229,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const [cartItems, setCartItems] = useState<ProductImage[]>([]);
+  
+  // Store products organized by category
+  const [store_products, setStore_products] = useState<{
+    categories: Category[];
+    uncategorized: { categoryName: string; productCount: number; products: CategorizedProduct[] };
+    categoryMethod: string;
+    statistics: {
+      totalCategories: number;
+      totalProducts: number;
+      categorizedProducts: number;
+      uncategorizedProducts: number;
+    } | null;
+  } | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
@@ -307,7 +397,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           Array.isArray(productData.images) &&
           productData.images.length > 0
         ) {
-          setAvailableImages(productData.images);
+          // Store only for Try Single tab (from URL params)
+          setSingleTabImages(productData.images);
           imagesLoadedRef.current = true;
           imagesFound = true;
         }
@@ -328,7 +419,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         Array.isArray(productData.images) &&
         productData.images.length > 0
       ) {
-        setAvailableImages(productData.images);
+        // Store only for Try Single tab (from window.NUSENSE_PRODUCT_DATA)
+        setSingleTabImages(productData.images);
         imagesLoadedRef.current = true;
         imagesFound = true;
       }
@@ -338,7 +430,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (!imagesFound) {
       const images = extractProductImages();
       if (images.length > 0) {
-        setAvailableImages(images);
+        // Store only for Try Single tab (from page extraction)
+        setSingleTabImages(images);
+        setSingleTabImagesWithIds(new Map());
         imagesLoadedRef.current = true;
         imagesFound = true;
       }
@@ -393,8 +487,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             }
           });
 
-          setAvailableImages(imageUrls);
-          setAvailableImagesWithIds(imageIdMap);
+          // Store only for Try Single tab (from parent window postMessage)
+          setSingleTabImages(imageUrls);
+          setSingleTabImagesWithIds(imageIdMap);
           imagesLoadedRef.current = true;
 
           // Debug logging
@@ -456,22 +551,33 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setCartItems(productImages);
         
         // If we're in multiple/look tab and no images loaded yet, use cart items
-        if ((activeTab === "multiple" || activeTab === "look") && availableImages.length === 0) {
-          setAvailableImages(productImages.map(img => img.url));
+        if (activeTab === "multiple" && multipleTabImages.length === 0) {
+          const imageUrls = productImages.map(img => img.url);
           const idMap = new Map<string, string | number>();
           productImages.forEach((item) => {
             if (item.id) {
               idMap.set(item.url, item.id);
             }
           });
-          setAvailableImagesWithIds(idMap);
+          setMultipleTabImages(imageUrls);
+          setMultipleTabImagesWithIds(idMap);
+        } else if (activeTab === "look" && lookTabImages.length === 0) {
+          const imageUrls = productImages.map(img => img.url);
+          const idMap = new Map<string, string | number>();
+          productImages.forEach((item) => {
+            if (item.id) {
+              idMap.set(item.url, item.id);
+            }
+          });
+          setLookTabImages(imageUrls);
+          setLookTabImagesWithIds(idMap);
         }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [fetchStoreInfoFromRedux, activeTab, availableImages.length]); // Include fetchStoreInfoFromRedux in dependencies
+  }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length]); // Include fetchStoreInfoFromRedux in dependencies
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {
@@ -493,16 +599,176 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   }, [storeInfo, reduxStoreInfo, fetchStoreInfoFromRedux]);
 
-  // Fetch all store products when in "Try Multiple" or "Try Look" tabs
+  // Fetch categorized products when component loads (for Try Multiple and Try Look tabs)
   useEffect(() => {
-    if (activeTab === "multiple" || activeTab === "look") {
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+    
+    if (shopDomain && !store_products) {
+      setIsLoadingCategories(true);
+      // Normalize shop domain
+      const normalizedShop = shopDomain.replace(".myshopify.com", "");
+      
+      // Fetch categorized products (default: by collections)
+      fetchCategorizedProducts(normalizedShop, {
+        categoryBy: "collections",
+      })
+        .then((response) => {
+          if (response.success && response.data) {
+            setStore_products({
+              categories: response.data.categories,
+              uncategorized: response.data.uncategorized,
+              categoryMethod: response.data.categoryMethod,
+              statistics: response.data.statistics,
+            });
+            
+            console.log("[TryOnWidget] Loaded categorized products", {
+              totalCategories: response.data.statistics.totalCategories,
+              totalProducts: response.data.statistics.totalProducts,
+              categoryMethod: response.data.categoryMethod,
+            });
+          } else {
+            console.warn("[TryOnWidget] Failed to fetch categorized products:", response.error);
+          }
+        })
+        .catch((error) => {
+          console.error("[TryOnWidget] Error fetching categorized products:", error);
+        })
+        .finally(() => {
+          setIsLoadingCategories(false);
+        });
+    }
+  }, [storeInfo, reduxStoreInfo, store_products]);
+
+  // Update images based on selected category for Try Multiple tab
+  useEffect(() => {
+    if (activeTab === "multiple" && store_products) {
+      let productsToShow: CategorizedProduct[] = [];
+      
+      if (selectedCategory === "all") {
+        // Show all products from all categories
+        store_products.categories.forEach((category) => {
+          productsToShow = [...productsToShow, ...category.products];
+        });
+        // Also include uncategorized products
+        if (store_products.uncategorized.products.length > 0) {
+          productsToShow = [...productsToShow, ...store_products.uncategorized.products];
+        }
+      } else if (selectedCategory === "uncategorized") {
+        // Show only uncategorized products
+        productsToShow = store_products.uncategorized.products;
+      } else {
+        // Show products from selected category
+        const category = store_products.categories.find(
+          (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
+        );
+        if (category) {
+          productsToShow = category.products;
+        }
+      }
+      
+      // Extract image URLs and create ID map from categorized products
+      const imageUrls: string[] = [];
+      const idMap = new Map<string, string | number>();
+      
+      productsToShow.forEach((product) => {
+        // Get the first media image
+        const firstImage = product.media?.nodes?.[0]?.image;
+        if (firstImage?.url) {
+          imageUrls.push(firstImage.url);
+          // Use product ID as the key
+          if (product.id) {
+            // Extract numeric ID from GID format (gid://shopify/Product/123456789)
+            const idMatch = product.id.match(/\/(\d+)$/);
+            if (idMatch) {
+              idMap.set(firstImage.url, idMatch[1]);
+            } else {
+              idMap.set(firstImage.url, product.id);
+            }
+          }
+        }
+      });
+      
+      // Update only Try Multiple tab images
+      setMultipleTabImages(imageUrls);
+      setMultipleTabImagesWithIds(idMap);
+      
+      console.log("[TryOnWidget] Updated Try Multiple tab images for category", {
+        category: selectedCategory,
+        imageCount: imageUrls.length,
+      });
+    }
+  }, [activeTab, selectedCategory, store_products]);
+
+  // Update images based on selected category for Try Look tab
+  useEffect(() => {
+    if (activeTab === "look" && store_products) {
+      let productsToShow: CategorizedProduct[] = [];
+      
+      if (selectedCategory === "all") {
+        // Show all products from all categories
+        store_products.categories.forEach((category) => {
+          productsToShow = [...productsToShow, ...category.products];
+        });
+        // Also include uncategorized products
+        if (store_products.uncategorized.products.length > 0) {
+          productsToShow = [...productsToShow, ...store_products.uncategorized.products];
+        }
+      } else if (selectedCategory === "uncategorized") {
+        // Show only uncategorized products
+        productsToShow = store_products.uncategorized.products;
+      } else {
+        // Show products from selected category
+        const category = store_products.categories.find(
+          (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
+        );
+        if (category) {
+          productsToShow = category.products;
+        }
+      }
+      
+      // Extract image URLs and create ID map from categorized products
+      const imageUrls: string[] = [];
+      const idMap = new Map<string, string | number>();
+      
+      productsToShow.forEach((product) => {
+        // Get the first media image
+        const firstImage = product.media?.nodes?.[0]?.image;
+        if (firstImage?.url) {
+          imageUrls.push(firstImage.url);
+          // Use product ID as the key
+          if (product.id) {
+            // Extract numeric ID from GID format (gid://shopify/Product/123456789)
+            const idMatch = product.id.match(/\/(\d+)$/);
+            if (idMatch) {
+              idMap.set(firstImage.url, idMatch[1]);
+            } else {
+              idMap.set(firstImage.url, product.id);
+            }
+          }
+        }
+      });
+      
+      // Update only Try Look tab images
+      setLookTabImages(imageUrls);
+      setLookTabImagesWithIds(idMap);
+      
+      console.log("[TryOnWidget] Updated Try Look tab images for category", {
+        category: selectedCategory,
+        imageCount: imageUrls.length,
+      });
+    }
+  }, [activeTab, selectedCategory, store_products]);
+
+  // Fallback: Fetch all store products when in "Try Multiple" or "Try Look" tabs if categorized products not available
+  useEffect(() => {
+    if ((activeTab === "multiple" || activeTab === "look") && !store_products && !isLoadingCategories) {
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
       
       if (shopDomain) {
         // Normalize shop domain
         const normalizedShop = shopDomain.replace(".myshopify.com", "");
         
-        // Fetch all products from the store
+        // Fetch all products from the store as fallback
         fetchAllStoreProducts(normalizedShop)
           .then((response) => {
             if (response.success && response.products.length > 0) {
@@ -518,11 +784,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 }
               });
               
-              // Update available images with all store products
-              setAvailableImages(imageUrls);
-              setAvailableImagesWithIds(idMap);
+              // Update images for the active tab (fallback when categorized products not available)
+              if (activeTab === "multiple") {
+                setMultipleTabImages(imageUrls);
+                setMultipleTabImagesWithIds(idMap);
+              } else if (activeTab === "look") {
+                setLookTabImages(imageUrls);
+                setLookTabImagesWithIds(idMap);
+              }
               
-              console.log("[TryOnWidget] Loaded all store products", {
+              console.log("[TryOnWidget] Loaded all store products (fallback)", {
                 count: response.count,
                 imagesCount: imageUrls.length,
               });
@@ -580,7 +851,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         }
       }
     }
-  }, [activeTab, storeInfo, reduxStoreInfo]);
+  }, [activeTab, storeInfo, reduxStoreInfo, store_products, isLoadingCategories]);
 
   const handlePhotoUpload = (
     dataURL: string,
@@ -610,7 +881,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     // Get the clothing ID if available (clear if imageUrl is empty)
     if (imageUrl) {
-      const clothingId = availableImagesWithIds.get(imageUrl) || null;
+      const clothingId = singleTabImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
 
       // Set clothingKey in Redux for key mappings
@@ -768,8 +1039,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           productData.images.length > 0
         ) {
           const { urls, idMap } = normalizeImages(productData.images);
-          setAvailableImages(urls);
-          setAvailableImagesWithIds(idMap);
+          // Store only for Try Single tab (from URL params)
+          setSingleTabImages(urls);
+          setSingleTabImagesWithIds(idMap);
           imagesFound = true;
         }
       } catch (error) {
@@ -790,8 +1062,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         productData.images.length > 0
       ) {
         const { urls, idMap } = normalizeImages(productData.images);
-        setAvailableImages(urls);
-        setAvailableImagesWithIds(idMap);
+        // Store only for Try Single tab (from window.NUSENSE_PRODUCT_DATA)
+        setSingleTabImages(urls);
+        setSingleTabImagesWithIds(idMap);
         imagesFound = true;
       }
     }
@@ -801,8 +1074,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const images = extractProductImages();
       if (images.length > 0) {
         // extractProductImages returns string array, so no IDs available
-        setAvailableImages(images);
-        setAvailableImagesWithIds(new Map());
+        // Store only for Try Single tab (from page extraction)
+        setSingleTabImages(images);
+        setSingleTabImagesWithIds(new Map());
         imagesFound = true;
       }
     }
@@ -924,7 +1198,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           garmentBlobs.push(blob);
 
           // Get garment key if available
-          const garmentId = availableImagesWithIds.get(garment.url);
+          const garmentId = activeTab === "multiple" 
+            ? multipleTabImagesWithIds.get(garment.url)
+            : lookTabImagesWithIds.get(garment.url);
           if (garmentId) {
             garmentKeys.push(String(garmentId));
           }
@@ -1123,19 +1399,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   };
 
-  // Restore clothingKey when images are loaded (for saved state)
+  // Restore clothingKey when images are loaded (for saved state) - Try Single tab only
   useEffect(() => {
     if (
+      activeTab === "single" &&
       selectedClothing &&
-      availableImagesWithIds.size > 0 &&
+      singleTabImagesWithIds.size > 0 &&
       !selectedClothingKey
     ) {
-      const clothingId = availableImagesWithIds.get(selectedClothing);
+      const clothingId = singleTabImagesWithIds.get(selectedClothing);
       if (clothingId) {
         setSelectedClothingKey(clothingId);
       }
     }
-  }, [selectedClothing, availableImagesWithIds, selectedClothingKey]);
+  }, [activeTab, selectedClothing, singleTabImagesWithIds, selectedClothingKey]);
 
   useEffect(() => {
     // Check for inflight generation after state updates are applied
@@ -1291,6 +1568,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             setErrorMultiple(null);
             setProgressMultiple(0);
             setBatchProgress(null);
+            setSelectedCategory("all"); // Reset category filter
+            // Try Single tab images are already independent, no need to restore
           }
           
           // Clear selected garments when switching between multiple and look tabs
@@ -1301,6 +1580,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             setErrorMultiple(null);
             setProgressMultiple(0);
             setBatchProgress(null);
+            // Keep category filter when switching between multiple and look tabs
           }
         }}
         className="w-full"
@@ -1413,7 +1693,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                           // Check if both person and clothing keys exist in the same record
                           const clothingKey = selectedClothing
-                            ? availableImagesWithIds.get(selectedClothing)
+                            ? singleTabImagesWithIds.get(selectedClothing)
                             : null;
                           const areBothGenerated =
                             personKey &&
@@ -1471,12 +1751,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
 
               <ClothingSelection
-                images={availableImages}
+                images={singleTabImages}
                 recommendedImages={recommendedImages}
                 selectedImage={selectedClothing}
                 onSelect={handleClothingSelect}
                 onRefreshImages={handleRefreshImages}
-                availableImagesWithIds={availableImagesWithIds}
+                availableImagesWithIds={singleTabImagesWithIds}
                 generatedClothingKeys={generatedClothingKeys}
                 generatedKeyCombinations={generatedKeyCombinations}
                 selectedDemoPhotoUrl={selectedDemoPhotoUrl}
@@ -1653,6 +1933,59 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   </div>
 
+                  {/* Category Filter Dropdown */}
+                  {isLoadingCategories && (
+                    <div className="mb-3 sm:mb-4">
+                      <label className="block text-xs sm:text-sm font-medium mb-2">
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>{t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}</span>
+                      </div>
+                    </div>
+                  )}
+                  {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
+                    <div className="mb-3 sm:mb-4">
+                      <label
+                        htmlFor="category-filter-multiple"
+                        className="block text-xs sm:text-sm font-medium mb-2"
+                      >
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                      <Select
+                        value={selectedCategory}
+                        onValueChange={setSelectedCategory}
+                      >
+                        <SelectTrigger
+                          id="category-filter-multiple"
+                          className="w-full"
+                          aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
+                        >
+                          <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            {t("tryOnWidget.filters.allCategories") || "Toutes les catégories"} ({store_products.statistics?.totalProducts || 0})
+                          </SelectItem>
+                          {store_products.categories.map((category) => (
+                            <SelectItem
+                              key={category.categoryId || category.categoryName}
+                              value={category.categoryId || category.categoryName}
+                            >
+                              {category.categoryName} ({category.productCount})
+                            </SelectItem>
+                          ))}
+                          {store_products.uncategorized.productCount > 0 && (
+                            <SelectItem value="uncategorized">
+                              {store_products.uncategorized.categoryName} ({store_products.uncategorized.productCount})
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="space-y-3 sm:space-y-4">
                     {/* Selection Counter */}
                     <div className="flex items-center justify-between">
@@ -1710,7 +2043,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     )}
 
                     {/* Garment Grid */}
-                    {availableImages.length === 0 ? (
+                    {multipleTabImages.length === 0 ? (
                       <div role="alert" aria-live="polite">
                         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
                           <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
@@ -1723,10 +2056,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                        {availableImages.map((imageUrl, index) => {
+                        {multipleTabImages.map((imageUrl, index) => {
                           const garment: ProductImage = {
                             url: imageUrl,
-                            id: availableImagesWithIds.get(imageUrl),
+                            id: multipleTabImagesWithIds.get(imageUrl),
                           };
                           const selected = selectedGarments.some((g) => g.url === imageUrl);
                           const canSelectMore = selectedGarments.length < 6;
@@ -2153,6 +2486,59 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   </div>
 
+                  {/* Category Filter Dropdown */}
+                  {isLoadingCategories && (
+                    <div className="mb-3 sm:mb-4">
+                      <label className="block text-xs sm:text-sm font-medium mb-2">
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>{t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}</span>
+                      </div>
+                    </div>
+                  )}
+                  {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
+                    <div className="mb-3 sm:mb-4">
+                      <label
+                        htmlFor="category-filter-look"
+                        className="block text-xs sm:text-sm font-medium mb-2"
+                      >
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                      <Select
+                        value={selectedCategory}
+                        onValueChange={setSelectedCategory}
+                      >
+                        <SelectTrigger
+                          id="category-filter-look"
+                          className="w-full"
+                          aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
+                        >
+                          <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            {t("tryOnWidget.filters.allCategories") || "Toutes les catégories"} ({store_products.statistics?.totalProducts || 0})
+                          </SelectItem>
+                          {store_products.categories.map((category) => (
+                            <SelectItem
+                              key={category.categoryId || category.categoryName}
+                              value={category.categoryId || category.categoryName}
+                            >
+                              {category.categoryName} ({category.productCount})
+                            </SelectItem>
+                          ))}
+                          {store_products.uncategorized.productCount > 0 && (
+                            <SelectItem value="uncategorized">
+                              {store_products.uncategorized.categoryName} ({store_products.uncategorized.productCount})
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="space-y-3 sm:space-y-4">
                     {/* Selection Counter */}
                     <div className="flex items-center justify-between">
@@ -2210,7 +2596,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     )}
 
                     {/* Garment Grid */}
-                    {availableImages.length === 0 ? (
+                    {lookTabImages.length === 0 ? (
                       <div role="alert" aria-live="polite">
                         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
                           <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
@@ -2223,10 +2609,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                        {availableImages.map((imageUrl, index) => {
+                        {lookTabImages.map((imageUrl, index) => {
                           const garment: ProductImage = {
                             url: imageUrl,
-                            id: availableImagesWithIds.get(imageUrl),
+                            id: lookTabImagesWithIds.get(imageUrl),
                           };
                           const selected = selectedGarments.some((g) => g.url === imageUrl);
                           const canSelectMore = selectedGarments.length < 8;
