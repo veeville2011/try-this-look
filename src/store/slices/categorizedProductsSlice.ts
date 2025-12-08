@@ -38,7 +38,7 @@ const initialState: CategorizedProductsState = {
 interface FetchCategorizedProductsParams {
   shop: string;
   options?: {
-    categoryBy?: "collections" | "productType" | "vendor" | "tags" | "category";
+    categoryBy?: "collections" | "productType" | "vendor" | "tags" | "category" | "title";
     after?: string;
     limit?: number;
   };

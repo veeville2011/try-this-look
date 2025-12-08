@@ -16,7 +16,7 @@ export const useCategorizedProducts = () => {
     async (
       shop: string,
       options?: {
-        categoryBy?: "collections" | "productType" | "vendor" | "tags" | "category";
+        categoryBy?: "collections" | "productType" | "vendor" | "tags" | "category" | "title";
         after?: string;
         limit?: number;
       }

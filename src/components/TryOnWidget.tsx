@@ -628,7 +628,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       
       // Fetch categorized products using Redux (default: by category)
       fetchCategorizedProductsFromRedux(normalizedShop, {
-        categoryBy: "category",
+        categoryBy: "title",
       })
         .then((result) => {
           if (fetchCategorizedProductsThunk.fulfilled.match(result)) {
