@@ -19,30 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// TypeScript declaration for model-viewer web component
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "model-viewer": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          src?: string;
-          alt?: string;
-          "camera-controls"?: boolean;
-          "auto-rotate"?: boolean;
-          ar?: boolean;
-          "ar-modes"?: string;
-          "shadow-intensity"?: string;
-          exposure?: string;
-          "environment-image"?: string;
-          onLoad?: () => void;
-          onError?: () => void;
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
-
 interface VariantRowData {
   product: Nu3dProduct;
   variant: Nu3dProduct["variants"]["nodes"][0];
@@ -323,6 +299,20 @@ const ProductDetailsDialog = ({
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [show3dViewer, setShow3dViewer] = useState(true);
   const [modelLoading, setModelLoading] = useState(true);
+  const [modelViewerReady, setModelViewerReady] = useState(false);
+
+  // Check if model-viewer is loaded
+  useEffect(() => {
+    const checkModelViewer = () => {
+      if (customElements.get("model-viewer")) {
+        setModelViewerReady(true);
+      } else {
+        // Retry after a short delay
+        setTimeout(checkModelViewer, 100);
+      }
+    };
+    checkModelViewer();
+  }, []);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
@@ -601,27 +591,34 @@ const ProductDetailsDialog = ({
                         {/* 3D Model Viewer */}
                         {show3dViewer && currentImage.model_glb_url ? (
                           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-primary/20">
-                            <model-viewer
-                              src={currentImage.model_glb_url}
-                              alt={t("nu3d.image.model3d") || "3D Model"}
-                              camera-controls
-                              auto-rotate
-                              ar
-                              ar-modes="webxr scene-viewer quick-look"
-                              shadow-intensity="1"
-                              exposure="1"
-                              environment-image="neutral"
-                              onLoad={() => setModelLoading(false)}
-                              onError={() => setModelLoading(false)}
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                backgroundColor: "transparent",
-                              }}
-                            >
-                            </model-viewer>
-                            {modelLoading && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
+                            {modelViewerReady ? (
+                              <>
+                                <model-viewer
+                                  src={currentImage.model_glb_url}
+                                  alt={t("nu3d.image.model3d") || "3D Model"}
+                                  camera-controls
+                                  auto-rotate
+                                  ar
+                                  ar-modes="webxr scene-viewer quick-look"
+                                  shadow-intensity="1"
+                                  exposure="1"
+                                  environment-image="neutral"
+                                  onLoad={() => setModelLoading(false)}
+                                  onError={() => setModelLoading(false)}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "transparent",
+                                  }}
+                                />
+                                {modelLoading && (
+                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                               </div>
                             )}
