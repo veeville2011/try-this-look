@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
@@ -19,22 +19,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface ProductTableRowProps {
+interface VariantRowData {
   product: NulightProduct;
+  variant: NulightProduct["variants"]["nodes"][0];
+  variantIndex: number;
+}
+
+interface VariantTableRowProps {
+  variantRow: VariantRowData;
   shop: string;
   isSelected: boolean;
   onToggleSelect: () => void;
   onUpdate: () => void;
 }
 
-const ProductTableRow = ({
-  product,
+const VariantTableRow = ({
+  variantRow,
   shop,
   isSelected,
   onToggleSelect,
   onUpdate,
-}: ProductTableRowProps) => {
+}: VariantTableRowProps) => {
   const { t } = useTranslation();
+  const { product, variant } = variantRow;
   const [processingProduct, setProcessingProduct] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -53,7 +60,7 @@ const ProductTableRow = ({
       );
       onUpdate();
     } catch (error) {
-      console.error(`[ProductTableRow] Failed to ${action} product:`, error);
+      console.error(`[VariantTableRow] Failed to ${action} product:`, error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -82,18 +89,11 @@ const ProductTableRow = ({
     }
   };
 
-  const getApprovalStatusBadge = () => {
-    // Check if all variants have approved images
-    const allVariants = product.variants.nodes;
-    const hasApprovedImages = allVariants.some((variant) =>
-      variant.images.some((img) => img.approvalStatus === "approved")
-    );
-    const hasRejectedImages = allVariants.some((variant) =>
-      variant.images.some((img) => img.approvalStatus === "rejected")
-    );
-    const hasPendingImages = allVariants.some((variant) =>
-      variant.images.some((img) => img.approvalStatus === "pending")
-    );
+  const getVariantApprovalStatusBadge = () => {
+    const variantImages = variant.images || [];
+    const hasApprovedImages = variantImages.some((img) => img.approvalStatus === "approved");
+    const hasRejectedImages = variantImages.some((img) => img.approvalStatus === "rejected");
+    const hasPendingImages = variantImages.some((img) => img.approvalStatus === "pending");
 
     if (hasApprovedImages && !hasPendingImages) {
       return (
@@ -111,6 +111,13 @@ const ProductTableRow = ({
         </Badge>
       );
     }
+    if (variantImages.length === 0) {
+      return (
+        <Badge className="bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20 text-xs">
+          {t("nulight.dialog.noImages") || "No Images"}
+        </Badge>
+      );
+    }
     return (
       <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-xs">
         Pending
@@ -118,9 +125,15 @@ const ProductTableRow = ({
     );
   };
 
-  const mainImage = product.images.nodes[0]?.url || "";
-  const variantCount = product.variants.nodes.length;
-  const price = `${product.priceRangeV2.minVariantPrice.currencyCode} ${product.priceRangeV2.minVariantPrice.amount}`;
+  // Get variant image or fallback to product image
+  const variantImage = variant.image?.url || product.images.nodes[0]?.url || "";
+  const variantPrice = `${variant.price ? parseFloat(variant.price).toFixed(2) : "0.00"}`;
+  const currencyCode = product.priceRangeV2.minVariantPrice.currencyCode;
+  
+  // Get variant options display
+  const variantOptions = variant.selectedOptions
+    .map((opt) => `${opt.name}: ${opt.value}`)
+    .join(", ") || variant.title;
 
   return (
     <>
@@ -129,15 +142,15 @@ const ProductTableRow = ({
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
-            aria-label={`Select ${product.title}`}
+            aria-label={`Select ${product.title} - ${variant.title}`}
           />
         </TableCell>
         <TableCell>
-          {mainImage ? (
+          {variantImage ? (
             <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
               <img
-                src={mainImage}
-                alt={product.title}
+                src={variantImage}
+                alt={variant.title}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -150,8 +163,11 @@ const ProductTableRow = ({
         </TableCell>
         <TableCell>
           <div className="flex flex-col gap-1">
-            <span className="font-medium text-foreground line-clamp-2">
+            <span className="font-medium text-foreground line-clamp-1">
               {product.title}
+            </span>
+            <span className="text-xs text-muted-foreground line-clamp-1">
+              {variantOptions}
             </span>
             {product.vendor && (
               <span className="text-xs text-muted-foreground">
@@ -162,14 +178,23 @@ const ProductTableRow = ({
         </TableCell>
         <TableCell>{getStatusBadge(product.status)}</TableCell>
         <TableCell>
-          <span className="font-medium text-foreground">{price}</span>
+          <span className="font-medium text-foreground">
+            {currencyCode} {variantPrice}
+          </span>
         </TableCell>
         <TableCell>
-          <Badge variant="outline" className="text-xs">
-            {variantCount} {variantCount === 1 ? "variant" : "variants"}
-          </Badge>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-foreground font-medium">
+              {variant.sku || "N/A"}
+            </span>
+            {variant.inventoryQuantity !== null && (
+              <span className="text-xs text-muted-foreground">
+                Qty: {variant.inventoryQuantity}
+              </span>
+            )}
+          </div>
         </TableCell>
-        <TableCell>{getApprovalStatusBadge()}</TableCell>
+        <TableCell>{getVariantApprovalStatusBadge()}</TableCell>
         <TableCell>
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -177,7 +202,7 @@ const ProductTableRow = ({
               variant="ghost"
               onClick={() => setShowDetails(true)}
               className="h-8 w-8 p-0"
-              aria-label={`View details for ${product.title}`}
+              aria-label={`View details for ${product.title} - ${variant.title}`}
             >
               <Eye className="w-4 h-4" />
             </Button>
@@ -220,6 +245,7 @@ const ProductTableRow = ({
         open={showDetails}
         onOpenChange={setShowDetails}
         onUpdate={onUpdate}
+        initialVariantIndex={variantRow.variantIndex}
       />
     </>
   );
@@ -231,6 +257,7 @@ interface ProductDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
+  initialVariantIndex?: number;
 }
 
 const ProductDetailsDialog = ({
@@ -239,9 +266,17 @@ const ProductDetailsDialog = ({
   open,
   onOpenChange,
   onUpdate,
+  initialVariantIndex = 0,
 }: ProductDetailsDialogProps) => {
   const { t } = useTranslation();
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(initialVariantIndex);
+
+  // Sync variant index when dialog opens with a different initial variant
+  useEffect(() => {
+    if (open) {
+      setSelectedVariantIndex(initialVariantIndex);
+    }
+  }, [open, initialVariantIndex]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [processingImageId, setProcessingImageId] = useState<string | null>(null);
   const [processingProduct, setProcessingProduct] = useState(false);
@@ -326,20 +361,20 @@ const ProductDetailsDialog = ({
         return (
           <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
             <CheckCircle2 className="w-3 h-3 mr-1" />
-            Approved
+            {t("nulight.dialog.approved") || "Approved"}
           </Badge>
         );
       case "rejected":
         return (
           <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20">
             <XCircle className="w-3 h-3 mr-1" />
-            Rejected
+            {t("nulight.dialog.rejected") || "Rejected"}
           </Badge>
         );
       default:
         return (
           <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
-            Pending
+            {t("nulight.dialog.pending") || "Pending"}
           </Badge>
         );
     }
@@ -357,23 +392,23 @@ const ProductDetailsDialog = ({
             {/* Product Info */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-muted-foreground">Price:</span>
+                <span className="text-muted-foreground">{t("nulight.dialog.price") || "Price"}:</span>
                 <span className="ml-2 font-medium">
                   {product.priceRangeV2.minVariantPrice.currencyCode} {product.priceRangeV2.minVariantPrice.amount}
                 </span>
               </div>
               {product.vendor && (
                 <div>
-                  <span className="text-muted-foreground">Vendor:</span>
+                  <span className="text-muted-foreground">{t("nulight.dialog.vendor") || "Vendor"}:</span>
                   <span className="ml-2">{product.vendor}</span>
                 </div>
               )}
               <div>
-                <span className="text-muted-foreground">Status:</span>
+                <span className="text-muted-foreground">{t("nulight.dialog.status") || "Status"}:</span>
                 <span className="ml-2">{product.status}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Variants:</span>
+                <span className="text-muted-foreground">{t("nulight.dialog.variants") || "Variants"}:</span>
                 <span className="ml-2">{product.variants.nodes.length}</span>
               </div>
             </div>
@@ -405,7 +440,7 @@ const ProductDetailsDialog = ({
                   <div className="flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">
-                      Image {selectedImageIndex + 1} of {displayImages.length}
+                      {t("nulight.image.imageOf", { current: selectedImageIndex + 1, total: displayImages.length }) || `Image ${selectedImageIndex + 1} of ${displayImages.length}`}
                     </span>
                   </div>
                   {displayImages.length > 1 && (
@@ -419,7 +454,7 @@ const ProductDetailsDialog = ({
                             prev > 0 ? prev - 1 : displayImages.length - 1
                           )
                         }
-                        aria-label="Previous image"
+                        aria-label={t("nulight.image.previous") || "Previous image"}
                       >
                         <ChevronLeft className="w-3 h-3" />
                       </Button>
@@ -432,7 +467,7 @@ const ProductDetailsDialog = ({
                             prev < displayImages.length - 1 ? prev + 1 : 0
                           )
                         }
-                        aria-label="Next image"
+                        aria-label={t("nulight.image.next") || "Next image"}
                       >
                         <ChevronRight className="w-3 h-3" />
                       </Button>
@@ -442,31 +477,31 @@ const ProductDetailsDialog = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground">Original</span>
+                    <span className="text-xs font-medium text-muted-foreground">{t("nulight.image.original") || "Original"}</span>
                     <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                       <img
                         src={currentImage.originalImageUrl}
-                        alt="Original"
+                        alt={t("nulight.image.original") || "Original"}
                         className="w-full h-full object-cover"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Relighted</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("nulight.image.relighted") || "Relighted"}</span>
                       {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                     </div>
                     {currentImage.transformedImageUrls.length > 0 ? (
                       <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                         <img
                           src={currentImage.transformedImageUrls[0]}
-                          alt="Relighted"
+                          alt={t("nulight.image.relighted") || "Relighted"}
                           className="w-full h-full object-cover"
                         />
                       </div>
                     ) : (
                       <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                        <span className="text-xs text-muted-foreground">Processing...</span>
+                        <span className="text-xs text-muted-foreground">{t("nulight.image.processing") || "Processing..."}</span>
                       </div>
                     )}
                   </div>
@@ -495,7 +530,7 @@ const ProductDetailsDialog = ({
                         ) : (
                           <XCircle className="w-3 h-3 mr-1" />
                         )}
-                        Reject
+                        {t("nulight.dialog.reject") || "Reject"}
                       </Button>
                       <Button
                         size="sm"
@@ -514,7 +549,7 @@ const ProductDetailsDialog = ({
                         ) : (
                           <CheckCircle2 className="w-3 h-3 mr-1" />
                         )}
-                        Approve
+                        {t("nulight.dialog.approve") || "Approve"}
                       </Button>
                     </div>
                   )}
@@ -534,7 +569,7 @@ const ProductDetailsDialog = ({
                 ) : (
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                 )}
-                Approve All
+                {t("nulight.dialog.approveAll") || "Approve All"}
               </Button>
               <Button
                 size="sm"
@@ -547,7 +582,7 @@ const ProductDetailsDialog = ({
                 ) : (
                   <XCircle className="w-3 h-3 mr-1" />
                 )}
-                Reject All
+                {t("nulight.dialog.rejectAll") || "Reject All"}
               </Button>
             </div>
           </div>
@@ -558,7 +593,7 @@ const ProductDetailsDialog = ({
       <Dialog open={!!zoomImage} onOpenChange={() => setZoomImage(null)}>
         <DialogContent className="max-w-4xl p-0">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle>Image Preview</DialogTitle>
+            <DialogTitle>{t("nulight.image.preview") || "Image Preview"}</DialogTitle>
           </DialogHeader>
           <div className="p-6">
             {zoomImage && (
@@ -596,9 +631,18 @@ const Nulight = () => {
     refresh,
   } = useNulightProducts(shopDomain);
 
-  // Bulk selection state
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  // Bulk selection state - using variant IDs (format: "productId-variantId")
+  const [selectedVariants, setSelectedVariants] = useState<Set<string>>(new Set());
   const [processingBulk, setProcessingBulk] = useState(false);
+
+  // Flatten products into variant rows
+  const variantRows: VariantRowData[] = products.flatMap((product) =>
+    product.variants.nodes.map((variant, index) => ({
+      product,
+      variant,
+      variantIndex: index,
+    }))
+  );
 
   // Handle manual product fetch
   const handleFetchProducts = async () => {
@@ -648,33 +692,37 @@ const Nulight = () => {
     }
   };
 
-  // Handle product selection
-  const handleToggleProduct = (productId: string) => {
-    setSelectedProducts((prev) => {
+  // Handle variant selection
+  const handleToggleVariant = (productId: string, variantId: string) => {
+    const variantKey = `${productId}-${variantId}`;
+    setSelectedVariants((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
+      if (newSet.has(variantKey)) {
+        newSet.delete(variantKey);
       } else {
-        newSet.add(productId);
+        newSet.add(variantKey);
       }
       return newSet;
     });
   };
 
   const handleSelectAll = () => {
-    if (selectedProducts.size === products.length) {
-      setSelectedProducts(new Set());
+    if (selectedVariants.size === variantRows.length && variantRows.length > 0) {
+      setSelectedVariants(new Set());
     } else {
-      setSelectedProducts(new Set(products.map((p) => p.id)));
+      const allVariantKeys = variantRows.map(
+        (row) => `${row.product.id}-${row.variant.id}`
+      );
+      setSelectedVariants(new Set(allVariantKeys));
     }
   };
 
   // Handle bulk actions
   const handleBulkAction = async (action: "approve" | "reject") => {
-    if (!shopDomain || selectedProducts.size === 0) {
+    if (!shopDomain || selectedVariants.size === 0) {
       toast.error(
         t("nulight.bulk.noSelection") || 
-        "Please select at least one product"
+        "Please select at least one variant"
       );
       return;
     }
@@ -682,9 +730,17 @@ const Nulight = () => {
     setProcessingBulk(true);
     try {
       const normalizedShop = shopDomain.replace(".myshopify.com", "");
+      
+      // Extract unique product IDs from selected variants
+      const selectedProductIds = Array.from(selectedVariants).map((key) => {
+        const [productId] = key.split("-");
+        return productId;
+      });
+      const uniqueProductIds = Array.from(new Set(selectedProductIds));
+      
       const result = await approveRejectBulk({
         shop: normalizedShop,
-        productIds: Array.from(selectedProducts),
+        productIds: uniqueProductIds,
         action,
       });
 
@@ -693,7 +749,7 @@ const Nulight = () => {
           `Successfully ${action === "approve" ? "approved" : "rejected"} ${result.processed} product${result.processed !== 1 ? "s" : ""}`
       );
       
-      setSelectedProducts(new Set());
+      setSelectedVariants(new Set());
       await refresh();
     } catch (error) {
       console.error(`[Nulight] Failed to bulk ${action}:`, error);
@@ -809,9 +865,11 @@ const Nulight = () => {
               </div>
               
               <div className="flex items-center gap-3">
-                {products.length > 0 && (
+                {variantRows.length > 0 && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Package className="w-4 h-4" />
+                    <span>{variantRows.length} {t("nulight.variants") || "variants"}</span>
+                    <span className="text-muted-foreground/70">•</span>
                     <span>{total} {t("nulight.products") || "products"}</span>
                   </div>
                 )}
@@ -847,9 +905,9 @@ const Nulight = () => {
                   <div className="flex items-center gap-3">
                     <Checkbox
                       id="select-all"
-                      checked={selectedProducts.size === products.length && products.length > 0}
+                      checked={selectedVariants.size === variantRows.length && variantRows.length > 0}
                       onCheckedChange={handleSelectAll}
-                      aria-label={t("nulight.selectAll") || "Select all products"}
+                      aria-label={t("nulight.selectAll") || "Select all variants"}
                     />
                     <label
                       htmlFor="select-all"
@@ -857,14 +915,14 @@ const Nulight = () => {
                     >
                       {t("nulight.selectAll") || "Select All"}
                     </label>
-                    {selectedProducts.size > 0 && (
+                    {selectedVariants.size > 0 && (
                       <span className="text-sm text-muted-foreground">
-                        ({selectedProducts.size} {t("nulight.selected") || "selected"})
+                        ({selectedVariants.size} {t("nulight.selected") || "selected"})
                       </span>
                     )}
                   </div>
                   
-                  {selectedProducts.size > 0 && (
+                  {selectedVariants.size > 0 && (
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
@@ -910,25 +968,28 @@ const Nulight = () => {
                             <span className="sr-only">{t("nulight.select") || "Select"}</span>
                           </TableHead>
                           <TableHead className="w-20">{t("nulight.image") || "Image"}</TableHead>
-                          <TableHead className="min-w-[200px]">{t("nulight.product") || "Product"}</TableHead>
+                          <TableHead className="min-w-[200px]">{t("nulight.product") || "Product / Variant"}</TableHead>
                           <TableHead className="w-24">{t("nulight.status") || "Status"}</TableHead>
                           <TableHead className="w-32">{t("nulight.price") || "Price"}</TableHead>
-                          <TableHead className="w-24">{t("nulight.variants") || "Variants"}</TableHead>
+                          <TableHead className="w-32">{t("nulight.sku") || "SKU / Inventory"}</TableHead>
                           <TableHead className="w-32">{t("nulight.approval") || "Approval"}</TableHead>
                           <TableHead className="w-40 text-right">{t("nulight.actions") || "Actions"}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map((product) => (
-                          <ProductTableRow
-                            key={product.id}
-                            product={product}
-                            shop={shopDomain || ""}
-                            isSelected={selectedProducts.has(product.id)}
-                            onToggleSelect={() => handleToggleProduct(product.id)}
-                            onUpdate={handleProductUpdate}
-                          />
-                        ))}
+                        {variantRows.map((variantRow) => {
+                          const variantKey = `${variantRow.product.id}-${variantRow.variant.id}`;
+                          return (
+                            <VariantTableRow
+                              key={variantKey}
+                              variantRow={variantRow}
+                              shop={shopDomain || ""}
+                              isSelected={selectedVariants.has(variantKey)}
+                              onToggleSelect={() => handleToggleVariant(variantRow.product.id, variantRow.variant.id)}
+                              onUpdate={handleProductUpdate}
+                            />
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

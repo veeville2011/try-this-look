@@ -279,7 +279,76 @@
     "approvalInitiated": "Approbation de l'abonnement initiée avec succès"
   },
   "nulight": {
-    "description": "Parcourir tous les produits de votre boutique",
+    "title": "Produits Nulight",
+    "description": "Gérer les produits créés aujourd'hui",
+    "variants": "variantes",
+    "products": "produits",
+    "select": "Sélectionner",
+    "selectAll": "Tout sélectionner",
+    "selected": "sélectionné",
+    "image": "Image",
+    "product": "Produit / Variante",
+    "status": "Statut",
+    "price": "Prix",
+    "sku": "SKU / Inventaire",
+    "approval": "Approbation",
+    "actions": "Actions",
+    "loading": "Chargement...",
+    "loadMore": "Charger plus",
+    "loadMoreSuccess": "Plus de produits chargés avec succès",
+    "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "empty": {
+      "title": "Aucun produit trouvé",
+      "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
+    },
+    "bulk": {
+      "noSelection": "Veuillez sélectionner au moins une variante",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "approveSuccess": "{{count}} produit approuvé avec succès",
+      "approveSuccess_plural": "{{count}} produits approuvés avec succès",
+      "rejectSuccess": "{{count}} produit rejeté avec succès",
+      "rejectSuccess_plural": "{{count}} produits rejetés avec succès",
+      "approveError": "Échec de l'approbation des produits. Veuillez réessayer.",
+      "rejectError": "Échec du rejet des produits. Veuillez réessayer."
+    },
+    "product": {
+      "approve": "Approuver le produit",
+      "reject": "Rejeter le produit",
+      "approveSuccess": "Produit approuvé avec succès",
+      "rejectSuccess": "Produit rejeté avec succès",
+      "approveError": "Échec de l'approbation du produit. Veuillez réessayer.",
+      "rejectError": "Échec du rejet du produit. Veuillez réessayer."
+    },
+    "image": {
+      "approve": "Approuver l'image",
+      "reject": "Rejeter l'image",
+      "approveSuccess": "Image approuvée avec succès",
+      "rejectSuccess": "Image rejetée avec succès",
+      "approveError": "Échec de l'approbation de l'image. Veuillez réessayer.",
+      "rejectError": "Échec du rejet de l'image. Veuillez réessayer.",
+      "previous": "Image précédente",
+      "next": "Image suivante",
+      "preview": "Aperçu de l'image",
+      "original": "Original",
+      "relighted": "Relighté",
+      "processing": "Traitement...",
+      "imageOf": "Image {{current}} sur {{total}}"
+    },
+    "dialog": {
+      "price": "Prix",
+      "vendor": "Vendeur",
+      "status": "Statut",
+      "variants": "Variantes",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "approveAll": "Tout approuver",
+      "rejectAll": "Tout rejeter",
+      "approved": "Approuvé",
+      "rejected": "Rejeté",
+      "pending": "En attente",
+      "noImages": "Aucune image"
+    },
     "info": {
       "title": "Gestion des produits",
       "description": "Récupérez les produits de votre boutique pour les visualiser et les gérer ici."
@@ -287,10 +356,10 @@
   },
   "navigation": {
     "dashboard": "Tableau de bord",
-    "nuCopy": "NU Copy",
-    "nuLight": "NU Light",
-    "nu3d": "Nu3d",
-    "nuScene": "Nu Scene",
+    "nuCopy": "nucopy",
+    "nuLight": "nulight",
+    "nu3d": "nu3d",
+    "nuScene": "nuscene",
     "mainNavigation": "Navigation principale"
   }
 }

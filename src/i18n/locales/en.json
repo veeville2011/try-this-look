@@ -279,7 +279,76 @@
     "approvalInitiated": "Subscription approval initiated successfully"
   },
   "nulight": {
-    "description": "Browse all products from your store",
+    "title": "Nulight Products",
+    "description": "Manage products created today",
+    "variants": "variants",
+    "products": "products",
+    "select": "Select",
+    "selectAll": "Select All",
+    "selected": "selected",
+    "image": "Image",
+    "product": "Product / Variant",
+    "status": "Status",
+    "price": "Price",
+    "sku": "SKU / Inventory",
+    "approval": "Approval",
+    "actions": "Actions",
+    "loading": "Loading...",
+    "loadMore": "Load More",
+    "loadMoreSuccess": "More products loaded successfully",
+    "loadMoreError": "Failed to load more products. Please try again.",
+    "empty": {
+      "title": "No products found",
+      "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
+    },
+    "bulk": {
+      "noSelection": "Please select at least one variant",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveSuccess": "Successfully approved {{count}} product",
+      "approveSuccess_plural": "Successfully approved {{count}} products",
+      "rejectSuccess": "Successfully rejected {{count}} product",
+      "rejectSuccess_plural": "Successfully rejected {{count}} products",
+      "approveError": "Failed to approve products. Please try again.",
+      "rejectError": "Failed to reject products. Please try again."
+    },
+    "product": {
+      "approve": "Approve Product",
+      "reject": "Reject Product",
+      "approveSuccess": "Product approved successfully",
+      "rejectSuccess": "Product rejected successfully",
+      "approveError": "Failed to approve product. Please try again.",
+      "rejectError": "Failed to reject product. Please try again."
+    },
+    "image": {
+      "approve": "Approve Image",
+      "reject": "Reject Image",
+      "approveSuccess": "Image approved successfully",
+      "rejectSuccess": "Image rejected successfully",
+      "approveError": "Failed to approve image. Please try again.",
+      "rejectError": "Failed to reject image. Please try again.",
+      "previous": "Previous image",
+      "next": "Next image",
+      "preview": "Image Preview",
+      "original": "Original",
+      "relighted": "Relighted",
+      "processing": "Processing...",
+      "imageOf": "Image {{current}} of {{total}}"
+    },
+    "dialog": {
+      "price": "Price",
+      "vendor": "Vendor",
+      "status": "Status",
+      "variants": "Variants",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveAll": "Approve All",
+      "rejectAll": "Reject All",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "pending": "Pending",
+      "noImages": "No Images"
+    },
     "info": {
       "title": "Products Management",
       "description": "Fetch products from your store to view and manage them here."
@@ -287,10 +356,10 @@
   },
   "navigation": {
     "dashboard": "Dashboard",
-    "nuCopy": "NU Copy",
-    "nuLight": "NU Light",
-    "nu3d": "Nu3d",
-    "nuScene": "Nu Scene",
+    "nuCopy": "nucopy",
+    "nuLight": "nulight",
+    "nu3d": "nu3d",
+    "nuScene": "nuscene",
     "mainNavigation": "Main navigation"
   }
 }
