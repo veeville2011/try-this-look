@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
@@ -300,6 +300,7 @@ const ProductDetailsDialog = ({
   const [show3dViewer, setShow3dViewer] = useState(true);
   const [modelLoading, setModelLoading] = useState(true);
   const [modelViewerLoaded, setModelViewerLoaded] = useState(false);
+  const viewerContainerRef = useRef<HTMLDivElement>(null);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
@@ -309,24 +310,111 @@ const ProductDetailsDialog = ({
   const displayImages = completed3dImages.length > 0 ? completed3dImages : variantImages;
   const currentImage = displayImages[selectedImageIndex] || displayImages[0];
 
-  // Dynamically load model-viewer only when dialog is open and viewer is shown
-  useEffect(() => {
-    if (open && show3dViewer && currentImage?.model_glb_url && !modelViewerLoaded) {
-      import("@google/model-viewer")
-        .then(() => {
-          setModelViewerLoaded(true);
-        })
-        .catch((error) => {
-          console.error("[ProductDetailsDialog] Failed to load model-viewer:", error);
-        });
-    }
-  }, [open, show3dViewer, currentImage?.model_glb_url, modelViewerLoaded]);
+  // Helper function to create model-viewer element
+  const createModelViewer = (container: HTMLDivElement, glbUrl: string) => {
+    const modelViewer = document.createElement("model-viewer");
+    modelViewer.setAttribute("src", glbUrl);
+    modelViewer.setAttribute("alt", t("nu3d.image.model3d") || "3D Model");
+    modelViewer.setAttribute("camera-controls", "");
+    modelViewer.setAttribute("auto-rotate", "");
+    modelViewer.setAttribute("ar", "");
+    modelViewer.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+    modelViewer.setAttribute("shadow-intensity", "1");
+    modelViewer.setAttribute("exposure", "1");
+    modelViewer.setAttribute("environment-image", "neutral");
+    modelViewer.style.width = "100%";
+    modelViewer.style.height = "100%";
+    modelViewer.style.backgroundColor = "transparent";
 
-  // Reset model viewer loaded state when dialog closes
+    // Add event listeners
+    modelViewer.addEventListener("load", () => {
+      setModelLoading(false);
+    });
+    modelViewer.addEventListener("error", () => {
+      setModelLoading(false);
+    });
+
+    container.appendChild(modelViewer);
+    setModelViewerLoaded(true);
+  };
+
+  // Load model-viewer script dynamically and create element manually to avoid JSX/import issues
+  useEffect(() => {
+    if (!open || !show3dViewer || !currentImage?.model_glb_url || !viewerContainerRef.current) {
+      return;
+    }
+
+    const container = viewerContainerRef.current;
+    const glbUrl = currentImage.model_glb_url;
+    
+    // Clear any existing viewer
+    container.innerHTML = '';
+    setModelLoading(true);
+    setModelViewerLoaded(false);
+
+    // Check if script is already loaded
+    const existingScript = document.querySelector('script[src*="model-viewer"]');
+    
+    const loadModelViewer = () => {
+      // Wait for custom element to be defined
+      const checkAndCreate = () => {
+        if (customElements.get("model-viewer")) {
+          createModelViewer(container, glbUrl);
+        } else {
+          // Retry after a short delay (max 10 attempts = 1 second)
+          let attempts = 0;
+          const maxAttempts = 10;
+          const interval = setInterval(() => {
+            attempts++;
+            if (customElements.get("model-viewer")) {
+              clearInterval(interval);
+              createModelViewer(container, glbUrl);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              console.error("[ProductDetailsDialog] model-viewer custom element not available after loading");
+              setModelLoading(false);
+            }
+          }, 100);
+        }
+      };
+      checkAndCreate();
+    };
+
+    if (existingScript) {
+      // Script already loaded, just create the element
+      loadModelViewer();
+    } else if (customElements.get("model-viewer")) {
+      // Already defined, create immediately
+      loadModelViewer();
+    } else {
+      // Load script dynamically
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js";
+      script.onload = loadModelViewer;
+      script.onerror = () => {
+        console.error("[ProductDetailsDialog] Failed to load model-viewer script");
+        setModelLoading(false);
+      };
+      document.head.appendChild(script);
+    }
+
+    // Cleanup function
+    return () => {
+      if (container) {
+        container.innerHTML = '';
+      }
+    };
+  }, [open, show3dViewer, currentImage?.model_glb_url, t]);
+
+  // Reset when dialog closes
   useEffect(() => {
     if (!open) {
       setModelViewerLoaded(false);
       setModelLoading(true);
+      if (viewerContainerRef.current) {
+        viewerContainerRef.current.innerHTML = '';
+      }
     }
   }, [open]);
 
@@ -599,34 +687,12 @@ const ProductDetailsDialog = ({
                         {/* 3D Model Viewer */}
                         {show3dViewer && currentImage.model_glb_url ? (
                           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-primary/20">
-                            {modelViewerLoaded ? (
-                              <>
-                                <model-viewer
-                                  src={currentImage.model_glb_url}
-                                  alt={t("nu3d.image.model3d") || "3D Model"}
-                                  camera-controls
-                                  auto-rotate
-                                  ar
-                                  ar-modes="webxr scene-viewer quick-look"
-                                  shadow-intensity="1"
-                                  exposure="1"
-                                  environment-image="neutral"
-                                  onLoad={() => setModelLoading(false)}
-                                  onError={() => setModelLoading(false)}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    backgroundColor: "transparent",
-                                  }}
-                                />
-                                {modelLoading && (
-                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
-                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center">
+                            <div 
+                              ref={viewerContainerRef}
+                              className="w-full h-full"
+                            />
+                            {modelLoading && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-muted/80">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                 <span className="ml-2 text-xs text-muted-foreground">
                                   {t("nu3d.image.loadingViewer") || "Loading 3D viewer..."}
