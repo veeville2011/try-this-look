@@ -79,7 +79,7 @@ export default function CartOutfitWidget({
   );
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
-  const [selectedVersion, setSelectedVersion] = useState<number | null>(null); // Version selection (1 or 2, optional)
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(1); // Version selection (1 or 2, default: 1)
   const imagesLoadedRef = useRef<boolean>(false);
 
   // Mode-specific constraints
@@ -434,7 +434,7 @@ export default function CartOutfitWidget({
     setError(null);
     setProgress(0);
     setBatchProgress(null);
-    setSelectedVersion(null); // Reset version selection
+    setSelectedVersion(1); // Reset version selection to default
     setStatusVariant("info");
     setStatusMessage(
       "Téléchargez votre photo puis sélectionnez les articles à essayer"
@@ -667,9 +667,9 @@ export default function CartOutfitWidget({
 
         {/* Version Selection and Generate button */}
         {!isGenerating && (
-          <div className="pt-1 sm:pt-2 space-y-3 sm:space-y-4">
+          <div className="pt-1 sm:pt-2 flex flex-col sm:flex-row gap-3 sm:gap-4">
             {/* Version Dropdown */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 flex-shrink-0 sm:w-auto">
               <label
                 htmlFor="version-select-cart-outfit"
                 className="text-sm font-semibold text-foreground"
@@ -677,14 +677,14 @@ export default function CartOutfitWidget({
                 {t("tryOnWidget.version.label") || "Version (Optional)"}
               </label>
               <Select
-                value={selectedVersion ? String(selectedVersion) : ""}
+                value={selectedVersion ? String(selectedVersion) : "1"}
                 onValueChange={(value) => {
-                  setSelectedVersion(value ? Number(value) : null);
+                  setSelectedVersion(value ? Number(value) : 1);
                 }}
               >
                 <SelectTrigger
                   id="version-select-cart-outfit"
-                  className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
+                  className="w-full sm:w-[140px] h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
                   aria-label={t("tryOnWidget.version.ariaLabel") || "Select version"}
                 >
                   <SelectValue placeholder={t("tryOnWidget.version.placeholder") || "Select a version (optional)"} />
@@ -698,15 +698,12 @@ export default function CartOutfitWidget({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {t("tryOnWidget.version.description") || "Select the model version to use for generation"}
-              </p>
             </div>
 
             <Button
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label="Générer l'essayage virtuel"
             >
               <Sparkles

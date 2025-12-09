@@ -642,15 +642,15 @@
     "tabs": {
       "ariaLabel": "Mode d'essayage",
       "single": {
-        "label": "Try Single",
+        "label": "TryOn",
         "ariaLabel": "Essayer un seul article"
       },
       "multiple": {
-        "label": "Try Multiple",
-        "ariaLabel": "Essayer plusieurs articles"
+        "label": "TryCart",
+        "ariaLabel": "Essayer plusieurs articles du panier"
       },
       "look": {
-        "label": "Try Look",
+        "label": "TryOutfit",
         "ariaLabel": "Essayer une tenue complète"
       }
     },

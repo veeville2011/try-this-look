@@ -642,15 +642,15 @@
     "tabs": {
       "ariaLabel": "Try-on mode",
       "single": {
-        "label": "Try Single",
-        "ariaLabel": "Try a single item"
+        "label": "TryOn",
+        "ariaLabel": "Try on a single item"
       },
       "multiple": {
-        "label": "Try Multiple",
-        "ariaLabel": "Try multiple items"
+        "label": "TryCart",
+        "ariaLabel": "Try multiple items from cart"
       },
       "look": {
-        "label": "Try Look",
+        "label": "TryOutfit",
         "ariaLabel": "Try a complete outfit"
       }
     },
