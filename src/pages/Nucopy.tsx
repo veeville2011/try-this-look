@@ -744,6 +744,7 @@ const Nucopy = () => {
   const displayProducts = hasRefreshed || initialProducts.length === 0 ? products : initialProducts;
   const displayLoading = hasRefreshed ? productsLoading : initialLoading;
   const displayError = hasRefreshed ? productsError : null;
+  const displayTotal = hasRefreshed ? total : initialProducts.length;
 
   // Flatten products into variant rows
   const variantRows: VariantRowData[] = displayProducts.flatMap((product) =>
