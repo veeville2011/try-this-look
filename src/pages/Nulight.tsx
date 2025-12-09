@@ -51,7 +51,7 @@ const VariantTableRow = ({
     try {
       await approveRejectProduct({
         shop,
-        productId: product.id,
+        productId: product?.id ?? "",
         action,
       });
 
@@ -93,10 +93,10 @@ const VariantTableRow = ({
   };
 
   const getVariantApprovalStatusBadge = () => {
-    const variantImages = variant.images || [];
-    const hasApprovedImages = variantImages.some((img) => img.approvalStatus === "approved");
-    const hasRejectedImages = variantImages.some((img) => img.approvalStatus === "rejected");
-    const hasPendingImages = variantImages.some((img) => img.approvalStatus === "pending");
+    const variantImages = variant?.images ?? [];
+    const hasApprovedImages = variantImages.some((img) => img?.approvalStatus === "approved");
+    const hasRejectedImages = variantImages.some((img) => img?.approvalStatus === "rejected");
+    const hasPendingImages = variantImages.some((img) => img?.approvalStatus === "pending");
 
     if (hasApprovedImages && !hasPendingImages) {
       return (
@@ -129,14 +129,14 @@ const VariantTableRow = ({
   };
 
   // Get variant image or fallback to product image
-  const variantImage = variant.image?.url || product.images.nodes[0]?.url || "";
-  const variantPrice = `${variant.price ? parseFloat(variant.price).toFixed(2) : "0.00"}`;
-  const currencyCode = product.priceRangeV2.minVariantPrice.currencyCode;
+  const variantImage = variant?.image?.url || product?.images?.nodes?.[0]?.url || product?.media?.nodes?.[0]?.image?.url || "";
+  const variantPrice = `${variant?.price ? parseFloat(variant.price).toFixed(2) : "0.00"}`;
+  const currencyCode = product?.priceRangeV2?.minVariantPrice?.currencyCode ?? "USD";
   
   // Get variant options display
-  const variantOptions = variant.selectedOptions
-    .map((opt) => `${opt.name}: ${opt.value}`)
-    .join(", ") || variant.title;
+  const variantOptions = variant?.selectedOptions
+    ?.map((opt) => `${opt?.name}: ${opt?.value}`)
+    ?.join(", ") ?? variant?.title ?? "";
 
   return (
     <>
@@ -145,7 +145,7 @@ const VariantTableRow = ({
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
-            aria-label={`Select ${product.title} - ${variant.title}`}
+            aria-label={`Select ${product?.title ?? ""} - ${variant?.title ?? ""}`}
           />
         </TableCell>
         <TableCell>
@@ -153,7 +153,7 @@ const VariantTableRow = ({
             <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
               <img
                 src={variantImage}
-                alt={variant.title}
+                alt={variant?.title ?? ""}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -167,19 +167,19 @@ const VariantTableRow = ({
         <TableCell>
           <div className="flex flex-col gap-1">
             <span className="font-medium text-foreground line-clamp-1">
-              {product.title}
+              {product?.title ?? ""}
             </span>
             <span className="text-xs text-muted-foreground line-clamp-1">
               {variantOptions}
             </span>
-            {product.vendor && (
+            {product?.vendor && (
               <span className="text-xs text-muted-foreground">
                 {product.vendor}
               </span>
             )}
           </div>
         </TableCell>
-        <TableCell>{getStatusBadge(product.status)}</TableCell>
+        <TableCell>{getStatusBadge(product?.status ?? "")}</TableCell>
         <TableCell>
           <span className="font-medium text-foreground">
             {currencyCode} {variantPrice}
@@ -188,9 +188,9 @@ const VariantTableRow = ({
         <TableCell>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-foreground font-medium">
-              {variant.sku || "N/A"}
+              {variant?.sku || "N/A"}
             </span>
-            {variant.inventoryQuantity !== null && (
+            {variant?.inventoryQuantity !== null && variant?.inventoryQuantity !== undefined && (
               <span className="text-xs text-muted-foreground">
                 Qty: {variant.inventoryQuantity}
               </span>
@@ -205,7 +205,7 @@ const VariantTableRow = ({
               variant="ghost"
               onClick={() => setShowDetails(true)}
               className="h-8 w-8 p-0 hover:bg-muted"
-              aria-label={`View details for ${product.title} - ${variant.title}`}
+              aria-label={`View details for ${product?.title ?? ""} - ${variant?.title ?? ""}`}
             >
               <Eye className="w-4 h-4 text-muted-foreground" />
             </Button>
@@ -215,7 +215,7 @@ const VariantTableRow = ({
               onClick={() => handleProductAction("approve")}
               disabled={processingProduct}
               className="h-8 w-8 p-0 hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
-              aria-label={`Approve ${product.title}`}
+              aria-label={`Approve ${product?.title ?? ""}`}
             >
               {processingProduct ? (
                 <Loader2 className="w-4 h-4 animate-spin text-green-600 dark:text-green-400" />
@@ -229,7 +229,7 @@ const VariantTableRow = ({
               onClick={() => handleProductAction("reject")}
               disabled={processingProduct}
               className="h-8 w-8 p-0 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
-              aria-label={`Reject ${product.title}`}
+              aria-label={`Reject ${product?.title ?? ""}`}
             >
               {processingProduct ? (
                 <Loader2 className="w-4 h-4 animate-spin text-red-600 dark:text-red-400" />
@@ -285,10 +285,10 @@ const ProductDetailsDialog = ({
   const [processingProduct, setProcessingProduct] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
-  const variantImages = variant?.images || [];
+  const variant = product?.variants?.nodes?.[selectedVariantIndex] || product?.variants?.nodes?.[0] || null;
+  const variantImages = variant?.images ?? [];
   const relightedImages = variantImages.filter(
-    (img) => img.relightingStatus === "completed" && img.transformedImageUrls.length > 0
+    (img) => img?.relightingStatus === "completed" && (img?.transformedImageUrls?.length ?? 0) > 0
   );
   const displayImages = relightedImages.length > 0 ? relightedImages : variantImages;
   const currentImage = displayImages[selectedImageIndex] || displayImages[0];
@@ -305,8 +305,8 @@ const ProductDetailsDialog = ({
     try {
       await approveRejectImage({
         shop,
-        productId: product.id,
-        variantId: variant.id,
+        productId: product?.id ?? "",
+        variantId: variant?.id ?? "",
         imageId,
         relightingImageId,
         action,
@@ -338,7 +338,7 @@ const ProductDetailsDialog = ({
     try {
       await approveRejectProduct({
         shop,
-        productId: product.id,
+        productId: product?.id ?? "",
         action,
       });
 
@@ -392,7 +392,7 @@ const ProductDetailsDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{product.title}</DialogTitle>
+            <DialogTitle>{product?.title ?? ""}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-6">
@@ -401,10 +401,10 @@ const ProductDetailsDialog = ({
               <div>
                 <span className="text-muted-foreground">{t("nulight.dialog.price") || "Price"}:</span>
                 <span className="ml-2 font-medium">
-                  {product.priceRangeV2.minVariantPrice.currencyCode} {product.priceRangeV2.minVariantPrice.amount}
+                  {product?.priceRangeV2?.minVariantPrice?.currencyCode ?? "USD"} {product?.priceRangeV2?.minVariantPrice?.amount ?? "0.00"}
                 </span>
               </div>
-              {product.vendor && (
+              {product?.vendor && (
                 <div>
                   <span className="text-muted-foreground">{t("nulight.dialog.vendor") || "Vendor"}:</span>
                   <span className="ml-2">{product.vendor}</span>
@@ -412,20 +412,20 @@ const ProductDetailsDialog = ({
               )}
               <div>
                 <span className="text-muted-foreground">{t("nulight.dialog.status") || "Status"}:</span>
-                <span className="ml-2">{product.status}</span>
+                <span className="ml-2">{product?.status ?? ""}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">{t("nulight.dialog.variants") || "Variants"}:</span>
-                <span className="ml-2">{product.variants.nodes.length}</span>
+                <span className="ml-2">{product?.variants?.nodes?.length ?? 0}</span>
               </div>
             </div>
 
             {/* Variant Selector */}
-            {product.variants.nodes.length > 1 && (
+            {(product?.variants?.nodes?.length ?? 0) > 1 && (
               <div className="flex flex-wrap gap-2">
-                {product.variants.nodes.map((v, index) => (
+                {product?.variants?.nodes?.map((v, index) => (
                   <Button
-                    key={v.id}
+                    key={v?.id ?? index}
                     size="sm"
                     variant={selectedVariantIndex === index ? "default" : "outline"}
                     onClick={() => {
@@ -434,7 +434,7 @@ const ProductDetailsDialog = ({
                     }}
                     className="h-8 text-xs"
                   >
-                    {v.title}
+                    {v?.title ?? ""}
                   </Button>
                 ))}
               </div>
@@ -487,7 +487,7 @@ const ProductDetailsDialog = ({
                     <span className="text-xs font-medium text-muted-foreground">{t("nulight.image.original") || "Original"}</span>
                     <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                       <img
-                        src={currentImage.originalImageUrl}
+                        src={currentImage?.originalImageUrl ?? ""}
                         alt={t("nulight.image.original") || "Original"}
                         className="w-full h-full object-cover"
                       />
@@ -496,12 +496,12 @@ const ProductDetailsDialog = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">{t("nulight.image.relighted") || "Relighted"}</span>
-                      {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
+                      {currentImage?.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                     </div>
-                    {currentImage.transformedImageUrls.length > 0 ? (
+                    {(currentImage?.transformedImageUrls?.length ?? 0) > 0 ? (
                       <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                         <img
-                          src={currentImage.transformedImageUrls[0]}
+                          src={currentImage?.transformedImageUrls?.[0] ?? ""}
                           alt={t("nulight.image.relighted") || "Relighted"}
                           className="w-full h-full object-cover"
                         />
@@ -515,9 +515,9 @@ const ProductDetailsDialog = ({
                 </div>
 
                 {/* Image Actions */}
-                {currentImage.relightingStatus === "completed" &&
-                  currentImage.approvalStatus === "pending" &&
-                  currentImage.transformedImageUrls.length > 0 && (
+                {currentImage?.relightingStatus === "completed" &&
+                  currentImage?.approvalStatus === "pending" &&
+                  (currentImage?.transformedImageUrls?.length ?? 0) > 0 && (
                     <div className="flex gap-2 justify-end">
                       <Button
                         size="sm"
@@ -525,15 +525,15 @@ const ProductDetailsDialog = ({
                         onClick={() =>
                           handleImageAction(
                             "reject",
-                            currentImage.id,
-                            currentImage.relightingImageId,
-                            currentImage.transformedImageUrls[0]
+                            currentImage?.id ?? "",
+                            currentImage?.relightingImageId ?? 0,
+                            currentImage?.transformedImageUrls?.[0] ?? ""
                           )
                         }
-                        disabled={processingImageId === currentImage.id}
+                        disabled={processingImageId === currentImage?.id}
                         className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
                       >
-                        {processingImageId === currentImage.id ? (
+                        {processingImageId === currentImage?.id ? (
                           <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
                         ) : (
                           <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
@@ -545,15 +545,15 @@ const ProductDetailsDialog = ({
                         onClick={() =>
                           handleImageAction(
                             "approve",
-                            currentImage.id,
-                            currentImage.relightingImageId,
-                            currentImage.transformedImageUrls[0]
+                            currentImage?.id ?? "",
+                            currentImage?.relightingImageId ?? 0,
+                            currentImage?.transformedImageUrls?.[0] ?? ""
                           )
                         }
-                        disabled={processingImageId === currentImage.id}
+                        disabled={processingImageId === currentImage?.id}
                         className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
                       >
-                        {processingImageId === currentImage.id ? (
+                        {processingImageId === currentImage?.id ? (
                           <Loader2 className="w-3 h-3 animate-spin mr-1" />
                         ) : (
                           <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -747,11 +747,11 @@ const Nulight = () => {
 
   // Flatten products into variant rows
   const variantRows: VariantRowData[] = displayProducts.flatMap((product) =>
-    product.variants.nodes.map((variant, index) => ({
+    product?.variants?.nodes?.map((variant, index) => ({
       product,
       variant,
       variantIndex: index,
-    }))
+    })) ?? []
   );
 
   // Handle manual product fetch (refresh button) - uses specific API
@@ -772,7 +772,7 @@ const Nulight = () => {
         shop: normalizedShop,
       });
       
-      const productCount = result.data.total || result.data.products.length || 0;
+      const productCount = result.data?.total ?? result.data?.products?.length ?? 0;
       
       toast.success(
         t("index.products.fetchSuccess", { count: productCount }) || 
@@ -824,7 +824,7 @@ const Nulight = () => {
       setSelectedVariants(new Set());
     } else {
       const allVariantKeys = variantRows.map(
-        (row) => `${row.product.id}-${row.variant.id}`
+        (row) => `${row.product?.id ?? ""}-${row.variant?.id ?? ""}`
       );
       setSelectedVariants(new Set(allVariantKeys));
     }
@@ -1057,14 +1057,14 @@ const Nulight = () => {
                       </TableHeader>
                       <TableBody>
                         {variantRows.map((variantRow) => {
-                          const variantKey = `${variantRow.product.id}-${variantRow.variant.id}`;
+                          const variantKey = `${variantRow.product?.id ?? ""}-${variantRow.variant?.id ?? ""}`;
                           return (
                             <VariantTableRow
                               key={variantKey}
                               variantRow={variantRow}
                       shop={shopDomain || ""}
                               isSelected={selectedVariants.has(variantKey)}
-                              onToggleSelect={() => handleToggleVariant(variantRow.product.id, variantRow.variant.id)}
+                              onToggleSelect={() => handleToggleVariant(variantRow.product?.id ?? "", variantRow.variant?.id ?? "")}
                       onUpdate={handleProductUpdate}
                     />
                           );

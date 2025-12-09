@@ -95,11 +95,11 @@ const VariantTableRow = ({
   };
 
   const getVariantApprovalStatusBadge = () => {
-    const variantImages = variant.images || [];
-    const hasApprovedImages = variantImages.some((img) => img.approvalStatus === "approved");
-    const hasRejectedImages = variantImages.some((img) => img.approvalStatus === "rejected");
-    const hasPendingImages = variantImages.some((img) => img.approvalStatus === "pending");
-    const hasCompleted3dImages = variantImages.some((img) => img.status === "completed" && (img.model_glb_url || img.gaussian_splat_url));
+    const variantImages = variant?.images ?? [];
+    const hasApprovedImages = variantImages.some((img) => img?.approvalStatus === "approved");
+    const hasRejectedImages = variantImages.some((img) => img?.approvalStatus === "rejected");
+    const hasPendingImages = variantImages.some((img) => img?.approvalStatus === "pending");
+    const hasCompleted3dImages = variantImages.some((img) => img?.status === "completed" && (img?.model_glb_url || img?.gaussian_splat_url));
 
     if (hasApprovedImages && !hasPendingImages) {
       return (
@@ -139,14 +139,14 @@ const VariantTableRow = ({
   };
 
   // Get variant image or fallback to product image
-  const variantImage = variant.image?.url || product.images.nodes[0]?.url || "";
-  const variantPrice = `${variant.price ? parseFloat(variant.price).toFixed(2) : "0.00"}`;
-  const currencyCode = product.priceRangeV2.minVariantPrice.currencyCode;
+  const variantImage = variant.image?.url || product.images?.nodes?.[0]?.url || product.media?.nodes?.[0]?.image?.url || "";
+  const variantPrice = `${variant?.price ? parseFloat(variant.price).toFixed(2) : "0.00"}`;
+  const currencyCode = product.priceRangeV2?.minVariantPrice?.currencyCode ?? "USD";
   
   // Get variant options display
   const variantOptions = variant.selectedOptions
-    .map((opt) => `${opt.name}: ${opt.value}`)
-    .join(", ") || variant.title;
+    ?.map((opt) => `${opt.name}: ${opt.value}`)
+    ?.join(", ") ?? variant.title ?? "";
 
   return (
     <>
@@ -155,7 +155,7 @@ const VariantTableRow = ({
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
-            aria-label={`Select ${product.title} - ${variant.title}`}
+            aria-label={`Select ${product?.title ?? ""} - ${variant?.title ?? ""}`}
           />
         </TableCell>
         <TableCell>
@@ -163,7 +163,7 @@ const VariantTableRow = ({
             <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
               <img
                 src={variantImage}
-                alt={variant.title}
+                alt={variant?.title ?? ""}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -177,19 +177,19 @@ const VariantTableRow = ({
         <TableCell>
           <div className="flex flex-col gap-1">
             <span className="font-medium text-foreground line-clamp-1">
-              {product.title}
+              {product?.title ?? ""}
             </span>
             <span className="text-xs text-muted-foreground line-clamp-1">
               {variantOptions}
             </span>
-            {product.vendor && (
+            {product?.vendor && (
               <span className="text-xs text-muted-foreground">
                 {product.vendor}
               </span>
             )}
           </div>
         </TableCell>
-        <TableCell>{getStatusBadge(product.status)}</TableCell>
+        <TableCell>{getStatusBadge(product?.status ?? "")}</TableCell>
         <TableCell>
           <span className="font-medium text-foreground">
             {currencyCode} {variantPrice}
@@ -198,9 +198,9 @@ const VariantTableRow = ({
         <TableCell>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-foreground font-medium">
-              {variant.sku || "N/A"}
+              {variant?.sku || "N/A"}
             </span>
-            {variant.inventoryQuantity !== null && (
+            {variant?.inventoryQuantity !== null && variant?.inventoryQuantity !== undefined && (
               <span className="text-xs text-muted-foreground">
                 Qty: {variant.inventoryQuantity}
               </span>
@@ -215,7 +215,7 @@ const VariantTableRow = ({
               variant="ghost"
               onClick={() => setShowDetails(true)}
               className="h-8 w-8 p-0 hover:bg-muted"
-              aria-label={`View details for ${product.title} - ${variant.title}`}
+              aria-label={`View details for ${product?.title ?? ""} - ${variant?.title ?? ""}`}
             >
               <Eye className="w-4 h-4 text-muted-foreground" />
             </Button>
@@ -225,7 +225,7 @@ const VariantTableRow = ({
               onClick={() => handleProductAction("approve")}
               disabled={processingProduct}
               className="h-8 w-8 p-0 hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
-              aria-label={`Approve ${product.title}`}
+              aria-label={`Approve ${product?.title ?? ""}`}
             >
               {processingProduct ? (
                 <Loader2 className="w-4 h-4 animate-spin text-green-600 dark:text-green-400" />
@@ -239,7 +239,7 @@ const VariantTableRow = ({
               onClick={() => handleProductAction("reject")}
               disabled={processingProduct}
               className="h-8 w-8 p-0 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
-              aria-label={`Reject ${product.title}`}
+              aria-label={`Reject ${product?.title ?? ""}`}
             >
               {processingProduct ? (
                 <Loader2 className="w-4 h-4 animate-spin text-red-600 dark:text-red-400" />
@@ -296,8 +296,8 @@ const ProductDetailsDialog = ({
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [show3dViewer, setShow3dViewer] = useState(false);
 
-  const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
-  const variantImages = variant?.images || [];
+  const variant = product.variants?.nodes?.[selectedVariantIndex] || product.variants?.nodes?.[0] || null;
+  const variantImages = variant?.images ?? [];
   const completed3dImages = variantImages.filter(
     (img) => img.status === "completed" && (img.model_glb_url || img.gaussian_splat_url)
   );
@@ -317,11 +317,11 @@ const ProductDetailsDialog = ({
       await approveRejectImage({
         shop,
         productId: product.id,
-        variantId: variant.id,
+        variantId: variant?.id ?? "",
         imageId,
         relightingImageId,
         action,
-        transformedImageUrl: transformedImageUrl || currentImage.model_glb_url || currentImage.gaussian_splat_url,
+        transformedImageUrl: transformedImageUrl || currentImage?.model_glb_url || currentImage?.gaussian_splat_url || "",
       });
 
       const successKey = action === "approve" ? "nu3d.image.approveSuccess" : "nu3d.image.rejectSuccess";
@@ -403,7 +403,7 @@ const ProductDetailsDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{product.title}</DialogTitle>
+            <DialogTitle>{product?.title ?? ""}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-6">
@@ -412,7 +412,7 @@ const ProductDetailsDialog = ({
               <div>
                 <span className="text-muted-foreground">{t("nu3d.dialog.price") || "Price"}:</span>
                 <span className="ml-2 font-medium">
-                  {product.priceRangeV2.minVariantPrice.currencyCode} {product.priceRangeV2.minVariantPrice.amount}
+                  {product.priceRangeV2?.minVariantPrice?.currencyCode ?? "USD"} {product.priceRangeV2?.minVariantPrice?.amount ?? "0.00"}
                 </span>
               </div>
               {product.vendor && (
@@ -423,20 +423,20 @@ const ProductDetailsDialog = ({
               )}
               <div>
                 <span className="text-muted-foreground">{t("nu3d.dialog.status") || "Status"}:</span>
-                <span className="ml-2">{product.status}</span>
+                <span className="ml-2">{product?.status ?? ""}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">{t("nu3d.dialog.variants") || "Variants"}:</span>
-                <span className="ml-2">{product.variants.nodes.length}</span>
+                <span className="ml-2">{product.variants?.nodes?.length ?? 0}</span>
               </div>
             </div>
 
             {/* Variant Selector */}
-            {product.variants.nodes.length > 1 && (
+            {(product.variants?.nodes?.length ?? 0) > 1 && (
               <div className="flex flex-wrap gap-2">
-                {product.variants.nodes.map((v, index) => (
+                {product.variants?.nodes?.map((v, index) => (
                   <Button
-                    key={v.id}
+                    key={v?.id ?? index}
                     size="sm"
                     variant={selectedVariantIndex === index ? "default" : "outline"}
                     onClick={() => {
@@ -445,7 +445,7 @@ const ProductDetailsDialog = ({
                     }}
                     className="h-8 text-xs"
                   >
-                    {v.title}
+                    {v?.title ?? ""}
                   </Button>
                 ))}
               </div>
@@ -460,13 +460,13 @@ const ProductDetailsDialog = ({
                     <span className="text-sm font-medium">
                       {t("nu3d.image.imageOf", { current: selectedImageIndex + 1, total: displayImages.length }) || `Image ${selectedImageIndex + 1} of ${displayImages.length}`}
                     </span>
-                    {currentImage.cached && (
+                    {currentImage?.cached && (
                       <Badge variant="outline" className="text-xs">
                         <Zap className="w-3 h-3 mr-1" />
                         {t("nu3d.image.cached") || "Cached"}
                       </Badge>
                     )}
-                    {currentImage.status && (
+                    {currentImage?.status && (
                       <Badge 
                         className={`text-xs ${
                           currentImage.status === "completed" 
@@ -520,19 +520,19 @@ const ProductDetailsDialog = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.original") || "Original Image"}</span>
-                      {currentImage.image_id && (
+                      {currentImage?.image_id && (
                         <span className="text-xs text-muted-foreground">ID: {currentImage.image_id}</span>
                       )}
                     </div>
                     <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border border-border">
                       <img
-                        src={currentImage.originalImageUrl}
+                        src={currentImage?.originalImageUrl ?? ""}
                         alt={t("nu3d.image.original") || "Original"}
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
                     </div>
-                    {currentImage.job_id && (
+                    {currentImage?.job_id && (
                       <div className="text-xs text-muted-foreground truncate">
                         <span className="font-medium">Job ID:</span> {currentImage.job_id}
                       </div>
@@ -543,17 +543,17 @@ const ProductDetailsDialog = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">{t("nu3d.image.model3d") || "3D Model"}</span>
-                      {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
+                      {currentImage?.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                     </div>
-                    {currentImage.status === "completed" && (currentImage.model_glb_url || currentImage.gaussian_splat_url) ? (
+                    {currentImage?.status === "completed" && (currentImage?.model_glb_url || currentImage?.gaussian_splat_url) ? (
                       <div className="space-y-3">
                         {/* 3D Model Preview */}
                         <div className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-primary/20 group">
-                          {currentImage.model_glb_url ? (
+                          {currentImage?.model_glb_url ? (
                             <>
                               <model-viewer
-                                src={currentImage.model_glb_url}
-                                alt={product.title}
+                                src={currentImage?.model_glb_url ?? ""}
+                                alt={product?.title ?? ""}
                                 camera-controls
                                 auto-rotate
                                 interaction-policy="allow-when-focused"
@@ -593,9 +593,9 @@ const ProductDetailsDialog = ({
                         
                         {/* Download Actions */}
                         <div className="flex flex-col gap-2">
-                          {currentImage.model_glb_url && (
+                          {currentImage?.model_glb_url && (
                             <a
-                              href={currentImage.model_glb_url}
+                              href={currentImage?.model_glb_url}
                               target="_blank"
                               rel="noopener noreferrer"
                               download
@@ -605,9 +605,9 @@ const ProductDetailsDialog = ({
                               {t("nu3d.image.downloadGlb") || "Download GLB"}
                             </a>
                           )}
-                          {currentImage.gaussian_splat_url && (
+                          {currentImage?.gaussian_splat_url && (
                             <a
-                              href={currentImage.gaussian_splat_url}
+                              href={currentImage?.gaussian_splat_url}
                               target="_blank"
                               rel="noopener noreferrer"
                               download
@@ -621,23 +621,23 @@ const ProductDetailsDialog = ({
                         
                         {/* Metadata Display */}
                         {/* Metadata Display */}
-                        {currentImage.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
+                        {currentImage?.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
                           <div className="space-y-2">
                             <button
-                              onClick={() => setZoomImage(JSON.stringify(currentImage.metadata, null, 2))}
+                              onClick={() => setZoomImage(JSON.stringify(currentImage?.metadata ?? [], null, 2))}
                               className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full p-2 rounded-md hover:bg-muted"
                             >
                               <Info className="w-3 h-3" />
                               <span>{t("nu3d.image.viewMetadata") || "View Full Metadata"}</span>
                             </button>
                             <div className="text-xs space-y-1 p-2 bg-muted rounded-md">
-                              {currentImage.metadata[0].scale && currentImage.metadata[0].scale[0] && (
+                              {currentImage.metadata[0]?.scale && currentImage.metadata[0].scale[0] && (
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">Scale:</span>
                                   <span className="font-mono">[{currentImage.metadata[0].scale[0].map((v: number) => v.toFixed(2)).join(", ")}]</span>
                                 </div>
                               )}
-                              {currentImage.metadata[0].translation && currentImage.metadata[0].translation[0] && (
+                              {currentImage.metadata[0]?.translation && currentImage.metadata[0].translation[0] && (
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">Position:</span>
                                   <span className="font-mono">[{currentImage.metadata[0].translation[0].map((v: number) => v.toFixed(2)).join(", ")}]</span>
@@ -647,7 +647,7 @@ const ProductDetailsDialog = ({
                           </div>
                         )}
                       </div>
-                    ) : currentImage.status === "processing" ? (
+                    ) : currentImage?.status === "processing" ? (
                       <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-blue-500/20 gap-2">
                         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                         <span className="text-sm font-medium text-foreground">
@@ -657,13 +657,13 @@ const ProductDetailsDialog = ({
                           {t("nu3d.image.pleaseWait") || "This may take 60-120 seconds"}
                         </span>
                       </div>
-                    ) : currentImage.status === "failed" ? (
+                    ) : currentImage?.status === "failed" ? (
                       <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-red-500/20 gap-2">
                         <XCircle className="w-8 h-8 text-red-500" />
                         <span className="text-sm font-medium text-red-600 dark:text-red-400">
                           {t("nu3d.image.failed") || "3D Generation Failed"}
                         </span>
-                        {currentImage.message && (
+                        {currentImage?.message && (
                           <span className="text-xs text-muted-foreground text-center px-4">
                             {currentImage.message}
                           </span>
@@ -680,9 +680,9 @@ const ProductDetailsDialog = ({
                 </div>
 
                 {/* Image Actions */}
-                {currentImage.status === "completed" &&
-                  currentImage.approvalStatus === "pending" &&
-                  (currentImage.model_glb_url || currentImage.gaussian_splat_url) && (
+                {currentImage?.status === "completed" &&
+                  currentImage?.approvalStatus === "pending" &&
+                  (currentImage?.model_glb_url || currentImage?.gaussian_splat_url) && (
                     <div className="flex gap-2 justify-end">
                       <Button
                         size="sm"
@@ -690,15 +690,15 @@ const ProductDetailsDialog = ({
                         onClick={() =>
                           handleImageAction(
                             "reject",
-                            currentImage.id,
-                            currentImage.image_id,
-                            currentImage.model_glb_url || currentImage.gaussian_splat_url
+                            currentImage?.id ?? "",
+                            currentImage?.image_id ?? 0,
+                            currentImage?.model_glb_url || currentImage?.gaussian_splat_url || ""
                           )
                         }
-                        disabled={processingImageId === currentImage.id}
+                        disabled={processingImageId === currentImage?.id}
                         className="border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
                       >
-                        {processingImageId === currentImage.id ? (
+                        {processingImageId === currentImage?.id ? (
                           <Loader2 className="w-3 h-3 animate-spin mr-1 text-red-600 dark:text-red-400" />
                         ) : (
                           <XCircle className="w-3 h-3 mr-1 text-red-600 dark:text-red-400" />
@@ -710,15 +710,15 @@ const ProductDetailsDialog = ({
                         onClick={() =>
                           handleImageAction(
                             "approve",
-                            currentImage.id,
-                            currentImage.image_id,
-                            currentImage.model_glb_url || currentImage.gaussian_splat_url
+                            currentImage?.id ?? "",
+                            currentImage?.image_id ?? 0,
+                            currentImage?.model_glb_url || currentImage?.gaussian_splat_url || ""
                           )
                         }
-                        disabled={processingImageId === currentImage.id}
+                        disabled={processingImageId === currentImage?.id}
                         className="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700"
                       >
-                        {processingImageId === currentImage.id ? (
+                        {processingImageId === currentImage?.id ? (
                           <Loader2 className="w-3 h-3 animate-spin mr-1" />
                         ) : (
                           <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -771,7 +771,7 @@ const ProductDetailsDialog = ({
           <DialogContent className="max-w-6xl max-h-[95vh] p-0 overflow-hidden">
             <DialogHeader className="px-6 pt-6 pb-4">
               <DialogTitle className="flex items-center justify-between">
-                <span>{product.title} - {t("nu3d.image.model3dViewer") || "3D Model Viewer"}</span>
+                <span>{product?.title ?? ""} - {t("nu3d.image.model3dViewer") || "3D Model Viewer"}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -785,8 +785,8 @@ const ProductDetailsDialog = ({
             </DialogHeader>
             <div className="relative w-full h-[calc(95vh-120px)] min-h-[500px] bg-muted">
               <model-viewer
-                src={currentImage.model_glb_url}
-                alt={product.title}
+                src={currentImage?.model_glb_url ?? ""}
+                alt={product?.title ?? ""}
                 camera-controls
                 auto-rotate
                 interaction-policy="allow-when-focused"
@@ -809,9 +809,9 @@ const ProductDetailsDialog = ({
                   <Info className="w-4 h-4" />
                   <span>{t("nu3d.image.viewerHint") || "Drag to rotate, scroll to zoom, right-click to pan"}</span>
                 </div>
-                {currentImage.model_glb_url && (
+                {currentImage?.model_glb_url && (
                   <a
-                    href={currentImage.model_glb_url}
+                    href={currentImage?.model_glb_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     download
@@ -839,46 +839,46 @@ const ProductDetailsDialog = ({
                 {zoomImage}
               </pre>
             )}
-            {currentImage && currentImage.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
+            {currentImage && currentImage?.metadata && currentImage.metadata.length > 0 && currentImage.metadata[0] && (
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold">{t("nu3d.image.formattedMetadata") || "Formatted Metadata"}</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  {currentImage.metadata[0].scale && currentImage.metadata[0].scale[0] && (
+                  {currentImage.metadata[0]?.scale && currentImage.metadata[0].scale[0] && (
                     <div>
                       <span className="text-muted-foreground font-medium">Scale:</span>
                       <div className="mt-1 font-mono text-xs">
-                        X: {currentImage.metadata[0].scale[0][0]?.toFixed(4)}<br />
-                        Y: {currentImage.metadata[0].scale[0][1]?.toFixed(4)}<br />
-                        Z: {currentImage.metadata[0].scale[0][2]?.toFixed(4)}
+                        X: {currentImage.metadata[0].scale[0]?.[0]?.toFixed(4) ?? "0.0000"}<br />
+                        Y: {currentImage.metadata[0].scale[0]?.[1]?.toFixed(4) ?? "0.0000"}<br />
+                        Z: {currentImage.metadata[0].scale[0]?.[2]?.toFixed(4) ?? "0.0000"}
                       </div>
                     </div>
                   )}
-                  {currentImage.metadata[0].translation && currentImage.metadata[0].translation[0] && (
+                  {currentImage.metadata[0]?.translation && currentImage.metadata[0].translation[0] && (
                     <div>
                       <span className="text-muted-foreground font-medium">Translation:</span>
                       <div className="mt-1 font-mono text-xs">
-                        X: {currentImage.metadata[0].translation[0][0]?.toFixed(4)}<br />
-                        Y: {currentImage.metadata[0].translation[0][1]?.toFixed(4)}<br />
-                        Z: {currentImage.metadata[0].translation[0][2]?.toFixed(4)}
+                        X: {currentImage.metadata[0].translation[0]?.[0]?.toFixed(4) ?? "0.0000"}<br />
+                        Y: {currentImage.metadata[0].translation[0]?.[1]?.toFixed(4) ?? "0.0000"}<br />
+                        Z: {currentImage.metadata[0].translation[0]?.[2]?.toFixed(4) ?? "0.0000"}
                       </div>
                     </div>
                   )}
-                  {currentImage.metadata[0].rotation && currentImage.metadata[0].rotation[0] && (
+                  {currentImage.metadata[0]?.rotation && currentImage.metadata[0].rotation[0] && (
                     <div className="col-span-2">
                       <span className="text-muted-foreground font-medium">Rotation (Quaternion):</span>
                       <div className="mt-1 font-mono text-xs">
-                        W: {currentImage.metadata[0].rotation[0][0]?.toFixed(4)}<br />
-                        X: {currentImage.metadata[0].rotation[0][1]?.toFixed(4)}<br />
-                        Y: {currentImage.metadata[0].rotation[0][2]?.toFixed(4)}<br />
-                        Z: {currentImage.metadata[0].rotation[0][3]?.toFixed(4)}
+                        W: {currentImage.metadata[0].rotation[0]?.[0]?.toFixed(4) ?? "0.0000"}<br />
+                        X: {currentImage.metadata[0].rotation[0]?.[1]?.toFixed(4) ?? "0.0000"}<br />
+                        Y: {currentImage.metadata[0].rotation[0]?.[2]?.toFixed(4) ?? "0.0000"}<br />
+                        Z: {currentImage.metadata[0].rotation[0]?.[3]?.toFixed(4) ?? "0.0000"}
                       </div>
                     </div>
                   )}
-                  {currentImage.metadata[0].object_index !== undefined && (
+                  {currentImage.metadata[0]?.object_index !== undefined && (
                     <div>
                       <span className="text-muted-foreground font-medium">Object Index:</span>
                       <div className="mt-1 font-mono text-xs">
-                        {currentImage.metadata[0].object_index}
+                        {currentImage.metadata[0].object_index ?? "N/A"}
                       </div>
                     </div>
                   )}
@@ -1008,11 +1008,11 @@ const Nu3d = () => {
 
   // Flatten products into variant rows
   const variantRows: VariantRowData[] = displayProducts.flatMap((product) =>
-    product.variants.nodes.map((variant, index) => ({
+    product.variants?.nodes?.map((variant, index) => ({
       product,
       variant,
       variantIndex: index,
-    }))
+    })) ?? []
   );
 
   // Handle manual product fetch (refresh button) - uses specific API
@@ -1085,7 +1085,7 @@ const Nu3d = () => {
       setSelectedVariants(new Set());
     } else {
       const allVariantKeys = variantRows.map(
-        (row) => `${row.product.id}-${row.variant.id}`
+        (row) => `${row.product?.id ?? ""}-${row.variant?.id ?? ""}`
       );
       setSelectedVariants(new Set(allVariantKeys));
     }
@@ -1318,14 +1318,14 @@ const Nu3d = () => {
                       </TableHeader>
                       <TableBody>
                         {variantRows.map((variantRow) => {
-                          const variantKey = `${variantRow.product.id}-${variantRow.variant.id}`;
+                          const variantKey = `${variantRow.product?.id ?? ""}-${variantRow.variant?.id ?? ""}`;
                           return (
                             <VariantTableRow
                               key={variantKey}
                               variantRow={variantRow}
                       shop={shopDomain || ""}
                               isSelected={selectedVariants.has(variantKey)}
-                              onToggleSelect={() => handleToggleVariant(variantRow.product.id, variantRow.variant.id)}
+                              onToggleSelect={() => handleToggleVariant(variantRow.product?.id ?? "", variantRow.variant?.id ?? "")}
                       onUpdate={handleProductUpdate}
                     />
                           );

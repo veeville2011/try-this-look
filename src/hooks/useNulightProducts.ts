@@ -41,10 +41,10 @@ export const useNulightProducts = (
         }
 
         // Replace products (not append) for initial fetch or refresh
-        setProducts(response.data.products);
-        setNextCursor(response.data.pageInfo.endCursor);
-        setHasNextPage(response.data.pageInfo.hasNextPage);
-        setTotal(response.data.total);
+        setProducts(response.data?.products ?? []);
+        setNextCursor(response.data?.pageInfo?.endCursor ?? null);
+        setHasNextPage(response.data?.pageInfo?.hasNextPage ?? false);
+        setTotal(response.data?.total ?? 0);
 
         return response;
       } catch (err) {
@@ -78,10 +78,10 @@ export const useNulightProducts = (
       }
 
       // Append new products
-      setProducts((prev) => [...prev, ...response.data.products]);
-      setNextCursor(response.data.pageInfo.endCursor);
-      setHasNextPage(response.data.pageInfo.hasNextPage);
-      setTotal(response.data.total);
+      setProducts((prev) => [...prev, ...(response.data?.products ?? [])]);
+      setNextCursor(response.data?.pageInfo?.endCursor ?? null);
+      setHasNextPage(response.data?.pageInfo?.hasNextPage ?? false);
+      setTotal(response.data?.total ?? 0);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "An error occurred";
