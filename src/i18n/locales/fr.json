@@ -482,10 +482,28 @@
       "previous": "Image précédente",
       "next": "Image suivante",
       "preview": "Aperçu de l'image",
-      "original": "Original",
+      "original": "Image originale",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "cached": "En cache",
+      "model3d": "Modèle 3D",
+      "view3d": "Voir en 3D",
+      "view3dModel": "Voir le modèle 3D en plein écran",
+      "model3dReady": "Modèle 3D prêt",
+      "gaussianSplatOnly": "Format Gaussian Splat disponible",
+      "downloadGlb": "Télécharger GLB",
+      "downloadSplat": "Télécharger Gaussian Splat",
+      "viewMetadata": "Voir les métadonnées complètes",
+      "processing3d": "Traitement du modèle 3D...",
+      "pleaseWait": "Cela peut prendre 60 à 120 secondes",
+      "failed": "Échec de la génération 3D",
+      "notAvailable": "Modèle 3D non disponible",
+      "model3dViewer": "Visualiseur de modèle 3D",
+      "closeViewer": "Fermer le visualiseur",
+      "viewerHint": "Glisser pour faire pivoter, faire défiler pour zoomer, clic droit pour déplacer",
+      "formattedMetadata": "Métadonnées formatées",
+      "metadata": "Métadonnées du modèle 3D"
     },
     "dialog": {
       "price": "Prix",
@@ -499,7 +517,8 @@
       "approved": "Approuvé",
       "rejected": "Rejeté",
       "pending": "En attente",
-      "noImages": "Aucune image"
+      "noImages": "Aucune image",
+      "processing3d": "Traitement 3D"
     },
     "info": {
       "title": "Gestion des produits",

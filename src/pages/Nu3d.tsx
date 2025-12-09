@@ -769,17 +769,8 @@ const ProductDetailsDialog = ({
         <Dialog open={show3dViewer} onOpenChange={setShow3dViewer}>
           <DialogContent className="max-w-6xl max-h-[95vh] p-0 overflow-hidden">
             <DialogHeader className="px-6 pt-6 pb-4">
-              <DialogTitle className="flex items-center justify-between">
-                <span>{product?.title ?? ""} - {t("nu3d.image.model3dViewer") || "3D Model Viewer"}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShow3dViewer(false)}
-                  className="h-6 w-6"
-                  aria-label={t("nu3d.image.closeViewer") || "Close viewer"}
-                >
-                  <XCircle className="w-4 h-4" />
-                </Button>
+              <DialogTitle>
+                {product?.title ?? ""} - {t("nu3d.image.model3dViewer") || "3D Model Viewer"}
               </DialogTitle>
             </DialogHeader>
             <div className="relative w-full h-[calc(95vh-120px)] min-h-[500px] bg-muted">

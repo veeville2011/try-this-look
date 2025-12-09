@@ -482,10 +482,28 @@
       "previous": "Previous image",
       "next": "Next image",
       "preview": "Image Preview",
-      "original": "Original",
+      "original": "Original Image",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "cached": "Cached",
+      "model3d": "3D Model",
+      "view3d": "View 3D",
+      "view3dModel": "View 3D Model in Fullscreen",
+      "model3dReady": "3D Model Ready",
+      "gaussianSplatOnly": "Gaussian Splat format available",
+      "downloadGlb": "Download GLB",
+      "downloadSplat": "Download Gaussian Splat",
+      "viewMetadata": "View Full Metadata",
+      "processing3d": "Processing 3D Model...",
+      "pleaseWait": "This may take 60-120 seconds",
+      "failed": "3D Generation Failed",
+      "notAvailable": "3D Model Not Available",
+      "model3dViewer": "3D Model Viewer",
+      "closeViewer": "Close viewer",
+      "viewerHint": "Drag to rotate, scroll to zoom, right-click to pan",
+      "formattedMetadata": "Formatted Metadata",
+      "metadata": "3D Model Metadata"
     },
     "dialog": {
       "price": "Price",
@@ -499,7 +517,8 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "pending": "Pending",
-      "noImages": "No Images"
+      "noImages": "No Images",
+      "processing3d": "Processing 3D"
     },
     "info": {
       "title": "Products Management",
