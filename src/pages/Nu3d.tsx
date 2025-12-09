@@ -4,7 +4,7 @@ import { useShop } from "@/providers/AppBridgeProvider";
 import { useNu3dProducts } from "@/hooks/useNu3dProducts";
 import { fetchAllStoreProducts } from "@/services/productsApi";
 import NavigationBar from "@/components/NavigationBar";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap, RefreshCw } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Download, Info, Box, Zap, RefreshCw, Maximize2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import "@google/model-viewer";
+import "@/types/model-viewer";
 
 interface VariantRowData {
   product: Nu3dProduct;
@@ -292,6 +294,7 @@ const ProductDetailsDialog = ({
   const [processingImageId, setProcessingImageId] = useState<string | null>(null);
   const [processingProduct, setProcessingProduct] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [show3dViewer, setShow3dViewer] = useState(false);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantImages = variant?.images || [];
@@ -556,16 +559,26 @@ const ProductDetailsDialog = ({
                           </div>
                           <div className="flex flex-col gap-2 w-full">
                             {currentImage.model_glb_url && (
-                              <a
-                                href={currentImage.model_glb_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                download
-                                className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
-                              >
-                                <Download className="w-3 h-3" />
-                                {t("nu3d.image.downloadGlb") || "Download GLB"}
-                              </a>
+                              <>
+                                <Button
+                                  onClick={() => setShow3dViewer(true)}
+                                  className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
+                                  aria-label={t("nu3d.image.view3dModel") || "View 3D Model"}
+                                >
+                                  <Maximize2 className="w-3 h-3" />
+                                  {t("nu3d.image.view3dModel") || "View 3D Model"}
+                                </Button>
+                                <a
+                                  href={currentImage.model_glb_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors text-xs font-medium"
+                                >
+                                  <Download className="w-3 h-3" />
+                                  {t("nu3d.image.downloadGlb") || "Download GLB"}
+                                </a>
+                              </>
                             )}
                             {currentImage.gaussian_splat_url && (
                               <a
@@ -789,6 +802,66 @@ const ProductDetailsDialog = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 3D Model Viewer Dialog */}
+      {currentImage && currentImage.model_glb_url && (
+        <Dialog open={show3dViewer} onOpenChange={setShow3dViewer}>
+          <DialogContent className="max-w-5xl max-h-[95vh] p-0">
+            <DialogHeader className="px-6 pt-6 pb-4">
+              <DialogTitle>{t("nu3d.image.view3dModel") || "3D Model Viewer"}</DialogTitle>
+            </DialogHeader>
+            <div className="relative w-full h-[70vh] bg-muted rounded-b-lg overflow-hidden">
+              <model-viewer
+                src={currentImage.model_glb_url}
+                alt={product.title}
+                camera-controls
+                auto-rotate
+                ar
+                ar-modes="webxr scene-viewer quick-look"
+                shadow-intensity="1"
+                exposure="1"
+                environment-image="neutral"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "transparent",
+                }}
+                className="w-full h-full"
+              >
+                <div slot="poster" className="w-full h-full flex items-center justify-center bg-muted">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              </model-viewer>
+            </div>
+            <div className="px-6 pb-6 pt-4 flex items-center justify-between border-t">
+              <div className="text-sm text-muted-foreground">
+                {t("nu3d.image.viewerInstructions") || "Drag to rotate • Scroll to zoom • Right-click to pan"}
+              </div>
+              <div className="flex gap-2">
+                {currentImage.model_glb_url && (
+                  <a
+                    href={currentImage.model_glb_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs font-medium"
+                  >
+                    <Download className="w-3 h-3" />
+                    {t("nu3d.image.downloadGlb") || "Download GLB"}
+                  </a>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setShow3dViewer(false)}
+                  className="text-xs"
+                >
+                  {t("nu3d.dialog.close") || "Close"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };
