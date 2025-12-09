@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNusceneProducts } from "@/hooks/useNusceneProducts";
+import { fetchAllStoreProducts } from "@/services/productsApi";
 import NavigationBar from "@/components/NavigationBar";
 import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Play, Video, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -695,11 +696,119 @@ const Nuscene = () => {
   // Bulk selection state - using variant IDs (format: "productId-variantId")
   const [selectedVariants, setSelectedVariants] = useState<Set<string>>(new Set());
   const [processingBulk, setProcessingBulk] = useState(false);
+  
+  // Track if this is the first load and store initial products
+  const isFirstLoadRef = useRef(true);
+  const [initialProducts, setInitialProducts] = useState<NusceneProduct[]>([]);
+  const [initialLoading, setInitialLoading] = useState(false);
+  const [hasRefreshed, setHasRefreshed] = useState(false);
 
-  // Track if we've already fetched on mount to prevent duplicate calls
+  // Fetch products from /api/products on first load
+  useEffect(() => {
+    if (!shopDomain || !isFirstLoadRef.current || hasRefreshed) {
+      return;
+    }
+
+    const fetchInitialProducts = async () => {
+      isFirstLoadRef.current = false;
+      setInitialLoading(true);
+      const normalizedShop = shopDomain.replace(".myshopify.com", "");
+      
+      try {
+        const response = await fetchAllStoreProducts(normalizedShop, {
+          status: "ACTIVE",
+          limit: 50,
+        });
+
+        if (response.success && response.products && response.products.length > 0) {
+          // Transform the simple product structure to match NusceneProduct format
+          const transformedProducts: NusceneProduct[] = response.products.map((productImage) => {
+            const productId = productImage.productId.replace("gid://shopify/Product/", "");
+            
+            return {
+              id: productImage.productId,
+              title: productImage.productTitle,
+              handle: productImage.productHandle,
+              description: "",
+              descriptionHtml: "",
+              vendor: "",
+              productType: "",
+              status: "ACTIVE",
+              tags: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              publishedAt: new Date().toISOString(),
+              onlineStoreUrl: null,
+              onlineStorePreviewUrl: null,
+              totalInventory: 0,
+              hasOnlyDefaultVariant: true,
+              hasOutOfStockVariants: false,
+              priceRangeV2: {
+                minVariantPrice: { amount: "0.00", currencyCode: "USD" },
+                maxVariantPrice: { amount: "0.00", currencyCode: "USD" },
+              },
+              media: {
+                nodes: [{
+                  id: productImage.imageId,
+                  image: {
+                    id: productImage.imageId,
+                    url: productImage.imageUrl,
+                    altText: productImage.altText || null,
+                    width: 1024,
+                    height: 1024,
+                  },
+                }],
+              },
+              variants: {
+                nodes: [{
+                  id: `gid://shopify/ProductVariant/${productId}`,
+                  title: "Default",
+                  sku: null,
+                  barcode: null,
+                  price: "0.00",
+                  compareAtPrice: null,
+                  availableForSale: true,
+                  inventoryQuantity: null,
+                  inventoryPolicy: "DENY",
+                  media: {
+                    nodes: [{
+                      id: productImage.imageId,
+                      image: {
+                        id: productImage.imageId,
+                        url: productImage.imageUrl,
+                        altText: productImage.altText || null,
+                        width: 1024,
+                        height: 1024,
+                      },
+                    }],
+                  },
+                  selectedOptions: [],
+                  images: [],
+                }],
+              },
+            };
+          });
+
+          setInitialProducts(transformedProducts);
+        }
+      } catch (error) {
+        console.warn("[Nuscene] Failed to fetch initial products from /api/products:", error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    fetchInitialProducts();
+  }, [shopDomain, hasRefreshed]);
+
+  // Use initial products if available and not refreshed, otherwise use hook products
+  const displayProducts = hasRefreshed || initialProducts.length === 0 ? products : initialProducts;
+  const displayLoading = hasRefreshed ? productsLoading : initialLoading;
+  const displayError = hasRefreshed ? productsError : null;
+  const displayTotal = hasRefreshed ? total : initialProducts.length;
 
   // Flatten products into variant rows
-  const variantRows: VariantRowData[] = products.flatMap((product) =>
+  const variantRows: VariantRowData[] = displayProducts.flatMap((product) =>
     product.variants.nodes.map((variant, index) => ({
       product,
       variant,
@@ -707,15 +816,15 @@ const Nuscene = () => {
     }))
   );
 
-  // Fetch products immediately on mount or when shopDomain becomes available
-  // Removed automatic fetch on mount - products will only be fetched when user clicks refresh button
-
-  // Handle manual product fetch
+  // Handle manual product fetch (refresh button) - uses specific API
   const handleFetchProducts = async () => {
     if (!shopDomain) {
       toast.error(t("index.errors.shopNotFound") || "Shop domain not found");
       return;
     }
+
+    // Mark as refreshed so we use the specific API
+    setHasRefreshed(true);
 
     // Normalize shop domain (remove .myshopify.com if present, API will handle it)
     const normalizedShop = shopDomain.replace(".myshopify.com", "");
@@ -865,18 +974,18 @@ const Nuscene = () => {
                     <Package className="w-4 h-4" />
                     <span>{variantRows.length} {t("nuscene.variants") || "variants"}</span>
                     <span className="text-muted-foreground/70">•</span>
-                    <span>{total} {t("nuscene.products") || "products"}</span>
+                    <span>{displayTotal} {t("nuscene.products") || "products"}</span>
                   </div>
                 )}
                 <Button
                   onClick={handleFetchProducts}
-                  disabled={productsLoading}
+                  disabled={displayLoading}
                   size="icon"
                   variant="outline"
                   className="h-9 w-9 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   aria-label={t("nuscene.refresh") || "Refresh products"}
                 >
-                  {productsLoading ? (
+                  {displayLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <RefreshCw className="w-4 h-4" />
@@ -885,15 +994,15 @@ const Nuscene = () => {
               </div>
             </div>
 
-            {productsError && (
+            {displayError && (
               <Card className="mb-6 p-4 border-destructive/50 bg-destructive/10">
                 <p className="text-sm text-destructive">
-                  {productsError}
+                  {displayError}
                 </p>
               </Card>
             )}
 
-            {productsLoading && products.length === 0 ? (
+            {displayLoading && displayProducts.length === 0 ? (
               <Card className="border border-border shadow-sm bg-card">
                 <CardContent className="p-0">
                   <Table>
@@ -931,7 +1040,7 @@ const Nuscene = () => {
                   </Table>
                 </CardContent>
               </Card>
-            ) : products.length > 0 ? (
+            ) : displayProducts.length > 0 ? (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
                   <div className="flex items-center gap-3">
@@ -1030,13 +1139,13 @@ const Nuscene = () => {
                   <div className="flex justify-center pt-4">
                     <Button
                       onClick={handleLoadMore}
-                      disabled={productsLoading}
+                      disabled={displayLoading || !hasRefreshed}
                       variant="outline"
                       className="h-10 px-6 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       aria-label={t("nuscene.loadMore") || "Load More Products"}
                     >
                       <ChevronDown className="w-4 h-4 mr-2" aria-hidden="true" />
-                      {productsLoading
+                      {displayLoading
                         ? (t("nuscene.loading") || "Loading...")
                         : (t("nuscene.loadMore") || "Load More")}
                     </Button>
@@ -1045,7 +1154,7 @@ const Nuscene = () => {
               </div>
             ) : null}
 
-            {!productsLoading && products.length === 0 && !productsError && (
+            {!displayLoading && displayProducts.length === 0 && !displayError && (
               <Card className="p-12 text-center border-border bg-card">
                 <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" aria-hidden="true" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -1056,13 +1165,13 @@ const Nuscene = () => {
                 </p>
                 <Button
                   onClick={handleFetchProducts}
-                  disabled={productsLoading}
+                  disabled={displayLoading}
                   size="icon"
                   variant="outline"
                   className="h-9 w-9 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   aria-label={t("nuscene.refresh") || "Refresh products"}
                 >
-                  {productsLoading ? (
+                  {displayLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <RefreshCw className="w-4 h-4" />
