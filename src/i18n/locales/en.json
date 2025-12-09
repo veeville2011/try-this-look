@@ -753,6 +753,12 @@
       "comingSoon": "Coming soon",
       "addToCartComingSoon": "Add to cart will be available soon.",
       "buyNowComingSoon": "Buy now will be available soon."
+    },
+    "version": {
+      "label": "Version (Optional)",
+      "ariaLabel": "Select version",
+      "placeholder": "Select a version (optional)",
+      "description": "Select the model version to use for generation"
     }
   }
 }

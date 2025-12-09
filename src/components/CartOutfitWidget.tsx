@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PhotoUpload, { DEMO_PHOTO_ID_MAP } from "./PhotoUpload";
@@ -50,6 +51,7 @@ export default function CartOutfitWidget({
   initialMode = "cart",
   cartItems = [],
 }: CartOutfitWidgetProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<CartOutfitMode>(initialMode);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<
@@ -672,7 +674,7 @@ export default function CartOutfitWidget({
                 htmlFor="version-select-cart-outfit"
                 className="text-sm font-semibold text-foreground"
               >
-                Version (Optionnel)
+                {t("tryOnWidget.version.label") || "Version (Optional)"}
               </label>
               <Select
                 value={selectedVersion ? String(selectedVersion) : ""}
@@ -683,9 +685,9 @@ export default function CartOutfitWidget({
                 <SelectTrigger
                   id="version-select-cart-outfit"
                   className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
-                  aria-label="Sélectionner la version"
+                  aria-label={t("tryOnWidget.version.ariaLabel") || "Select version"}
                 >
-                  <SelectValue placeholder="Sélectionner une version (optionnel)" />
+                  <SelectValue placeholder={t("tryOnWidget.version.placeholder") || "Select a version (optional)"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1" className="cursor-pointer focus:bg-primary/10">
@@ -697,7 +699,7 @@ export default function CartOutfitWidget({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Sélectionnez la version du modèle à utiliser pour la génération
+                {t("tryOnWidget.version.description") || "Select the model version to use for generation"}
               </p>
             </div>
 

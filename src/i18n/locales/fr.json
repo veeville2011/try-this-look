@@ -753,6 +753,12 @@
       "comingSoon": "Fonctionnalité à venir",
       "addToCartComingSoon": "L'ajout au panier sera disponible prochainement.",
       "buyNowComingSoon": "L'achat immédiat sera disponible prochainement."
+    },
+    "version": {
+      "label": "Version (Optionnel)",
+      "ariaLabel": "Sélectionner la version",
+      "placeholder": "Sélectionner une version (optionnel)",
+      "description": "Sélectionnez la version du modèle à utiliser pour la génération"
     }
   }
 }
