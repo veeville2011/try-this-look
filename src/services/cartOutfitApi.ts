@@ -40,7 +40,8 @@ export async function generateCartTryOn(
   garmentImages: File[],
   storeName: string,
   garmentKeys?: string[],
-  personKey?: string
+  personKey?: string,
+  version?: number | null
 ): Promise<CartResponse> {
   const requestId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -89,12 +90,17 @@ export async function generateCartTryOn(
         formData.append("garmentKeys", garmentKeys.join(","));
       }
 
+      if (version !== undefined && version !== null) {
+        formData.append("version", String(version));
+      }
+
       console.log("[FRONTEND] [CART] FormData prepared", {
         requestId,
         garmentCount: garmentImages.length,
         hasStoreName: !!storeName,
         hasPersonKey: !!personKey,
         garmentKeysCount: garmentKeys?.length || 0,
+        version: version || "not provided",
       });
     } catch (formError) {
       logError("[FRONTEND] [CART] FormData preparation failed", formError, {
@@ -230,7 +236,8 @@ export async function generateOutfitLook(
   garmentTypes: string[],
   storeName: string,
   garmentKeys?: string[],
-  personKey?: string
+  personKey?: string,
+  version?: number | null
 ): Promise<OutfitResponse> {
   const requestId = `outfit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -296,6 +303,10 @@ export async function generateOutfitLook(
         formData.append("garmentKeys", garmentKeys.join(","));
       }
 
+      if (version !== undefined && version !== null) {
+        formData.append("version", String(version));
+      }
+
       console.log("[FRONTEND] [OUTFIT] FormData prepared", {
         requestId,
         garmentCount: garmentImages.length,
@@ -303,6 +314,7 @@ export async function generateOutfitLook(
         hasStoreName: !!storeName,
         hasPersonKey: !!personKey,
         garmentKeysCount: garmentKeys?.length || 0,
+        version: version || "not provided",
       });
     } catch (formError) {
       logError("[FRONTEND] [OUTFIT] FormData preparation failed", formError, {

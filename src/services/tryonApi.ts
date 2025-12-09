@@ -22,7 +22,8 @@ export async function generateTryOn(
   clothingImage: Blob,
   storeName?: string | null,
   clothingKey?: string | null,
-  personKey?: string | null
+  personKey?: string | null,
+  version?: number | null
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -56,12 +57,17 @@ export async function generateTryOn(
       if (personKey) {
         formData.append("personKey", personKey);
       }
+
+      if (version !== undefined && version !== null) {
+        formData.append("version", String(version));
+      }
       
       console.log("[FRONTEND] [TRYON] FormData prepared", {
         requestId,
         hasStoreName: !!storeName,
         hasClothingKey: !!clothingKey,
         hasPersonKey: !!personKey,
+        version: version || "not provided",
       });
     } catch (formError) {
       logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {

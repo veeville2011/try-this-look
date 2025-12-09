@@ -29,6 +29,13 @@ import {
 } from "@/types/cartOutfit";
 import { ProductImage } from "@/types/tryon";
 import { Sparkles, X, RotateCcw, XCircle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CartOutfitWidgetProps {
   isOpen?: boolean;
@@ -70,6 +77,7 @@ export default function CartOutfitWidget({
   );
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null); // Version selection (1 or 2, optional)
   const imagesLoadedRef = useRef<boolean>(false);
 
   // Mode-specific constraints
@@ -334,7 +342,8 @@ export default function CartOutfitWidget({
           garmentBlobs,
           storeName,
           garmentKeys.length > 0 ? garmentKeys : undefined,
-          personKey
+          personKey,
+          selectedVersion
         );
 
         // Update batch progress with final results
@@ -375,7 +384,8 @@ export default function CartOutfitWidget({
           garmentTypes,
           storeName,
           garmentKeys.length > 0 ? garmentKeys : undefined,
-          personKey
+          personKey,
+          selectedVersion
         );
 
         if (progressInterval) {
@@ -422,6 +432,7 @@ export default function CartOutfitWidget({
     setError(null);
     setProgress(0);
     setBatchProgress(null);
+    setSelectedVersion(null); // Reset version selection
     setStatusVariant("info");
     setStatusMessage(
       "Téléchargez votre photo puis sélectionnez les articles à essayer"
@@ -652,9 +663,44 @@ export default function CartOutfitWidget({
           </section>
         </div>
 
-        {/* Generate button */}
+        {/* Version Selection and Generate button */}
         {!isGenerating && (
-          <div className="pt-1 sm:pt-2">
+          <div className="pt-1 sm:pt-2 space-y-3 sm:space-y-4">
+            {/* Version Dropdown */}
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="version-select-cart-outfit"
+                className="text-sm font-semibold text-foreground"
+              >
+                Version (Optionnel)
+              </label>
+              <Select
+                value={selectedVersion ? String(selectedVersion) : ""}
+                onValueChange={(value) => {
+                  setSelectedVersion(value ? Number(value) : null);
+                }}
+              >
+                <SelectTrigger
+                  id="version-select-cart-outfit"
+                  className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
+                  aria-label="Sélectionner la version"
+                >
+                  <SelectValue placeholder="Sélectionner une version (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1" className="cursor-pointer focus:bg-primary/10">
+                    Version 1
+                  </SelectItem>
+                  <SelectItem value="2" className="cursor-pointer focus:bg-primary/10">
+                    Version 2
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Sélectionnez la version du modèle à utiliser pour la génération
+              </p>
+            </div>
+
             <Button
               onClick={handleGenerate}
               disabled={!canGenerate}
