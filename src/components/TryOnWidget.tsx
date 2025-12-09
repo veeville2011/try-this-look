@@ -1645,8 +1645,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       {/* Content */}
       <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
-          {/* Try Single Tab - Current UI */}
-          <TabsContent value="single" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+        {/* Try Single Tab - Current UI */}
+        <TabsContent value="single" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
         {/* Selection sections - always visible */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left Panel: Upload / Preview */}
@@ -1840,17 +1840,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     : undefined
                 }
               >
-              <Sparkles
-                className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                aria-hidden="true"
-              />
-              {t("tryOnWidget.buttons.generateImage") || "Générer Image"}
-            </Button>
-            {(!selectedClothing || !uploadedImage) && (
-              <p id="generate-help" className="sr-only">
-                {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
-              </p>
-            )}
+                <Sparkles
+                  className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                  aria-hidden="true"
+                />
+                {t("tryOnWidget.buttons.generateImage") || "Générer Image"}
+              </Button>
+              {(!selectedClothing || !uploadedImage) && (
+                <p id="generate-help" className="sr-only">
+                  {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
