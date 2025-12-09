@@ -1833,13 +1833,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 onClick={handleGenerate}
                 disabled={!selectedClothing || !uploadedImage || isGenerating}
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
-              aria-describedby={
-                !selectedClothing || !uploadedImage
-                  ? "generate-help"
-                  : undefined
-              }
-            >
+                aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                aria-describedby={
+                  !selectedClothing || !uploadedImage
+                    ? "generate-help"
+                    : undefined
+                }
+              >
               <Sparkles
                 className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                 aria-hidden="true"
@@ -1895,10 +1895,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </Card>
           </div>
         )}
-          </TabsContent>
+        </TabsContent>
 
-          {/* Try Multiple Tab - Cart Mode */}
-          <TabsContent value="multiple" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+        {/* Try Multiple Tab - Cart Mode */}
+        <TabsContent value="multiple" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
             {/* Selection sections */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
               {/* Left Panel: Upload */}
