@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNulightProducts } from "@/hooks/useNulightProducts";
 import NavigationBar from "@/components/NavigationBar";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -645,7 +645,6 @@ const Nucopy = () => {
   const [processingBulk, setProcessingBulk] = useState(false);
 
   // Track if we've already fetched on mount to prevent duplicate calls
-  const hasFetchedOnMountRef = useRef(false);
 
   // Flatten products into variant rows
   const variantRows: VariantRowData[] = products.flatMap((product) =>
@@ -657,32 +656,7 @@ const Nucopy = () => {
   );
 
   // Fetch products immediately on mount or when shopDomain becomes available
-  useEffect(() => {
-    if (!shopDomain) {
-      return;
-    }
-
-    // Normalize shop domain (remove .myshopify.com if present, API will handle it)
-    const normalizedShop = shopDomain.replace(".myshopify.com", "");
-
-    // Create a unique key for this shop to track if we've fetched for it
-    const shopKey = normalizedShop;
-
-    // Check if we've already fetched for this shop
-    if (hasFetchedOnMountRef.current === shopKey) {
-      return;
-    }
-
-    // Mark as fetched for this shop to prevent duplicate calls
-    hasFetchedOnMountRef.current = shopKey;
-
-    // Fetch products immediately on mount
-    fetchProducts({ shop: normalizedShop }).catch((error) => {
-      console.warn("[Nucopy] Failed to fetch products on mount:", error);
-      // Reset ref on error so it can retry if needed
-      hasFetchedOnMountRef.current = false;
-    });
-  }, [shopDomain, fetchProducts]); // Only depend on shopDomain and fetchProducts
+  // Removed automatic fetch on mount - products will only be fetched when user clicks refresh button
 
   // Handle manual product fetch
   const handleFetchProducts = async () => {
@@ -848,14 +822,16 @@ const Nucopy = () => {
                 <Button
                   onClick={handleFetchProducts}
                   disabled={productsLoading}
-                  size="sm"
-                  className="h-9 px-4 font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label={t("nucopy.refresh") || "Refresh products"}
                 >
-                  <Store className="w-4 h-4 mr-2" aria-hidden="true" />
-                  {productsLoading 
-                    ? (t("index.hero.fetchingProducts") || "Fetching...") 
-                    : (t("index.hero.fetchProducts") || "Fetch Products")}
+                  {productsLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -1032,11 +1008,16 @@ const Nucopy = () => {
                 <Button
                   onClick={handleFetchProducts}
                   disabled={productsLoading}
-                  className="h-10 px-6 font-medium"
-                  aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label={t("nucopy.refresh") || "Refresh products"}
                 >
-                  <Store className="w-4 h-4 mr-2" aria-hidden="true" />
-                  {t("index.hero.fetchProducts") || "Fetch Products"}
+                  {productsLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
                 </Button>
               </Card>
             )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useNusceneProducts } from "@/hooks/useNusceneProducts";
@@ -697,7 +697,6 @@ const Nuscene = () => {
   const [processingBulk, setProcessingBulk] = useState(false);
 
   // Track if we've already fetched on mount to prevent duplicate calls
-  const hasFetchedOnMountRef = useRef(false);
 
   // Flatten products into variant rows
   const variantRows: VariantRowData[] = products.flatMap((product) =>
@@ -709,32 +708,7 @@ const Nuscene = () => {
   );
 
   // Fetch products immediately on mount or when shopDomain becomes available
-  useEffect(() => {
-    if (!shopDomain) {
-      return;
-    }
-
-    // Normalize shop domain (remove .myshopify.com if present, API will handle it)
-    const normalizedShop = shopDomain.replace(".myshopify.com", "");
-
-    // Create a unique key for this shop to track if we've fetched for it
-    const shopKey = normalizedShop;
-
-    // Check if we've already fetched for this shop
-    if (hasFetchedOnMountRef.current === shopKey) {
-      return;
-    }
-
-    // Mark as fetched for this shop to prevent duplicate calls
-    hasFetchedOnMountRef.current = shopKey;
-
-    // Fetch products immediately on mount
-    fetchProducts({ shop: normalizedShop }).catch((error) => {
-      console.warn("[Nuscene] Failed to fetch products on mount:", error);
-      // Reset ref on error so it can retry if needed
-      hasFetchedOnMountRef.current = false;
-    });
-  }, [shopDomain, fetchProducts]);
+  // Removed automatic fetch on mount - products will only be fetched when user clicks refresh button
 
   // Handle manual product fetch
   const handleFetchProducts = async () => {
@@ -1083,11 +1057,16 @@ const Nuscene = () => {
                 <Button
                   onClick={handleFetchProducts}
                   disabled={productsLoading}
-                  className="h-10 px-6 font-medium"
-                  aria-label={t("index.hero.fetchProducts") || "Fetch Products"}
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  aria-label={t("nuscene.refresh") || "Refresh products"}
                 >
-                  <Store className="w-4 h-4 mr-2" aria-hidden="true" />
-                  {t("index.hero.fetchProducts") || "Fetch Products"}
+                  {productsLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
                 </Button>
               </Card>
             )}
