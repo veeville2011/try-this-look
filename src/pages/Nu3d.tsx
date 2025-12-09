@@ -20,7 +20,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import "@google/model-viewer";
-import "@/types/model-viewer";
 
 interface VariantRowData {
   product: Nu3dProduct;
