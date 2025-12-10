@@ -1,5 +1,6 @@
 import { TryOnResponse } from "@/types/tryon";
 import { logError, logApiError } from "@/utils/errorHandler";
+import { authenticatedFetch } from "@/utils/authenticatedFetch";
 
 const API_ENDPOINT = "https://try-on-server-v1.onrender.com/api/fashion-photo";
 const HEALTH_ENDPOINT = "https://try-on-server-v1.onrender.com/api/health";
@@ -98,7 +99,8 @@ export async function generateTryOn(
         hasShop: !!storeName,
       });
 
-      response = await fetch(url, {
+      // Use authenticated fetch if available, otherwise regular fetch
+      response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
           "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",

@@ -4,6 +4,7 @@ import keyMappingsReducer from "./slices/keyMappingsSlice";
 import storeInfoReducer from "./slices/storeInfoSlice";
 import productsReducer from "./slices/productsSlice";
 import categorizedProductsReducer from "./slices/categorizedProductsSlice";
+import customerAuthReducer from "./slices/customerAuthSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     storeInfo: storeInfoReducer,
     products: productsReducer,
     categorizedProducts: categorizedProductsReducer,
+    customerAuth: customerAuthReducer,
   },
 });
 

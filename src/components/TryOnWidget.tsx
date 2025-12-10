@@ -34,7 +34,7 @@ import {
 } from "@/services/cartOutfitApi";
 import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, LogIn, LogOut, User } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +50,7 @@ import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
 import { useCategorizedProducts } from "@/hooks/useCategorizedProducts";
+import { useCustomerAuth } from "@/hooks/useCustomerAuth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface TryOnWidgetProps {
@@ -88,6 +89,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     lastFetchedShop: reduxLastFetchedShop,
     fetchCategorizedProducts: fetchCategorizedProductsFromRedux,
   } = useCategorizedProducts();
+
+  // Customer authentication state
+  const {
+    isAuthenticated,
+    customer,
+    isLoading: isAuthLoading,
+    login: handleLogin,
+    loginWithPopup: handleLoginWithPopup,
+    logout: handleLogout,
+    validateSession,
+  } = useCustomerAuth();
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -325,6 +337,41 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       (window as any).NUSENSE_STORE_INFO = storeInfo;
     }
   }, [storeInfo]);
+
+  // Listen for postMessage events from popup authentication
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      // Security: Validate message origin
+      const expectedOrigin = typeof window !== "undefined" ? window.location.origin : "";
+      if (event.origin !== expectedOrigin) {
+        console.warn("[TryOnWidget] Ignoring postMessage from unexpected origin:", event.origin);
+        return;
+      }
+
+      // Only handle customer auth messages
+      if (event.data?.type === "CUSTOMER_AUTH_SUCCESS") {
+        try {
+          // Validate session to get updated customer info
+          await validateSession();
+          toast.success(t("tryOnWidget.messages.loginSuccess") || "Connexion réussie!");
+        } catch (error) {
+          console.error("[TryOnWidget] Failed to validate session after popup auth:", error);
+          toast.error(t("tryOnWidget.errors.sessionValidationFailed") || "Échec de la validation de session");
+        }
+      } else if (event.data?.type === "CUSTOMER_AUTH_ERROR") {
+        const errorMessage = event.data.error || t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification";
+        toast.error(errorMessage);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener("message", handleMessage);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [validateSession, t]);
 
   useEffect(() => {
     const savedImage = storage.getUploadedImage();
@@ -994,10 +1041,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         );
       }
     } catch (err) {
-      const errorMessage =
+      // Check if error requires authentication
+      const requiresLogin = err && typeof err === "object" && "requiresLogin" in err && (err as any).requiresLogin;
+      
+      let errorMessage =
         err instanceof Error
           ? err.message
           : t("tryOnWidget.errors.unexpectedError") || "Une erreur inattendue s'est produite";
+      
+      // Handle authentication required error
+      if (requiresLogin) {
+        errorMessage = t("tryOnWidget.errors.authenticationRequired") || "Veuillez vous connecter pour utiliser ce service.";
+        // Optionally trigger login flow - user can click login button
+        // Don't auto-trigger to avoid interrupting user flow
+      }
+      
       setError(errorMessage);
       setStatusVariant("error");
       setStatusMessage(errorMessage);
@@ -1303,10 +1361,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         progressInterval = null;
       }
 
-      const errorMessage =
+      // Check if error requires authentication
+      const requiresLogin = err && typeof err === "object" && "requiresLogin" in err && (err as any).requiresLogin;
+      
+      let errorMessage =
         err instanceof Error
           ? err.message
           : t("tryOnWidget.errors.unexpectedError") || "Une erreur inattendue s'est produite";
+      
+      // Handle authentication required error
+      if (requiresLogin) {
+        errorMessage = t("tryOnWidget.errors.authenticationRequired") || "Veuillez vous connecter pour utiliser ce service.";
+        // Optionally trigger login flow - user can click login button
+        // Don't auto-trigger to avoid interrupting user flow
+      }
+      
       setErrorMultiple(errorMessage);
       setProgressMultiple(0);
       setBatchProgress(null);
@@ -1553,6 +1622,60 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 />
                 <span>{t("tryOnWidget.buttons.reset") || "Réinitialiser"}</span>
               </Button>
+            )}
+            {/* Customer Authentication UI - Optional */}
+            {!isAuthLoading && (
+              <>
+                {isAuthenticated && customer ? (
+                  <div className="flex items-center gap-2">
+                    <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs">
+                      <User className="h-3 w-3" aria-hidden="true" />
+                      <span className="max-w-[100px] truncate">{customer.email}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="h-[44px] sm:h-9 md:h-10 px-2 sm:px-3 text-xs sm:text-sm gap-1.5"
+                      aria-label={t("tryOnWidget.buttons.logout") || "Se déconnecter"}
+                    >
+                      <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">{t("tryOnWidget.buttons.logout") || "Déconnexion"}</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+                      if (shopDomain) {
+                        try {
+                          // Store return URL for after login
+                          const returnTo = window.location.pathname + window.location.search;
+                          // Use popup login instead of redirect
+                          await handleLoginWithPopup(shopDomain, returnTo);
+                          // Popup will send postMessage when authentication completes
+                        } catch (error) {
+                          if (error instanceof Error && error.message.includes("blocked")) {
+                            toast.error(t("tryOnWidget.errors.popupBlocked") || "La fenêtre popup a été bloquée. Veuillez autoriser les popups et réessayer.");
+                          } else {
+                            toast.error(t("tryOnWidget.errors.loginFailed") || "Échec de la connexion. Veuillez réessayer.");
+                            console.error("[TryOnWidget] Popup login failed:", error);
+                          }
+                        }
+                      } else {
+                        toast.error(t("tryOnWidget.errors.storeInfoUnavailable") || "Informations de magasin non disponibles");
+                      }
+                    }}
+                    className="h-[44px] sm:h-9 md:h-10 px-2 sm:px-3 text-xs sm:text-sm gap-1.5"
+                    aria-label={t("tryOnWidget.buttons.login") || "Se connecter"}
+                  >
+                    <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">{t("tryOnWidget.buttons.login") || "Connexion"}</span>
+                  </Button>
+                )}
+              </>
             )}
             <LanguageSwitcher />
             <Button

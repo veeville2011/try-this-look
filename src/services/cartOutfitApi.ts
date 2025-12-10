@@ -4,6 +4,7 @@ import {
   CartOutfitErrorResponse,
 } from "@/types/cartOutfit";
 import { logError, logApiError } from "@/utils/errorHandler";
+import { authenticatedFetch } from "@/utils/authenticatedFetch";
  // Send to remote backend (blocking - wait for response)
 const remoteBackendUrl = import.meta.env.VITE_API_ENDPOINT;
 
@@ -121,7 +122,8 @@ export async function generateCartTryOn(
         hasShop: !!storeName,
       });
 
-      response = await fetch(url, {
+      // Use authenticated fetch if available, otherwise regular fetch
+      response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
           "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
@@ -332,7 +334,8 @@ export async function generateOutfitLook(
         hasShop: !!storeName,
       });
 
-      response = await fetch(url, {
+      // Use authenticated fetch if available, otherwise regular fetch
+      response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
           "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
