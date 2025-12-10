@@ -167,7 +167,18 @@ const isDemoStore = (shopDomain) => {
     "vto-demo.myshopify.com",
     "the-revolut-store.myshopify.com",
   ];
-  return demoStores.includes(normalized);
+  
+  // Check exact match first
+  if (demoStores.includes(normalized)) {
+    return true;
+  }
+  
+  // Also check if domain contains demo/test/revolut keywords (for edge cases)
+  // This handles variations like "revolut-store" or different casing
+  const lowerNormalized = normalized.toLowerCase();
+  return lowerNormalized.includes("demo") || 
+         lowerNormalized.includes("test") || 
+         lowerNormalized.includes("revolut");
 };
 
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
