@@ -778,6 +778,21 @@
       "ariaLabel": "Sélectionner la version",
       "placeholder": "Sélectionner une version (optionnel)",
       "description": "Sélectionnez la version du modèle à utiliser pour la génération"
+    },
+    "photoUpload": {
+      "srOnlyText": "Téléchargez votre photo ou utilisez une photo de démonstration",
+      "uploadAreaAriaLabel": "Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image",
+      "clickToUpload": "Cliquez pour télécharger votre photo",
+      "acceptedFormats": "Formats acceptés : JPG, PNG (max 10 Mo)",
+      "selectFileAriaLabel": "Sélectionner un fichier image",
+      "or": "ou",
+      "selectDemoPhoto": "Sélectionner une photo de démonstration",
+      "selectDemoPhotoAriaLabel": "Sélectionner la photo de démonstration {{index}}",
+      "demoPhotoAlt": "Photo de démonstration {{index}} pour l'essayage virtuel",
+      "alreadyGenerated": "Déjà généré",
+      "previewAlt": "Aperçu de la photo téléchargée",
+      "uploadSuccess": "Photo téléchargée avec succès !",
+      "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement"
     }
   }
 }

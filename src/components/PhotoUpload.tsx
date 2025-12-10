@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon, Camera, CheckCircle } from "lucide-react";
@@ -31,6 +32,7 @@ export default function PhotoUpload({
   generatedPersonKeys = new Set(),
   matchingPersonKeys = [],
 }: PhotoUploadProps) {
+  const { t } = useTranslation();
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,7 +82,7 @@ export default function PhotoUpload({
   return (
     <div className="space-y-4 sm:space-y-5 md:space-y-6">
       <div className="sr-only">
-        Téléchargez votre photo ou utilisez une photo de démonstration
+        {t("tryOnWidget.photoUpload.srOnlyText") || "Téléchargez votre photo ou utilisez une photo de démonstration"}
       </div>
 
       {/* Upload Area */}
@@ -90,7 +92,7 @@ export default function PhotoUpload({
           onClick={() => fileInputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label="Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image"
+          aria-label={t("tryOnWidget.photoUpload.uploadAreaAriaLabel") || "Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image"}
           aria-describedby="upload-instructions"
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
@@ -106,13 +108,13 @@ export default function PhotoUpload({
             <Camera className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-primary transition-transform duration-200 group-hover:scale-110" />
           </div>
           <p className="text-sm sm:text-base md:text-lg font-semibold mb-1 sm:mb-2 px-2">
-            Cliquez pour télécharger votre photo
+            {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
           </p>
           <p
             id="upload-instructions"
             className="text-[10px] sm:text-xs text-muted-foreground px-2"
           >
-            Formats acceptés : JPG, PNG (max 10 Mo)
+            {t("tryOnWidget.photoUpload.acceptedFormats") || "Formats acceptés : JPG, PNG (max 10 Mo)"}
           </p>
         </div>
         <input
@@ -121,7 +123,7 @@ export default function PhotoUpload({
           accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
-          aria-label="Sélectionner un fichier image"
+          aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
           aria-describedby="upload-instructions"
         />
       </Card>
@@ -130,7 +132,7 @@ export default function PhotoUpload({
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 my-1 sm:my-2">
         <div className="h-px flex-1 bg-border" />
         <span className="px-3 sm:px-4 py-1 sm:py-2 rounded-md bg-card border border-border text-muted-foreground font-semibold text-xs sm:text-sm whitespace-nowrap">
-          ou
+          {t("tryOnWidget.photoUpload.or") || "ou"}
         </span>
         <div className="h-px flex-1 bg-border" />
       </div>
@@ -139,7 +141,7 @@ export default function PhotoUpload({
       <div>
         <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base md:text-lg flex items-center gap-2">
           <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-          <span>Sélectionner une photo de démonstration</span>
+          <span>{t("tryOnWidget.photoUpload.selectDemoPhoto") || "Sélectionner une photo de démonstration"}</span>
         </h4>
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {DEMO_PHOTOS.map((photo, index) => (
@@ -149,9 +151,7 @@ export default function PhotoUpload({
               onClick={() => handleDemoPhotoSelect(photo.url)}
               role="button"
               tabIndex={0}
-              aria-label={`Sélectionner la photo de démonstration ${index + 1}${
-                isGenerated(photo.url) ? " - Déjà généré" : ""
-              }`}
+              aria-label={`${t("tryOnWidget.photoUpload.selectDemoPhotoAriaLabel", { index: index + 1 }) || `Sélectionner la photo de démonstration ${index + 1}`}${isGenerated(photo.url) ? ` - ${t("tryOnWidget.photoUpload.alreadyGenerated") || "Déjà généré"}` : ""}`}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -162,9 +162,7 @@ export default function PhotoUpload({
               <div className="relative w-full bg-muted/30 flex items-center justify-center overflow-hidden">
                 <img
                   src={photo.url}
-                  alt={`Photo de démonstration ${
-                    index + 1
-                  } pour l'essayage virtuel`}
+                  alt={t("tryOnWidget.photoUpload.demoPhotoAlt", { index: index + 1 }) || `Photo de démonstration ${index + 1} pour l'essayage virtuel`}
                   className="w-full h-auto object-contain"
                   loading="lazy"
                 />
@@ -190,16 +188,16 @@ export default function PhotoUpload({
               <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-muted/30 rounded border border-border flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
                 <img
                   src={preview}
-                  alt="Aperçu de la photo téléchargée"
+                  alt={t("tryOnWidget.photoUpload.previewAlt") || "Aperçu de la photo téléchargée"}
                   className="h-full w-auto object-contain"
                 />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-success text-sm sm:text-base">
-                  Photo téléchargée avec succès !
+                  {t("tryOnWidget.photoUpload.uploadSuccess") || "Photo téléchargée avec succès !"}
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Passez à l'étape suivante pour sélectionner un vêtement
+                  {t("tryOnWidget.photoUpload.nextStepHint") || "Passez à l'étape suivante pour sélectionner un vêtement"}
                 </p>
               </div>
             </div>

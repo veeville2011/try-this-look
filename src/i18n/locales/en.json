@@ -778,6 +778,21 @@
       "ariaLabel": "Select version",
       "placeholder": "Select a version (optional)",
       "description": "Select the model version to use for generation"
+    },
+    "photoUpload": {
+      "srOnlyText": "Upload your photo or use a demo photo",
+      "uploadAreaAriaLabel": "Upload your photo - Click or press Enter to select an image",
+      "clickToUpload": "Click to upload your photo",
+      "acceptedFormats": "Accepted formats: JPG, PNG (max 10 MB)",
+      "selectFileAriaLabel": "Select an image file",
+      "or": "or",
+      "selectDemoPhoto": "Select a demo photo",
+      "selectDemoPhotoAriaLabel": "Select demo photo {{index}}",
+      "demoPhotoAlt": "Demo photo {{index}} for virtual try-on",
+      "alreadyGenerated": "Already generated",
+      "previewAlt": "Preview of uploaded photo",
+      "uploadSuccess": "Photo uploaded successfully!",
+      "nextStepHint": "Proceed to the next step to select a garment"
     }
   }
 }
