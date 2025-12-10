@@ -94,12 +94,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const {
     isAuthenticated,
     customer,
-    isLoading: isAuthLoading,
-    login: handleLogin,
-    loginWithPopup: handleLoginWithPopup,
-    logout: handleLogout,
-    validateSession,
+    loginWithShopifyCustomerPopup: handleShopifyCustomerLogin,
   } = useCustomerAuth();
+
+  // Simple logout function for app proxy approach (clears localStorage)
+  const handleLogout = () => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        localStorage.removeItem("shopify_customer_data");
+      }
+      // Reload to clear state
+      window.location.reload();
+    } catch (error) {
+      console.error("[TryOnWidget] Logout failed:", error);
+    }
+  };
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -341,26 +350,66 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Listen for postMessage events from popup authentication
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      // Security: Validate message origin
-      const expectedOrigin = typeof window !== "undefined" ? window.location.origin : "";
-      if (event.origin !== expectedOrigin) {
-        console.warn("[TryOnWidget] Ignoring postMessage from unexpected origin:", event.origin);
-        return;
-      }
-
-      // Only handle customer auth messages
-      if (event.data?.type === "CUSTOMER_AUTH_SUCCESS") {
-        try {
-          // Validate session to get updated customer info
-          await validateSession();
-          toast.success(t("tryOnWidget.messages.loginSuccess") || "Connexion réussie!");
-        } catch (error) {
-          console.error("[TryOnWidget] Failed to validate session after popup auth:", error);
-          toast.error(t("tryOnWidget.errors.sessionValidationFailed") || "Échec de la validation de session");
+      // Handle Shopify customer login messages (from storefront domain via app proxy)
+      if (event.data?.type === "SHOPIFY_CUSTOMER_LOGIN_SUCCESS") {
+        // Accept messages from storefront domains (shopify.com, myshopify.com, or custom domains)
+        // Also accept from app proxy backend (try-this-look.vercel.app or localhost)
+        const isStorefrontOrigin = event.origin.includes("myshopify.com") || 
+                                   event.origin.includes("shopify.com") ||
+                                   event.origin.includes("shopifycdn.com") ||
+                                   event.origin.includes("try-this-look.vercel.app") ||
+                                   event.origin.includes("localhost") ||
+                                   event.origin.includes("127.0.0.1") ||
+                                   // Allow custom domains (check if it's a valid URL)
+                                   (event.origin.startsWith("http://") || event.origin.startsWith("https://"));
+        
+        if (!isStorefrontOrigin) {
+          console.warn("[TryOnWidget] Ignoring SHOPIFY_CUSTOMER_LOGIN_SUCCESS from unexpected origin:", event.origin);
+          return;
         }
-      } else if (event.data?.type === "CUSTOMER_AUTH_ERROR") {
-        const errorMessage = event.data.error || t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification";
-        toast.error(errorMessage);
+
+        try {
+          const customerData = event.data.customer;
+          
+          if (customerData && customerData.authenticated) {
+            // Store customer info in localStorage for persistence
+            try {
+              if (typeof window !== "undefined" && window.localStorage) {
+                localStorage.setItem("shopify_customer_data", JSON.stringify({
+                  ...customerData,
+                  loginMethod: "shopify_customer",
+                  loginTime: new Date().toISOString()
+                }));
+                // Dispatch custom event to notify useCustomerAuth hook
+                window.dispatchEvent(new Event("shopify_customer_data_updated"));
+              }
+            } catch (e) {
+              console.warn("[TryOnWidget] Could not store customer data:", e);
+            }
+
+            // Show success message
+            toast.success(t("tryOnWidget.messages.loginSuccess") || "Connexion réussie!");
+            
+            // Log for debugging
+            console.log("[TryOnWidget] Shopify customer login successful:", {
+              customerId: customerData.id,
+              email: customerData.email,
+              origin: event.origin
+            });
+
+            // Note: Since we're using Shopify customer login (not Customer Account API OAuth),
+            // we don't have a session token. The widget can use the customer ID/email
+            // to identify the customer for API calls. You may want to create a backend
+            // session or use the customer ID directly in API requests.
+          } else {
+            toast.error(t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification");
+            console.warn("[TryOnWidget] Customer login failed - not authenticated:", customerData);
+          }
+        } catch (error) {
+          console.error("[TryOnWidget] Failed to handle Shopify customer login:", error);
+          toast.error(t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification");
+        }
+        return;
       }
     };
 
@@ -371,7 +420,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [validateSession, t]);
+  }, [t]);
 
   useEffect(() => {
     const savedImage = storage.getUploadedImage();
@@ -1624,9 +1673,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </Button>
             )}
             {/* Customer Authentication UI - Optional */}
-            {!isAuthLoading && (
-              <>
-                {isAuthenticated && customer ? (
+            {isAuthenticated && customer ? (
                   <div className="flex items-center gap-2">
                     <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs">
                       <User className="h-3 w-3" aria-hidden="true" />
@@ -1653,15 +1700,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         try {
                           // Store return URL for after login
                           const returnTo = window.location.pathname + window.location.search;
-                          // Use popup login instead of redirect
-                          await handleLoginWithPopup(shopDomain, returnTo);
+                          // Use Shopify customer popup login (native storefront login)
+                          await handleShopifyCustomerLogin(shopDomain, returnTo);
                           // Popup will send postMessage when authentication completes
                         } catch (error) {
                           if (error instanceof Error && error.message.includes("blocked")) {
                             toast.error(t("tryOnWidget.errors.popupBlocked") || "La fenêtre popup a été bloquée. Veuillez autoriser les popups et réessayer.");
                           } else {
                             toast.error(t("tryOnWidget.errors.loginFailed") || "Échec de la connexion. Veuillez réessayer.");
-                            console.error("[TryOnWidget] Popup login failed:", error);
+                            console.error("[TryOnWidget] Shopify customer popup login failed:", error);
                           }
                         }
                       } else {
@@ -1675,8 +1722,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <span className="hidden sm:inline">{t("tryOnWidget.buttons.login") || "Connexion"}</span>
                   </Button>
                 )}
-              </>
-            )}
             <LanguageSwitcher />
             <Button
               variant="destructive"

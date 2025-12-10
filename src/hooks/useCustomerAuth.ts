@@ -1,189 +1,108 @@
-import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useState, useEffect } from "react";
 import {
-  validateSessionThunk,
-  handleCallbackThunk,
-  logoutThunk,
-  initializeAuthThunk,
-  clearError,
-  clearAuth,
-} from "@/store/slices/customerAuthSlice";
-import {
-  CustomerAuthClient,
   createCustomerAuthClient,
-  getApiBaseUrl,
+  CustomerInfo,
 } from "@/services/customerAuth";
 
 /**
- * Custom hook for customer authentication
+ * Custom hook for Shopify customer authentication via app proxy
  * 
- * Provides easy access to authentication state and methods
+ * Provides easy access to authentication methods for Shopify customer login
+ * Customer data is stored in localStorage and read from there
  * 
  * @example
  * ```tsx
- * const { isAuthenticated, customer, login, logout, isLoading } = useCustomerAuth();
+ * const { loginWithShopifyCustomerPopup, isAuthenticated, customer } = useCustomerAuth();
  * 
- * if (!isAuthenticated) {
- *   return <button onClick={() => login(shopDomain)}>Sign In</button>;
- * }
- * 
- * return <div>Welcome, {customer?.email}</div>;
+ * <button onClick={() => loginWithShopifyCustomerPopup(shopDomain)}>
+ *   Sign In
+ * </button>
  * ```
  */
 export const useCustomerAuth = () => {
-  const dispatch = useAppDispatch();
-  const authState = useAppSelector((state) => state.customerAuth);
+  const [customer, setCustomer] = useState<CustomerInfo | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  /**
-   * Initialize authentication on mount
-   * Checks localStorage for existing session token and validates it
-   */
+  // Read customer data from localStorage on mount and when it changes
   useEffect(() => {
-    // Only initialize if we haven't already loaded
-    if (!authState.isLoading && authState.sessionToken === null && !authState.isAuthenticated) {
-      dispatch(initializeAuthThunk());
-    }
-  }, [dispatch]); // Only run once on mount
+    const loadCustomerData = () => {
+      try {
+        if (typeof window !== "undefined" && window.localStorage) {
+          const storedData = localStorage.getItem("shopify_customer_data");
+          if (storedData) {
+            const parsed = JSON.parse(storedData);
+            if (parsed.authenticated && parsed.id) {
+              setCustomer({
+                id: parsed.id,
+                email: parsed.email || "",
+                firstName: parsed.firstName,
+                lastName: parsed.lastName,
+              });
+              setIsAuthenticated(true);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("[useCustomerAuth] Failed to load customer data:", error);
+      }
+      setCustomer(null);
+      setIsAuthenticated(false);
+    };
+
+    // Load on mount
+    loadCustomerData();
+
+    // Listen for storage changes (when customer data is updated)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "shopify_customer_data") {
+        loadCustomerData();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also listen for custom event (for same-window updates)
+    const handleCustomStorageChange = () => {
+      loadCustomerData();
+    };
+    window.addEventListener("shopify_customer_data_updated", handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("shopify_customer_data_updated", handleCustomStorageChange);
+    };
+  }, []);
 
   /**
-   * Get authentication client instance
-   */
-  const getAuthClient = (): CustomerAuthClient => {
-    try {
-      return createCustomerAuthClient();
-    } catch (error) {
-      // Fallback if API base URL not configured
-      const fallbackUrl = import.meta.env.VITE_API_ENDPOINT || "https://try-on-server-v1.onrender.com";
-      return new CustomerAuthClient(fallbackUrl);
-    }
-  };
-
-  /**
-   * Initiate login flow (standard redirect)
-   * @param shopDomain - Storefront domain (e.g., store.myshopify.com or custom-domain.com)
-   * @param returnTo - Optional URL to redirect to after successful login
-   */
-  const login = (shopDomain: string, returnTo?: string): void => {
-    try {
-      const authClient = getAuthClient();
-      
-      // If returnTo not provided, use current URL
-      const redirectUrl = returnTo || (typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined);
-      
-      authClient.login(shopDomain, redirectUrl);
-      // Note: login() redirects the page, so we won't return here
-    } catch (error) {
-      console.error("[useCustomerAuth] Login failed:", error);
-      // Could dispatch an error action here if needed
-    }
-  };
-
-  /**
-   * Initiate login flow using popup window
-   * Opens a popup for authentication, keeping the main page visible
+   * Initiate Shopify customer login using popup window (native storefront login)
+   * Opens a popup to Shopify's customer login page, keeping the main page visible
    * @param shopDomain - Storefront domain (e.g., store.myshopify.com or custom-domain.com)
    * @param returnTo - Optional URL to redirect to after successful login (for callback page)
    * @returns Promise that resolves when popup is opened
    */
-  const loginWithPopup = async (shopDomain: string, returnTo?: string): Promise<Window | null> => {
+  const loginWithShopifyCustomerPopup = async (shopDomain: string, returnTo?: string): Promise<Window | null> => {
     try {
-      const authClient = getAuthClient();
+      const authClient = createCustomerAuthClient();
       
       // If returnTo not provided, use current URL
       const redirectUrl = returnTo || (typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined);
       
-      const popup = await authClient.loginWithPopup(shopDomain, redirectUrl);
+      const popup = await authClient.loginWithShopifyCustomerPopup(shopDomain, redirectUrl);
       return popup;
     } catch (error) {
-      console.error("[useCustomerAuth] Popup login failed:", error);
+      console.error("[useCustomerAuth] Shopify customer popup login failed:", error);
       throw error;
     }
-  };
-
-  /**
-   * Handle OAuth callback
-   * Should be called on the callback page after OAuth redirect
-   */
-  const handleCallback = async (): Promise<void> => {
-    try {
-      await dispatch(handleCallbackThunk()).unwrap();
-    } catch (error) {
-      console.error("[useCustomerAuth] Callback handling failed:", error);
-      throw error;
-    }
-  };
-
-  /**
-   * Logout current session
-   */
-  const logout = async (): Promise<void> => {
-    try {
-      await dispatch(logoutThunk()).unwrap();
-    } catch (error) {
-      console.error("[useCustomerAuth] Logout failed:", error);
-      // Logout should succeed even if API call fails
-    }
-  };
-
-  /**
-   * Validate current session
-   */
-  const validateSession = async (): Promise<boolean> => {
-    try {
-      await dispatch(validateSessionThunk()).unwrap();
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  /**
-   * Clear authentication error
-   */
-  const clearAuthError = (): void => {
-    dispatch(clearError());
-  };
-
-  /**
-   * Clear all authentication state
-   */
-  const clearAuthentication = (): void => {
-    dispatch(clearAuth());
-  };
-
-  /**
-   * Get authenticated fetch function
-   * Automatically includes session token in requests
-   */
-  const authenticatedFetch = async (
-    url: string | URL | Request,
-    options: RequestInit = {}
-  ): Promise<Response> => {
-    const authClient = getAuthClient();
-    return authClient.authenticatedFetch(url, options);
   };
 
   return {
-    // State
-    isAuthenticated: authState.isAuthenticated,
-    isLoading: authState.isLoading,
-    isValidating: authState.isValidating,
-    customer: authState.customer,
-    sessionToken: authState.sessionToken,
-    error: authState.error,
+    // State (from localStorage - customer data stored after app proxy login)
+    isAuthenticated,
+    customer,
 
     // Methods
-    login,
-    loginWithPopup,
-    logout,
-    handleCallback,
-    validateSession,
-    clearAuthError,
-    clearAuthentication,
-    authenticatedFetch,
-
-    // Helper: Get auth client instance
-    getAuthClient,
+    loginWithShopifyCustomerPopup,
   };
 };
 

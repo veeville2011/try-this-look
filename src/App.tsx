@@ -13,7 +13,6 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import Nucopy from "./pages/Nucopy";
 import Nulight from "./pages/Nulight";
 import Nu3d from "./pages/Nu3d";
-import AuthCallback from "./pages/AuthCallback";
 import Nuscene from "./pages/Nuscene";
 
 const queryClient = new QueryClient();
@@ -42,7 +41,6 @@ const App = () => {
               <Route path="/demo" element={<ProductDemo />} />
               <Route path="/widget" element={<Widget />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/nucopy" element={<Nucopy />} />
               <Route path="/nulight" element={<Nulight />} />
               <Route path="/nu3d" element={<Nu3d />} />

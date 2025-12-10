@@ -1,0 +1,130 @@
+{% comment %}
+  Shopify Customer Login Callback Page
+  This page is called after customer logs in via popup
+  It sends customer info to the widget iframe via postMessage
+{% endcomment %}
+
+<!DOCTYPE html>
+<html lang="{{ request.locale.iso_code }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Successful</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .success {
+      color: #22c55e;
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    .message {
+      color: #333;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+    .closing {
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="success">✓</div>
+    <div class="message">Login successful!</div>
+    <div class="closing">This window will close automatically...</div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Check if we're in a popup window
+      const isPopup = window.opener && window.opener !== window;
+
+      if (!isPopup) {
+        // Not in popup - redirect to home
+        window.location.href = '/';
+        return;
+      }
+
+      // Get widget origin from localStorage (set by widget before opening popup)
+      let widgetOrigin = null;
+      try {
+        widgetOrigin = localStorage.getItem('widget_origin');
+      } catch (e) {
+        console.warn('[CustomerLoginCallback] Could not read localStorage:', e);
+      }
+
+      // If no widget origin in localStorage, try to get from opener
+      if (!widgetOrigin && window.opener) {
+        try {
+          widgetOrigin = window.opener.location.origin;
+        } catch (e) {
+          // Cross-origin - can't access opener location
+          console.warn('[CustomerLoginCallback] Could not access opener origin:', e);
+        }
+      }
+
+      // Customer data from Liquid
+      {% if customer %}
+      const customerData = {
+        id: '{{ customer.id }}',
+        email: {{ customer.email | json }},
+        firstName: {{ customer.first_name | json }},
+        lastName: {{ customer.last_name | json }},
+        authenticated: true
+      };
+      {% else %}
+      const customerData = {
+        authenticated: false,
+        error: 'Customer session not found'
+      };
+      {% endif %}
+
+      // Send message to parent window (the widget iframe)
+      if (window.opener && widgetOrigin) {
+        try {
+          window.opener.postMessage({
+            type: 'SHOPIFY_CUSTOMER_LOGIN_SUCCESS',
+            customer: customerData,
+            timestamp: new Date().toISOString()
+          }, widgetOrigin);
+
+          console.log('[CustomerLoginCallback] Sent success message to:', widgetOrigin);
+        } catch (e) {
+          console.error('[CustomerLoginCallback] Failed to send postMessage:', e);
+        }
+      } else {
+        console.warn('[CustomerLoginCallback] No opener or widget origin available');
+      }
+
+      // Close popup after short delay
+      setTimeout(function() {
+        if (window.opener) {
+          window.close();
+        } else {
+          // Fallback: redirect to home if window.close() doesn't work
+          window.location.href = '/';
+        }
+      }, 1500);
+    })();
+  </script>
+</body>
+</html>
+

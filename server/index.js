@@ -6479,6 +6479,193 @@ app.get("/apps/apps/a/*", verifyAppProxySignature, (req, res) => {
       loggedInCustomerId: req.proxyLoggedInCustomerId,
     });
 
+    // Handle customer login callback
+    // This endpoint is called after customer logs in via Shopify's native customer login page
+    // The app proxy provides logged_in_customer_id when a customer is authenticated
+    if (proxyPath === "/customer-login-callback" || proxyPath.startsWith("/customer-login-callback")) {
+      // Get widget origin from query params (set by frontend before opening popup)
+      const widgetOrigin = req.query.widget_origin || req.query.origin || null;
+      
+      // Check if customer is logged in
+      // logged_in_customer_id is provided by Shopify app proxy when customer is authenticated
+      // It can be a string or number, so we check for truthiness
+      const isCustomerLoggedIn = !!req.proxyLoggedInCustomerId;
+      const customerId = req.proxyLoggedInCustomerId 
+        ? String(req.proxyLoggedInCustomerId) // Normalize to string for consistency
+        : null;
+
+      // Get customer email from query params if available (Shopify may pass it)
+      const customerEmail = req.query.customer_email || null;
+      
+      logger.info("[APP PROXY] Customer login callback", {
+        shop: req.proxyShop,
+        isCustomerLoggedIn,
+        customerId,
+        hasWidgetOrigin: !!widgetOrigin,
+      });
+
+      // Serve callback page HTML
+      const callbackHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Successful</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 400px;
+    }
+    .success {
+      color: #22c55e;
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    .message {
+      color: #333;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+    .closing {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    .error {
+      color: #ef4444;
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${isCustomerLoggedIn ? `
+      <div class="success">✓</div>
+      <div class="message">Login successful!</div>
+      <div class="closing">This window will close automatically...</div>
+    ` : `
+      <div class="error">⚠</div>
+      <div class="message">Not logged in</div>
+      <div class="closing">Please try logging in again...</div>
+    `}
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Check if we're in a popup window
+      const isPopup = window.opener && window.opener !== window;
+
+      if (!isPopup) {
+        // Not in popup - redirect to home
+        console.log('[CustomerLoginCallback] Not in popup, redirecting...');
+        window.location.href = '/';
+        return;
+      }
+
+      // Get widget origin from query params or try to get from opener
+      let widgetOrigin = ${widgetOrigin ? JSON.stringify(widgetOrigin) : 'null'};
+      
+      if (!widgetOrigin && window.opener) {
+        try {
+          widgetOrigin = window.opener.location.origin;
+        } catch (e) {
+          // Cross-origin - can't access opener location
+          console.warn('[CustomerLoginCallback] Could not access opener origin:', e);
+        }
+      }
+
+      // Customer data
+      const customerData = {
+        authenticated: ${isCustomerLoggedIn ? 'true' : 'false'},
+        ${customerId ? `id: ${JSON.stringify(customerId)},` : ''}
+        ${customerEmail ? `email: ${JSON.stringify(customerEmail)},` : ''}
+        timestamp: new Date().toISOString()
+      };
+
+      // Send message to parent window (the widget iframe)
+      if (window.opener) {
+        if (widgetOrigin) {
+          try {
+            window.opener.postMessage({
+              type: 'SHOPIFY_CUSTOMER_LOGIN_SUCCESS',
+              customer: customerData,
+              timestamp: new Date().toISOString()
+            }, widgetOrigin);
+
+            console.log('[CustomerLoginCallback] Sent success message to:', widgetOrigin, customerData);
+          } catch (e) {
+            console.error('[CustomerLoginCallback] Failed to send postMessage:', e);
+            // Fallback: try sending to any origin (less secure but may work)
+            try {
+              window.opener.postMessage({
+                type: 'SHOPIFY_CUSTOMER_LOGIN_SUCCESS',
+                customer: customerData,
+                timestamp: new Date().toISOString()
+              }, '*');
+              console.log('[CustomerLoginCallback] Sent message with wildcard origin');
+            } catch (e2) {
+              console.error('[CustomerLoginCallback] Failed to send postMessage with wildcard:', e2);
+            }
+          }
+        } else {
+          // No widget origin - try wildcard (less secure)
+          try {
+            window.opener.postMessage({
+              type: 'SHOPIFY_CUSTOMER_LOGIN_SUCCESS',
+              customer: customerData,
+              timestamp: new Date().toISOString()
+            }, '*');
+            console.log('[CustomerLoginCallback] Sent message with wildcard origin (no origin specified)');
+          } catch (e) {
+            console.error('[CustomerLoginCallback] Failed to send postMessage:', e);
+          }
+        }
+      } else {
+        console.warn('[CustomerLoginCallback] No opener available');
+      }
+
+      // Close popup after short delay
+      setTimeout(function() {
+        if (window.opener) {
+          try {
+            window.close();
+          } catch (e) {
+            console.warn('[CustomerLoginCallback] Could not close window:', e);
+            // Fallback: redirect to home
+            window.location.href = '/';
+          }
+        } else {
+          // Fallback: redirect to home if window.close() doesn't work
+          window.location.href = '/';
+        }
+      }, ${isCustomerLoggedIn ? '1500' : '3000'});
+    })();
+  </script>
+</body>
+</html>
+      `;
+
+      res.setHeader('Content-Type', 'text/html');
+      res.send(callbackHtml);
+      return;
+    }
+
     if (proxyPath === "/widget" || proxyPath.startsWith("/widget")) {
       // Serve widget page
       if (isVercel) {
