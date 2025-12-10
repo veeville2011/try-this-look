@@ -10,6 +10,35 @@ import * as creditMetafield from "./creditMetafield.js";
 import * as couponService from "./couponService.js";
 
 /**
+ * Check if a shop is a Shopify partner development store
+ * @param {Object} client - GraphQL client with authenticated session
+ * @returns {Promise<boolean>} True if it's a development store
+ */
+const checkIsDevelopmentStore = async (client) => {
+  try {
+    const shopInfoQuery = `
+      query GetShopPlan {
+        shop {
+          plan {
+            partnerDevelopment
+          }
+        }
+      }
+    `;
+
+    const response = await client.query({
+      data: { query: shopInfoQuery },
+    });
+
+    const shopData = response?.body?.data?.shop;
+    return shopData?.plan?.partnerDevelopment === true;
+  } catch (error) {
+    logger.error("[CREDIT_PURCHASE] Failed to check if store is development store", error);
+    return false;
+  }
+};
+
+/**
  * Get available credit packages
  */
 export const getCreditPackages = () => {
@@ -104,6 +133,9 @@ export const createCreditPurchase = async (client, shop, packageId, couponCode =
     }
   `;
 
+  // Check if store is a development store (by Shopify plan)
+  const useTestMode = await checkIsDevelopmentStore(client);
+
   const variables = {
     name: `Credit Package - ${package_.name}`,
     price: {
@@ -111,7 +143,7 @@ export const createCreditPurchase = async (client, shop, packageId, couponCode =
       currencyCode: priceCalculation.currencyCode,
     },
     returnUrl,
-    test: shop.includes("demo") || shop.includes("test") || shop.includes("revolut"),
+    test: useTestMode,
   };
 
   try {

@@ -148,37 +148,71 @@ const normalizeShopDomain = (shopDomain) => {
 };
 
 /**
- * Check if a shop is one of the specific demo stores that should use test mode
- * @param {string} shopDomain - The shop domain
- * @returns {boolean} True if it's a demo store
+ * Check if a shop is a Shopify partner development store
+ * @param {Object} shopData - Shop data object with plan.partnerDevelopment field
+ * @returns {boolean} True if it's a development store
  */
-const isDemoStore = (shopDomain) => {
-  if (!shopDomain) {
+const isDevelopmentStore = (shopData) => {
+  if (!shopData || !shopData.plan) {
     return false;
   }
+  return shopData.plan.partnerDevelopment === true;
+};
 
-  const normalized = normalizeShopDomain(shopDomain);
-  if (!normalized) {
+/**
+ * Query Shopify API to check if a store is a development store
+ * @param {Object} client - GraphQL client with authenticated session
+ * @returns {Promise<boolean>} True if it's a development store
+ */
+const checkIsDevelopmentStore = async (client) => {
+  try {
+    const shopInfoQuery = `
+      query GetShopPlan {
+        shop {
+          plan {
+            partnerDevelopment
+          }
+        }
+      }
+    `;
+
+    const response = await client.query({
+      data: { query: shopInfoQuery },
+    });
+
+    const shopData = response?.body?.data?.shop;
+    return isDevelopmentStore(shopData);
+  } catch (error) {
+    logger.error("[UTILS] Failed to check if store is development store", error);
     return false;
   }
+};
 
-  // Enable test mode for these specific demo stores
-  const demoStores = [
-    "vto-demo.myshopify.com",
-    "the-revolut-store.myshopify.com",
-  ];
-  
-  // Check exact match first
-  if (demoStores.includes(normalized)) {
-    return true;
+/**
+ * Check if test mode should be enabled for a store
+ * Test mode is enabled only for Shopify partner development stores
+ * @param {string} shopDomain - The shop domain (for logging purposes)
+ * @param {Object} client - GraphQL client to check development store status (required)
+ * @returns {Promise<boolean>} True if test mode should be enabled
+ */
+const shouldUseTestMode = async (shopDomain, client) => {
+  if (!client) {
+    logger.warn("[UTILS] No client provided for test mode check, defaulting to false", {
+      shop: shopDomain,
+    });
+    return false;
   }
   
-  // Also check if domain contains demo/test/revolut keywords (for edge cases)
-  // This handles variations like "revolut-store" or different casing
-  const lowerNormalized = normalized.toLowerCase();
-  return lowerNormalized.includes("demo") || 
-         lowerNormalized.includes("test") || 
-         lowerNormalized.includes("revolut");
+  try {
+    const isDevStore = await checkIsDevelopmentStore(client);
+    return isDevStore;
+  } catch (error) {
+    logger.error("[UTILS] Failed to check development store status", error, null, {
+      shop: shopDomain,
+    });
+    // Fallback to false if check fails (use real billing for safety)
+    return false;
+  }
 };
 
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
@@ -805,27 +839,28 @@ const createAppSubscription = async (
       });
     }
 
+    // Check if test mode should be enabled (development stores only)
+    const useTestMode = await shouldUseTestMode(normalizedShop, client);
+
     const variables = {
       name: planConfig.name,
       returnUrl,
       lineItems,
       trialDays: planConfig.trialDays || null,
-      // Enable test mode for demo stores (vto-demo.myshopify.com, the-revolut-store.myshopify.com)
+      // Enable test mode for development stores only
       // Test charges don't require actual payment and can be approved without payment method
-      // All other stores will use real billing (test: false)
-      test: (() => {
-        const isDemo = isDemoStore(normalizedShop);
-        logger.info("[BILLING] Store billing mode", {
-          shop: normalizedShop,
-          isDemoStore: isDemo,
-          testMode: isDemo,
-          note: isDemo
-            ? "Test mode enabled for demo store"
-            : "Real billing mode for production store",
-        });
-        return isDemo;
-      })(),
+      // Production stores will use real billing (test: false)
+      test: useTestMode,
     };
+
+    logger.info("[BILLING] Store billing mode", {
+      shop: normalizedShop,
+      isDevelopmentStore: useTestMode,
+      testMode: useTestMode,
+      note: useTestMode
+        ? "Test mode enabled for development store"
+        : "Real billing mode for production store",
+    });
 
     const response = await client.query({
       data: {
@@ -954,6 +989,8 @@ const createUsageSubscription = async (client, shopDomain, returnUrl) => {
       }
     `;
 
+    const useTestMode = await shouldUseTestMode(shopDomain, client);
+
     const variables = {
       name: "Usage-based Overage Billing",
       returnUrl,
@@ -964,7 +1001,7 @@ const createUsageSubscription = async (client, shopDomain, returnUrl) => {
           },
         },
       ],
-      test: isDemoStore(shopDomain),
+      test: useTestMode,
     };
 
     const response = await client.query({
@@ -2336,12 +2373,12 @@ const handleSubscriptionUpdateWebhook = async (req, res) => {
                           const { billAccumulatedOverage } = await import(
                             "./utils/annualOverageBilling.js"
                           );
-                          const isDemo = isDemoStore(shop);
+                          const useTestMode = await shouldUseTestMode(shop, client);
                           const overageResult = await billAccumulatedOverage(
                             client,
                             shop,
                             appInstallationId,
-                            isDemo
+                            useTestMode
                           );
 
                           if (overageResult.billed) {
@@ -2691,12 +2728,12 @@ const handleSubscriptionUpdateWebhook = async (req, res) => {
                             const { billAccumulatedOverage } = await import(
                               "./utils/annualOverageBilling.js"
                             );
-                            const isDemo = isDemoStore(shop);
+                            const useTestMode = await shouldUseTestMode(shop, client);
                             const overageResult = await billAccumulatedOverage(
                               client,
                               shop,
                               appInstallationId,
-                              isDemo
+                              useTestMode
                             );
 
                             if (overageResult.billed) {
@@ -3883,7 +3920,7 @@ app.post("/api/billing/replace-trial", async (req, res) => {
         shopDomain
       )}`;
 
-      const isDemo = isDemoStore(shopDomain);
+      const useTestMode = await shouldUseTestMode(shopDomain, client);
 
       // Replace trial subscription with paid subscription
       const replacementResult = await subscriptionReplacement.replaceTrialWithPaidSubscription(
@@ -3892,7 +3929,7 @@ app.post("/api/billing/replace-trial", async (req, res) => {
         activeSubscription.id,
         planHandle,
         returnUrl,
-        isDemo
+        useTestMode
       );
 
       logger.info("[API] [REPLACE_TRIAL] Trial replacement initiated", {
@@ -4092,7 +4129,7 @@ app.post("/api/billing/approve-trial-replacement", async (req, res) => {
       shopDomain
     )}`;
 
-    const isDemo = isDemoStore(shopDomain);
+    const useTestMode = await shouldUseTestMode(shopDomain, client);
 
     // Create replacement subscription (proactive approval)
     const replacementResult = await subscriptionReplacement.replaceTrialWithPaidSubscription(
@@ -4101,7 +4138,7 @@ app.post("/api/billing/approve-trial-replacement", async (req, res) => {
       activeSubscription.id,
       planHandle,
       returnUrl,
-      isDemo
+      useTestMode
     );
 
     logger.info("[API] [APPROVE_TRIAL_REPLACEMENT] Proactive trial replacement initiated", {
@@ -4599,6 +4636,74 @@ app.get("/api/billing/plans", (req, res) => {
   }
 });
 
+// Check if store is a development store
+app.get("/api/store/is-development", async (req, res) => {
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required in query string",
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+      });
+    }
+
+    const sessionToken = req.sessionToken;
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+      });
+    }
+
+    // Exchange JWT session token for offline access token
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Failed to get access token",
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: false,
+      },
+    });
+
+    const isDevStore = await checkIsDevelopmentStore(client);
+
+    return res.json({
+      shop: shopDomain,
+      isDevelopmentStore: isDevStore,
+    });
+  } catch (error) {
+    logger.error("[API] [IS_DEVELOPMENT] Failed to check development store", error, req);
+    return res.status(500).json({
+      error: "Failed to check development store",
+      message: error.message,
+    });
+  }
+});
+
 // Cancel subscription - DEPRECATED: Using Managed App Pricing
 // With Managed App Pricing, cancellations are handled through Shopify's admin interface
 // This endpoint redirects users to the plan selection page where they can cancel
@@ -5042,7 +5147,7 @@ app.post("/api/credits/deduct", async (req, res) => {
             // Get return URL
             const appBaseUrl = appUrl || `https://${shopDomain}`;
             const returnUrl = `${appBaseUrl}/api/billing/return?shop=${shopDomain}`;
-            const isDemo = isDemoStore(shopDomain);
+            const useTestMode = await shouldUseTestMode(shopDomain, client);
 
             try {
               // Automatically trigger replacement - this creates a paid subscription with NO trial days
@@ -5053,7 +5158,7 @@ app.post("/api/credits/deduct", async (req, res) => {
                 activeSubscription.id,
                 planHandle,
                 returnUrl,
-                isDemo
+                useTestMode
               );
 
               // Mark trial as ended in metafields
