@@ -209,7 +209,7 @@
       "step2Instruction1": "Dans l'éditeur de thème, ouvrez une page produit",
       "step2Instruction2": "Cliquez sur Ajouter un bloc dans la section souhaitée",
       "step2Instruction3": "Dans la catégorie Applications, sélectionnez \"NUSENSE Try-On Button\"",
-      "step2Instruction4": "Personnalisez le texte du bouton, le style et les autres paramètres",
+      "step2Instruction4": "Personnalisez le texte du bouton, le style et les autres paramètres (le bouton se positionnera automatiquement au-dessus du bouton Ajouter au panier s'il est détecté correctement, sinon positionnez-le manuellement)",
       "step2Instruction5": "Réorganisez le bloc en le faisant glisser si nécessaire puis cliquez sur Enregistrer",
       "step2Important": "Important :",
       "step2ImportantText": "Les blocs d'application sont disponibles uniquement sur les thèmes Online Store 2.0 (modèles JSON). Mettez à jour votre thème si nécessaire.",

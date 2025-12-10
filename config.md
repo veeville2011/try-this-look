@@ -81,7 +81,12 @@ You can also add the button to product pages for customers to try multiple produ
 1. **Navigate to Product Page** in theme editor
 2. **Add the App Block** from Apps section
 3. **Configure** as needed
+   - By default, the button will automatically position itself above the "Add to Cart" button **if it can be detected correctly**
+   - If auto-positioning doesn't work (button not detected), you can manually drag and position the block wherever you want
+   - You can disable "Auto-position Above Add to Cart" if you prefer manual placement
 4. **Save** changes
+
+**Note:** Auto-positioning only works when the Add to Cart button is correctly identified. If your theme uses custom button structures, the button will remain where you place it manually, preserving your configuration.
 
 ---
 
@@ -97,6 +102,7 @@ You can also add the button to product pages for customers to try multiple produ
 | **Button Icon** | Emoji or icon to display | 👕 | Any emoji or icon |
 | **Default Mode** | Default generation mode | Cart | Cart (Individual Images) or Outfit (Combined Look) |
 | **Full Width Button** | Make button span full width | Yes | Yes/No |
+| **Auto-position Above Add to Cart** | Automatically position button above Add to Cart button (only if Add to Cart button is detected correctly) | Yes | Yes/No |
 | **Auto-extract Cart Items** | Automatically extract items from cart | Yes | Yes/No |
 
 ### Mode Selection

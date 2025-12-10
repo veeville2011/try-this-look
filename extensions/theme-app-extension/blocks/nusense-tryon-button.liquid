@@ -7,6 +7,135 @@
 {% comment %} Include the snippet that sets up image extraction and communication {% endcomment %}
 {% render 'nusense-tryon-script' %}
 
+{% comment %} Fallback styles for button - ensures primary styling is always visible {% endcomment %}
+<style>
+  .nusense-tryon-button {
+    /* Base button styles - ensures button is always visible and clickable */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer !important;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    min-height: 44px !important;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Primary button fallback styling - applied by default */
+  .nusense-tryon-button.button--primary,
+  .nusense-tryon-button.btn-primary,
+  .nusense-tryon-button.btn--primary,
+  .nusense-tryon-button.button,
+  .nusense-tryon-button.btn {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+  }
+  
+  .nusense-tryon-button.button--primary:hover,
+  .nusense-tryon-button.btn-primary:hover,
+  .nusense-tryon-button.btn--primary:hover,
+  .nusense-tryon-button.button:hover,
+  .nusense-tryon-button.btn:hover {
+    background-color: #333333 !important;
+    border-color: #333333 !important;
+    opacity: 0.9;
+  }
+  
+  /* If no theme classes detected at all, ensure primary styling */
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]) {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+  }
+  
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):hover {
+    background-color: #333333 !important;
+    border-color: #333333 !important;
+    opacity: 0.9;
+  }
+  
+  /* Full width */
+  .nusense-tryon-button.button--full-width,
+  .nusense-tryon-button.btn-block,
+  .nusense-tryon-button.btn--full-width {
+    width: 100% !important;
+  }
+  
+  /* Ensure button text is visible */
+  .nusense-tryon-button .button__text {
+    color: inherit !important;
+  }
+  
+  /* Ensure button is always visible */
+  .nusense-tryon-button[style*="display: none"] {
+    display: inline-flex !important;
+  }
+  
+  /* Loading state */
+  .nusense-tryon-button[data-loading="true"] {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  
+  /* Widget overlay styles */
+  .nusense-widget-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .nusense-widget-container {
+    position: relative;
+    width: 95vw;
+    max-width: 1200px;
+    height: 90vh;
+  }
+  
+  .nusense-widget-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .nusense-widget-close:hover {
+    background: #f0f0f0;
+  }
+  
+  .nusense-widget-close:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+</style>
+
 {% schema %}
 {
   "name": "NUSENSE Try-On Button",
@@ -60,6 +189,148 @@
       "label": "Full Width Button",
       "default": true,
       "info": "Enable to make button full width. Disable to allow flexible width (can be placed next to other buttons)"
+    },
+    {
+      "type": "checkbox",
+      "id": "auto_position_above_cart",
+      "label": "Auto-position Above Add to Cart",
+      "default": true,
+      "info": "Automatically position the button above the Add to Cart button on product pages"
+    },
+    {
+      "type": "header",
+      "content": "Positioning & Spacing"
+    },
+    {
+      "type": "select",
+      "id": "button_alignment",
+      "label": "Button Alignment",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Match Theme)"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "auto",
+      "info": "Horizontal alignment of the button. 'Auto' matches the Add to Cart button alignment."
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "label": "Top Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space above the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "label": "Bottom Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0.8,
+      "unit": "rem",
+      "info": "Space below the button (spacing before Add to Cart button)"
+    },
+    {
+      "type": "range",
+      "id": "margin_left",
+      "label": "Left Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the left of the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_right",
+      "label": "Right Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the right of the button"
+    },
+    {
+      "type": "header",
+      "content": "Advanced Customization"
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Button Background Color",
+      "info": "Override theme colors with a custom background color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "info": "Override theme colors with a custom text color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button Border Color",
+      "info": "Override theme colors with a custom border color. Leave empty to use theme colors."
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "Font Size (px)",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16,
+      "unit": "px",
+      "info": "Customize button font size"
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "label": "Padding (rem)",
+      "min": 0.2,
+      "max": 3,
+      "step": 0.2,
+      "default": 0.8,
+      "unit": "rem",
+      "info": "Customize button padding"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Border Radius (px)",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "default": 4,
+      "unit": "px",
+      "info": "Customize button border radius"
+    },
+    {
+      "type": "text",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "info": "Add custom CSS to further customize the button. Use selector: .nusense-tryon-button",
+      "placeholder": ".nusense-tryon-button { /* your styles */ }"
     }
   ]
 }
@@ -72,6 +343,17 @@
 {% assign button_text = block.settings.button_text | default: 'Try Now' %}
 {% assign button_style = block.settings.button_style | default: 'primary' %}
 {% assign button_icon = block.settings.button_icon | default: '✨' %}
+{% assign button_background_color = block.settings.button_background_color %}
+{% assign button_text_color = block.settings.button_text_color %}
+{% assign button_border_color = block.settings.button_border_color %}
+{% assign button_font_size = block.settings.button_font_size | default: 16 %}
+{% assign button_padding = block.settings.button_padding | default: 0.8 %}
+{% assign button_border_radius = block.settings.button_border_radius | default: 4 %}
+{% assign button_alignment = block.settings.button_alignment | default: 'auto' %}
+{% assign margin_top = block.settings.margin_top | default: 0 %}
+{% assign margin_bottom = block.settings.margin_bottom | default: 0.8 %}
+{% assign margin_left = block.settings.margin_left | default: 0 %}
+{% assign margin_right = block.settings.margin_right | default: 0 %}
 
 {% comment %}
   Handle checkbox values - they can be true, false, or nil
@@ -88,11 +370,20 @@
   {% assign button_width_full = false %}
 {% endif %}
 
+{% if block.settings.auto_position_above_cart == true or block.settings.auto_position_above_cart == 'true' %}
+  {% assign auto_position_above_cart = true %}
+{% else %}
+  {% assign auto_position_above_cart = false %}
+{% endif %}
+
 {% comment %}
   Build button classes based on style variant
-  Shopify themes typically use: button, button--secondary, button--outline, button--tertiary
+  Shopify themes use various naming conventions:
+  - Dawn/Debut: button, button--primary, button--secondary, button--outline
+  - Custom themes: btn, btn-primary, btn-secondary, etc.
+  We'll use JavaScript to detect and match the theme's button classes
 {% endcomment %}
-{% assign button_classes = 'button' %}
+{% assign button_classes = 'button nusense-tryon-button' %}
 {% case button_style %}
   {% when 'secondary' %}
     {% assign button_classes = button_classes | append: ' button--secondary' %}
@@ -101,7 +392,7 @@
   {% when 'minimal' %}
     {% assign button_classes = button_classes | append: ' button--tertiary' %}
   {% else %}
-    {% comment %} Primary - no additional class needed {% endcomment %}
+    {% assign button_classes = button_classes | append: ' button--primary' %}
 {% endcase %}
 {% if button_width_full %}
   {% assign button_classes = button_classes | append: ' button--full-width' %}
@@ -117,221 +408,26 @@
   data-button-style="{{ button_style }}"
   data-show-icon="{{ show_icon }}"
   data-button-width-full="{{ button_width_full }}"
-  type="button"
+  data-auto-position="{{ auto_position_above_cart }}"
+  data-background-color="{{ button_background_color }}"
+  data-text-color="{{ button_text_color }}"
+  data-border-color="{{ button_border_color }}"
+  data-font-size="{{ button_font_size }}"
+  data-padding="{{ button_padding }}"
+  data-border-radius="{{ button_border_radius }}"
+  data-alignment="{{ button_alignment }}"
+  data-margin-top="{{ margin_top }}"
+  data-margin-bottom="{{ margin_bottom }}"
+  data-margin-left="{{ margin_left }}"
+  data-margin-right="{{ margin_right }}"
+  data-button-icon="{{ button_icon }}"
+  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
+  data-loading="true"
   style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
 >
-  <span class="button__icon" data-icon="{{ button_icon }}" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon }}</span>
-  <span class="button__text">{{ button_text }}</span>
+  <span class="button__icon" data-icon="{{ button_icon }}" aria-hidden="true" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon }}</span>
+  <span class="button__text" id="nusense-tryon-desc-{{ block.id }}">{{ button_text }}</span>
 </button>
 
-<script>
-  (function() {
-    const button = document.getElementById('nusense-tryon-btn-{{ block.id }}');
-    if (!button) return;
-    
-    // Function to apply all button configurations
-    const applyButtonConfig = function() {
-      // Get all settings from data attributes
-      const buttonStyle = button.dataset.buttonStyle || '{{ button_style }}' || 'primary';
-      const showIcon = button.dataset.showIcon === 'true' || button.dataset.showIcon === true;
-      const buttonWidthFull = button.dataset.buttonWidthFull === 'true' || button.dataset.buttonWidthFull === true;
-      
-      // Apply button style classes
-      let classes = button.className
-        .replace(/\s*button--secondary\s*/g, ' ')
-        .replace(/\s*button--outline\s*/g, ' ')
-        .replace(/\s*button--tertiary\s*/g, ' ')
-        .replace(/\s*button--full-width\s*/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      // Ensure base button class is present
-      if (!classes.includes('button')) {
-        classes = 'button ' + classes;
-      }
-      
-      // Apply style variant
-      if (buttonStyle === 'secondary') {
-        classes += ' button--secondary';
-      } else if (buttonStyle === 'outline') {
-        classes += ' button--outline';
-      } else if (buttonStyle === 'minimal') {
-        classes += ' button--tertiary';
-      }
-      
-      // Apply full width class
-      if (buttonWidthFull) {
-        classes += ' button--full-width';
-      }
-      
-      button.className = classes.trim();
-      
-      // Apply width style
-      if (buttonWidthFull) {
-        button.style.width = '100%';
-      } else {
-        button.style.width = '';
-      }
-      
-      // Handle icon visibility and text
-      const iconSpan = button.querySelector('.button__icon');
-      if (iconSpan) {
-        iconSpan.style.display = showIcon ? 'inline' : 'none';
-        // Update icon text if data attribute exists
-        const iconText = iconSpan.dataset.icon || '{{ button_icon }}';
-        if (iconText && iconSpan.textContent !== iconText) {
-          iconSpan.textContent = iconText;
-        }
-      }
-      
-      // Config applied
-    };
-    
-    // Apply configuration on load
-    applyButtonConfig();
-    
-    // Watch for changes in the theme editor
-    const observer = new MutationObserver(function(mutations) {
-      let shouldUpdate = false;
-      mutations.forEach(function(mutation) {
-        if (mutation.type === 'attributes') {
-          const attrName = mutation.attributeName;
-          if (attrName === 'data-button-style' || 
-              attrName === 'data-show-icon' || 
-              attrName === 'data-button-width-full' ||
-              attrName === 'class') {
-            shouldUpdate = true;
-          }
-        }
-      });
-      if (shouldUpdate) {
-        applyButtonConfig();
-      }
-    });
-    
-    observer.observe(button, {
-      attributes: true,
-      attributeFilter: ['data-button-style', 'data-show-icon', 'data-button-width-full', 'class'],
-      subtree: true
-    });
-    
-    // Also check periodically for theme editor updates
-    let lastConfig = JSON.stringify({
-      style: button.dataset.buttonStyle,
-      showIcon: button.dataset.showIcon,
-      fullWidth: button.dataset.buttonWidthFull
-    });
-    
-    const configChecker = setInterval(function() {
-      const currentConfig = JSON.stringify({
-        style: button.dataset.buttonStyle,
-        showIcon: button.dataset.showIcon,
-        fullWidth: button.dataset.buttonWidthFull
-      });
-      
-      if (currentConfig !== lastConfig) {
-        lastConfig = currentConfig;
-        applyButtonConfig();
-      }
-    }, 500);
-    
-    // Clean up on page unload
-    window.addEventListener('beforeunload', function() {
-      observer.disconnect();
-      clearInterval(configChecker);
-    });
-    
-    const productId = button.dataset.productId;
-    const shopDomain = button.dataset.shopDomain || '{{ shop.permanent_domain }}';
-    
-    button.addEventListener('click', function() {
-      // Open widget in modal or iframe
-      // App proxy URL format: /apps/apps/a/{path}
-      // Or use direct app URL if app proxy not needed
-      const widgetUrl = '{{ shop.metafields.nusense.widget_url | default: "https://try-this-look.vercel.app" }}/widget?product_id=' + productId + '&shop_domain=' + encodeURIComponent(shopDomain);
-      
-      // Create modal overlay
-      const overlay = document.createElement('div');
-      overlay.id = 'nusense-widget-overlay';
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.2);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      `;
-      
-      // Create container for iframe
-      const container = document.createElement('div');
-      container.style.cssText = `
-        position: relative;
-        width: 95vw;
-        max-width: 1200px;
-        height: 90vh;
-      `;
-      
-      // Close function
-      const closeWidget = function() {
-        if (overlay && overlay.parentNode) {
-          document.body.removeChild(overlay);
-          document.body.style.overflow = '';
-        }
-      };
-      
-      // Create iframe
-      const iframe = document.createElement('iframe');
-      iframe.src = widgetUrl;
-      iframe.style.cssText = `
-        width: 100%;
-        height: 100%;
-        border: none;
-        border-radius: 0.25rem;
-        background: white;
-      `;
-      iframe.allow = 'camera; microphone';
-      iframe.setAttribute('allowfullscreen', 'true');
-      
-      // Assemble modal
-      container.appendChild(iframe);
-      overlay.appendChild(container);
-      document.body.appendChild(overlay);
-      
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
-      
-      // Close on escape key
-      const closeHandler = function(e) {
-        if (e.key === 'Escape') {
-          closeWidget();
-          document.removeEventListener('keydown', closeHandler);
-        }
-      };
-      document.addEventListener('keydown', closeHandler);
-      
-      // Listen for messages from iframe
-      window.addEventListener('message', function(e) {
-        if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {
-          closeWidget();
-        }
-        
-        // Handle store info request from iframe
-        if (e.data && e.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
-          const storeInfo = {
-            type: 'NUSENSE_STORE_INFO',
-            domain: window.location.hostname,
-            shopDomain: shopDomain || '{{ shop.permanent_domain }}',
-            origin: window.location.origin,
-            fullUrl: window.location.href
-          };
-          iframe.contentWindow.postMessage(storeInfo, '*');
-        }
-      });
-    });
-  })();
-</script>
-
+{% comment %} Load external JavaScript file {% endcomment %}
+<script src="{{ 'nusense-tryon-button.js' | asset_url }}" defer></script>
