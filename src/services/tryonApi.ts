@@ -58,16 +58,13 @@ export async function generateTryOn(
         formData.append("personKey", personKey);
       }
 
-      if (version !== undefined && version !== null) {
-        formData.append("version", String(version));
-      }
+      // Version parameter removed - not sent to fashion-photo API
       
       console.log("[FRONTEND] [TRYON] FormData prepared", {
         requestId,
         hasStoreName: !!storeName,
         hasClothingKey: !!clothingKey,
         hasPersonKey: !!personKey,
-        version: version || "not provided",
       });
     } catch (formError) {
       logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {

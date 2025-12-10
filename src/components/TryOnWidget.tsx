@@ -1793,43 +1793,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           </section>
         </div>
 
-        {/* Version Selection and Generate button - show when not generating */}
+        {/* Generate button - show when not generating */}
         {!isGenerating && (
           <div className="pt-1 sm:pt-2">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-end">
-              {/* Version Dropdown */}
-              <div className="flex flex-col gap-2 flex-shrink-0 sm:w-auto w-full">
-                <label
-                  htmlFor="version-select-single"
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {t("tryOnWidget.version.label") || "Version (Optionnel)"}
-                </label>
-                <Select
-                  value={selectedVersion ? String(selectedVersion) : "1"}
-                  onValueChange={(value) => {
-                    setSelectedVersion(value ? Number(value) : 1);
-                  }}
-                >
-                  <SelectTrigger
-                    id="version-select-single"
-                    className="w-full sm:w-[140px] h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
-                    aria-label={t("tryOnWidget.version.ariaLabel") || "Sélectionner la version"}
-                  >
-                    <SelectValue placeholder={t("tryOnWidget.version.placeholder") || "Sélectionner une version (optionnel)"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1" className="cursor-pointer focus:bg-primary/10">
-                      Version 1
-                    </SelectItem>
-                    <SelectItem value="2" className="cursor-pointer focus:bg-primary/10">
-                      Version 2
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
+            <Button
                 onClick={handleGenerate}
                 disabled={!selectedClothing || !uploadedImage || isGenerating}
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -1851,7 +1818,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
                 </p>
               )}
-            </div>
           </div>
         )}
 
@@ -2332,41 +2298,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
             </div>
 
-            {/* Version Selection and Generate button */}
+            {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-1 sm:pt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 items-end">
-                {/* Version Dropdown */}
-                <div className="flex flex-col gap-2 flex-shrink-0 sm:w-auto w-full">
-                  <label
-                    htmlFor="version-select-multiple"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    {t("tryOnWidget.version.label") || "Version (Optionnel)"}
-                  </label>
-                  <Select
-                    value={selectedVersion ? String(selectedVersion) : "1"}
-                    onValueChange={(value) => {
-                      setSelectedVersion(value ? Number(value) : 1);
-                    }}
-                  >
-                    <SelectTrigger
-                      id="version-select-multiple"
-                      className="w-full sm:w-[140px] h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
-                      aria-label={t("tryOnWidget.version.ariaLabel") || "Sélectionner la version"}
-                    >
-                      <SelectValue placeholder={t("tryOnWidget.version.placeholder") || "Sélectionner une version (optionnel)"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1" className="cursor-pointer focus:bg-primary/10">
-                        Version 1
-                      </SelectItem>
-                      <SelectItem value="2" className="cursor-pointer focus:bg-primary/10">
-                        Version 2
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
+              <div className="pt-1 sm:pt-2">
                 <Button
                   onClick={handleCartMultipleGenerate}
                   disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
@@ -3028,41 +2962,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
             </div>
 
-            {/* Version Selection and Generate button */}
+            {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-1 sm:pt-2 flex flex-col sm:flex-row gap-3 sm:gap-4 items-end">
-                {/* Version Dropdown */}
-                <div className="flex flex-col gap-2 flex-shrink-0 sm:w-auto w-full">
-                  <label
-                    htmlFor="version-select-look"
-                    className="text-sm font-semibold text-foreground"
-                  >
-                    {t("tryOnWidget.version.label") || "Version (Optionnel)"}
-                  </label>
-                  <Select
-                    value={selectedVersion ? String(selectedVersion) : "1"}
-                    onValueChange={(value) => {
-                      setSelectedVersion(value ? Number(value) : 1);
-                    }}
-                  >
-                    <SelectTrigger
-                      id="version-select-look"
-                      className="w-full sm:w-[140px] h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
-                      aria-label={t("tryOnWidget.version.ariaLabel") || "Sélectionner la version"}
-                    >
-                      <SelectValue placeholder={t("tryOnWidget.version.placeholder") || "Sélectionner une version (optionnel)"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1" className="cursor-pointer focus:bg-primary/10">
-                        Version 1
-                      </SelectItem>
-                      <SelectItem value="2" className="cursor-pointer focus:bg-primary/10">
-                        Version 2
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
+              <div className="pt-1 sm:pt-2">
                 <Button
                   onClick={handleCartMultipleGenerate}
                   disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}

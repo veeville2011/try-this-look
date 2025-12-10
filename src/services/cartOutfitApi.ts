@@ -90,9 +90,7 @@ export async function generateCartTryOn(
         formData.append("garmentKeys", garmentKeys.join(","));
       }
 
-      if (version !== undefined && version !== null) {
-        formData.append("version", String(version));
-      }
+      // Version parameter removed - not sent to fashion-photo API
 
       console.log("[FRONTEND] [CART] FormData prepared", {
         requestId,
@@ -100,7 +98,6 @@ export async function generateCartTryOn(
         hasStoreName: !!storeName,
         hasPersonKey: !!personKey,
         garmentKeysCount: garmentKeys?.length || 0,
-        version: version || "not provided",
       });
     } catch (formError) {
       logError("[FRONTEND] [CART] FormData preparation failed", formError, {
@@ -303,9 +300,7 @@ export async function generateOutfitLook(
         formData.append("garmentKeys", garmentKeys.join(","));
       }
 
-      if (version !== undefined && version !== null) {
-        formData.append("version", String(version));
-      }
+      // Version parameter removed - not sent to fashion-photo API
 
       console.log("[FRONTEND] [OUTFIT] FormData prepared", {
         requestId,
@@ -314,7 +309,6 @@ export async function generateOutfitLook(
         hasStoreName: !!storeName,
         hasPersonKey: !!personKey,
         garmentKeysCount: garmentKeys?.length || 0,
-        version: version || "not provided",
       });
     } catch (formError) {
       logError("[FRONTEND] [OUTFIT] FormData preparation failed", formError, {
