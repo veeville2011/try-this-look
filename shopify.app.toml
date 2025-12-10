@@ -60,7 +60,8 @@ scopes = "read_products,write_products,read_themes,write_themes,read_orders,read
 redirect_urls = [
   "https://try-this-look.vercel.app/auth/callback",
   "https://try-this-look.vercel.app/auth/shopify/callback",
-  "https://try-this-look.vercel.app/api/auth/callback"
+  "https://try-this-look.vercel.app/api/auth/callback",
+  "https://try-this-look.vercel.app/api/customer-auth/callback"
 ]
 
 [app_proxy]
