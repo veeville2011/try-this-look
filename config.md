@@ -309,18 +309,7 @@ Use this checklist to ensure everything is configured correctly:
 
 ## 🎨 Customization
 
-### Button Styling
-
-The button inherits your theme's button styles. You can customize it further using:
-
-1. **Theme Editor CSS**:
-   ```css
-   #nusense-cart-outfit-btn-* {
-     /* Your custom styles */
-   }
-   ```
-
-2. **Block Settings**: Use the built-in style options (Primary, Secondary, Outline, Minimal)
+**Note**: The Cart & Outfit button block has been removed from the theme extension. The widget can be accessed directly via URL or through custom integration.
 
 ### Widget URL
 

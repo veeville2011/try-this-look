@@ -1,5 +1,11 @@
 # Cart & Outfit Try-On Integration Summary
 
+## ⚠️ Note: Theme Extension Button Removed
+
+**The Cart & Outfit button block has been removed from the theme app extension.** The widget functionality (`CartOutfitWidget`) still exists and can be accessed directly via the `/cart-outfit-widget` route, but there is no longer a Shopify theme button to launch it.
+
+---
+
 ## ✅ Implementation Complete
 
 All integration capabilities have been successfully created and are ready for deployment to your Shopify demo store.
@@ -10,22 +16,13 @@ All integration capabilities have been successfully created and are ready for de
 
 ### 1. Theme App Extension Files
 
-#### `extensions/theme-app-extension/blocks/nusense-cart-outfit-button.liquid`
-- **Purpose**: App block that creates a configurable button for Cart & Outfit Try-On
-- **Features**:
-  - Customizable button text, style, and icon
-  - Mode selection (Cart/Outfit)
-  - Auto-extract cart items option
-  - Responsive design
-  - Theme editor integration
+~~#### `extensions/theme-app-extension/blocks/nusense-cart-outfit-button.liquid`~~ **REMOVED**
+- ~~**Purpose**: App block that creates a configurable button for Cart & Outfit Try-On~~
+- This file has been removed from the extension.
 
-#### `extensions/theme-app-extension/snippets/nusense-cart-outfit-script.liquid`
-- **Purpose**: JavaScript snippet for cart item extraction and widget communication
-- **Features**:
-  - Cart Ajax API integration
-  - DOM-based cart item extraction (fallback)
-  - PostMessage communication with widget iframe
-  - Store info extraction
+~~#### `extensions/theme-app-extension/snippets/nusense-cart-outfit-script.liquid`~~ **REMOVED**
+- ~~**Purpose**: JavaScript snippet for cart item extraction and widget communication~~
+- This file has been removed from the extension.
 
 ### 2. React Components (Already Created)
 
@@ -81,28 +78,21 @@ cd /path/to/your/app
 shopify app deploy
 ```
 
-### Step 2: Add Button to Cart Page
+### Step 2: Access Widget Directly
 
-1. Go to **Shopify Admin** → **Online Store** → **Themes**
-2. Click **"Customize"** on your active theme
-3. Select **"Cart"** template from page selector
-4. In left sidebar, find **"Apps"** section
-5. Click **"Add block"** for **"NUSENSE Cart & Outfit Try-On"**
-6. Configure button settings:
-   - Button Text: "Try Multiple Items"
-   - Default Mode: "Cart" (or "Outfit")
-   - Auto-extract Cart Items: ✅ Enabled
-7. **Save** changes
+**Note**: The theme extension button has been removed. The widget can be accessed directly via URL:
+
+```
+https://try-this-look.vercel.app/cart-outfit-widget?shop_domain=YOUR_STORE.myshopify.com&mode=cart
+```
 
 ### Step 3: Test
 
-1. Add 2-4 products to cart
-2. Go to cart page
-3. Click **"Try Multiple Items"** button
-4. Upload a photo
-5. Select items (1-6 for Cart mode, 2-8 for Outfit mode)
-6. Click **"Générer"** (Generate)
-7. View results!
+1. Navigate to the widget URL directly
+2. Upload a photo
+3. Select items (1-6 for Cart mode, 2-8 for Outfit mode)
+4. Click **"Générer"** (Generate)
+5. View results!
 
 ---
 
@@ -129,17 +119,11 @@ https://try-this-look.vercel.app/cart-outfit-widget?shop_domain=YOUR_STORE.mysho
 
 ## ⚙️ Configuration Options
 
-### Button Block Settings
+### Widget Access
 
-All settings are configurable in the Shopify Theme Editor:
-
-1. **Button Text**: Customize button label
-2. **Button Style**: Primary, Secondary, Outline, or Minimal
-3. **Show Icon**: Toggle icon display
-4. **Button Icon**: Emoji or icon (default: 👕)
-5. **Default Mode**: Cart (Individual) or Outfit (Combined)
-6. **Full Width**: Make button span full width
-7. **Auto-extract Cart Items**: Automatically detect cart items
+The widget can be accessed directly via URL with query parameters:
+- `shop_domain` (required): Your Shopify store domain
+- `mode` (optional): `cart` or `outfit` (default: `cart`)
 
 ### App Metafields
 
@@ -152,12 +136,9 @@ Configure via Shopify Admin → Settings → Custom data → Shop:
 
 ## 🧪 Testing Checklist
 
-- [ ] Deploy theme app extension
-- [ ] Add button to cart page
+- [ ] Access widget via direct URL
 - [ ] Test Cart Mode (1-6 items)
 - [ ] Test Outfit Mode (2-8 items)
-- [ ] Verify cart item auto-extraction
-- [ ] Test on product pages
 - [ ] Test on mobile devices
 - [ ] Verify image generation works
 - [ ] Check download functionality
@@ -168,11 +149,7 @@ Configure via Shopify Admin → Settings → Custom data → Shop:
 ## 📋 Integration Architecture
 
 ```
-Shopify Cart Page
-    ↓
-Theme App Extension Block (nusense-cart-outfit-button.liquid)
-    ↓
-Opens Modal with Iframe
+Direct Access or Custom Integration
     ↓
 CartOutfitWidget Page (/cart-outfit-widget)
     ↓
@@ -238,11 +215,9 @@ API Calls
 
 ## 📝 Next Steps
 
-1. **Deploy** the theme app extension
-2. **Configure** the button on your cart page
-3. **Test** both Cart and Outfit modes
-4. **Customize** button text and styling
-5. **Monitor** usage and gather feedback
+1. **Access** the widget via direct URL or custom integration
+2. **Test** both Cart and Outfit modes
+3. **Monitor** usage and gather feedback
 
 ---
 

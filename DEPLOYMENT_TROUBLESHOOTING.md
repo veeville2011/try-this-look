@@ -15,9 +15,8 @@ You're experiencing an HTTP 500 error with empty error messages `{}` when trying
 ### Step 1: Verify Files Are Correct
 
 All files have been validated:
-- ✅ `extensions/theme-app-extension/blocks/nusense-cart-outfit-button.liquid` - Valid schema, correct syntax
-- ✅ `extensions/theme-app-extension/snippets/nusense-cart-outfit-script.liquid` - Valid Liquid syntax
-- ✅ File sizes are within limits (73KB total)
+- ✅ Extension files are properly formatted
+- ✅ File sizes are within limits
 
 ### Step 2: Try Alternative Deployment Methods
 
@@ -143,11 +142,9 @@ Before retrying deployment:
 
 ## 📝 Files Ready for Deployment
 
-All files are correctly formatted and ready:
-
-- ✅ `blocks/nusense-cart-outfit-button.liquid` - 391 lines, valid schema
-- ✅ `snippets/nusense-cart-outfit-script.liquid` - 183 lines, valid Liquid
+All extension files are correctly formatted and ready:
 - ✅ `shopify.extension.toml` - Valid configuration
+- ✅ All block and snippet files validated
 
 The issue is likely on Shopify's side (API server error), not with your files.
 
