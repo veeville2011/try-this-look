@@ -111,7 +111,7 @@ export const createCreditPurchase = async (client, shop, packageId, couponCode =
       currencyCode: priceCalculation.currencyCode,
     },
     returnUrl,
-    test: shop.includes("demo") || shop.includes("test"),
+    test: shop.includes("demo") || shop.includes("test") || shop.includes("revolut"),
   };
 
   try {
