@@ -279,7 +279,7 @@
 
     // Function to apply all button configurations
     const applyButtonConfig = function() {
-      if (!button || button.dataset.loading === 'true') return;
+      if (!button) return;
       
       try {
         // Get settings from data attributes
@@ -380,13 +380,17 @@
           button.style.borderRadius = borderRadius;
           button.style.padding = padding;
           button.style.fontSize = fontSize;
-          button.style.fontWeight = '500';
+          button.style.fontWeight = '600';
           button.style.cursor = 'pointer';
           button.style.minHeight = '44px';
           button.style.display = 'inline-flex';
           button.style.alignItems = 'center';
           button.style.justifyContent = 'center';
-          button.style.transition = 'all 0.2s ease';
+          button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+          button.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
+          button.style.letterSpacing = '0.01em';
+          button.style.userSelect = 'none';
+          button.style.willChange = 'transform, box-shadow';
           
           // Smart hover effect
           const originalBg = primaryBg;
@@ -419,15 +423,44 @@
             }
           }
           
+          // Professional hover effect with elevation
           button.addEventListener('mouseenter', function() {
             this.style.backgroundColor = hoverBg;
             this.style.borderColor = hoverBg;
-            this.style.opacity = '0.9';
+            this.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
+            this.style.transform = 'translateY(-1px)';
+            this.style.opacity = '1';
           });
           button.addEventListener('mouseleave', function() {
             this.style.backgroundColor = originalBg;
             this.style.borderColor = originalBorder;
+            this.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
+            this.style.transform = 'translateY(0)';
             this.style.opacity = '1';
+          });
+          
+          // Focus state for accessibility
+          button.addEventListener('focus', function() {
+            this.style.outline = '2px solid ' + primaryText;
+            this.style.outlineOffset = '2px';
+            this.style.boxShadow = '0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15)';
+          });
+          button.addEventListener('blur', function() {
+            this.style.outline = '';
+            this.style.outlineOffset = '';
+            this.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
+          });
+          
+          // Active/pressed state
+          button.addEventListener('mousedown', function() {
+            this.style.backgroundColor = originalBg;
+            this.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.2)';
+            this.style.transform = 'translateY(0)';
+          });
+          button.addEventListener('mouseup', function() {
+            this.style.backgroundColor = hoverBg;
+            this.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
+            this.style.transform = 'translateY(-1px)';
           });
           
         } else if (buttonStyle === 'secondary') {
@@ -588,7 +621,8 @@
     const debouncedPosition = debounce(positionButton, 200);
 
     // Initialize
-    button.dataset.loading = 'true';
+    // Note: Button starts with data-loading="true" from Liquid template
+    // applyButtonConfig() will set it to 'false' when complete
     applyButtonConfig();
 
     // Apply on DOM ready
