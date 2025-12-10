@@ -148,9 +148,9 @@ const normalizeShopDomain = (shopDomain) => {
 };
 
 /**
- * Check if a shop is the specific demo store that should use test mode
+ * Check if a shop is one of the specific demo stores that should use test mode
  * @param {string} shopDomain - The shop domain
- * @returns {boolean} True if it's the demo store
+ * @returns {boolean} True if it's a demo store
  */
 const isDemoStore = (shopDomain) => {
   if (!shopDomain) {
@@ -162,9 +162,12 @@ const isDemoStore = (shopDomain) => {
     return false;
   }
 
-  // Only enable test mode for this specific demo store
-  const demoStore = "vto-demo.myshopify.com";
-  return normalized === demoStore;
+  // Enable test mode for these specific demo stores
+  const demoStores = [
+    "vto-demo.myshopify.com",
+    "the-revolut-store.myshopify.com",
+  ];
+  return demoStores.includes(normalized);
 };
 
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
@@ -796,7 +799,7 @@ const createAppSubscription = async (
       returnUrl,
       lineItems,
       trialDays: planConfig.trialDays || null,
-      // Enable test mode only for vto-demo.myshopify.com
+      // Enable test mode for demo stores (vto-demo.myshopify.com, the-revolut-store.myshopify.com)
       // Test charges don't require actual payment and can be approved without payment method
       // All other stores will use real billing (test: false)
       test: (() => {
