@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +35,7 @@ export default function CartOutfitResultDisplay({
   isGenerating,
   personImage,
 }: CartOutfitResultDisplayProps) {
+  const { t } = useTranslation();
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(
     null
   );
@@ -262,14 +264,14 @@ export default function CartOutfitResultDisplay({
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        aria-label={`Télécharger l'image ${index + 1}`}
+                        aria-label={t("tryOnWidget.ariaLabels.downloadImage", { index: index + 1 }) || `Télécharger l'image ${index + 1}`}
                       >
                         {downloadingIndex === index ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
                           <Download className="h-4 w-4 mr-2" />
                         )}
-                        Télécharger
+                        {t("tryOnWidget.buttons.download") || "Télécharger"}
                       </Button>
                     </div>
 
@@ -363,34 +365,34 @@ export default function CartOutfitResultDisplay({
               variant="outline"
               size="sm"
               className="w-full"
-              aria-label="Télécharger l'image de la tenue"
+              aria-label={t("tryOnWidget.ariaLabels.downloadOutfit") || "Télécharger l'image de la tenue"}
             >
               {downloadingIndex !== null ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              Télécharger
+              {t("tryOnWidget.buttons.download") || "Télécharger"}
             </Button>
             <Button
               onClick={() => handleAddToCart()}
               variant="outline"
               size="sm"
               className="w-full border-green-500/80 text-green-600 hover:bg-green-50"
-              aria-label="Ajouter tous les articles au panier"
+              aria-label={t("tryOnWidget.ariaLabels.addAllToCart") || "Ajouter tous les articles au panier"}
             >
               <ShoppingCart className="h-4 w-4 mr-2" />
-              Ajouter au Panier
+              {t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
             </Button>
             <Button
               onClick={() => handleBuyNow()}
               variant="outline"
               size="sm"
               className="w-full border-red-500/80 text-red-600 hover:bg-red-50"
-              aria-label="Acheter tous les articles maintenant"
+              aria-label={t("tryOnWidget.ariaLabels.buyAllNow") || "Acheter tous les articles maintenant"}
             >
               <CreditCard className="h-4 w-4 mr-2" />
-              Acheter Maintenant
+              {t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
             </Button>
           </div>
 
@@ -421,7 +423,7 @@ export default function CartOutfitResultDisplay({
           <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
         </div>
         <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-          Aucun résultat généré
+          {t("tryOnWidget.resultDisplay.noResultsGenerated") || "Aucun résultat généré"}
         </p>
       </div>
     </Card>

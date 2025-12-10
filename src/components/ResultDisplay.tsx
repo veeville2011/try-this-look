@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +32,7 @@ export default function ResultDisplay({
   generatedImage,
   isGenerating = false,
 }: ResultDisplayProps) {
+  const { t } = useTranslation();
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [isDownloadLoading, setIsDownloadLoading] = useState(false);
@@ -90,10 +92,10 @@ export default function ResultDisplay({
           }
           setIsAddToCartLoading(false);
           const productData = getProductDataLocal();
-          toast.success("Article ajouté au panier", {
+          toast.success(t("tryOnWidget.resultDisplay.addToCartToast") || "Article ajouté au panier", {
             description: productData?.title
-              ? `${productData.title} a été ajouté à votre panier.`
-              : "L'article a été ajouté à votre panier.",
+              ? t("tryOnWidget.resultDisplay.addToCartToastDescription", { title: productData.title }) || `${productData.title} a été ajouté à votre panier.`
+              : t("tryOnWidget.resultDisplay.addToCartToastDescriptionFallback") || "L'article a été ajouté à votre panier.",
           });
         } else if (event.data.action === "NUSENSE_BUY_NOW") {
           // Clear timeout if it exists
@@ -112,10 +114,10 @@ export default function ResultDisplay({
             addToCartTimeoutRef.current = null;
           }
           setIsAddToCartLoading(false);
-          toast.error("Erreur", {
+          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
             description:
               event.data.error ||
-              "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
+              t("tryOnWidget.resultDisplay.addToCartError") || "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
           });
         } else if (event.data.action === "NUSENSE_BUY_NOW") {
           // Clear timeout if it exists
@@ -124,10 +126,10 @@ export default function ResultDisplay({
             buyNowTimeoutRef.current = null;
           }
           setIsBuyNowLoading(false);
-          toast.error("Erreur", {
+          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
             description:
               event.data.error ||
-              "Impossible de procéder à l'achat. Veuillez réessayer.",
+              t("tryOnWidget.resultDisplay.buyNowError") || "Impossible de procéder à l'achat. Veuillez réessayer.",
           });
         }
       }
@@ -167,8 +169,8 @@ export default function ResultDisplay({
         window.parent.postMessage(message, "*");
 
         // Show loading message - parent will handle redirect or error
-        toast.info("Ajout au panier...", {
-          description: "Redirection vers la page de paiement en cours.",
+        toast.info(t("tryOnWidget.resultDisplay.addingToCart") || "Ajout au panier...", {
+          description: t("tryOnWidget.resultDisplay.redirectingToCheckout") || "Redirection vers la page de paiement en cours.",
         });
 
         // Set a timeout to reset loading state if no response received (10 seconds)
@@ -177,23 +179,23 @@ export default function ResultDisplay({
         }
         buyNowTimeoutRef.current = setTimeout(() => {
           setIsBuyNowLoading(false);
-          toast.error("Timeout", {
-            description: "La requête a pris trop de temps. Veuillez réessayer.",
+          toast.error(t("tryOnWidget.resultDisplay.timeout") || "Timeout", {
+            description: t("tryOnWidget.resultDisplay.timeoutDescription") || "La requête a pris trop de temps. Veuillez réessayer.",
           });
           buyNowTimeoutRef.current = null;
         }, 10000);
       } else {
         // Standalone mode - show message that this feature requires Shopify integration
         setIsBuyNowLoading(false);
-        toast.error("Fonctionnalité non disponible", {
+        toast.error(t("tryOnWidget.resultDisplay.featureUnavailable") || "Fonctionnalité non disponible", {
           description:
-            "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
+            t("tryOnWidget.resultDisplay.featureUnavailableDescription") || "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
         });
       }
     } catch (error) {
       setIsBuyNowLoading(false);
-      toast.error("Erreur", {
-        description: "Impossible de procéder à l'achat. Veuillez réessayer.",
+      toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+        description: t("tryOnWidget.resultDisplay.buyNowError") || "Impossible de procéder à l'achat. Veuillez réessayer.",
       });
     }
   };
@@ -223,24 +225,24 @@ export default function ResultDisplay({
         }
         addToCartTimeoutRef.current = setTimeout(() => {
           setIsAddToCartLoading(false);
-          toast.error("Timeout", {
-            description: "La requête a pris trop de temps. Veuillez réessayer.",
+          toast.error(t("tryOnWidget.resultDisplay.timeout") || "Timeout", {
+            description: t("tryOnWidget.resultDisplay.timeoutDescription") || "La requête a pris trop de temps. Veuillez réessayer.",
           });
           addToCartTimeoutRef.current = null;
         }, 10000);
       } else {
         // Standalone mode - show message that this feature requires Shopify integration
         setIsAddToCartLoading(false);
-        toast.error("Fonctionnalité non disponible", {
+        toast.error(t("tryOnWidget.resultDisplay.featureUnavailable") || "Fonctionnalité non disponible", {
           description:
-            "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
+            t("tryOnWidget.resultDisplay.featureUnavailableDescription") || "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
         });
       }
     } catch (error) {
       setIsAddToCartLoading(false);
-      toast.error("Erreur", {
+      toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
         description:
-          "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
+          t("tryOnWidget.resultDisplay.addToCartError") || "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
       });
     }
   };
@@ -331,8 +333,8 @@ export default function ResultDisplay({
       }, 100);
 
       setIsDownloadLoading(false);
-      toast.success("Téléchargement réussi", {
-        description: "L'image a été téléchargée avec succès.",
+      toast.success(t("tryOnWidget.resultDisplay.downloadSuccess") || "Téléchargement réussi", {
+        description: t("tryOnWidget.resultDisplay.downloadSuccessDescription") || "L'image a été téléchargée avec succès.",
       });
     } catch (error) {
       setIsDownloadLoading(false);
@@ -340,14 +342,14 @@ export default function ResultDisplay({
       // Fallback: try to open in new tab
       try {
         window.open(downloadUrl, "_blank");
-        toast.info("Ouverture dans un nouvel onglet", {
+        toast.info(t("tryOnWidget.resultDisplay.openingInNewTab") || "Ouverture dans un nouvel onglet", {
           description:
-            "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+            t("tryOnWidget.resultDisplay.openingInNewTabDescription") || "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
         });
       } catch (openError) {
-        toast.error("Erreur de téléchargement", {
+        toast.error(t("tryOnWidget.resultDisplay.downloadError") || "Erreur de téléchargement", {
           description:
-            "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
+            t("tryOnWidget.resultDisplay.downloadErrorDescription") || "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
         });
       }
     }
@@ -369,10 +371,10 @@ export default function ResultDisplay({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-base sm:text-lg font-semibold">
-              Résultat Généré
+              {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
             </h2>
             <p className="text-[10px] sm:text-xs text-muted-foreground">
-              Essayage virtuel avec IA
+              {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
             </p>
           </div>
         </div>
@@ -404,7 +406,7 @@ export default function ResultDisplay({
             ) : generatedImage ? (
               <img
                 src={generatedImage}
-                alt="Résultat de l'essayage virtuel généré par intelligence artificielle"
+                alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
                 className="w-full max-h-[80vh] object-contain"
                 loading="lazy"
               />
@@ -421,7 +423,7 @@ export default function ResultDisplay({
                   <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-                  Aucun résultat généré
+                  {t("tryOnWidget.resultDisplay.noResultsGenerated") || "Aucun résultat généré"}
                 </p>
               </div>
             )}
@@ -441,7 +443,7 @@ export default function ResultDisplay({
               variant="outline"
               size="sm"
               className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-red-500/80 bg-white hover:bg-red-50 hover:border-red-600 text-red-600 hover:text-red-700 active:bg-red-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label="Acheter Maintenant"
+              aria-label={t("tryOnWidget.resultDisplay.buyNowAriaLabel") || "Acheter Maintenant"}
               aria-busy={isBuyNowLoading}
             >
               {isBuyNowLoading ? (
@@ -456,7 +458,7 @@ export default function ResultDisplay({
                 />
               )}
               <span className="leading-tight whitespace-nowrap">
-                {isBuyNowLoading ? "Traitement..." : "Acheter Maintenant"}
+                {isBuyNowLoading ? t("tryOnWidget.resultDisplay.processing") || "Traitement..." : t("tryOnWidget.resultDisplay.buyNow") || "Acheter Maintenant"}
               </span>
             </Button>
 
@@ -473,7 +475,7 @@ export default function ResultDisplay({
               variant="outline"
               size="sm"
               className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-green-500/80 bg-white hover:bg-green-50 hover:border-green-600 text-green-600 hover:text-green-700 active:bg-green-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-green-500/10 focus-visible:ring-2 focus-visible:ring-green-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label="Ajouter au Panier"
+              aria-label={t("tryOnWidget.resultDisplay.addToCartAriaLabel") || "Ajouter au Panier"}
               aria-busy={isAddToCartLoading}
             >
               {isAddToCartLoading ? (
@@ -488,7 +490,7 @@ export default function ResultDisplay({
                 />
               )}
               <span className="leading-tight whitespace-nowrap">
-                {isAddToCartLoading ? "Ajout..." : "Ajouter au Panier"}
+                {isAddToCartLoading ? t("tryOnWidget.resultDisplay.adding") || "Ajout..." : t("tryOnWidget.resultDisplay.addToCart") || "Ajouter au Panier"}
               </span>
             </Button>
 
@@ -505,7 +507,7 @@ export default function ResultDisplay({
               variant="outline"
               size="sm"
               className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-blue-500/80 bg-white hover:bg-blue-50 hover:border-blue-600 text-blue-600 hover:text-blue-700 active:bg-blue-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label="Télécharger l'image"
+              aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
               aria-busy={isDownloadLoading}
             >
               {isDownloadLoading ? (
@@ -520,7 +522,7 @@ export default function ResultDisplay({
                 />
               )}
               <span className="leading-tight whitespace-nowrap">
-                {isDownloadLoading ? "Téléchargement..." : "Télécharger"}
+                {isDownloadLoading ? t("tryOnWidget.resultDisplay.downloading") || "Téléchargement..." : t("tryOnWidget.resultDisplay.download") || "Télécharger"}
               </span>
             </Button>
           </div>

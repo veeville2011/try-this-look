@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Check } from "lucide-react";
@@ -26,6 +27,7 @@ export default function CartOutfitGarmentSelection({
   minItems,
   availableImagesWithIds = new Map(),
 }: CartOutfitGarmentSelectionProps) {
+  const { t } = useTranslation();
   const [validImages, setValidImages] = useState<ProductImage[]>([]);
 
   // Initialize with provided images
@@ -113,10 +115,10 @@ export default function CartOutfitGarmentSelection({
               }
             }}
             className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
-            aria-label="Effacer toutes les sélections"
+            aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
           >
             <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-            <span>Effacer tout</span>
+            <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
           </Button>
         )}
       </div>

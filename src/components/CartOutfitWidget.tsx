@@ -605,13 +605,13 @@ export default function CartOutfitWidget({
                           setSelectedDemoPhotoUrl(null);
                         }}
                         className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5"
-                        aria-label="Effacer la photo téléchargée"
+                        aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
                       >
                         <XCircle
                           className="h-3.5 w-3.5 sm:h-4 sm:w-4"
                           aria-hidden="true"
                         />
-                        <span>Effacer</span>
+                        <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                       </Button>
                     </div>
                     <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">

@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ClothingSelectionProps {
   images: string[];
@@ -30,6 +31,7 @@ export default function ClothingSelection({
   demoPhotoIdMap = new Map(),
   matchingClothingKeys = [],
 }: ClothingSelectionProps) {
+  const { t } = useTranslation();
   const [validImages, setValidImages] = useState<string[]>([]);
   const [validRecommendedImages, setValidRecommendedImages] = useState<
     string[]
@@ -88,10 +90,10 @@ export default function ClothingSelection({
       <div role="alert" aria-live="polite">
         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
           <p className="font-semibold text-warning text-sm sm:text-base md:text-lg">
-            Aucune image de vêtement détectée sur cette page
+            {t("tryOnWidget.clothingSelection.noClothingDetected") || "Aucune image de vêtement détectée sur cette page"}
           </p>
           <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-            Assurez-vous d'être sur une page produit Shopify
+            {t("tryOnWidget.clothingSelection.noClothingDetectedDescription") || "Assurez-vous d'être sur une page produit Shopify"}
           </p>
         </Card>
       </div>
@@ -118,9 +120,10 @@ export default function ClothingSelection({
                   onClick={() => onSelect(image)}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Sélectionner le vêtement ${index + 1}${
-                    selectedImage === image ? " - Sélectionné" : ""
-                  }${isGenerated(image) ? " - Déjà généré" : ""}`}
+                  aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
+                    index: index + 1,
+                    suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`
+                  }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`}
                   aria-pressed={selectedImage === image}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -132,11 +135,10 @@ export default function ClothingSelection({
                   <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden">
                     <img
                       src={image}
-                      alt={`Image du vêtement ${index + 1}${
-                        selectedImage === image
-                          ? " - Actuellement sélectionné"
-                          : ""
-                      }`}
+                      alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
+                        index: index + 1,
+                        suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                      }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
                       className="w-full h-auto object-contain"
                       loading="lazy"
                       onError={() => {
@@ -164,7 +166,7 @@ export default function ClothingSelection({
           {validRecommendedImages.length > 0 && (
             <div className="space-y-2 sm:space-y-3">
               <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                Produits Recommandés
+                {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits Recommandés"}
               </h3>
               <div className="relative">
                 <div className="overflow-x-auto overflow-y-hidden scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 snap-x snap-mandatory">
@@ -180,11 +182,10 @@ export default function ClothingSelection({
                         onClick={() => onSelect(image)}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Sélectionner le produit recommandé ${
-                          index + 1
-                        }${selectedImage === image ? " - Sélectionné" : ""}${
-                          isGenerated(image) ? " - Déjà généré" : ""
-                        }`}
+                        aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", { 
+                          index: index + 1,
+                          suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`
+                        }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`}
                         aria-pressed={selectedImage === image}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -196,11 +197,10 @@ export default function ClothingSelection({
                         <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
                           <img
                             src={image}
-                            alt={`Produit recommandé ${index + 1}${
-                              selectedImage === image
-                                ? " - Actuellement sélectionné"
-                                : ""
-                            }`}
+                            alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
+                              index: index + 1,
+                              suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                            }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
                             className="w-full h-full object-contain"
                             loading="lazy"
                             onError={() => {
@@ -234,26 +234,26 @@ export default function ClothingSelection({
           <Card className="p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
               <p className="font-semibold text-sm sm:text-base md:text-lg">
-                Article Sélectionné
+                {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
               </p>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onSelect("")}
                 className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label="Effacer la sélection du vêtement"
+                aria-label={t("tryOnWidget.clothingSelection.clearSelectionAriaLabel") || "Effacer la sélection du vêtement"}
               >
                 <XCircle
                   className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
                   aria-hidden="true"
                 />
-                <span>Effacer</span>
+                <span>{t("tryOnWidget.clothingSelection.clear") || "Effacer"}</span>
               </Button>
             </div>
             <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm relative">
               <img
                 src={selectedImage}
-                alt="Vêtement actuellement sélectionné pour l'essayage virtuel"
+                alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
                 className="h-full w-auto object-contain"
               />
               {/* Indicators: show tick when API returned matching clothing item */}
