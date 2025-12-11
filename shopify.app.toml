@@ -74,7 +74,10 @@ redirect_uris = [
 ]
 
 [app_proxy]
-url = "https://try-this-look.vercel.app"
+# App proxy URL - relative path that matches backend route
+# Storefront: https://{shop}.myshopify.com/apps/a/{path}
+# Proxies to: https://try-this-look.vercel.app/apps/apps/a/{path}
+url = "/apps/apps/a"
 subpath = "a"
 prefix = "apps"
 
