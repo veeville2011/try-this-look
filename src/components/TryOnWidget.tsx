@@ -371,14 +371,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         try {
           const customerData = event.data.customer;
           
+          // Handle both cases: after login and already logged in
+          // For password-protected stores, customerData.id might be null, but authenticated will be true
+          // For proxied requests, we'll have customerData.id from Shopify
           if (customerData && customerData.authenticated) {
             // Store customer info in localStorage for persistence
+            // Even if ID is missing (password-protected stores), we store the authenticated state
             try {
               if (typeof window !== "undefined" && window.localStorage) {
                 localStorage.setItem("shopify_customer_data", JSON.stringify({
                   ...customerData,
                   loginMethod: "shopify_customer",
-                  loginTime: new Date().toISOString()
+                  loginTime: new Date().toISOString(),
+                  // For password-protected stores, we might not have customer ID
+                  // but we know they're authenticated since they reached the callback
+                  authenticated: true
                 }));
                 // Dispatch custom event to notify useCustomerAuth hook
                 window.dispatchEvent(new Event("shopify_customer_data_updated"));
@@ -392,15 +399,24 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             
             // Log for debugging
             console.log("[TryOnWidget] Shopify customer login successful:", {
-              customerId: customerData.id,
-              email: customerData.email,
-              origin: event.origin
+              customerId: customerData.id || "unknown (password-protected store)",
+              email: customerData.email || "unknown",
+              origin: event.origin,
+              hasCustomerId: !!customerData.id
             });
+
+            // Refresh the page after successful login to update the UI state
+            // This ensures the widget reflects the logged-in state and any customer-specific data
+            // Works for both "after login" and "already logged in" cases
+            // Use a small delay to allow the toast message to be visible
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000); // 1 second delay to show success message
 
             // Note: Since we're using Shopify customer login (not Customer Account API OAuth),
             // we don't have a session token. The widget can use the customer ID/email
-            // to identify the customer for API calls. You may want to create a backend
-            // session or use the customer ID directly in API requests.
+            // to identify the customer for API calls. For password-protected stores,
+            // customer ID might not be available, but the customer is authenticated.
           } else {
             toast.error(t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification");
             console.warn("[TryOnWidget] Customer login failed - not authenticated:", customerData);
@@ -1672,56 +1688,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <span>{t("tryOnWidget.buttons.reset") || "Réinitialiser"}</span>
               </Button>
             )}
-            {/* Customer Authentication UI - Optional */}
-            {isAuthenticated && customer ? (
-                  <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs">
-                      <User className="h-3 w-3" aria-hidden="true" />
-                      <span className="max-w-[100px] truncate">{customer.email}</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="h-[44px] sm:h-9 md:h-10 px-2 sm:px-3 text-xs sm:text-sm gap-1.5"
-                      aria-label={t("tryOnWidget.buttons.logout") || "Se déconnecter"}
-                    >
-                      <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-                      <span className="hidden sm:inline">{t("tryOnWidget.buttons.logout") || "Déconnexion"}</span>
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-                      if (shopDomain) {
-                        try {
-                          // Store return URL for after login
-                          const returnTo = window.location.pathname + window.location.search;
-                          // Use Shopify customer popup login (native storefront login)
-                          await handleShopifyCustomerLogin(shopDomain, returnTo);
-                          // Popup will send postMessage when authentication completes
-                        } catch (error) {
-                          if (error instanceof Error && error.message.includes("blocked")) {
-                            toast.error(t("tryOnWidget.errors.popupBlocked") || "La fenêtre popup a été bloquée. Veuillez autoriser les popups et réessayer.");
-                          } else {
-                            toast.error(t("tryOnWidget.errors.loginFailed") || "Échec de la connexion. Veuillez réessayer.");
-                            console.error("[TryOnWidget] Shopify customer popup login failed:", error);
-                          }
-                        }
-                      } else {
-                        toast.error(t("tryOnWidget.errors.storeInfoUnavailable") || "Informations de magasin non disponibles");
-                      }
-                    }}
-                    className="h-[44px] sm:h-9 md:h-10 px-2 sm:px-3 text-xs sm:text-sm gap-1.5"
-                    aria-label={t("tryOnWidget.buttons.login") || "Se connecter"}
-                  >
-                    <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">{t("tryOnWidget.buttons.login") || "Connexion"}</span>
-                  </Button>
-                )}
             <LanguageSwitcher />
             <Button
               variant="destructive"

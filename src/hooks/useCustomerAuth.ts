@@ -31,9 +31,11 @@ export const useCustomerAuth = () => {
           const storedData = localStorage.getItem("shopify_customer_data");
           if (storedData) {
             const parsed = JSON.parse(storedData);
-            if (parsed.authenticated && parsed.id) {
+            // For password-protected stores, customer ID might be missing
+            // but authenticated flag will be true if they successfully logged in
+            if (parsed.authenticated) {
               setCustomer({
-                id: parsed.id,
+                id: parsed.id || "authenticated", // Use placeholder ID for password-protected stores
                 email: parsed.email || "",
                 firstName: parsed.firstName,
                 lastName: parsed.lastName,

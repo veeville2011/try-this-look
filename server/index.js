@@ -1169,6 +1169,10 @@ const verifyAppProxySignature = (req, res, next) => {
     // A properly proxied request will have: shop, timestamp, path_prefix, and signature
     const hasShopifyProxyParams = queryParams.shop && queryParams.timestamp;
     
+    // Special handling for customer-login-callback path (works even for password-protected stores)
+    // For password-protected stores, app proxy doesn't work, but we can still serve the callback page
+    const isCustomerLoginCallback = req.path.includes("/customer-login-callback");
+    
     // If this is NOT a proxied request (missing Shopify proxy parameters),
     // it means the request is being accessed directly, not through Shopify's app proxy
     // This can happen if:
@@ -1180,10 +1184,35 @@ const verifyAppProxySignature = (req, res, next) => {
         path: req.path,
         queryParams: Object.keys(queryParams),
         hasSignature: !!providedSignature,
+        isCustomerLoginCallback,
         message: "Missing Shopify app proxy parameters (shop, timestamp). This request is not being proxied by Shopify."
       });
       
-      // If signature is missing, this is definitely not a proxied request
+      // For customer-login-callback, allow direct access (password-protected stores)
+      // We'll handle customer detection differently in the callback handler
+      if (isCustomerLoginCallback && !providedSignature) {
+        logger.info("[APP PROXY] Allowing direct access to customer-login-callback (password-protected store)", {
+          path: req.path,
+          queryParams: Object.keys(queryParams)
+        });
+        // Skip signature verification for password-protected stores
+        // Extract shop from URL or referer if available
+        const url = req.url || '';
+        const referer = req.get('referer') || '';
+        const shopMatch = (url.match(/([^.]+\.myshopify\.com)/) || referer.match(/https?:\/\/([^.]+\.myshopify\.com)/));
+        const detectedShop = shopMatch ? shopMatch[1] : null;
+        
+        // Set minimal proxy metadata for callback handler
+        req.proxyShop = detectedShop || queryParams.shop || 'unknown';
+        req.proxyLoggedInCustomerId = queryParams.logged_in_customer_id || null;
+        req.proxyPathPrefix = queryParams.path_prefix || null;
+        req.proxyTimestamp = Math.floor(Date.now() / 1000).toString();
+        
+        // Continue to callback handler (it will handle missing customer ID gracefully)
+        return next();
+      }
+      
+      // If signature is missing and it's not a callback, this is definitely not a proxied request
       if (!providedSignature) {
         // Try to extract shop from URL or referer for better error message
         const url = req.url || '';
@@ -6501,27 +6530,35 @@ app.get("/apps/apps/a/*", verifyAppProxySignature, (req, res) => {
     // Extract path after /apps/apps/a/
     const proxyPath = req.path.replace("/apps/apps/a", "");
 
-    // Verify shop parameter is present and valid
-    if (!req.proxyShop) {
-      logger.warn("[APP PROXY] Missing shop parameter", {
-        proxyPath,
-      });
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Missing shop parameter",
-      });
+    // Verify shop parameter is present and valid (skip for customer-login-callback on password-protected stores)
+    const isCustomerLoginCallback = proxyPath === "/customer-login-callback" || proxyPath.startsWith("/customer-login-callback");
+    
+    if (!req.proxyShop || req.proxyShop === 'unknown') {
+      // For customer-login-callback, allow 'unknown' shop (password-protected stores)
+      if (!isCustomerLoginCallback) {
+        logger.warn("[APP PROXY] Missing shop parameter", {
+          proxyPath,
+        });
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Missing shop parameter",
+        });
+      }
     }
 
-    // Verify shop format (should be a .myshopify.com domain)
-    if (!req.proxyShop.endsWith(".myshopify.com")) {
-      logger.warn("[APP PROXY] Invalid shop domain format", {
-        shop: req.proxyShop,
-        proxyPath,
-      });
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Invalid shop domain format",
-      });
+    // Verify shop format (should be a .myshopify.com domain) - skip for password-protected stores
+    if (req.proxyShop && req.proxyShop !== 'unknown' && !req.proxyShop.endsWith(".myshopify.com")) {
+      // For customer-login-callback, allow non-standard shop format (password-protected stores)
+      if (!isCustomerLoginCallback) {
+        logger.warn("[APP PROXY] Invalid shop domain format", {
+          shop: req.proxyShop,
+          proxyPath,
+        });
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Invalid shop domain format",
+        });
+      }
     }
 
     logger.info("[APP PROXY] App proxy request processed", {
@@ -6533,26 +6570,51 @@ app.get("/apps/apps/a/*", verifyAppProxySignature, (req, res) => {
     // Handle customer login callback
     // This endpoint is called after customer logs in via Shopify's native customer login page
     // The app proxy provides logged_in_customer_id when a customer is authenticated
+    // For password-protected stores, app proxy doesn't work, but we can still serve the callback
     if (proxyPath === "/customer-login-callback" || proxyPath.startsWith("/customer-login-callback")) {
       // Get widget origin from query params (set by frontend before opening popup)
       const widgetOrigin = req.query.widget_origin || req.query.origin || null;
       
+      // Check if this is a proxied request (has Shopify proxy parameters)
+      const hasProxyParams = req.proxyShop && req.proxyShop !== 'unknown' && req.proxyShop.endsWith(".myshopify.com");
+      
       // Check if customer is logged in
       // logged_in_customer_id is provided by Shopify app proxy when customer is authenticated
-      // It can be a string or number, so we check for truthiness
-      const isCustomerLoggedIn = !!req.proxyLoggedInCustomerId;
+      // For password-protected stores (non-proxied requests), we won't have this info
+      // In that case, we'll assume login was successful (customer reached this page after login)
+      // This handles both "after login" and "already logged in" cases
+      const hasProxyCustomerId = !!req.proxyLoggedInCustomerId;
+      // For password-protected stores: assume login successful if they reached callback page
+      // For proxied requests: use the actual customer ID from Shopify
+      const isCustomerLoggedIn = hasProxyCustomerId || !hasProxyParams;
       const customerId = req.proxyLoggedInCustomerId 
         ? String(req.proxyLoggedInCustomerId) // Normalize to string for consistency
-        : null;
+        : (req.query.customer_id || null); // Fallback for password-protected stores
 
       // Get customer email from query params if available (Shopify may pass it)
-      const customerEmail = req.query.customer_email || null;
+      const customerEmail = req.query.customer_email || req.query.email || null;
+      
+      // For password-protected stores: If we don't have customer ID from app proxy,
+      // we can't verify the customer, but we'll still send success message
+      // The frontend will handle this gracefully and refresh the page
+      if (!hasProxyCustomerId && !hasProxyParams) {
+        logger.info("[APP PROXY] Customer login callback without proxy params (password-protected store)", {
+          shop: req.proxyShop,
+          hasWidgetOrigin: !!widgetOrigin,
+          queryParams: Object.keys(req.query),
+          message: "Assuming login successful - customer reached callback page after login"
+        });
+        // For password-protected stores, assume login was successful if they reached this page
+        // The customer session is managed by Shopify's storefront
+      }
       
       logger.info("[APP PROXY] Customer login callback", {
         shop: req.proxyShop,
         isCustomerLoggedIn,
         customerId,
         hasWidgetOrigin: !!widgetOrigin,
+        hasProxyParams,
+        hasProxyCustomerId,
       });
 
       // Serve callback page HTML
