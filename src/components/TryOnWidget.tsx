@@ -34,7 +34,7 @@ import {
 } from "@/services/cartOutfitApi";
 import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, LogIn, LogOut, User } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +50,6 @@ import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
 import { useCategorizedProducts } from "@/hooks/useCategorizedProducts";
-import { useCustomerAuth } from "@/hooks/useCustomerAuth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface TryOnWidgetProps {
@@ -90,25 +89,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     fetchCategorizedProducts: fetchCategorizedProductsFromRedux,
   } = useCategorizedProducts();
 
-  // Customer authentication state
-  const {
-    isAuthenticated,
-    customer,
-    loginWithShopifyCustomerPopup: handleShopifyCustomerLogin,
-  } = useCustomerAuth();
-
-  // Simple logout function for app proxy approach (clears localStorage)
-  const handleLogout = () => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        localStorage.removeItem("shopify_customer_data");
-      }
-      // Reload to clear state
-      window.location.reload();
-    } catch (error) {
-      console.error("[TryOnWidget] Logout failed:", error);
-    }
-  };
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -347,96 +327,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   }, [storeInfo]);
 
-  // Listen for postMessage events from popup authentication
-  useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      // Handle Shopify customer login messages (from storefront domain via app proxy)
-      if (event.data?.type === "SHOPIFY_CUSTOMER_LOGIN_SUCCESS") {
-        // Accept messages from storefront domains (shopify.com, myshopify.com, or custom domains)
-        // Also accept from app proxy backend (try-this-look.vercel.app or localhost)
-        const isStorefrontOrigin = event.origin.includes("myshopify.com") || 
-                                   event.origin.includes("shopify.com") ||
-                                   event.origin.includes("shopifycdn.com") ||
-                                   event.origin.includes("try-this-look.vercel.app") ||
-                                   event.origin.includes("localhost") ||
-                                   event.origin.includes("127.0.0.1") ||
-                                   // Allow custom domains (check if it's a valid URL)
-                                   (event.origin.startsWith("http://") || event.origin.startsWith("https://"));
-        
-        if (!isStorefrontOrigin) {
-          console.warn("[TryOnWidget] Ignoring SHOPIFY_CUSTOMER_LOGIN_SUCCESS from unexpected origin:", event.origin);
-          return;
-        }
-
-        try {
-          const customerData = event.data.customer;
-          
-          // Handle both cases: after login and already logged in
-          // For password-protected stores, customerData.id might be null, but authenticated will be true
-          // For proxied requests, we'll have customerData.id from Shopify
-          if (customerData && customerData.authenticated) {
-            // Store customer info in localStorage for persistence
-            // Even if ID is missing (password-protected stores), we store the authenticated state
-            try {
-              if (typeof window !== "undefined" && window.localStorage) {
-                localStorage.setItem("shopify_customer_data", JSON.stringify({
-                  ...customerData,
-                  loginMethod: "shopify_customer",
-                  loginTime: new Date().toISOString(),
-                  // For password-protected stores, we might not have customer ID
-                  // but we know they're authenticated since they reached the callback
-                  authenticated: true
-                }));
-                // Dispatch custom event to notify useCustomerAuth hook
-                window.dispatchEvent(new Event("shopify_customer_data_updated"));
-              }
-            } catch (e) {
-              console.warn("[TryOnWidget] Could not store customer data:", e);
-            }
-
-            // Show success message
-            toast.success(t("tryOnWidget.messages.loginSuccess") || "Connexion réussie!");
-            
-            // Log for debugging
-            console.log("[TryOnWidget] Shopify customer login successful:", {
-              customerId: customerData.id || "unknown (password-protected store)",
-              email: customerData.email || "unknown",
-              origin: event.origin,
-              hasCustomerId: !!customerData.id
-            });
-
-            // Refresh the page after successful login to update the UI state
-            // This ensures the widget reflects the logged-in state and any customer-specific data
-            // Works for both "after login" and "already logged in" cases
-            // Use a small delay to allow the toast message to be visible
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000); // 1 second delay to show success message
-
-            // Note: Since we're using Shopify customer login (not Customer Account API OAuth),
-            // we don't have a session token. The widget can use the customer ID/email
-            // to identify the customer for API calls. For password-protected stores,
-            // customer ID might not be available, but the customer is authenticated.
-          } else {
-            toast.error(t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification");
-            console.warn("[TryOnWidget] Customer login failed - not authenticated:", customerData);
-          }
-        } catch (error) {
-          console.error("[TryOnWidget] Failed to handle Shopify customer login:", error);
-          toast.error(t("tryOnWidget.errors.authenticationFailed") || "Échec de l'authentification");
-        }
-        return;
-      }
-    };
-
-    // Add event listener
-    window.addEventListener("message", handleMessage);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [t]);
 
   useEffect(() => {
     const savedImage = storage.getUploadedImage();

@@ -54,32 +54,20 @@ api_version = "2024-01"
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 # Note: Billing API doesn't require a specific scope - it's automatically available to all apps
-# write_app_proxy is required for app proxy functionality (customer login callback via app proxy)
-scopes = "read_products,write_products,read_themes,write_themes,read_orders,read_customers,write_app_proxy"
+# 
+# Required scopes for TryOnWidget functionality:
+# - read_products: Fetch products for Try Multiple/Try Look tabs via GraphQL Admin API
+# - read_themes: Read theme structure for theme app extension
+# - write_themes: Inject theme app extension snippets into theme
+scopes = "read_products,read_themes,write_themes"
 
 [auth]
 redirect_urls = [
   "https://try-this-look.vercel.app/auth/callback",
   "https://try-this-look.vercel.app/auth/shopify/callback",
-  "https://try-this-look.vercel.app/api/auth/callback",
-  "https://try-this-look.vercel.app/api/customer-auth/callback"
+  "https://try-this-look.vercel.app/api/auth/callback"
 ]
 
-[customer_authentication]
-# Customer Account API OAuth configuration
-# This section configures OAuth 2.0 redirect URIs for Customer Account API authentication
-# The redirect_uris must match the callback URL used in your Customer Account API OAuth flow
-redirect_uris = [
-  "https://try-this-look.vercel.app/api/customer-auth/callback"
-]
-
-[app_proxy]
-# App proxy URL - relative path that matches backend route
-# Storefront: https://{shop}.myshopify.com/apps/a/{path}
-# Proxies to: https://try-this-look.vercel.app/apps/apps/a/{path}
-url = "/apps/apps/a"
-subpath = "a"
-prefix = "apps"
 
 [pos]
 embedded = false
