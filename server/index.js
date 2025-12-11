@@ -1161,6 +1161,7 @@ const verifyAppProxySignature = (req, res, next) => {
     }
 
     // Get query parameters from request
+    // Note: Express automatically URL-decodes query parameters
     const queryParams = req.query;
     const providedSignature = queryParams.signature;
 
@@ -1176,22 +1177,28 @@ const verifyAppProxySignature = (req, res, next) => {
     const paramsForVerification = { ...queryParams };
     delete paramsForVerification.signature;
 
-    // Sort parameters alphabetically and format as "key=value"
-    // Arrays should be joined with commas
-    const sortedParams = Object.keys(paramsForVerification)
-      .sort()
+    // According to Shopify docs: format as "key=value", sort alphabetically, then concatenate
+    // Handle arrays by joining with commas (as per Shopify Ruby example)
+    // Important: Include empty values (e.g., logged_in_customer_id= when empty)
+    // Ruby example: query_hash.collect{ |k, v| "#{k}=#{Array(v).join(',')}" }.sort.join
+    const formattedParams = Object.keys(paramsForVerification)
       .map((key) => {
         const value = paramsForVerification[key];
-        // Handle arrays by joining with commas
-        const formattedValue = Array.isArray(value) ? value.join(",") : value;
+        // Handle arrays by joining with commas (Shopify example: Array(v).join(','))
+        // Convert to array first, then join (handles both arrays and single values)
+        const arrayValue = Array.isArray(value) ? value : (value !== undefined && value !== null ? [value] : []);
+        const formattedValue = arrayValue.join(",");
         return `${key}=${formattedValue}`;
       })
+      .sort() // Sort the formatted strings alphabetically (as per Shopify Ruby example)
       .join(""); // Concatenate without separators
 
     // Calculate HMAC-SHA256 hexdigest using shared secret
+    // Shopify uses the shared secret (API secret) as the HMAC key
+    // The signature is hex-encoded (not base64)
     const calculatedSignature = crypto
       .createHmac("sha256", apiSecret)
-      .update(sortedParams)
+      .update(formattedParams)
       .digest("hex");
 
     // Compare signatures using timing-safe comparison
