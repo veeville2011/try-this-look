@@ -171,6 +171,7 @@ const checkIsDevelopmentStore = async (client) => {
         shop {
           plan {
             partnerDevelopment
+            displayName
           }
         }
       }
@@ -181,7 +182,19 @@ const checkIsDevelopmentStore = async (client) => {
     });
 
     const shopData = response?.body?.data?.shop;
-    return isDevelopmentStore(shopData);
+    const isDevStore = isDevelopmentStore(shopData);
+    
+    // Enhanced logging to help diagnose test charge approval issues
+    logger.info("[UTILS] Development store check", {
+      partnerDevelopment: shopData?.plan?.partnerDevelopment,
+      planDisplayName: shopData?.plan?.displayName,
+      isDevelopmentStore: isDevStore,
+      note: isDevStore 
+        ? "Store identified as development store - test charges will be created"
+        : "Store is NOT a development store - real charges will be created",
+    });
+    
+    return isDevStore;
   } catch (error) {
     logger.error("[UTILS] Failed to check if store is development store", error);
     return false;
@@ -857,9 +870,13 @@ const createAppSubscription = async (
       shop: normalizedShop,
       isDevelopmentStore: useTestMode,
       testMode: useTestMode,
+      testFlagValue: useTestMode,
       note: useTestMode
-        ? "Test mode enabled for development store"
-        : "Real billing mode for production store",
+        ? "Test mode enabled for development store - approve button should work without payment method"
+        : "Real billing mode for production store - payment method required",
+      warning: useTestMode 
+        ? "If approve button is disabled, ensure dev store has payment method configured OR check Shopify Partner Dashboard store settings"
+        : null,
     });
 
     const response = await client.query({
@@ -901,6 +918,23 @@ const createAppSubscription = async (
         }
       );
     }
+
+    // Verify test flag was set correctly in the response
+    const subscriptionTestFlag = payload.appSubscription?.test;
+    logger.info("[BILLING] Subscription charge created", {
+      shop: normalizedShop,
+      subscriptionId: payload.appSubscription?.id,
+      testFlagInRequest: useTestMode,
+      testFlagInResponse: subscriptionTestFlag,
+      confirmationUrl: payload.confirmationUrl,
+      status: payload.appSubscription?.status,
+      match: subscriptionTestFlag === useTestMode 
+        ? "✅ Test flag matches request" 
+        : "⚠️ WARNING: Test flag mismatch!",
+      troubleshooting: useTestMode && !subscriptionTestFlag
+        ? "Charge created but test flag not set. Check if store is properly identified as development store."
+        : null,
+    });
 
     // Initialize credits after subscription creation
     // Note: This will be done after merchant approves the subscription
