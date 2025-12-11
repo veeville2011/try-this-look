@@ -1164,6 +1164,50 @@ const verifyAppProxySignature = (req, res, next) => {
     // Note: Express automatically URL-decodes query parameters
     const queryParams = req.query;
     const providedSignature = queryParams.signature;
+    
+    // Check if this is a proxied request (Shopify adds these parameters automatically)
+    // A properly proxied request will have: shop, timestamp, path_prefix, and signature
+    const hasShopifyProxyParams = queryParams.shop && queryParams.timestamp;
+    
+    // If this is NOT a proxied request (missing Shopify proxy parameters),
+    // it means the request is being accessed directly, not through Shopify's app proxy
+    // This can happen if:
+    // 1. App proxy is not configured/deployed (need to run `shopify app deploy`)
+    // 2. Store has password protection (app proxy doesn't work with password-protected stores)
+    // 3. Direct access to the backend URL (bypassing Shopify's proxy)
+    if (!hasShopifyProxyParams) {
+      logger.warn("[APP PROXY] Request is not being proxied by Shopify", {
+        path: req.path,
+        queryParams: Object.keys(queryParams),
+        hasSignature: !!providedSignature,
+        message: "Missing Shopify app proxy parameters (shop, timestamp). This request is not being proxied by Shopify."
+      });
+      
+      // If signature is missing, this is definitely not a proxied request
+      if (!providedSignature) {
+        // Try to extract shop from URL or referer for better error message
+        const url = req.url || '';
+        const referer = req.get('referer') || '';
+        const shopMatch = (url.match(/([^.]+\.myshopify\.com)/) || referer.match(/https?:\/\/([^.]+\.myshopify\.com)/));
+        const detectedShop = shopMatch ? shopMatch[1] : 'unknown';
+        
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Request is not being proxied by Shopify. Missing app proxy parameters (shop, timestamp, signature).",
+          details: {
+            detectedShop,
+            possibleCauses: [
+              "App proxy is not configured or deployed. Run 'shopify app deploy' to update the configuration.",
+              "Store has password protection enabled. App proxy does not work with password-protected stores.",
+              "App proxy configuration in shopify.app.toml may be incorrect.",
+              "The app may need to be reinstalled on the store to activate the app proxy."
+            ],
+            requiredParams: ["shop", "timestamp", "path_prefix", "signature"],
+            receivedParams: Object.keys(queryParams)
+          }
+        });
+      }
+    }
 
     // Missing signature parameter - return 401
     if (!providedSignature) {
