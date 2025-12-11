@@ -2346,11 +2346,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   }
                                 }}
                               >
-                                <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
+                                <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
                                   <img
                                     src={imageUrl}
                                     alt={selected ? t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article ${index + 1} - Sélectionné` : t("tryOnWidget.ariaLabels.garment", { index: index + 1 }) || `Article ${index + 1}`}
-                                    className="w-full h-full object-contain"
+                                    className="h-full w-auto object-contain"
                                     loading="lazy"
                                   />
                                   {selected && (
@@ -2558,11 +2558,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               className="p-3 sm:p-4 border-border bg-card"
                             >
                               <div className="space-y-3">
-                                <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 aspect-[3/4] flex items-center justify-center">
+                                <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 h-64 sm:h-72 md:h-80 flex items-center justify-center">
                                   <img
                                     src={imageUrl}
                                     alt={t("tryOnWidget.ariaLabels.tryOnResult", { index: index + 1 }) || `Résultat de l'essayage virtuel ${index + 1}`}
-                                    className="w-full h-full object-contain"
+                                    className="h-full w-auto object-contain"
                                     loading="lazy"
                                   />
                                   {result.cached && (
@@ -3012,11 +3012,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   }
                                 }}
                               >
-                                <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
+                                <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
                                   <img
                                     src={imageUrl}
                                     alt={selected ? t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article ${index + 1} - Sélectionné` : t("tryOnWidget.ariaLabels.garment", { index: index + 1 }) || `Article ${index + 1}`}
-                                    className="w-full h-full object-contain"
+                                    className="h-full w-auto object-contain"
                                     loading="lazy"
                                   />
                                   {selected && (

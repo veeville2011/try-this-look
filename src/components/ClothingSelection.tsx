@@ -252,7 +252,7 @@ export default function ClothingSelection({
                 <span>{t("tryOnWidget.clothingSelection.clear") || "Effacer"}</span>
               </Button>
             </div>
-            <div className="aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm relative">
+            <div className="h-64 sm:h-72 md:h-80 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm relative">
               <img
                 src={selectedImage}
                 alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
