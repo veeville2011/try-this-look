@@ -67,20 +67,21 @@ class CustomerAuthClient {
     // Normalize shop domain (remove protocol, ensure proper format)
     let normalizedDomain = shopDomain.trim().toLowerCase().replace(/^https?:\/\//, "");
 
-    // Build Shopify customer login URL
-    // The callback URL should be on the storefront domain so it can access customer session
+    // Build Shopify native customer login URL
+    // Use /account/login for native Shopify customer login (not Customer Account API)
     const protocol = normalizedDomain.includes("localhost") ? "http" : "https";
     
     // Use app proxy for callback (configured in shopify.app.toml)
     // App proxy format: /apps/{prefix}/{subpath}/{path}
     // With prefix="apps" and subpath="a", the URL becomes: /apps/apps/a/{path}
     // This will be handled by the backend and can access customer session via app proxy params
+    // IMPORTANT: return_to must be a relative URL (not absolute) for /account/login
     const widgetOrigin = typeof window !== "undefined" ? window.location.origin : "";
-    const callbackUrl = typeof window !== "undefined" 
-      ? `${protocol}://${normalizedDomain}/apps/apps/a/customer-login-callback${widgetOrigin ? `?widget_origin=${encodeURIComponent(widgetOrigin)}` : ''}`
-      : `/apps/apps/a/customer-login-callback`;
+    const callbackPath = `/apps/apps/a/customer-login-callback${widgetOrigin ? `?widget_origin=${encodeURIComponent(widgetOrigin)}` : ''}`;
     
-    const loginUrl = `${protocol}://${normalizedDomain}/customer_authentication/login?return_to=${encodeURIComponent(callbackUrl)}`;
+    // Use /account/login for native Shopify customer login
+    // The return_to parameter must be a relative URL (path only, not full URL)
+    const loginUrl = `${protocol}://${normalizedDomain}/account/login?return_to=${encodeURIComponent(callbackPath)}`;
 
     // Store shop domain and return URL for potential retry
     try {
