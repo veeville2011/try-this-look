@@ -1600,7 +1600,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   // Check if store is vto-demo (only show tabs for vto-demo store)
   const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-  const isVtoDemoStore = shopDomain && shopDomain.includes("vto-demo");
+  const isVtoDemoStore = shopDomain && shopDomain.includes("vto-demo-store");
 
   // Force activeTab to "single" for non-vto-demo stores
   useEffect(() => {
