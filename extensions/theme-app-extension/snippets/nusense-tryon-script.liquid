@@ -1196,8 +1196,12 @@
       }
     }
     
-    // Initialize message listener
-    window.addEventListener('message', handleMessage);
+    // Initialize message listener ONLY if not already initialized
+    // This prevents multiple listeners from interfering with other apps
+    if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
+      window.addEventListener('message', handleMessage);
+      window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
+    }
     
     // Also listen for widget script load completion
     // This ensures the listener is ready before widget requests images

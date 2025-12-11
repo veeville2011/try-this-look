@@ -16,6 +16,9 @@
   // Product data from window.NUSENSE_PRODUCT_DATA
   const productData = window.NUSENSE_PRODUCT_DATA || null;
 
+  // Store original body overflow to restore it properly
+  let originalBodyOverflow = null;
+
   // Initialize widget
   function initWidget() {
     // Find all try-on buttons
@@ -111,7 +114,8 @@
     overlay.appendChild(container);
     document.body.appendChild(overlay);
 
-    // Prevent body scroll
+    // Prevent body scroll - store original value to restore later
+    originalBodyOverflow = document.body.style.overflow || '';
     document.body.style.overflow = 'hidden';
 
     // Close on escape key
@@ -124,11 +128,15 @@
     document.addEventListener('keydown', escapeHandler);
 
     // Listen for close messages from iframe
-    window.addEventListener('message', function(e) {
+    // Use a namespaced handler to avoid conflicts with other apps
+    const closeMessageHandler = function(e) {
+      // Only handle NUSENSE messages to avoid interfering with stock alerts and other apps
       if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {
         closeWidget();
+        window.removeEventListener('message', closeMessageHandler);
       }
-    });
+    };
+    window.addEventListener('message', closeMessageHandler);
 
     // Widget opened
   }
@@ -139,8 +147,16 @@
     if (overlay) {
       overlay.style.animation = 'fadeOut 0.2s ease';
       setTimeout(function() {
-        document.body.removeChild(overlay);
-        document.body.style.overflow = '';
+        if (overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+        // Restore original overflow value instead of clearing it
+        if (originalBodyOverflow !== null) {
+          document.body.style.overflow = originalBodyOverflow;
+        } else {
+          document.body.style.overflow = '';
+        }
+        originalBodyOverflow = null;
       }, 200);
     }
   }
@@ -153,15 +169,54 @@
   }
 
   // Re-initialize on dynamic content changes (for AJAX themes)
+  // IMPORTANT: Only watch for NUSENSE-specific elements to avoid interfering with other apps
+  // This prevents conflicts with stock alert apps and other dynamic content
   if (typeof MutationObserver !== 'undefined') {
+    let reinitTimeout = null;
     const observer = new MutationObserver(function(mutations) {
+      // Debounce re-initialization to avoid excessive calls
+      if (reinitTimeout) {
+        clearTimeout(reinitTimeout);
+      }
+      
+      // Only re-initialize if NUSENSE buttons are added, not for any DOM change
+      let shouldReinit = false;
       mutations.forEach(function(mutation) {
         if (mutation.addedNodes.length) {
-          initWidget();
+          for (let i = 0; i < mutation.addedNodes.length; i++) {
+            const node = mutation.addedNodes[i];
+            // Only re-init if a NUSENSE button or container is added
+            if (node.nodeType === 1) { // Element node
+              if (node.id && node.id.startsWith('nusense-tryon-btn')) {
+                shouldReinit = true;
+                break;
+              }
+              if (node.classList && node.classList.contains('nusense-tryon-button')) {
+                shouldReinit = true;
+                break;
+              }
+              // Check if any NUSENSE buttons are inside the added node
+              if (node.querySelectorAll && (
+                node.querySelectorAll('[id^="nusense-tryon-btn"]').length > 0 ||
+                node.querySelectorAll('.nusense-tryon-button').length > 0
+              )) {
+                shouldReinit = true;
+                break;
+              }
+            }
+          }
         }
       });
+      
+      // Debounce re-init to avoid interfering with rapid DOM changes from other apps
+      if (shouldReinit) {
+        reinitTimeout = setTimeout(function() {
+          initWidget();
+        }, 100); // Small delay to batch multiple rapid changes
+      }
     });
 
+    // Only observe document.body, but be more selective about what triggers re-init
     observer.observe(document.body, {
       childList: true,
       subtree: true
