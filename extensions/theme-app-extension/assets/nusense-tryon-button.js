@@ -801,30 +801,6 @@
           height: 90vh;
         `;
         
-        // Create close button with ARIA
-        const closeButton = document.createElement('button');
-        closeButton.className = 'nusense-widget-close';
-        closeButton.setAttribute('aria-label', 'Close widget');
-        closeButton.setAttribute('type', 'button');
-        closeButton.innerHTML = '&times;';
-        closeButton.style.cssText = `
-          position: absolute;
-          top: -40px;
-          right: 0;
-          background: white;
-          border: none;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          cursor: pointer;
-          font-size: 24px;
-          line-height: 1;
-          z-index: 10000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        `;
-        
         // Close function
         const closeWidget = function() {
           if (overlay && overlay.parentNode) {
@@ -833,8 +809,6 @@
             button.focus(); // Return focus to button
           }
         };
-        
-        closeButton.addEventListener('click', closeWidget);
         
         // Create iframe with ARIA
         const iframe = document.createElement('iframe');
@@ -853,14 +827,10 @@
         `;
         
         // Assemble modal
-        container.appendChild(closeButton);
         container.appendChild(iframe);
         overlay.appendChild(container);
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
-        
-        // Focus management
-        closeButton.focus();
         
         // Close on escape key
         const closeHandler = function(e) {

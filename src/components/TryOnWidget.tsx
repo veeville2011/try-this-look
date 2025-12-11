@@ -1784,9 +1784,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {/* Selection sections - always visible */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left Panel: Upload / Preview */}
-          <section aria-labelledby="upload-heading">
-            <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <section aria-labelledby="upload-heading" className="flex flex-col">
+            <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
                 <div
                   className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
                   aria-hidden="true"
@@ -1806,18 +1806,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </div>
               </div>
 
-              {!uploadedImage && (
-                <PhotoUpload
-                  onPhotoUpload={handlePhotoUpload}
-                  generatedPersonKeys={generatedPersonKeys}
-                  matchingPersonKeys={personKeys}
-                />
-              )}
+              <div className="flex-1 flex flex-col min-h-0">
+                {!uploadedImage && (
+                  <div className="flex-1 flex items-center justify-center">
+                    <PhotoUpload
+                      onPhotoUpload={handlePhotoUpload}
+                      generatedPersonKeys={generatedPersonKeys}
+                      matchingPersonKeys={personKeys}
+                    />
+                  </div>
+                )}
 
-              {uploadedImage && (
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm">
-                    <div className="flex items-center justify-between mb-2 gap-2">
+                {uploadedImage && (
+                  <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm flex-1 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
                       <h3 className="font-semibold text-sm sm:text-base">
                         {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                       </h3>
@@ -1836,11 +1838,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                       </Button>
                     </div>
-                    <div className="relative aspect-[3/4] rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm">
+                    <div className="relative flex-1 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0">
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                        className="h-full w-auto object-contain"
+                        className="h-full w-auto object-contain max-h-full"
                       />
                       {/* Single tick indicator with outlined circle for generated demo photos */}
                       {selectedDemoPhotoUrl &&
@@ -1882,15 +1884,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         })()}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </Card>
           </section>
 
           {/* Right Panel: Clothing Selection */}
-          <section aria-labelledby="clothing-heading">
-            <Card className="p-3 sm:p-4 md:p-5 border-border bg-card">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <section aria-labelledby="clothing-heading" className="flex flex-col">
+            <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
                 <div
                   className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
                   aria-hidden="true"
@@ -1910,30 +1912,33 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </div>
               </div>
 
-              <ClothingSelection
-                images={singleTabImages}
-                recommendedImages={recommendedImages}
-                selectedImage={selectedClothing}
-                onSelect={handleClothingSelect}
-                onRefreshImages={handleRefreshImages}
-                availableImagesWithIds={singleTabImagesWithIds}
-                generatedClothingKeys={generatedClothingKeys}
-                generatedKeyCombinations={generatedKeyCombinations}
-                selectedDemoPhotoUrl={selectedDemoPhotoUrl}
-                demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
-                matchingClothingKeys={clothingKeys}
-              />
+              <div className="flex-1 flex flex-col min-h-0">
+                <ClothingSelection
+                  images={singleTabImages}
+                  recommendedImages={recommendedImages}
+                  selectedImage={selectedClothing}
+                  onSelect={handleClothingSelect}
+                  onRefreshImages={handleRefreshImages}
+                  availableImagesWithIds={singleTabImagesWithIds}
+                  generatedClothingKeys={generatedClothingKeys}
+                  generatedKeyCombinations={generatedKeyCombinations}
+                  selectedDemoPhotoUrl={selectedDemoPhotoUrl}
+                  demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
+                  matchingClothingKeys={clothingKeys}
+                />
+              </div>
             </Card>
           </section>
         </div>
 
         {/* Generate button - show when not generating */}
         {!isGenerating && (
-          <div className="pt-1 sm:pt-2">
-            <Button
+          <div className="pt-1 sm:pt-2 flex justify-center">
+            <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+              <Button
                 onClick={handleGenerate}
                 disabled={!selectedClothing || !uploadedImage || isGenerating}
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
                 aria-describedby={
                   !selectedClothing || !uploadedImage
@@ -1952,6 +1957,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
                 </p>
               )}
+            </div>
           </div>
         )}
 
@@ -2434,19 +2440,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-1 sm:pt-2">
-                <Button
-                  onClick={handleCartMultipleGenerate}
-                  disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
-                >
-                  <Sparkles
-                    className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                    aria-hidden="true"
-                  />
-                  {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
-                </Button>
+              <div className="pt-1 sm:pt-2 flex justify-center">
+                <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+                  <Button
+                    onClick={handleCartMultipleGenerate}
+                    disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                  >
+                    <Sparkles
+                      className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                      aria-hidden="true"
+                    />
+                    {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -3098,19 +3106,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-1 sm:pt-2">
-                <Button
-                  onClick={handleCartMultipleGenerate}
-                  disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  aria-label="Générer la tenue complète"
-                >
-                  <Sparkles
-                    className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                    aria-hidden="true"
-                  />
-                  {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
-                </Button>
+              <div className="pt-1 sm:pt-2 flex justify-center">
+                <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+                  <Button
+                    onClick={handleCartMultipleGenerate}
+                    disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label="Générer la tenue complète"
+                  >
+                    <Sparkles
+                      className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
+                      aria-hidden="true"
+                    />
+                    {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
+                  </Button>
+                </div>
               </div>
             )}
 
