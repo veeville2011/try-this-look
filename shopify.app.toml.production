@@ -1,23 +1,14 @@
-# Production Configuration Template
-# Copy this to shopify.app.toml and replace YOUR_VERCEL_URL with your actual Vercel deployment URL
-
+# Production Configuration
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 name = "nusense-tryon"
 client_id = "f8de7972ae23d3484581d87137829385"
 application_url = "https://try-this-look.vercel.app"
-embedded = false
+embedded = true
 
-[access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_products,write_themes,read_themes"
-
-[auth]
-redirect_urls = [
-  "https://try-this-look.vercel.app/auth/callback",
-  "https://try-this-look.vercel.app/auth/shopify/callback",
-  "https://try-this-look.vercel.app/api/auth/callback"
-]
+[build]
+automatically_update_urls_on_dev = true
+# dev_store_url is only needed for local development, not for production config
 
 [webhooks]
 api_version = "2024-01"
@@ -44,20 +35,55 @@ api_version = "2024-01"
   # because it is automatically registered by Shopify for Managed App Pricing apps.
   #
   # Shopify automatically sends webhooks to: /webhooks/app/subscriptions/update
-  # We also have /api/webhooks/subscriptions endpoint available for backend integration.
-  # To register /api/webhooks/subscriptions, use GraphQL Admin API or Partner Dashboard.
+  # when subscription status changes (created, updated, cancelled, etc.)
+  #
+  # We have TWO endpoints that handle subscription updates:
+  # 1. /webhooks/app/subscriptions/update - Automatically registered by Shopify
+  # 2. /api/webhooks/subscriptions - Custom endpoint for backend integration
+  #
+  # Both endpoints use the same handler logic and will:
+  # - Verify webhook signature (HMAC)
+  # - Process subscription data
+  # - Automatically allocate plan credits when trial ends
+  # - Update subscription metafields
+  # - Log all activities for debugging
+  #
+  # To use /api/webhooks/subscriptions endpoint, you must register it via:
+  # - GraphQL Admin API (webhookSubscriptionCreate mutation)
+  # - OR Shopify Partner Dashboard (App setup > Webhooks)
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# Note: Billing API doesn't require a specific scope - it's automatically available to all apps
+# write_app_proxy is required for app proxy functionality (customer login callback via app proxy)
+scopes = "read_products,write_products,read_themes,write_themes,read_orders,read_customers,write_app_proxy"
+
+[auth]
+redirect_urls = [
+  "https://try-this-look.vercel.app/auth/callback",
+  "https://try-this-look.vercel.app/auth/shopify/callback",
+  "https://try-this-look.vercel.app/api/auth/callback",
+  "https://try-this-look.vercel.app/api/customer-auth/callback"
+]
+
+[customer_authentication]
+# Customer Account API OAuth configuration
+# This section configures OAuth 2.0 redirect URIs for Customer Account API authentication
+# The redirect_uris must match the callback URL used in your Customer Account API OAuth flow
+redirect_uris = [
+  "https://try-this-look.vercel.app/api/customer-auth/callback"
+]
+
+[app_proxy]
+# App proxy URL - relative path that matches backend route
+# Storefront: https://{shop}.myshopify.com/apps/a/{path}
+# Proxies to: https://try-this-look.vercel.app/apps/apps/a/{path}
+url = "/apps/apps/a"
+subpath = "a"
+prefix = "apps"
 
 [pos]
 embedded = false
-
-[build]
-automatically_update_urls_on_dev = true
-dev_store_url = "vto-demo.myshopify.com"
-
-[app_proxy]
-url = "https://try-this-look.vercel.app"
-subpath = "a"
-prefix = "apps"
 
 [[extensions]]
 type = "theme_app_extension"
