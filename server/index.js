@@ -581,12 +581,7 @@ const fetchManagedSubscriptionStatus = async (
         await subscriptionMetafield.getAppInstallationId(client);
       
       // Get current subscription status
-      // CRITICAL: If subscription is in trial, pass "TRIAL" instead of "ACTIVE"
-      // Shopify returns "ACTIVE" even during trial, but shouldBlocksBeAvailable expects "TRIAL"
-      const isInTrial = subscriptionStatus.subscription?.isInTrial || false;
-      const subscriptionStatusValue = isInTrial 
-        ? "TRIAL" 
-        : (subscriptionStatus.subscription?.status || null);
+      const subscriptionStatusValue = subscriptionStatus.subscription?.status || null;
       
       // First, ensure the metafield exists (creates it if missing)
       // This is critical - if the metafield doesn't exist, app blocks won't be visible
@@ -613,7 +608,6 @@ const fetchManagedSubscriptionStatus = async (
       logger.info("[BILLING] Subscription metafield synced successfully", {
         shop: normalizedShop,
         subscriptionStatus: subscriptionStatusValue,
-        isInTrial,
         blocksShouldBeAvailable,
       });
     } catch (metafieldError) {
@@ -1627,28 +1621,10 @@ app.get("/api/debug/metafield", async (req, res) => {
     let shouldBeAvailable = null;
     let blocksAvailabilityReason = null;
     try {
-      // CRITICAL: Check if subscription is in trial period
-      // Shopify returns "ACTIVE" even during trial, but shouldBlocksBeAvailable expects "TRIAL"
-      let isInTrial = false;
-      try {
-        isInTrial = await trialManager.isInTrialPeriod(client, appInstallationId);
-      } catch (trialCheckError) {
-        logger.warn("[DEBUG] Failed to check trial status", trialCheckError, null, {
-          shop: shopDomain,
-          error: trialCheckError.message,
-        });
-        // Default to false if we can't check trial status
-        isInTrial = false;
-      }
-      
-      const rawSubscriptionStatus =
+      const subscriptionStatus =
         activeSubscriptions.length > 0
           ? activeSubscriptions[0].status
           : null;
-      
-      // Pass "TRIAL" if in trial, otherwise use raw status
-      const subscriptionStatus = isInTrial ? "TRIAL" : rawSubscriptionStatus;
-      
       shouldBeAvailable = await subscriptionMetafield.shouldBlocksBeAvailable(
         client,
         appInstallationId,
@@ -1688,7 +1664,7 @@ app.get("/api/debug/metafield", async (req, res) => {
       allMetafieldsInNamespace: allMetafields || [],
       activeSubscriptions,
       creditInfo,
-      liquidAccessPath: "app.metafields.subscription.active",
+      liquidAccessPath: "app.metafields.subscription.active.value",
       currentMetafieldValue: metafieldValue || "not set",
       currentMetafieldBoolValue: metafield ? metafieldBoolValue : null,
       shouldBlocksBeAvailable,
@@ -1705,7 +1681,7 @@ app.get("/api/debug/metafield", async (req, res) => {
           ? "✅ Metafield is correctly set"
           : "✅ Status OK",
       note:
-        "Blocks are available if: subscription is ACTIVE/PENDING/TRIAL OR total credits > 0. Access in Liquid: {{ app.metafields.subscription.active }}",
+        "Blocks are available if: subscription is ACTIVE/PENDING/TRIAL OR total credits > 0. Access in Liquid: {{ app.metafields.subscription.active.value }}",
     });
   } catch (error) {
     logger.error("[DEBUG] Error checking metafield", error, req, {
@@ -3132,27 +3108,7 @@ const handleSubscriptionUpdateWebhook = async (req, res) => {
             // Update metafield if we have client and appInstallationId
             if (metafieldClient && metafieldAppInstallationId) {
               try {
-                // CRITICAL: Check if subscription is in trial period
-                // Shopify returns "ACTIVE" even during trial, but shouldBlocksBeAvailable expects "TRIAL"
-                let isInTrial = false;
-                try {
-                  isInTrial = await trialManager.isInTrialPeriod(
-                    metafieldClient,
-                    metafieldAppInstallationId
-                  );
-                } catch (trialCheckError) {
-                  logger.warn("[WEBHOOK] Failed to check trial status for metafield update", trialCheckError, null, {
-                    shop,
-                    subscriptionId: app_subscription?.id,
-                    error: trialCheckError.message,
-                  });
-                  // Default to false if we can't check trial status
-                  isInTrial = false;
-                }
-                
-                const subscriptionStatusValue = isInTrial 
-                  ? "TRIAL" 
-                  : (app_subscription?.status || null);
+                const subscriptionStatusValue = app_subscription?.status || null;
                 
                 // CRITICAL: First ensure the metafield exists (creates it if missing)
                 // This is essential - if the metafield doesn't exist, app blocks won't be visible
@@ -3178,9 +3134,7 @@ const handleSubscriptionUpdateWebhook = async (req, res) => {
                 logger.info("[WEBHOOK] Subscription metafield updated successfully", {
                   shop,
                   subscriptionId: app_subscription?.id,
-                  rawStatus: app_subscription?.status,
-                  subscriptionStatus: subscriptionStatusValue,
-                  isInTrial,
+                  status: app_subscription?.status,
                   blocksAvailable: blocksShouldBeAvailable,
                   reusedClient: !!client || !!webhookClient,
                 });
