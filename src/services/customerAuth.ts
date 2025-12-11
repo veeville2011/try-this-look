@@ -73,12 +73,14 @@ class CustomerAuthClient {
     const protocol = normalizedDomain.includes("localhost") ? "http" : "https";
     
     // Use app proxy for callback (configured in shopify.app.toml)
-    // App proxy format: /apps/{prefix}/{subpath}/{path}
-    // With prefix="apps" and subpath="a", the URL becomes: /apps/apps/a/{path}
-    // This will be handled by the backend and can access customer session via app proxy params
+    // App proxy configuration: prefix="apps", subpath="a"
+    // Storefront URL format: /apps/{prefix}/{subpath}/{path} = /apps/apps/a/{path}
+    // BUT: return_to must use the STOREFRONT URL format, not the backend format
+    // Storefront URL: /apps/a/{path} (Shopify will proxy this to backend: /apps/apps/a/{path})
     // IMPORTANT: return_to must be a relative URL (not absolute) for /customer_authentication/login
     const widgetOrigin = typeof window !== "undefined" ? window.location.origin : "";
-    const callbackPath = `/apps/apps/a/customer-login-callback${widgetOrigin ? `?widget_origin=${encodeURIComponent(widgetOrigin)}` : ''}`;
+    // Use storefront URL format: /apps/a/... (Shopify will proxy to /apps/apps/a/... on backend)
+    const callbackPath = `/apps/a/customer-login-callback${widgetOrigin ? `?widget_origin=${encodeURIComponent(widgetOrigin)}` : ''}`;
     
     // Use /customer_authentication/login for redirecting customers back to the online store
     // The return_to parameter must be a relative URL (path only, not full URL)

@@ -8,7 +8,9 @@ embedded = true
 [build]
 automatically_update_urls_on_dev = true
 dev_store_url = "kanchi-sarees-2.myshopify.com"
-
+This vto-demo.myshopify.com page can’t be found
+No web page was found for the web address: https://vto-demo.myshopify.com/apps/apps/a/customer-login-callback?widget_origin=https%3A%2F%2Ftry-this-look.vercel.app
+HTTP ERROR 404
 [webhooks]
 api_version = "2024-01"
 
