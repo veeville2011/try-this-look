@@ -162,6 +162,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // currentStep is kept for generate/progress/result, but UI no longer shows stepper
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [personImageAspectRatio, setPersonImageAspectRatio] = useState<number | null>(null);
   const [selectedClothing, setSelectedClothing] = useState<string | null>(null);
   const [selectedClothingKey, setSelectedClothingKey] = useState<
     string | number | null
@@ -444,6 +445,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     const savedResult = storage.getGeneratedImage();
     if (savedImage) {
       setUploadedImage(savedImage);
+      // Calculate aspect ratio of saved image
+      const img = new Image();
+      img.onload = () => {
+        const aspectRatio = img.width / img.height;
+        setPersonImageAspectRatio(aspectRatio);
+      };
+      img.onerror = () => {
+        setPersonImageAspectRatio(2 / 3); // Default portrait aspect ratio
+      };
+      img.src = savedImage;
       setCurrentStep(2);
       setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
     }
@@ -993,6 +1004,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   ) => {
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
+    
+    // Calculate aspect ratio of the uploaded person image
+    const img = new Image();
+    img.onload = () => {
+      const aspectRatio = img.width / img.height;
+      setPersonImageAspectRatio(aspectRatio);
+    };
+    img.onerror = () => {
+      // If image fails to load, set default aspect ratio (portrait: 2/3)
+      setPersonImageAspectRatio(2 / 3);
+    };
+    img.src = dataURL;
+    
     // Track if a demo photo was selected and its URL
     if (isDemoPhoto && demoPhotoUrl) {
       setSelectedDemoPhotoUrl(demoPhotoUrl);
@@ -1230,6 +1254,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   const handleClearUploadedImage = () => {
     setUploadedImage(null);
+    setPersonImageAspectRatio(null);
     setSelectedDemoPhotoUrl(null);
     // Clear personKey in Redux
     setReduxPersonKey(null);
@@ -1244,6 +1269,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const handleReset = () => {
     setCurrentStep(1);
     setUploadedImage(null);
+    setPersonImageAspectRatio(null);
     setSelectedClothing(null);
     setSelectedClothingKey(null);
     setSelectedDemoPhotoUrl(null);
@@ -1925,6 +1951,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                   demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
                   matchingClothingKeys={clothingKeys}
+                  personImageAspectRatio={personImageAspectRatio}
                 />
               </div>
             </Card>

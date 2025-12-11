@@ -16,6 +16,7 @@ interface ClothingSelectionProps {
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
   matchingClothingKeys?: string[];
+  personImageAspectRatio?: number | null;
 }
 
 export default function ClothingSelection({
@@ -30,6 +31,7 @@ export default function ClothingSelection({
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
   matchingClothingKeys = [],
+  personImageAspectRatio = null,
 }: ClothingSelectionProps) {
   const { t } = useTranslation();
   const [validImages, setValidImages] = useState<string[]>([]);
@@ -133,14 +135,27 @@ export default function ClothingSelection({
                     }
                   }}
                 >
-                  <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
+                  <div 
+                    className={`relative bg-muted/30 flex items-center justify-center overflow-hidden ${
+                      !personImageAspectRatio ? "h-48 sm:h-56 md:h-64" : ""
+                    }`}
+                    style={
+                      personImageAspectRatio
+                        ? {
+                            aspectRatio: personImageAspectRatio.toString(),
+                            height: "auto",
+                            width: "100%",
+                          }
+                        : undefined
+                    }
+                  >
                     <img
                       src={image}
                       alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
                         index: index + 1,
                         suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
                       }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                      className="h-full w-auto object-contain"
+                      className="h-full w-full object-contain"
                       loading="lazy"
                       onError={() => {
                         setValidImages((prev) =>
@@ -195,14 +210,27 @@ export default function ClothingSelection({
                           }
                         }}
                       >
-                        <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-32 sm:h-36 md:h-40 lg:h-44">
+                        <div 
+                          className={`relative bg-muted/30 flex items-center justify-center overflow-hidden ${
+                            !personImageAspectRatio ? "h-32 sm:h-36 md:h-40 lg:h-44" : ""
+                          }`}
+                          style={
+                            personImageAspectRatio
+                              ? {
+                                  aspectRatio: personImageAspectRatio.toString(),
+                                  height: "auto",
+                                  width: "100%",
+                                }
+                              : undefined
+                          }
+                        >
                           <img
                             src={image}
                             alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
                               index: index + 1,
                               suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
                             }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                            className="h-full w-auto object-contain"
+                            className="h-full w-full object-contain"
                             loading="lazy"
                             onError={() => {
                               setValidRecommendedImages((prev) =>
@@ -252,11 +280,24 @@ export default function ClothingSelection({
                 <span>{t("tryOnWidget.clothingSelection.clear") || "Effacer"}</span>
               </Button>
             </div>
-            <div className="h-64 sm:h-72 md:h-80 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm relative">
+            <div 
+              className={`rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm relative ${
+                !personImageAspectRatio ? "h-64 sm:h-72 md:h-80" : ""
+              }`}
+              style={
+                personImageAspectRatio
+                  ? {
+                      aspectRatio: personImageAspectRatio.toString(),
+                      height: "auto",
+                      width: "100%",
+                    }
+                  : undefined
+              }
+            >
               <img
                 src={selectedImage}
                 alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
-                className="h-full w-auto object-contain"
+                className="h-full w-full object-contain"
               />
               {/* Indicators: show tick when API returned matching clothing item */}
               {isMatching(selectedImage) && (
