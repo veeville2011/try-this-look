@@ -303,21 +303,46 @@
           }
         });
 
-        document.body.appendChild(banner);
-        
-        // Use requestAnimationFrame to ensure DOM is ready before showing
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (banner.parentNode) {
-              banner.classList.add('is-visible');
-              
-              // Auto-close after 10 seconds
-              banner._autoCloseTimeout = setTimeout(() => {
-                handleDismiss(banner);
-              }, 10000); // 10 seconds
-            }
-          });
-        });
+        // Safely append banner to body with error handling
+        try {
+          if (document.body) {
+            document.body.appendChild(banner);
+            
+            // Use requestAnimationFrame to ensure DOM is ready before showing
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                if (banner.parentNode) {
+                  banner.classList.add('is-visible');
+                  
+                  // Auto-close after 10 seconds
+                  banner._autoCloseTimeout = setTimeout(() => {
+                    handleDismiss(banner);
+                  }, 10000); // 10 seconds
+                }
+              });
+            });
+          } else {
+            // Body not ready, wait and retry
+            setTimeout(() => {
+              try {
+                if (document.body && banner) {
+                  document.body.appendChild(banner);
+                  if (banner.parentNode) {
+                    banner.classList.add('is-visible');
+                    banner._autoCloseTimeout = setTimeout(() => {
+                      handleDismiss(banner);
+                    }, 10000);
+                  }
+                }
+              } catch (retryError) {
+                // Silently fail - banner is non-critical
+              }
+            }, 100);
+          }
+        } catch (appendError) {
+          // Silently fail if banner can't be appended
+          // Banner is non-critical and shouldn't break the page
+        }
       } catch (e) {
         // Silently fail if banner creation fails
         console.error('NUSENSE: Failed to create banner', e);
@@ -1068,8 +1093,14 @@
         case 'NUSENSE_TRY_IN_STORE':
           // Try in store - could redirect to store locator or show message
           // This would need to be customized based on the store's setup
-          // For now, just log it - merchant can customize this action
-          alert('Fonctionnalité "essayer en magasin" - À configurer selon votre magasin');
+          // Send message back to iframe instead of blocking alert
+          if (event.source && event.source !== window) {
+            event.source.postMessage({
+              type: 'NUSENSE_ACTION_INFO',
+              action: actionType,
+              message: 'Try in store functionality - to be configured for your store'
+            }, '*');
+          }
           break;
           
         default:
@@ -1081,35 +1112,56 @@
     }
     
     // Handle incoming messages from iframe
+    // This is a global handler for image requests and widget actions
+    // Button-specific handlers (like close widget) are handled separately in button.js
     function handleMessage(event) {
-      
-      // Handle store info requests
-      if (event.data && event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
-        const storeInfo = {
-          type: 'NUSENSE_STORE_INFO',
-          domain: window.location.hostname,
-          shopDomain: '{{ shop.permanent_domain }}',
-          origin: window.location.origin,
-          fullUrl: window.location.href
-        };
-        event.source.postMessage(storeInfo, '*');
-        return;
+      // Ignore messages from stock alert apps or other unrelated sources
+      // Only process NUSENSE-specific messages to avoid interfering with other apps
+      if (!event.data || !event.data.type || !event.data.type.startsWith('NUSENSE_')) {
+        return; // Let other message handlers process this
       }
       
-      // Handle image requests
-      if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
-        handleImageRequest(event);
-        return;
-      }
-      
-      // Handle action button clicks from widget
-      if (event.data && event.data.type && (
-        event.data.type === 'NUSENSE_BUY_NOW' ||
-        event.data.type === 'NUSENSE_ADD_TO_CART' ||
-        event.data.type === 'NUSENSE_TRY_IN_STORE'
-      )) {
-        handleWidgetAction(event.data.type, event);
-        return;
+      // Wrap all handlers in try-catch to prevent errors from breaking other apps
+      try {
+        // Handle store info requests (fallback for button handler)
+        // Button handler takes precedence, but this provides backup
+        if (event.data && event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
+          // Only handle if button handler didn't already handle it
+          // Check if this is from a widget iframe (not button modal)
+          if (event.source && event.source !== window) {
+            const storeInfo = {
+              type: 'NUSENSE_STORE_INFO',
+              domain: window.location.hostname,
+              shopDomain: '{{ shop.permanent_domain }}',
+              origin: window.location.origin,
+              fullUrl: window.location.href
+            };
+            event.source.postMessage(storeInfo, '*');
+          }
+          return;
+        }
+        
+        // Handle image requests (only handled here, not in button handler)
+        if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
+          handleImageRequest(event);
+          return;
+        }
+        
+        // Handle action button clicks from widget (only handled here)
+        if (event.data && event.data.type && (
+          event.data.type === 'NUSENSE_BUY_NOW' ||
+          event.data.type === 'NUSENSE_ADD_TO_CART' ||
+          event.data.type === 'NUSENSE_TRY_IN_STORE'
+        )) {
+          handleWidgetAction(event.data.type, event);
+          return;
+        }
+      } catch (error) {
+        // Silently handle errors to prevent breaking other apps
+        // Log error in debug mode only
+        if (CONFIG && CONFIG.debug) {
+          console.error('NUSENSE: Error in message handler:', error);
+        }
       }
     }
     

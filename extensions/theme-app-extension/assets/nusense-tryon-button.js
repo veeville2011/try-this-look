@@ -658,10 +658,45 @@
       }
 
       // Consolidated MutationObserver for positioning
-      const positionObserver = new MutationObserver(debouncedPosition);
-      positionObserver.observe(document.body, {
+      // Scope to product form area only to avoid interfering with stock alerts and other forms
+      const positionObserver = new MutationObserver(function(mutations) {
+        // Ignore mutations from stock alert forms or other unrelated forms
+        let shouldProcess = false;
+        mutations.forEach(function(mutation) {
+          if (mutation.addedNodes.length > 0) {
+            for (let node of mutation.addedNodes) {
+              if (node.nodeType === 1) {
+                // Skip if it's a stock alert form or notification
+                if (node.matches && (
+                  node.matches('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]') ||
+                  node.querySelector('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]')
+                )) {
+                  return; // Skip this mutation
+                }
+                // Only process if it's related to product form or button area
+                const productForm = node.closest ? node.closest('form[action*="/cart/add"], .product-form, .product-single, [class*="product"]') : null;
+                if (productForm || node === button || button.contains(node) || node.contains(button)) {
+                  shouldProcess = true;
+                  break;
+                }
+              }
+            }
+          } else {
+            shouldProcess = true; // Process attribute changes
+          }
+        });
+        if (shouldProcess) {
+          debouncedPosition();
+        }
+      });
+      
+      // Only observe product form area, not entire body
+      const productForm = button.closest('form[action*="/cart/add"], .product-form, .product-single, [class*="product"]') || document.body;
+      const observeTarget = productForm !== document.body ? productForm : button.parentElement || document.body;
+      
+      positionObserver.observe(observeTarget, {
         childList: true,
-        subtree: true,
+        subtree: observeTarget !== document.body, // Only use subtree if scoped to form area
         attributeFilter: ['class', 'id']
       });
 
@@ -767,11 +802,21 @@
       e.preventDefault();
       e.stopPropagation();
       
+      // Store original overflow state BEFORE try block to ensure it's accessible in catch
+      let originalOverflow = '';
+      let overlay = null;
+      let closeHandler = null;
+      let messageHandler = null;
+      let unloadHandler = null;
+      
       try {
+        // Capture original overflow state before modifying
+        originalOverflow = document.body.style.overflow || '';
+        
         const widgetUrl = (config.widgetUrl || 'https://try-this-look.vercel.app') + '/widget?product_id=' + productId + '&shop_domain=' + encodeURIComponent(shopDomain);
         
         // Create modal overlay with ARIA attributes
-        const overlay = document.createElement('div');
+        overlay = document.createElement('div');
         overlay.id = 'nusense-widget-overlay-' + buttonId;
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
@@ -801,12 +846,55 @@
           height: 90vh;
         `;
         
-        // Close function
+        // Store original overflow state to restore it safely
+        const originalOverflow = document.body.style.overflow || '';
+        const originalBodyClass = document.body.className || '';
+        
+        // Close function with robust error handling
         const closeWidget = function() {
-          if (overlay && overlay.parentNode) {
-            document.body.removeChild(overlay);
-            document.body.style.overflow = '';
-            button.focus(); // Return focus to button
+          try {
+            // Remove overlay if it exists
+            if (overlay && overlay.parentNode) {
+              document.body.removeChild(overlay);
+            }
+          } catch (e) {
+            // Silently handle removal errors
+          }
+          
+          // Always restore overflow state, even if overlay removal failed
+          try {
+            // Restore original overflow state
+            if (originalOverflow) {
+              document.body.style.overflow = originalOverflow;
+            } else {
+              // Remove inline style to restore CSS default
+              document.body.style.removeProperty('overflow');
+            }
+          } catch (e) {
+            // Fallback: try to restore overflow even if there's an error
+            try {
+              document.body.style.overflow = '';
+            } catch (e2) {
+              // Last resort: remove overflow style attribute
+              document.body.removeAttribute('style');
+            }
+          }
+          
+          // Clean up event listeners
+          try {
+            document.removeEventListener('keydown', closeHandler);
+            window.removeEventListener('message', messageHandler);
+          } catch (e) {
+            // Silently handle cleanup errors
+          }
+          
+          // Return focus to button
+          try {
+            if (button && typeof button.focus === 'function') {
+              button.focus();
+            }
+          } catch (e) {
+            // Silently handle focus errors
           }
         };
         
@@ -829,11 +917,25 @@
         // Assemble modal
         container.appendChild(iframe);
         overlay.appendChild(container);
-        document.body.appendChild(overlay);
-        document.body.style.overflow = 'hidden';
+        
+        // Safely append overlay and set overflow
+        try {
+          document.body.appendChild(overlay);
+          // Only set overflow if body doesn't already have overflow:hidden from another source
+          // This prevents interfering with other modals/apps
+          const currentOverflow = window.getComputedStyle(document.body).overflow;
+          if (currentOverflow !== 'hidden') {
+            document.body.style.overflow = 'hidden';
+          }
+        } catch (e) {
+          // If overlay can't be added, clean up and show error
+          console.error('NUSENSE: Error creating widget overlay:', e);
+          alert('Unable to open try-on widget. Please try again later.');
+          return;
+        }
         
         // Close on escape key
-        const closeHandler = function(e) {
+        closeHandler = function(e) {
           if (e.key === 'Escape') {
             closeWidget();
             document.removeEventListener('keydown', closeHandler);
@@ -849,27 +951,69 @@
         });
         
         // Listen for messages from iframe
-        const messageHandler = function(e) {
-          if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {
-            closeWidget();
-            window.removeEventListener('message', messageHandler);
+        // Use scoped handler that only processes messages from this widget's iframe
+        messageHandler = function(e) {
+          // Only process NUSENSE messages to avoid interfering with other apps
+          if (!e.data || !e.data.type || !e.data.type.startsWith('NUSENSE_')) {
+            return; // Let other message handlers process this
           }
           
-          if (e.data && e.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
-            const storeInfo = {
-              type: 'NUSENSE_STORE_INFO',
-              domain: window.location.hostname,
-              shopDomain: shopDomain,
-              origin: window.location.origin,
-              fullUrl: window.location.href
-            };
-            iframe.contentWindow.postMessage(storeInfo, '*');
+          // Verify message is from our iframe (security + scoping)
+          try {
+            if (e.source && e.source !== window && iframe && iframe.contentWindow === e.source) {
+              if (e.data.type === 'NUSENSE_CLOSE_WIDGET') {
+                closeWidget();
+                // Cleanup is handled in closeWidget
+                return;
+              }
+              
+              if (e.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
+                const storeInfo = {
+                  type: 'NUSENSE_STORE_INFO',
+                  domain: window.location.hostname,
+                  shopDomain: shopDomain,
+                  origin: window.location.origin,
+                  fullUrl: window.location.href
+                };
+                iframe.contentWindow.postMessage(storeInfo, '*');
+                return;
+              }
+            }
+          } catch (e) {
+            // Silently handle errors (e.g., iframe closed, cross-origin issues)
+            // Don't interfere with other apps' message handlers
           }
         };
         window.addEventListener('message', messageHandler);
         
+        // Ensure cleanup on page unload (safety net)
+        unloadHandler = function() {
+          closeWidget();
+        };
+        window.addEventListener('beforeunload', unloadHandler);
+        
+        // Store cleanup function on overlay for potential external cleanup
+        overlay._nusenseCleanup = closeWidget;
+        
       } catch (e) {
         console.error('NUSENSE: Error opening widget:', e);
+        // Ensure overflow is restored even if widget creation fails
+        try {
+          if (typeof originalOverflow !== 'undefined') {
+            if (originalOverflow) {
+              document.body.style.overflow = originalOverflow;
+            } else {
+              document.body.style.removeProperty('overflow');
+            }
+          }
+        } catch (restoreError) {
+          // Last resort cleanup
+          try {
+            document.body.style.overflow = '';
+          } catch (e2) {
+            // Silently fail - page will still function
+          }
+        }
         // Show user-friendly error
         alert('Unable to open try-on widget. Please try again later.');
       }
@@ -917,11 +1061,20 @@
   }
 
   // Also initialize for dynamically added buttons
+  // Scope observer to avoid interfering with stock alerts and other forms
   const globalObserver = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
       if (mutation.addedNodes.length > 0) {
         mutation.addedNodes.forEach(function(node) {
           if (node.nodeType === 1) {
+            // Skip stock alert forms and notifications to avoid interference
+            if (node.matches && (
+              node.matches('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]') ||
+              node.querySelector('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]')
+            )) {
+              return; // Skip stock alert related nodes
+            }
+            
             if (node.id && node.id.startsWith('nusense-tryon-btn-')) {
               const config = {
                 buttonStyle: node.dataset.buttonStyle || 'primary',
@@ -974,9 +1127,13 @@
     });
   });
 
-  globalObserver.observe(document.body, {
+  // Scope observer to product-related areas only
+  // This prevents interference with stock alerts, checkout forms, and other apps
+  const observeTarget = document.querySelector('form[action*="/cart/add"], .product-form, .product-single, [class*="product"], main, [role="main"]') || document.body;
+  
+  globalObserver.observe(observeTarget, {
     childList: true,
-    subtree: true
+    subtree: observeTarget !== document.body // Only use subtree if not observing entire body
   });
 
 })();
