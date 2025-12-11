@@ -101,15 +101,16 @@ export default function ClothingSelection({
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="flex flex-col h-full min-h-0">
       {/* Heading intentionally removed per design */}
 
       {!selectedImage && (
-        <>
-          {/* Main Product Images */}
-          {validImages.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-              {validImages.slice(0, 9).map((image, index) => (
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+          <div className="space-y-3 sm:space-y-4 pb-2">
+            {/* Main Product Images */}
+            {validImages.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                {validImages.slice(0, 9).map((image, index) => (
                 <Card
                   key={index}
                   className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
@@ -132,14 +133,14 @@ export default function ClothingSelection({
                     }
                   }}
                 >
-                  <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden">
+                  <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
                     <img
                       src={image}
                       alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
                         index: index + 1,
                         suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
                       }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                      className="w-full h-auto object-contain"
+                      className="h-full w-auto object-contain"
                       loading="lazy"
                       onError={() => {
                         setValidImages((prev) =>
@@ -194,14 +195,14 @@ export default function ClothingSelection({
                           }
                         }}
                       >
-                        <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden aspect-[3/4]">
+                        <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-32 sm:h-36 md:h-40 lg:h-44">
                           <img
                             src={image}
                             alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
                               index: index + 1,
                               suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
                             }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                            className="w-full h-full object-contain"
+                            className="h-full w-auto object-contain"
                             loading="lazy"
                             onError={() => {
                               setValidRecommendedImages((prev) =>
@@ -226,7 +227,8 @@ export default function ClothingSelection({
               </div>
             </div>
           )}
-        </>
+          </div>
+        </div>
       )}
 
       {selectedImage && (
