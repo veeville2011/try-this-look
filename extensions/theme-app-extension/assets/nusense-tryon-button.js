@@ -810,10 +810,57 @@
       let unloadHandler = null;
       
       try {
+        // Pre-flight checks before creating overlay
+        if (!document.body) {
+          throw new Error('Document body is not available. Page may still be loading.');
+        }
+        
         // Capture original overflow state before modifying
         originalOverflow = document.body.style.overflow || '';
         
-        const widgetUrl = (config.widgetUrl || 'https://try-this-look.vercel.app') + '/widget?product_id=' + productId + '&shop_domain=' + encodeURIComponent(shopDomain);
+        // Validate widget URL
+        const baseWidgetUrl = config.widgetUrl || 'https://try-this-look.vercel.app';
+        if (!baseWidgetUrl || typeof baseWidgetUrl !== 'string') {
+          throw new Error('Invalid widget URL configuration');
+        }
+        
+        // Validate product ID
+        if (!productId || productId === 'undefined' || productId === 'null') {
+          console.warn('NUSENSE: Product ID is missing or invalid:', productId);
+          // Continue anyway - widget can work without product ID
+        }
+        
+        // Build widget URL with query parameters
+        const queryParams = new URLSearchParams();
+        if (productId && productId !== 'undefined' && productId !== 'null') {
+          queryParams.append('product_id', productId);
+        }
+        if (shopDomain) {
+          queryParams.append('shop_domain', shopDomain);
+        }
+        const widgetUrl = baseWidgetUrl + '/widget' + (queryParams.toString() ? '?' + queryParams.toString() : '');
+        
+        // Log widget URL for debugging
+        console.log('NUSENSE: Opening widget with URL:', widgetUrl);
+        console.log('NUSENSE: Base widget URL:', baseWidgetUrl);
+        console.log('NUSENSE: Product ID:', productId);
+        console.log('NUSENSE: Shop domain:', shopDomain);
+        
+        // Test if widget URL is accessible (optional pre-flight check)
+        // This helps catch CORS or network issues early
+        try {
+          fetch(widgetUrl, { method: 'HEAD', mode: 'no-cors' })
+            .then(() => {
+              console.log('NUSENSE: Widget URL is accessible');
+            })
+            .catch((fetchError) => {
+              console.warn('NUSENSE: Widget URL pre-flight check failed (non-blocking):', fetchError);
+              // Don't block - continue with iframe load attempt
+            });
+        } catch (fetchError) {
+          // Ignore fetch errors - continue with iframe load
+          console.warn('NUSENSE: Pre-flight check error (non-blocking):', fetchError);
+        }
         
         // Create modal overlay with ARIA attributes
         overlay = document.createElement('div');
@@ -846,12 +893,17 @@
           height: 90vh;
         `;
         
-        // Store original overflow state to restore it safely
-        const originalOverflow = document.body.style.overflow || '';
+        // Store original body class (for potential theme compatibility)
         const originalBodyClass = document.body.className || '';
         
         // Close function with robust error handling
         const closeWidget = function() {
+          // Clear load timeout if it exists
+          if (loadTimeout) {
+            clearTimeout(loadTimeout);
+            loadTimeout = null;
+          }
+          
           try {
             // Remove overlay if it exists
             if (overlay && overlay.parentNode) {
@@ -882,8 +934,15 @@
           
           // Clean up event listeners
           try {
-            document.removeEventListener('keydown', closeHandler);
-            window.removeEventListener('message', messageHandler);
+            if (closeHandler) {
+              document.removeEventListener('keydown', closeHandler);
+            }
+            if (messageHandler) {
+              window.removeEventListener('message', messageHandler);
+            }
+            if (unloadHandler) {
+              window.removeEventListener('beforeunload', unloadHandler);
+            }
           } catch (e) {
             // Silently handle cleanup errors
           }
@@ -914,22 +973,130 @@
           background: white;
         `;
         
+        // Add loading state indicator
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'nusense-loading-' + buttonId;
+        loadingIndicator.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          text-align: center;
+          color: #666;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          z-index: 1;
+        `;
+        loadingIndicator.innerHTML = `
+          <div style="margin-bottom: 1rem; font-size: 1.1rem;">Loading widget...</div>
+          <div style="width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+          <style>
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        `;
+        
+        // Track iframe load state
+        let iframeLoaded = false;
+        let loadTimeout = null;
+        const LOAD_TIMEOUT_MS = 30000; // 30 seconds timeout
+        
+        // Handle iframe load success
+        iframe.onload = function() {
+          iframeLoaded = true;
+          if (loadTimeout) {
+            clearTimeout(loadTimeout);
+            loadTimeout = null;
+          }
+          // Remove loading indicator
+          if (loadingIndicator.parentNode) {
+            loadingIndicator.remove();
+          }
+          console.log('NUSENSE: Widget iframe loaded successfully');
+        };
+        
+        // Handle iframe load error
+        // Note: iframe.onerror doesn't always fire for network errors
+        // We rely on the timeout mechanism as a fallback
+        iframe.onerror = function(error) {
+          console.error('NUSENSE: Widget iframe failed to load:', error);
+          console.error('NUSENSE: Widget URL was:', widgetUrl);
+          if (loadTimeout) {
+            clearTimeout(loadTimeout);
+            loadTimeout = null;
+          }
+          closeWidget();
+          alert('Unable to open try-on widget. Please check your internet connection and try again.');
+        };
+        
+        // Set timeout for iframe loading
+        loadTimeout = setTimeout(function() {
+          if (!iframeLoaded) {
+            console.error('NUSENSE: Widget iframe load timeout after ' + LOAD_TIMEOUT_MS + 'ms');
+            closeWidget();
+            alert('Unable to open try-on widget. The widget took too long to load. Please try again.');
+          }
+        }, LOAD_TIMEOUT_MS);
+        
         // Assemble modal
         container.appendChild(iframe);
+        container.appendChild(loadingIndicator);
         overlay.appendChild(container);
         
         // Safely append overlay and set overflow
         try {
+          // Ensure document.body exists
+          if (!document.body) {
+            throw new Error('Document body not available');
+          }
+          
+          // Append overlay first
           document.body.appendChild(overlay);
+          
           // Only set overflow if body doesn't already have overflow:hidden from another source
           // This prevents interfering with other modals/apps
           const currentOverflow = window.getComputedStyle(document.body).overflow;
           if (currentOverflow !== 'hidden') {
             document.body.style.overflow = 'hidden';
           }
+          
+          // Verify iframe was added successfully
+          if (!iframe.parentNode) {
+            throw new Error('Iframe was not added to container');
+          }
+          
+          console.log('NUSENSE: Widget overlay created successfully, iframe loading...');
         } catch (e) {
           // If overlay can't be added, clean up and show error
           console.error('NUSENSE: Error creating widget overlay:', e);
+          console.error('NUSENSE: Error details:', {
+            hasBody: !!document.body,
+            hasOverlay: !!overlay,
+            hasIframe: !!iframe,
+            widgetUrl: widgetUrl
+          });
+          
+          // Clean up any partial DOM changes
+          try {
+            if (overlay && overlay.parentNode) {
+              document.body.removeChild(overlay);
+            }
+          } catch (cleanupError) {
+            // Ignore cleanup errors
+          }
+          
+          // Restore overflow
+          try {
+            if (originalOverflow) {
+              document.body.style.overflow = originalOverflow;
+            } else {
+              document.body.style.removeProperty('overflow');
+            }
+          } catch (restoreError) {
+            // Ignore restore errors
+          }
+          
           alert('Unable to open try-on widget. Please try again later.');
           return;
         }

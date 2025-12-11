@@ -1480,8 +1480,14 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
+  // Skip CSP for widget route - it sets its own CSP for storefront embedding
+  if (req.path === "/widget" || req.path.startsWith("/widget")) {
+    return next();
+  }
+  
   // CSP headers for embedded Shopify apps
   // Allow App Bridge and Shopify domains
+  // Also allow widget to be embedded in Shopify storefronts (Vercel domain)
   res.setHeader(
     "Content-Security-Policy",
     [
@@ -1491,8 +1497,8 @@ app.use((req, res, next) => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
       "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
       "img-src 'self' data: https:;",
-      "frame-src https://*.shopify.com https://*.myshopify.com;",
-      "frame-ancestors https://admin.shopify.com https://*.myshopify.com;",
+      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
+      "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
     ].join(" ")
   );
 
@@ -6543,14 +6549,88 @@ app.get("/api/products/:productId", async (req, res) => {
 });
 
 // Widget route - serves the widget page
+// IMPORTANT: This route must be PUBLIC (no auth required) as it's loaded in iframe from Shopify storefront
+// Note: In Vercel, this route is handled by vercel.json rewrites, but we keep it for non-Vercel environments
+// This route needs to be BEFORE the global CSP middleware to set proper headers for widget embedding
 app.get("/widget", (req, res) => {
-  // In Vercel, static files are handled by the platform
-  // This route is mainly for API proxy scenarios
-  if (isVercel) {
-    // In Vercel, redirect to the static file
-    res.redirect("/index.html");
-  } else {
-    res.sendFile(join(__dirname, "../dist/index.html"));
+  try {
+    logger.info("[WIDGET] Widget page requested", {
+      query: req.query,
+      shop: req.query.shop_domain,
+      productId: req.query.product_id,
+    });
+    
+    // Set headers to allow iframe embedding from any Shopify storefront
+    // Widget is embedded in storefronts (not admin), so we need to allow all Shopify domains
+    // frame-ancestors * allows embedding from any origin (required for storefront widgets)
+    res.removeHeader("X-Frame-Options");
+    
+    // Set CSP that allows widget to be embedded in Shopify storefronts
+    // frame-src allows the widget itself to load iframes (if needed)
+    // frame-ancestors * allows the widget to be embedded in any Shopify storefront
+    const widgetCSP = [
+      "default-src 'self';",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com;",
+      "connect-src 'self' https://*.shopify.com https://*.myshopify.com wss://*.shopify.com;",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
+      "img-src 'self' data: https:;",
+      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
+      "frame-ancestors *;", // Allow embedding from any origin (Shopify storefronts)
+    ].join(" ");
+    
+    res.setHeader("Content-Security-Policy", widgetCSP);
+    
+    // In Vercel, static files are handled by vercel.json rewrites
+    // The rewrite rule "/(.*)" -> "/index.html" handles this
+    // But we still need this route for non-Vercel environments
+    const indexPath = join(__dirname, "../dist/index.html");
+    
+    // Check if file exists (for non-Vercel environments)
+    if (!isVercel) {
+      const fs = require('fs');
+      if (!fs.existsSync(indexPath)) {
+        logger.error("[WIDGET] index.html not found at:", indexPath);
+        return res.status(500).json({ 
+          error: "Widget not available", 
+          message: "Widget files not found. Please rebuild the application." 
+        });
+      }
+    }
+    
+    // Serve index.html so React Router can handle /widget route
+    // In Vercel, this will be handled by the rewrite rule, but we include it for completeness
+    if (isVercel) {
+      // In Vercel, let the rewrite rule handle it, but we can still log
+      logger.info("[WIDGET] Vercel environment - rewrite rule will handle");
+      // Still try to serve the file if it exists
+      const fs = require('fs');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      }
+      // If file doesn't exist in Vercel, the rewrite rule will handle it
+      return res.status(200).send("Widget loading...");
+    } else {
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          logger.error("[WIDGET] Failed to serve widget page", err, req);
+          if (!res.headersSent) {
+            res.status(500).json({ 
+              error: "Failed to load widget", 
+              message: err.message 
+            });
+          }
+        }
+      });
+    }
+  } catch (error) {
+    logger.error("[WIDGET] Error serving widget page", error, req);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: "Failed to load widget", 
+        message: error.message 
+      });
+    }
   }
 });
 
