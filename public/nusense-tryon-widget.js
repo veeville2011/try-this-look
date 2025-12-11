@@ -169,161 +169,124 @@
   }
 
   // Re-initialize on dynamic content changes (for AJAX themes)
-  // IMPORTANT: Scoped to product areas only to completely avoid interfering with stock alerts
-  // This prevents conflicts with stock alert apps and other dynamic content
+  // CRITICAL: Following Shopify best practices - minimize MutationObserver usage
+  // Only watch for NUSENSE-specific elements to completely avoid interfering with stock alerts
+  // This prevents ANY conflicts with stock alert apps and other dynamic content
   if (typeof MutationObserver !== 'undefined') {
     let reinitTimeout = null;
+    let observer = null;
     
-    // Helper function to check if node is related to stock alerts
-    function isStockAlertNode(node) {
+    // Helper function to check if node is a NUSENSE button (ONLY our elements)
+    function isNusenseButton(node) {
       if (!node || node.nodeType !== 1) return false;
       
-      // Check node itself
-      const id = node.id || '';
-      const className = node.className || '';
-      const classStr = typeof className === 'string' ? className : '';
-      
-      const stockAlertPatterns = [
-        'stock', 'alert', 'notify', 'back-in-stock', 'notify-me',
-        'stock-alert', 'stockalert', 'restock', 'waitlist'
-      ];
-      
-      // Check ID and class for stock alert patterns
-      const nodeStr = (id + ' ' + classStr).toLowerCase();
-      for (let i = 0; i < stockAlertPatterns.length; i++) {
-        if (nodeStr.includes(stockAlertPatterns[i])) {
-          return true;
-        }
+      // Only check for NUSENSE-specific identifiers
+      if (node.id && node.id.startsWith('nusense-tryon-btn')) {
+        return true;
       }
-      
-      // Check data attributes
-      if (node.dataset) {
-        const dataAttrs = Object.keys(node.dataset).join(' ').toLowerCase();
-        for (let i = 0; i < stockAlertPatterns.length; i++) {
-          if (dataAttrs.includes(stockAlertPatterns[i])) {
-            return true;
-          }
-        }
+      if (node.classList && node.classList.contains('nusense-tryon-button')) {
+        return true;
+      }
+      // Check for NUSENSE buttons inside the node
+      if (node.querySelectorAll && (
+        node.querySelectorAll('[id^="nusense-tryon-btn"]').length > 0 ||
+        node.querySelectorAll('.nusense-tryon-button').length > 0
+      )) {
+        return true;
       }
       
       return false;
     }
     
-    const observer = new MutationObserver(function(mutations) {
-      // Early exit: Skip processing entirely if mutations contain stock alert elements
-      let hasStockAlertNodes = false;
-      for (let m = 0; m < mutations.length; m++) {
-        const mutation = mutations[m];
-        if (mutation.addedNodes.length) {
-          for (let i = 0; i < mutation.addedNodes.length; i++) {
-            const node = mutation.addedNodes[i];
-            if (isStockAlertNode(node)) {
-              hasStockAlertNodes = true;
-              break;
-            }
-            // Check children for stock alerts
-            if (node.nodeType === 1 && node.querySelectorAll) {
-              const stockAlertChildren = node.querySelectorAll('[id*="stock"], [id*="alert"], [id*="notify"], [class*="stock"], [class*="alert"], [class*="notify"]');
-              if (stockAlertChildren.length > 0) {
-                hasStockAlertNodes = true;
-                break;
-              }
-            }
-          }
+    // Ultra-selective observer - ONLY watches for NUSENSE buttons
+    // Completely ignores all other DOM changes including stock alerts
+    function createObserver() {
+      if (observer) {
+        return; // Already created
+      }
+      
+      observer = new MutationObserver(function(mutations) {
+        // Debounce re-initialization to avoid excessive calls
+        if (reinitTimeout) {
+          clearTimeout(reinitTimeout);
         }
-        if (hasStockAlertNodes) break;
-      }
-      
-      // Skip all processing if stock alerts are involved
-      if (hasStockAlertNodes) {
-        return;
-      }
-      
-      // Debounce re-initialization to avoid excessive calls
-      if (reinitTimeout) {
-        clearTimeout(reinitTimeout);
-      }
-      
-      // Only re-initialize if NUSENSE buttons are added, not for any DOM change
-      let shouldReinit = false;
-      mutations.forEach(function(mutation) {
-        if (mutation.addedNodes.length) {
-          for (let i = 0; i < mutation.addedNodes.length; i++) {
-            const node = mutation.addedNodes[i];
-            // Only re-init if a NUSENSE button or container is added
-            if (node.nodeType === 1) { // Element node
-              // Skip stock alert nodes
-              if (isStockAlertNode(node)) {
-                continue;
-              }
-              
-              if (node.id && node.id.startsWith('nusense-tryon-btn')) {
-                shouldReinit = true;
-                break;
-              }
-              if (node.classList && node.classList.contains('nusense-tryon-button')) {
-                shouldReinit = true;
-                break;
-              }
-              // Check if any NUSENSE buttons are inside the added node
-              if (node.querySelectorAll && (
-                node.querySelectorAll('[id^="nusense-tryon-btn"]').length > 0 ||
-                node.querySelectorAll('.nusense-tryon-button').length > 0
-              )) {
+        
+        // ONLY check for NUSENSE buttons - ignore everything else
+        let shouldReinit = false;
+        for (let m = 0; m < mutations.length; m++) {
+          const mutation = mutations[m];
+          if (mutation.addedNodes.length) {
+            for (let i = 0; i < mutation.addedNodes.length; i++) {
+              const node = mutation.addedNodes[i];
+              if (isNusenseButton(node)) {
                 shouldReinit = true;
                 break;
               }
             }
           }
+          if (shouldReinit) break;
+        }
+        
+        // Only re-init if NUSENSE buttons are detected
+        if (shouldReinit) {
+          reinitTimeout = setTimeout(function() {
+            initWidget();
+          }, 150); // Small delay to batch multiple rapid changes
         }
       });
-      
-      // Debounce re-init to avoid interfering with rapid DOM changes from other apps
-      if (shouldReinit) {
-        reinitTimeout = setTimeout(function() {
-          initWidget();
-        }, 100); // Small delay to batch multiple rapid changes
-      }
-    });
+    }
 
-    // Scope observer to product-related areas only (like button.js does)
-    // This completely avoids watching stock alerts that are typically outside product forms
-    // IMPORTANT: Ensure DOM is ready before setting up observer
+    // Setup observer ONLY on elements that contain NUSENSE buttons
+    // This completely avoids watching product forms or stock alerts
     function setupObserver() {
       // Safety check: ensure document.body exists
       if (!document.body) {
-        // If body doesn't exist yet, wait for DOM to be ready
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', setupObserver, { once: true });
           return;
         } else {
-          // Fallback: try again after a short delay
           setTimeout(setupObserver, 100);
           return;
         }
       }
       
-      // Find product-related container, fallback to body if not found
-      const observeTarget = document.querySelector('form[action*="/cart/add"], .product-form, .product-single, [class*="product"], main, [role="main"]') || document.body;
+      // Create observer if not already created
+      createObserver();
       
-      // Final safety check: ensure observeTarget exists
-      if (!observeTarget) {
-        return; // Skip observer setup if target doesn't exist
+      // Find ONLY containers that already have NUSENSE buttons
+      // This ensures we never watch areas without our buttons (like stock alerts)
+      const nusenseContainers = document.querySelectorAll('[id^="nusense-tryon-btn"], .nusense-tryon-button');
+      
+      if (nusenseContainers.length === 0) {
+        // No NUSENSE buttons found - don't set up observer
+        // This prevents watching the entire page and interfering with stock alerts
+        return;
       }
       
-      // Only use subtree if we're not observing the entire body
-      // This minimizes the scope of observation
-      try {
-        observer.observe(observeTarget, {
-          childList: true,
-          subtree: observeTarget !== document.body // Only use subtree if scoped to specific container
-        });
-      } catch (error) {
-        // Silently fail if observer setup fails (shouldn't break the page)
-        if (config.debug) {
-          console.error('NUSENSE: Failed to setup MutationObserver:', error);
+      // Only observe the direct parent containers of NUSENSE buttons
+      // This minimizes scope and completely avoids stock alerts
+      const containersToWatch = new Set();
+      nusenseContainers.forEach(function(button) {
+        const parent = button.parentElement;
+        if (parent && parent !== document.body && parent !== document.documentElement) {
+          containersToWatch.add(parent);
         }
-      }
+      });
+      
+      // Observe only the specific containers that have our buttons
+      containersToWatch.forEach(function(container) {
+        try {
+          observer.observe(container, {
+            childList: true,
+            subtree: false // Don't watch subtree - only direct children
+          });
+        } catch (error) {
+          // Silently fail if observer setup fails
+          if (config.debug) {
+            console.error('NUSENSE: Failed to setup MutationObserver:', error);
+          }
+        }
+      });
     }
     
     // Initialize observer when DOM is ready

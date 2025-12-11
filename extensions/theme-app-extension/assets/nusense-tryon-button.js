@@ -658,47 +658,56 @@
       }
 
       // Consolidated MutationObserver for positioning
-      // Scope to product form area only to avoid interfering with stock alerts and other forms
+      // CRITICAL: Only watch button's immediate parent to avoid interfering with stock alerts
+      // Following Shopify best practices - minimize DOM observation scope
       const positionObserver = new MutationObserver(function(mutations) {
-        // Ignore mutations from stock alert forms or other unrelated forms
+        // Only process mutations that directly affect the button or its immediate container
         let shouldProcess = false;
         mutations.forEach(function(mutation) {
+          // Process attribute changes (class/id changes on button or parent)
+          if (mutation.type === 'attributes') {
+            const target = mutation.target;
+            // Only process if it's the button itself or its immediate parent
+            if (target === button || target === button.parentElement) {
+              shouldProcess = true;
+              return;
+            }
+          }
+          
+          // For added nodes, only process if they're directly related to the button
           if (mutation.addedNodes.length > 0) {
             for (let node of mutation.addedNodes) {
               if (node.nodeType === 1) {
-                // Skip if it's a stock alert form or notification
-                if (node.matches && (
-                  node.matches('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]') ||
-                  node.querySelector('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]')
-                )) {
-                  return; // Skip this mutation
-                }
-                // Only process if it's related to product form or button area
-                const productForm = node.closest ? node.closest('form[action*="/cart/add"], .product-form, .product-single, [class*="product"]') : null;
-                if (productForm || node === button || button.contains(node) || node.contains(button)) {
+                // Only process if it's the button itself or affects button positioning
+                if (node === button || button.contains(node) || node.contains(button)) {
                   shouldProcess = true;
                   break;
                 }
               }
             }
-          } else {
-            shouldProcess = true; // Process attribute changes
           }
         });
+        
         if (shouldProcess) {
           debouncedPosition();
         }
       });
       
-      // Only observe product form area, not entire body
-      const productForm = button.closest('form[action*="/cart/add"], .product-form, .product-single, [class*="product"]') || document.body;
-      const observeTarget = productForm !== document.body ? productForm : button.parentElement || document.body;
+      // ONLY observe the button's immediate parent container
+      // This completely avoids watching product forms or stock alerts
+      const observeTarget = button.parentElement;
       
-      positionObserver.observe(observeTarget, {
-        childList: true,
-        subtree: observeTarget !== document.body, // Only use subtree if scoped to form area
-        attributeFilter: ['class', 'id']
-      });
+      if (observeTarget && observeTarget !== document.body && observeTarget !== document.documentElement) {
+        try {
+          positionObserver.observe(observeTarget, {
+            childList: true,
+            subtree: false, // Don't watch subtree - only direct children
+            attributeFilter: ['class', 'id'] // Only watch class/id changes
+          });
+        } catch (error) {
+          // Silently fail if observer setup fails
+        }
+      }
 
       // Limited retry attempts
       let retryCount = 0;
@@ -1228,80 +1237,127 @@
   }
 
   // Also initialize for dynamically added buttons
-  // Scope observer to avoid interfering with stock alerts and other forms
-  const globalObserver = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-      if (mutation.addedNodes.length > 0) {
-        mutation.addedNodes.forEach(function(node) {
-          if (node.nodeType === 1) {
-            // Skip stock alert forms and notifications to avoid interference
-            if (node.matches && (
-              node.matches('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]') ||
-              node.querySelector('[class*="stock"], [class*="alert"], [class*="notify"], [id*="stock"], [id*="alert"], [id*="notify"]')
-            )) {
-              return; // Skip stock alert related nodes
-            }
-            
-            if (node.id && node.id.startsWith('nusense-tryon-btn-')) {
-              const config = {
-                buttonStyle: node.dataset.buttonStyle || 'primary',
-                buttonIcon: node.dataset.buttonIcon || '✨',
-                buttonBackgroundColor: node.dataset.backgroundColor || '',
-                buttonTextColor: node.dataset.textColor || '',
-                buttonBorderColor: node.dataset.borderColor || '',
-                buttonFontSize: node.dataset.fontSize || '',
-                buttonPadding: node.dataset.padding || '',
-                buttonBorderRadius: node.dataset.borderRadius || '',
-                buttonAlignment: node.dataset.alignment || 'auto',
-                marginTop: node.dataset.marginTop || '0',
-                marginBottom: node.dataset.marginBottom || '0.75',
-                marginLeft: node.dataset.marginLeft || '0',
-                marginRight: node.dataset.marginRight || '0',
-                customCss: '',
-                widgetUrl: node.dataset.widgetUrl || '',
-                shopDomain: node.dataset.shopDomain || ''
-              };
-              initButton(node.id, config);
-            }
-            // Check for nested buttons
-            const nestedButtons = node.querySelectorAll && node.querySelectorAll('[id^="nusense-tryon-btn-"]');
-            if (nestedButtons && nestedButtons.length > 0) {
-              nestedButtons.forEach(function(nestedBtn) {
+  // CRITICAL: Following Shopify best practices - ONLY watch for NUSENSE buttons
+  // Completely avoid watching product forms or stock alerts to prevent interference
+  let buttonObserver = null;
+  
+  function createButtonObserver() {
+    if (buttonObserver) {
+      return; // Already created
+    }
+    
+    buttonObserver = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.addedNodes.length > 0) {
+          mutation.addedNodes.forEach(function(node) {
+            if (node.nodeType === 1) {
+              // ONLY check for NUSENSE buttons - ignore everything else including stock alerts
+              if (node.id && node.id.startsWith('nusense-tryon-btn-')) {
                 const config = {
-                  buttonStyle: nestedBtn.dataset.buttonStyle || 'primary',
-                  buttonIcon: nestedBtn.dataset.buttonIcon || '✨',
-                  buttonBackgroundColor: nestedBtn.dataset.backgroundColor || '',
-                  buttonTextColor: nestedBtn.dataset.textColor || '',
-                  buttonBorderColor: nestedBtn.dataset.borderColor || '',
-                  buttonFontSize: nestedBtn.dataset.fontSize || '',
-                  buttonPadding: nestedBtn.dataset.padding || '',
-                  buttonBorderRadius: nestedBtn.dataset.borderRadius || '',
-                  buttonAlignment: nestedBtn.dataset.alignment || 'auto',
-                  marginTop: nestedBtn.dataset.marginTop || '0',
-                  marginBottom: nestedBtn.dataset.marginBottom || '0.75',
-                  marginLeft: nestedBtn.dataset.marginLeft || '0',
-                  marginRight: nestedBtn.dataset.marginRight || '0',
+                  buttonStyle: node.dataset.buttonStyle || 'primary',
+                  buttonIcon: node.dataset.buttonIcon || '✨',
+                  buttonBackgroundColor: node.dataset.backgroundColor || '',
+                  buttonTextColor: node.dataset.textColor || '',
+                  buttonBorderColor: node.dataset.borderColor || '',
+                  buttonFontSize: node.dataset.fontSize || '',
+                  buttonPadding: node.dataset.padding || '',
+                  buttonBorderRadius: node.dataset.borderRadius || '',
+                  buttonAlignment: node.dataset.alignment || 'auto',
+                  marginTop: node.dataset.marginTop || '0',
+                  marginBottom: node.dataset.marginBottom || '0.75',
+                  marginLeft: node.dataset.marginLeft || '0',
+                  marginRight: node.dataset.marginRight || '0',
                   customCss: '',
-                  widgetUrl: nestedBtn.dataset.widgetUrl || '',
-                  shopDomain: nestedBtn.dataset.shopDomain || ''
+                  widgetUrl: node.dataset.widgetUrl || '',
+                  shopDomain: node.dataset.shopDomain || ''
                 };
-                initButton(nestedBtn.id, config);
-              });
+                initButton(node.id, config);
+              }
+              // Check for nested NUSENSE buttons ONLY
+              const nestedButtons = node.querySelectorAll && node.querySelectorAll('[id^="nusense-tryon-btn-"]');
+              if (nestedButtons && nestedButtons.length > 0) {
+                nestedButtons.forEach(function(nestedBtn) {
+                  const config = {
+                    buttonStyle: nestedBtn.dataset.buttonStyle || 'primary',
+                    buttonIcon: nestedBtn.dataset.buttonIcon || '✨',
+                    buttonBackgroundColor: nestedBtn.dataset.backgroundColor || '',
+                    buttonTextColor: nestedBtn.dataset.textColor || '',
+                    buttonBorderColor: nestedBtn.dataset.borderColor || '',
+                    buttonFontSize: nestedBtn.dataset.fontSize || '',
+                    buttonPadding: nestedBtn.dataset.padding || '',
+                    buttonBorderRadius: nestedBtn.dataset.borderRadius || '',
+                    buttonAlignment: nestedBtn.dataset.alignment || 'auto',
+                    marginTop: nestedBtn.dataset.marginTop || '0',
+                    marginBottom: nestedBtn.dataset.marginBottom || '0.75',
+                    marginLeft: nestedBtn.dataset.marginLeft || '0',
+                    marginRight: nestedBtn.dataset.marginRight || '0',
+                    customCss: '',
+                    widgetUrl: nestedBtn.dataset.widgetUrl || '',
+                    shopDomain: nestedBtn.dataset.shopDomain || ''
+                  };
+                  initButton(nestedBtn.id, config);
+                });
+              }
             }
-          }
-        });
+          });
+        }
+      });
+    });
+  }
+
+  // Setup observer ONLY on containers that have NUSENSE buttons
+  // This completely avoids watching product forms or stock alerts
+  function setupButtonObserver() {
+    if (!document.body) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupButtonObserver, { once: true });
+        return;
+      } else {
+        setTimeout(setupButtonObserver, 100);
+        return;
+      }
+    }
+    
+    // Create observer if not already created
+    createButtonObserver();
+    
+    // Find ONLY containers that already have NUSENSE buttons
+    const nusenseButtons = document.querySelectorAll('[id^="nusense-tryon-btn-"]');
+    
+    if (nusenseButtons.length === 0) {
+      // No NUSENSE buttons found - don't set up observer
+      // This prevents watching the entire page and interfering with stock alerts
+      return;
+    }
+    
+    // Only observe the direct parent containers of NUSENSE buttons
+    const containersToWatch = new Set();
+    nusenseButtons.forEach(function(button) {
+      const parent = button.parentElement;
+      if (parent && parent !== document.body && parent !== document.documentElement) {
+        containersToWatch.add(parent);
       }
     });
-  });
-
-  // Scope observer to product-related areas only
-  // This prevents interference with stock alerts, checkout forms, and other apps
-  const observeTarget = document.querySelector('form[action*="/cart/add"], .product-form, .product-single, [class*="product"], main, [role="main"]') || document.body;
+    
+    // Observe only the specific containers that have our buttons
+    containersToWatch.forEach(function(container) {
+      try {
+        buttonObserver.observe(container, {
+          childList: true,
+          subtree: false // Don't watch subtree - only direct children
+        });
+      } catch (error) {
+        // Silently fail if observer setup fails
+      }
+    });
+  }
   
-  globalObserver.observe(observeTarget, {
-    childList: true,
-    subtree: observeTarget !== document.body // Only use subtree if not observing entire body
-  });
+  // Initialize observer when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupButtonObserver, { once: true });
+  } else {
+    setupButtonObserver();
+  }
 
 })();
 
