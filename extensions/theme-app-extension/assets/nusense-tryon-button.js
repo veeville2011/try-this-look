@@ -401,6 +401,22 @@
           return defaultValue || '';
         };
         
+        // Helper to parse numeric values with units (handles px, rem, em, % or plain numbers)
+        const parseSizeValue = function(value, defaultUnit) {
+          if (!value || value.trim() === '') return null;
+          const trimmed = value.trim();
+          // If it already has a unit (px, rem, em, %), return as-is
+          if (/^\d+(\.\d+)?(px|rem|em|%)$/.test(trimmed)) {
+            return trimmed;
+          }
+          // If it's just a number, add the default unit
+          if (/^\d+(\.\d+)?$/.test(trimmed)) {
+            return trimmed + defaultUnit;
+          }
+          // Otherwise return as-is (might be a color or other value)
+          return trimmed;
+        };
+        
         const customBgColor = getDataAttribute('background-color', 'buttonBackgroundColor', '');
         const customTextColor = getDataAttribute('text-color', 'buttonTextColor', '');
         const customBorderColor = getDataAttribute('border-color', 'buttonBorderColor', '');
@@ -449,12 +465,31 @@
             const computed = matchingBtn.computed;
             
             // Copy all relevant styles from matching button (Add to Cart, Buy Now, or Primary)
+            // BUT skip properties that have custom values (they will be applied later with higher priority)
             const stylesToCopy = [
-              'font-family', 'font-size', 'font-weight', 'letter-spacing', 'text-transform',
-              'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-              'border-radius', 'border', 'border-color', 'border-width', 'border-style',
+              'font-family', 'font-weight', 'letter-spacing', 'text-transform',
               'box-shadow', 'transition', 'line-height', 'min-height', 'height'
             ];
+            
+            // Only copy font-size if no custom font-size is provided
+            if (!customFontSize) {
+              stylesToCopy.push('font-size');
+            }
+            
+            // Only copy padding properties if no custom padding is provided
+            if (!customPadding) {
+              stylesToCopy.push('padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left');
+            }
+            
+            // Only copy border-radius if no custom border-radius is provided
+            if (!customBorderRadius) {
+              stylesToCopy.push('border-radius');
+            }
+            
+            // Only copy border properties if no custom border-color is provided
+            if (!customBorderColor) {
+              stylesToCopy.push('border', 'border-color', 'border-width', 'border-style');
+            }
             
             stylesToCopy.forEach(prop => {
               const value = computed.getPropertyValue(prop);
@@ -500,20 +535,51 @@
               primaryBorder = themeColors.primaryBorder || computed.getPropertyValue('border-color') || primaryBg;
             }
             
-            button.style.backgroundColor = primaryBg;
-            button.style.color = primaryText;
-            button.style.borderColor = primaryBorder;
+            // STEP 3: Apply custom colors and sizes (HIGHEST PRIORITY - applied last to override everything)
+            // Use setProperty with important flag to ensure custom settings override CSS !important rules
+            if (customBgColor) {
+              button.style.setProperty('background-color', customBgColor, 'important');
+            } else {
+              button.style.backgroundColor = primaryBg;
+            }
             
-            // STEP 3: Apply custom sizes (OVERRIDE copied styles)
-            // Custom sizes ALWAYS override theme-detected sizes
+            if (customTextColor) {
+              button.style.setProperty('color', customTextColor, 'important');
+            } else {
+              button.style.color = primaryText;
+            }
+            
+            if (customBorderColor) {
+              button.style.setProperty('border-color', customBorderColor, 'important');
+              // Ensure border is visible when custom border color is set
+              const currentBorderWidth = computed.getPropertyValue('border-width') || '1px';
+              const currentBorderStyle = computed.getPropertyValue('border-style') || 'solid';
+              button.style.setProperty('border', `${currentBorderWidth} ${currentBorderStyle} ${customBorderColor}`, 'important');
+            } else {
+              button.style.borderColor = primaryBorder;
+            }
+            
+            // Apply custom sizes with !important to override CSS
             if (customFontSize) {
-              button.style.fontSize = `${customFontSize}px`; // CUSTOM SETTING - HIGHEST PRIORITY
+              const fontSizeValue = parseSizeValue(customFontSize, 'px');
+              if (fontSizeValue) {
+                button.style.setProperty('font-size', fontSizeValue, 'important');
+              }
             }
+            
             if (customPadding) {
-              button.style.padding = `${customPadding}rem 1.5rem`; // CUSTOM SETTING - HIGHEST PRIORITY
+              // Parse padding value and apply with horizontal padding
+              const paddingValue = parseSizeValue(customPadding, 'rem');
+              if (paddingValue) {
+                button.style.setProperty('padding', `${paddingValue} 1.5rem`, 'important');
+              }
             }
+            
             if (customBorderRadius) {
-              button.style.borderRadius = `${customBorderRadius}px`; // CUSTOM SETTING - HIGHEST PRIORITY
+              const borderRadiusValue = parseSizeValue(customBorderRadius, 'px');
+              if (borderRadiusValue) {
+                button.style.setProperty('border-radius', borderRadiusValue, 'important');
+              }
             }
           } else {
             // No matching button found (Add to Cart, Buy Now, or Primary)
@@ -546,19 +612,51 @@
               primaryBorder = themeColors.primaryBorder || primaryBg;
             }
             
-            // Apply sizes with PRIORITY ORDER
-            // Priority 1: Custom sizes (HIGHEST)
-            // Priority 2: Defaults
-            const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-            const padding = customPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-            const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+            // Apply colors and sizes with PRIORITY ORDER
+            // Custom settings use !important to override CSS
+            if (customBgColor) {
+              button.style.setProperty('background-color', customBgColor, 'important');
+            } else {
+              button.style.backgroundColor = primaryBg;
+            }
             
-            button.style.backgroundColor = primaryBg;
-            button.style.color = primaryText;
-            button.style.border = `1px solid ${primaryBorder}`;
-            button.style.borderRadius = borderRadius;
-            button.style.padding = padding;
-            button.style.fontSize = fontSize;
+            if (customTextColor) {
+              button.style.setProperty('color', customTextColor, 'important');
+            } else {
+              button.style.color = primaryText;
+            }
+            
+            if (customBorderColor) {
+              button.style.setProperty('border-color', customBorderColor, 'important');
+              button.style.setProperty('border', `1px solid ${customBorderColor}`, 'important');
+            } else {
+              button.style.border = `1px solid ${primaryBorder}`;
+            }
+            
+            // Apply sizes with !important for custom values
+            if (customFontSize) {
+              button.style.setProperty('font-size', `${customFontSize}px`, 'important');
+            } else {
+              button.style.fontSize = '1rem';
+            }
+            
+            if (customPadding) {
+              // Handle both rem and px values
+              const paddingValue = customPadding.includes('px') ? customPadding : `${customPadding}rem`;
+              button.style.setProperty('padding', `${paddingValue} 1.5rem`, 'important');
+            } else {
+              button.style.padding = '0.75rem 1.5rem';
+            }
+            
+            if (customBorderRadius) {
+              // Handle both rem and px values
+              const borderRadiusValue = customBorderRadius.includes('px') || customBorderRadius.includes('rem') 
+                ? customBorderRadius 
+                : `${customBorderRadius}px`;
+              button.style.setProperty('border-radius', borderRadiusValue, 'important');
+            } else {
+              button.style.borderRadius = '4px';
+            }
             button.style.fontWeight = '600';
             button.style.minHeight = '44px';
             button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -575,33 +673,37 @@
           button.style.willChange = 'transform, box-shadow';
           
           // Smart hover effect (works for both Add to Cart found and not found cases)
-          const originalBg = primaryBg;
-          const originalBorder = primaryBorder;
+          // Use custom colors if provided, otherwise use theme-detected colors
+          const originalBg = customBgColor ? customBgColor : primaryBg;
+          const originalBorder = customBorderColor ? customBorderColor : primaryBorder;
+          const originalText = customTextColor ? customTextColor : primaryText;
           let hoverBg = themeColors.primaryHoverBg;
           
+          // Calculate hover color from custom background if provided, otherwise from primaryBg
+          const bgColorToUse = customBgColor || primaryBg;
           if (!hoverBg) {
             try {
-              if (primaryBg.startsWith('#')) {
-                const rgb = parseInt(primaryBg.slice(1), 16);
+              if (bgColorToUse.startsWith('#')) {
+                const rgb = parseInt(bgColorToUse.slice(1), 16);
                 const r = Math.max(0, ((rgb >> 16) & 0xff) * 0.85);
                 const g = Math.max(0, ((rgb >> 8) & 0xff) * 0.85);
                 const b = Math.max(0, (rgb & 0xff) * 0.85);
                 hoverBg = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-              } else if (primaryBg.startsWith('rgb')) {
-                const matches = primaryBg.match(/\d+/g);
+              } else if (bgColorToUse.startsWith('rgb')) {
+                const matches = bgColorToUse.match(/\d+/g);
                 if (matches && matches.length >= 3) {
                   const r = Math.max(0, parseInt(matches[0]) * 0.85);
                   const g = Math.max(0, parseInt(matches[1]) * 0.85);
                   const b = Math.max(0, parseInt(matches[2]) * 0.85);
                   hoverBg = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
                 } else {
-                  hoverBg = primaryBg;
+                  hoverBg = bgColorToUse;
                 }
               } else {
-                hoverBg = primaryBg;
+                hoverBg = bgColorToUse;
               }
             } catch (e) {
-              hoverBg = primaryBg;
+              hoverBg = bgColorToUse;
             }
           }
           
@@ -623,7 +725,7 @@
           
           // Focus state for accessibility
           button.addEventListener('focus', function() {
-            this.style.outline = '2px solid ' + primaryText;
+            this.style.outline = '2px solid ' + originalText;
             this.style.outlineOffset = '2px';
             this.style.boxShadow = '0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15)';
           });
@@ -635,12 +737,20 @@
           
           // Active/pressed state
           button.addEventListener('mousedown', function() {
-            this.style.backgroundColor = originalBg;
+            if (customBgColor) {
+              this.style.setProperty('background-color', originalBg, 'important');
+            } else {
+              this.style.backgroundColor = originalBg;
+            }
             this.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.2)';
             this.style.transform = 'translateY(0)';
           });
           button.addEventListener('mouseup', function() {
-            this.style.backgroundColor = hoverBg;
+            if (customBgColor) {
+              this.style.setProperty('background-color', hoverBg, 'important');
+            } else {
+              this.style.backgroundColor = hoverBg;
+            }
             this.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
             this.style.transform = 'translateY(-1px)';
           });
@@ -675,19 +785,54 @@
             secondaryBorder = themeColors.primaryBg || '#e0e0e0';
           }
           
-          // Apply sizes with PRIORITY ORDER
-          // Priority 1: Custom sizes (HIGHEST)
-          // Priority 2: Defaults
-          const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-          const padding = customPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-          const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+          // Apply colors and sizes with PRIORITY ORDER
+          // Custom settings use !important to override CSS
+          if (customBgColor) {
+            button.style.setProperty('background-color', customBgColor, 'important');
+          } else {
+            button.style.backgroundColor = secondaryBg;
+          }
           
-          button.style.backgroundColor = secondaryBg;
-          button.style.color = secondaryText;
-          button.style.border = `1px solid ${secondaryBorder}`;
-          button.style.borderRadius = borderRadius;
-          button.style.padding = padding;
-          button.style.fontSize = fontSize;
+          if (customTextColor) {
+            button.style.setProperty('color', customTextColor, 'important');
+          } else {
+            button.style.color = secondaryText;
+          }
+          
+          if (customBorderColor) {
+            button.style.setProperty('border-color', customBorderColor, 'important');
+            button.style.setProperty('border', `1px solid ${customBorderColor}`, 'important');
+          } else {
+            button.style.border = `1px solid ${secondaryBorder}`;
+          }
+          
+          // Apply sizes with !important for custom values
+          if (customFontSize) {
+            const fontSizeValue = parseSizeValue(customFontSize, 'px');
+            if (fontSizeValue) {
+              button.style.setProperty('font-size', fontSizeValue, 'important');
+            }
+          } else {
+            button.style.fontSize = '1rem';
+          }
+          
+          if (customPadding) {
+            const paddingValue = parseSizeValue(customPadding, 'rem');
+            if (paddingValue) {
+              button.style.setProperty('padding', `${paddingValue} 1.5rem`, 'important');
+            }
+          } else {
+            button.style.padding = '0.75rem 1.5rem';
+          }
+          
+          if (customBorderRadius) {
+            const borderRadiusValue = parseSizeValue(customBorderRadius, 'px');
+            if (borderRadiusValue) {
+              button.style.setProperty('border-radius', borderRadiusValue, 'important');
+            }
+          } else {
+            button.style.borderRadius = '4px';
+          }
           button.style.fontWeight = '600';
           button.style.minHeight = '44px';
           button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -735,19 +880,50 @@
             outlineBorder = themeColors.primaryBg || '#000000';
           }
           
-          // Apply sizes with PRIORITY ORDER
-          // Priority 1: Custom sizes (HIGHEST)
-          // Priority 2: Defaults
-          const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-          const padding = customPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-          const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+          // Apply colors and sizes with PRIORITY ORDER
+          // Custom settings use !important to override CSS
+          button.style.backgroundColor = outlineBg; // Always transparent for outline
           
-          button.style.backgroundColor = outlineBg;
-          button.style.color = outlineText;
-          button.style.border = `2px solid ${outlineBorder}`;
-          button.style.borderRadius = borderRadius;
-          button.style.padding = padding;
-          button.style.fontSize = fontSize;
+          if (customTextColor) {
+            button.style.setProperty('color', customTextColor, 'important');
+          } else {
+            button.style.color = outlineText;
+          }
+          
+          if (customBorderColor) {
+            button.style.setProperty('border-color', customBorderColor, 'important');
+            button.style.setProperty('border', `2px solid ${customBorderColor}`, 'important');
+          } else {
+            button.style.border = `2px solid ${outlineBorder}`;
+          }
+          
+          // Apply sizes with !important for custom values
+          if (customFontSize) {
+            const fontSizeValue = parseSizeValue(customFontSize, 'px');
+            if (fontSizeValue) {
+              button.style.setProperty('font-size', fontSizeValue, 'important');
+            }
+          } else {
+            button.style.fontSize = '1rem';
+          }
+          
+          if (customPadding) {
+            const paddingValue = parseSizeValue(customPadding, 'rem');
+            if (paddingValue) {
+              button.style.setProperty('padding', `${paddingValue} 1.5rem`, 'important');
+            }
+          } else {
+            button.style.padding = '0.75rem 1.5rem';
+          }
+          
+          if (customBorderRadius) {
+            const borderRadiusValue = parseSizeValue(customBorderRadius, 'px');
+            if (borderRadiusValue) {
+              button.style.setProperty('border-radius', borderRadiusValue, 'important');
+            }
+          } else {
+            button.style.borderRadius = '4px';
+          }
           button.style.fontWeight = '600';
           button.style.minHeight = '44px';
           button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -791,19 +967,40 @@
             minimalText = themeColors.primaryBg || '#000000';
           }
           
-          // Apply sizes with PRIORITY ORDER
-          // Priority 1: Custom sizes (HIGHEST)
-          // Priority 2: Defaults
-          const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-          const padding = customPadding ? `${customPadding}rem 1rem` : '0.5rem 1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
-          const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+          // Apply colors and sizes with PRIORITY ORDER
+          // Custom settings use !important to override CSS
+          button.style.backgroundColor = minimalBg; // Always transparent for minimal
           
-          button.style.backgroundColor = minimalBg;
-          button.style.color = minimalText;
-          button.style.border = `1px solid ${minimalBorder}`;
-          button.style.borderRadius = borderRadius;
-          button.style.padding = padding;
-          button.style.fontSize = fontSize;
+          if (customTextColor) {
+            button.style.setProperty('color', customTextColor, 'important');
+          } else {
+            button.style.color = minimalText;
+          }
+          
+          button.style.border = `1px solid ${minimalBorder}`; // Always transparent for minimal
+          
+          // Apply sizes with !important for custom values
+          if (customFontSize) {
+            button.style.setProperty('font-size', `${customFontSize}px`, 'important');
+          } else {
+            button.style.fontSize = '1rem';
+          }
+          
+          if (customPadding) {
+            const paddingValue = customPadding.includes('px') ? customPadding : `${customPadding}rem`;
+            button.style.setProperty('padding', `${paddingValue} 1rem`, 'important');
+          } else {
+            button.style.padding = '0.5rem 1rem';
+          }
+          
+          if (customBorderRadius) {
+            const borderRadiusValue = customBorderRadius.includes('px') || customBorderRadius.includes('rem') 
+              ? customBorderRadius 
+              : `${customBorderRadius}px`;
+            button.style.setProperty('border-radius', borderRadiusValue, 'important');
+          } else {
+            button.style.borderRadius = '4px';
+          }
           button.style.fontWeight = '500';
           button.style.minHeight = '44px';
           button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
