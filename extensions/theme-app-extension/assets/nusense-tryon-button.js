@@ -901,23 +901,43 @@
     // Debounced apply config function
     const debouncedApplyConfig = debounce(applyButtonConfig, 100);
 
-    // Initialize
+    // Initialize with guard to prevent duplicate initialization
+    let isInitialized = false;
+    let initTimeout = null;
+    
+    const safeApplyConfig = function() {
+      if (isInitialized && button.dataset.styled === 'true') {
+        return; // Already initialized and styled
+      }
+      applyButtonConfig();
+      isInitialized = true;
+    };
+
     // Note: Button starts with data-loading="true" from Liquid template
     // applyButtonConfig() will set it to 'false' when complete
-    applyButtonConfig();
-
-    // Apply on DOM ready
+    
+    // Apply immediately if DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(applyButtonConfig, 100);
-      });
+        clearTimeout(initTimeout);
+        initTimeout = setTimeout(safeApplyConfig, 100);
+      }, { once: true });
     } else {
-      setTimeout(applyButtonConfig, 100);
+      initTimeout = setTimeout(safeApplyConfig, 100);
     }
 
-    // Retry application for dynamic content
-    setTimeout(applyButtonConfig, 500);
-    setTimeout(applyButtonConfig, 1000);
+    // Single retry for dynamic content (reduced from multiple timeouts)
+    const retryTimeout = setTimeout(function() {
+      if (!isInitialized || button.dataset.styled !== 'true') {
+        safeApplyConfig();
+      }
+    }, 500);
+    
+    // Cleanup timeout on beforeunload
+    window.addEventListener('beforeunload', function() {
+      if (initTimeout) clearTimeout(initTimeout);
+      if (retryTimeout) clearTimeout(retryTimeout);
+    }, { once: true });
 
     // Note: Auto-positioning is handled by the theme editor (admin side)
     // The button position is determined by where the merchant places the app block in the theme editor
@@ -977,8 +997,9 @@
       e.preventDefault();
       e.stopPropagation();
       
-      // Store original overflow state BEFORE try block to ensure it's accessible in catch
+      // Store original overflow state BEFORE try block to ensure it's accessible in catch and closeWidget
       let originalOverflow = '';
+      let wasAlreadyHidden = false;
       let overlay = null;
       let closeHandler = null;
       let messageHandler = null;
@@ -990,8 +1011,17 @@
           throw new Error('Document body is not available. Page may still be loading.');
         }
         
-        // Capture original overflow state before modifying
-        originalOverflow = document.body.style.overflow || '';
+        // Capture original overflow state BEFORE any modifications
+        // Check both inline style and computed style to handle CSS-based overflow:hidden
+        const inlineOverflow = document.body.style.overflow || '';
+        const computedOverflow = window.getComputedStyle(document.body).overflow;
+        
+        // Store the actual inline style value (empty string means no inline style)
+        // This allows us to restore correctly: if there was no inline style, we remove it
+        originalOverflow = inlineOverflow;
+        
+        // Track if overflow was already hidden (via CSS or inline style)
+        wasAlreadyHidden = computedOverflow === 'hidden';
         
         // Validate widget URL
         const baseWidgetUrl = config.widgetUrl || 'https://try-this-look.vercel.app';
@@ -1089,21 +1119,32 @@
           }
           
           // Always restore overflow state, even if overlay removal failed
+          // Only restore if WE set it (wasn't already hidden)
           try {
-            // Restore original overflow state
-            if (originalOverflow) {
-              document.body.style.overflow = originalOverflow;
-            } else {
-              // Remove inline style to restore CSS default
-              document.body.style.removeProperty('overflow');
+            if (!wasAlreadyHidden) {
+              // We set overflow:hidden, so restore to original state
+              if (originalOverflow) {
+                document.body.style.overflow = originalOverflow;
+              } else {
+                // Remove inline style to restore CSS default (no inline style was set before)
+                document.body.style.removeProperty('overflow');
+              }
             }
+            // If overflow was already hidden, don't touch it - let the other modal/app handle it
           } catch (e) {
             // Fallback: try to restore overflow even if there's an error
-            try {
-              document.body.style.overflow = '';
-            } catch (e2) {
-              // Last resort: remove overflow style attribute
-              document.body.removeAttribute('style');
+            // Only if we were the ones who set it
+            if (!wasAlreadyHidden) {
+              try {
+                document.body.style.overflow = originalOverflow || '';
+              } catch (e2) {
+                // Last resort: only remove overflow if we set it
+                try {
+                  document.body.style.removeProperty('overflow');
+                } catch (e3) {
+                  // Silently fail - page will still function
+                }
+              }
             }
           }
           
@@ -1229,12 +1270,12 @@
           // Append overlay first
           document.body.appendChild(overlay);
           
-          // Only set overflow if body doesn't already have overflow:hidden from another source
-          // This prevents interfering with other modals/apps
-          const currentOverflow = window.getComputedStyle(document.body).overflow;
-          if (currentOverflow !== 'hidden') {
+          // Only set overflow:hidden if it's not already hidden
+          // This prevents interfering with other modals/apps that may have already set it
+          if (!wasAlreadyHidden) {
             document.body.style.overflow = 'hidden';
           }
+          // If overflow was already hidden, we don't modify it - other modal will handle cleanup
           
           // Verify iframe was added successfully
           if (!iframe.parentNode) {
@@ -1367,11 +1408,22 @@
     };
   };
 
+  // Track initialized buttons to prevent duplicate initialization
+  const initializedButtons = new Set();
+  
   // Initialize all buttons on page
   const initAllButtons = function() {
     const buttons = document.querySelectorAll('[id^="nusense-tryon-btn-"]');
     buttons.forEach(function(btn) {
       const buttonId = btn.id;
+      
+      // Skip if already initialized
+      if (initializedButtons.has(buttonId)) {
+        return;
+      }
+      
+      initializedButtons.add(buttonId);
+      
       const config = {
         buttonStyle: btn.dataset.buttonStyle || 'primary',
         buttonIcon: btn.dataset.buttonIcon || '✨',
@@ -1417,7 +1469,8 @@
           mutation.addedNodes.forEach(function(node) {
             if (node.nodeType === 1) {
               // ONLY check for NUSENSE buttons - ignore everything else including stock alerts
-              if (node.id && node.id.startsWith('nusense-tryon-btn-')) {
+              if (node.id && node.id.startsWith('nusense-tryon-btn-') && !initializedButtons.has(node.id)) {
+                initializedButtons.add(node.id);
                 const config = {
                   buttonStyle: node.dataset.buttonStyle || 'primary',
                   buttonIcon: node.dataset.buttonIcon || '✨',
@@ -1442,6 +1495,11 @@
               const nestedButtons = node.querySelectorAll && node.querySelectorAll('[id^="nusense-tryon-btn-"]');
               if (nestedButtons && nestedButtons.length > 0) {
                 nestedButtons.forEach(function(nestedBtn) {
+                  // Skip if already initialized
+                  if (initializedButtons.has(nestedBtn.id)) {
+                    return;
+                  }
+                  initializedButtons.add(nestedBtn.id);
                   const config = {
                     buttonStyle: nestedBtn.dataset.buttonStyle || 'primary',
                     buttonIcon: nestedBtn.dataset.buttonIcon || '✨',
