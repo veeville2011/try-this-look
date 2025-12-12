@@ -1484,7 +1484,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       void runImageGeneration();
     }
   }, [uploadedImage, selectedClothing, generatedImage]); // Depend on state to ensure it's set before resuming
-
+  console.log("inflight");
   // Check if we're inside an iframe
   const isInIframe = typeof window !== "undefined" && window.parent !== window;
 
