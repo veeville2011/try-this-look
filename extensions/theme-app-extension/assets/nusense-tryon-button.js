@@ -26,9 +26,7 @@
     // Cache DOM queries
     const cached = {
       button: button,
-      iconSpan: null,
-      targetButton: null,
-      primaryButton: null
+      iconSpan: null
     };
 
     // Initialize cached elements
@@ -37,13 +35,172 @@
     };
     updateCache();
 
-    // Function to detect theme primary colors from CSS variables or computed styles
+    // Helper function to validate a button candidate
+    const validateButton = function(candidate) {
+      if (!candidate) return false;
+      if (candidate === button || candidate.classList.contains('nusense-tryon-button')) {
+        return false;
+      }
+      if (candidate.tagName !== 'BUTTON' && candidate.tagName !== 'INPUT') {
+        return false;
+      }
+      
+      const computed = window.getComputedStyle(candidate);
+      if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') {
+        return false;
+      }
+      
+      return true;
+    };
+
+    // Function to find and get styling from Add to Cart button
+    const findAddToCartButton = function() {
+      const addToCartSelectors = [
+        'form[action*="/cart/add"] button[name="add"]',
+        'form[action*="/cart/add"] input[type="submit"][name="add"]',
+        'form[action*="/cart/add"] button[type="submit"]',
+        'button[name="add"]',
+        'input[type="submit"][name="add"]',
+        '[data-add-to-cart]',
+        '.product-form__submit',
+        '.product-form__cart-submit',
+        '#AddToCart'
+      ];
+      
+      for (let selector of addToCartSelectors) {
+        try {
+          const candidates = document.querySelectorAll(selector);
+          for (let candidate of candidates) {
+            if (!validateButton(candidate)) continue;
+            
+            // Verify it's in a product context
+            const productForm = candidate.closest('form[action*="/cart/add"]');
+            const productSection = candidate.closest('.product-form, .product-single, [class*="product"]');
+            if (!productForm && !productSection) continue;
+            
+            return {
+              element: candidate,
+              computed: window.getComputedStyle(candidate),
+              classes: candidate.className,
+              type: 'add-to-cart'
+            };
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      return null;
+    };
+
+    // Function to find Buy Now button
+    const findBuyNowButton = function() {
+      const buyNowSelectors = [
+        'button[data-buy-now]',
+        'button[data-checkout]',
+        '.buy-now',
+        '.buynow',
+        '.checkout-button',
+        '#BuyNow',
+        'button[data-shopify="payment-button"]',
+        '.shopify-payment-button button'
+      ];
+      
+      for (let selector of buyNowSelectors) {
+        try {
+          const candidates = document.querySelectorAll(selector);
+          for (let candidate of candidates) {
+            if (!validateButton(candidate)) continue;
+            
+            // Verify it's in a product context
+            const productForm = candidate.closest('form[action*="/cart/add"]');
+            const productSection = candidate.closest('.product-form, .product-single, [class*="product"]');
+            if (!productForm && !productSection) continue;
+            
+            return {
+              element: candidate,
+              computed: window.getComputedStyle(candidate),
+              classes: candidate.className,
+              type: 'buy-now'
+            };
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      return null;
+    };
+
+    // Function to find any primary button in the theme
+    const findPrimaryButton = function() {
+      const primaryButtonSelectors = [
+        '.button--primary',
+        '.btn-primary',
+        '.btn--primary',
+        'button.button--primary',
+        'button.btn-primary',
+        '.product-form__submit',
+        'button[type="submit"].button',
+        'button[type="submit"].btn'
+      ];
+      
+      for (let selector of primaryButtonSelectors) {
+        try {
+          const candidates = document.querySelectorAll(selector);
+          for (let candidate of candidates) {
+            if (!validateButton(candidate)) continue;
+            
+            // Check if it looks like a primary action button
+            const computed = window.getComputedStyle(candidate);
+            const bgColor = computed.getPropertyValue('background-color');
+            const textColor = computed.getPropertyValue('color');
+            
+            // Must have visible background and text colors
+            if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' &&
+                textColor && textColor !== 'rgba(0, 0, 0, 0)' && textColor !== 'transparent') {
+              return {
+                element: candidate,
+                computed: computed,
+                classes: candidate.className,
+                type: 'primary'
+              };
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      return null;
+    };
+
+    // Function to find the best matching button (cascading fallback)
+    const findBestMatchingButton = function() {
+      // Priority 1: Add to Cart button
+      const addToCartBtn = findAddToCartButton();
+      if (addToCartBtn) return addToCartBtn;
+      
+      // Priority 2: Buy Now button
+      const buyNowBtn = findBuyNowButton();
+      if (buyNowBtn) return buyNowBtn;
+      
+      // Priority 3: Any primary button in theme
+      const primaryBtn = findPrimaryButton();
+      if (primaryBtn) return primaryBtn;
+      
+      // Priority 4: No button found - return null
+      return null;
+    };
+
+    // Function to detect theme primary colors from CSS variables or matching buttons
     const detectThemeColors = function() {
       const themeColors = {
         primaryBg: null,
         primaryText: null,
         primaryBorder: null,
-        primaryHoverBg: null
+        primaryHoverBg: null,
+        matchingButton: null
       };
       
       try {
@@ -68,40 +225,41 @@
           }
         }
         
-        // Method 2: Check button-like elements
-        if (!themeColors.primaryBg || !themeColors.primaryText) {
-          const buttonSelectors = [
-            'button[type="submit"]', 'button.btn', 'button.button', '.btn-primary',
-            '.button--primary', 'input[type="submit"]', '.product-form__submit', '[data-add-to-cart]'
-          ];
+        // Method 2: Find best matching button (Add to Cart → Buy Now → Primary)
+        const matchingBtn = findBestMatchingButton();
+        if (matchingBtn) {
+          themeColors.matchingButton = matchingBtn;
+          const computed = matchingBtn.computed;
           
-          for (let selector of buttonSelectors) {
-            try {
-              const candidate = document.querySelector(selector);
-              if (candidate && candidate !== button && !candidate.classList.contains('nusense-tryon-button')) {
-                const computed = window.getComputedStyle(candidate);
-                const bgColor = computed.getPropertyValue('background-color');
-                const textColor = computed.getPropertyValue('color');
-                const borderColor = computed.getPropertyValue('border-color');
-                
-                if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && bgColor !== 'initial') {
-                  if (!themeColors.primaryBg) themeColors.primaryBg = bgColor.trim();
-                }
-                if (textColor && textColor !== 'rgba(0, 0, 0, 0)' && textColor !== 'transparent' && textColor !== 'initial') {
-                  if (!themeColors.primaryText) themeColors.primaryText = textColor.trim();
-                }
-                if (borderColor && borderColor !== 'rgba(0, 0, 0, 0)' && borderColor !== 'transparent' && borderColor !== 'initial') {
-                  if (!themeColors.primaryBorder) themeColors.primaryBorder = borderColor.trim();
-                }
-                break;
-              }
-            } catch (e) {
-              continue;
+          // Get colors from the matching button (most accurate)
+          const bgColor = computed.getPropertyValue('background-color');
+          const textColor = computed.getPropertyValue('color');
+          const borderColor = computed.getPropertyValue('border-color');
+          
+          if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' && bgColor !== 'initial') {
+            themeColors.primaryBg = bgColor.trim();
+          }
+          if (textColor && textColor !== 'rgba(0, 0, 0, 0)' && textColor !== 'transparent' && textColor !== 'initial') {
+            themeColors.primaryText = textColor.trim();
+          }
+          if (borderColor && borderColor !== 'rgba(0, 0, 0, 0)' && borderColor !== 'transparent' && borderColor !== 'initial') {
+            themeColors.primaryBorder = borderColor.trim();
+          }
+          
+          // Get hover color from CSS variables or computed styles
+          try {
+            const hoverBg = computed.getPropertyValue('--button-hover-background') || 
+                           computed.getPropertyValue('--color-button-hover') ||
+                           rootStyles.getPropertyValue('--button-primary-hover');
+            if (hoverBg && hoverBg.trim()) {
+              themeColors.primaryHoverBg = hoverBg.trim();
             }
+          } catch (e) {
+            // Ignore
           }
         }
         
-        // Method 3: Check body for accent colors
+        // Method 3: Check body for accent colors (fallback)
         if (!themeColors.primaryBg) {
           try {
             const bodyStyles = window.getComputedStyle(document.body);
@@ -120,132 +278,39 @@
       return themeColors;
     };
 
-    // Validation function for primary buttons
-    const validatePrimaryButton = function(candidateButton) {
-      if (!candidateButton) return false;
-      if (candidateButton.tagName !== 'BUTTON' && candidateButton.tagName !== 'INPUT') return false;
-      if (candidateButton.id === button.id || candidateButton.classList.contains('nusense-tryon-button')) return false;
-      
-      const computedStyle = window.getComputedStyle(candidateButton);
-      if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden' || computedStyle.opacity === '0') return false;
-      
-      const productForm = candidateButton.closest('form[action*="/cart/add"]');
-      const productSection = candidateButton.closest('.product-form, .product-single, [class*="product"]');
-      if (!productForm && !productSection) return false;
-      
-      const buttonText = (candidateButton.textContent || candidateButton.value || candidateButton.getAttribute('aria-label') || '').toLowerCase().trim();
-      return buttonText.length > 0;
-    };
 
-    // Function to find primary button (Add to Cart OR Buy Now)
-    const findPrimaryButton = function() {
-      const addToCartSelectors = [
-        'form[action*="/cart/add"] button[name="add"]',
-        'form[action*="/cart/add"] input[type="submit"][name="add"]',
-        'button[name="add"]',
-        'input[type="submit"][name="add"]',
-        'form[action*="/cart/add"] button[type="submit"]',
-        '[data-add-to-cart]',
-        '.product-form__submit',
-        '.product-form__cart-submit',
-        '#AddToCart'
-      ];
-      
-      const buyNowSelectors = [
-        'button[data-buy-now]',
-        'button[data-checkout]',
-        '.buy-now',
-        '.buynow',
-        '.checkout-button',
-        '#BuyNow',
-        'button:not([name="add"])[type="submit"]'
-      ];
-      
-      // Try Add to Cart buttons first
-      for (let selector of addToCartSelectors) {
-        try {
-          const candidates = document.querySelectorAll(selector);
-          for (let candidate of candidates) {
-            if (validatePrimaryButton(candidate)) {
-              cached.primaryButton = candidate;
-              return {
-                element: candidate,
-                type: 'add-to-cart',
-                classes: candidate.className,
-                computedStyles: window.getComputedStyle(candidate)
-              };
-            }
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      
-      // Try Buy Now buttons as fallback
-      for (let selector of buyNowSelectors) {
-        try {
-          const candidates = document.querySelectorAll(selector);
-          for (let candidate of candidates) {
-            if (validatePrimaryButton(candidate)) {
-              cached.primaryButton = candidate;
-              return {
-                element: candidate,
-                type: 'buy-now',
-                classes: candidate.className,
-                computedStyles: window.getComputedStyle(candidate)
-              };
-            }
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      
-      return null;
-    };
-
-    // Function to find target button for positioning
-    const findTargetButtonForPositioning = function() {
-      if (cached.targetButton) return cached.targetButton;
-      const primaryButton = findPrimaryButton();
-      if (primaryButton && primaryButton.element) {
-        cached.targetButton = primaryButton.element;
-        return primaryButton.element;
-      }
-      return null;
-    };
-
-    // Function to apply positioning and spacing
+    // Function to apply positioning and spacing (CSS only - no DOM manipulation)
+    // Positioning is handled by the theme editor (admin side)
     const applyPositioning = function(alignment, top, bottom, left, right) {
       if (!button) return;
       
-      // Apply margins
-      if (top && top !== config.marginTop && top !== '0') {
+      // Apply margins (configured in admin)
+      if (top && top !== '0') {
         button.style.marginTop = `${top}rem`;
-      } else if (top === '0' || top === config.marginTop) {
-        button.style.marginTop = top === '0' ? '0' : '';
+      } else if (top === '0') {
+        button.style.marginTop = '0';
       }
       
-      if (bottom && bottom !== config.marginBottom && bottom !== '0') {
+      if (bottom && bottom !== '0') {
         button.style.marginBottom = `${bottom}rem`;
-      } else if (bottom === '0' || bottom === config.marginBottom) {
-        button.style.marginBottom = bottom === '0' ? '0' : '';
+      } else if (bottom === '0') {
+        button.style.marginBottom = '0';
       }
       
-      if (left && left !== config.marginLeft && left !== '0') {
+      if (left && left !== '0') {
         button.style.marginLeft = `${left}rem`;
-      } else if (left === '0' || left === config.marginLeft) {
-        button.style.marginLeft = left === '0' ? '0' : '';
+      } else if (left === '0') {
+        button.style.marginLeft = '0';
       }
       
-      if (right && right !== config.marginRight && right !== '0') {
+      if (right && right !== '0') {
         button.style.marginRight = `${right}rem`;
-      } else if (right === '0' || right === config.marginRight) {
-        button.style.marginRight = right === '0' ? '0' : '';
+      } else if (right === '0') {
+        button.style.marginRight = '0';
       }
       
-      // Apply alignment
-      if (alignment && alignment !== 'auto' && alignment !== config.buttonAlignment) {
+      // Apply alignment (configured in admin)
+      if (alignment && alignment !== 'auto') {
         const parent = button.parentElement;
         if (parent) {
           if (alignment === 'left') {
@@ -262,19 +327,8 @@
             parent.style.textAlign = 'right';
           }
         }
-      } else if (alignment === 'auto' || !alignment || alignment === config.buttonAlignment) {
-        const targetButton = findTargetButtonForPositioning();
-        if (targetButton) {
-          const targetParent = targetButton.parentElement;
-          if (targetParent) {
-            const parentComputed = window.getComputedStyle(targetParent);
-            const parentTextAlign = parentComputed.textAlign;
-            if (parentTextAlign && parentTextAlign !== 'initial' && parentTextAlign !== 'start') {
-              button.parentElement.style.textAlign = parentTextAlign;
-            }
-          }
-        }
       }
+      // Note: 'auto' alignment means no specific alignment - let theme handle it
     };
 
     // Function to apply all button configurations
@@ -294,105 +348,120 @@
         const customFontSize = button.dataset.fontSize || config.buttonFontSize || '';
         const customPadding = button.dataset.padding || config.buttonPadding || '';
         const customBorderRadius = button.dataset.borderRadius || config.buttonBorderRadius || '';
-        const customCss = config.customCss || '';
-        
-        // Find primary button
-        const primaryButtonStyles = findPrimaryButton();
+        const customCss = button.dataset.customCss || config.customCss || '';
         
         // Build class list
         let classes = 'nusense-tryon-button';
         
-        // For PRIMARY style, copy styling from found primary button
-        if (buttonStyle === 'primary' && primaryButtonStyles) {
-          const primaryBtn = primaryButtonStyles.element;
-          const primaryAllClasses = primaryBtn.className.split(' ').filter(cls => cls.trim() && cls.length > 0);
-          
-          const classesToCopy = primaryAllClasses.filter(cls => {
-            return !cls.includes('disabled') && 
-                   !cls.includes('loading') &&
-                   !cls.includes('nusense') &&
-                   cls !== 'nusense-tryon-button';
-          });
-          
-          if (classesToCopy.length > 0) {
-            classes += ' ' + classesToCopy.join(' ');
-          }
-          
-          // Copy computed styles
-          const computed = primaryButtonStyles.computedStyles;
-          const stylesToCopy = [
-            'background-color', 'background', 'color', 'border', 'border-color', 'border-width',
-            'border-style', 'border-radius', 'font-weight', 'font-size', 'font-family',
-            'text-transform', 'letter-spacing', 'padding', 'padding-top', 'padding-right',
-            'padding-bottom', 'padding-left', 'min-height', 'height', 'line-height',
-            'box-shadow', 'transition'
-          ];
-          
-          stylesToCopy.forEach(prop => {
-            const value = computed.getPropertyValue(prop);
-            if (value && value !== 'initial' && value !== 'normal' && value !== 'none' && value.trim() !== '') {
-              button.style.setProperty(prop, value);
-            }
-          });
-          
-          // Apply custom colors if provided (override copied styles)
-          if (customBgColor && customBgColor.trim() && customBgColor !== config.buttonBackgroundColor) {
-            button.style.backgroundColor = customBgColor;
-          }
-          if (customTextColor && customTextColor.trim() && customTextColor !== config.buttonTextColor) {
-            button.style.color = customTextColor;
-          }
-          if (customBorderColor && customBorderColor.trim() && customBorderColor !== config.buttonBorderColor) {
-            button.style.borderColor = customBorderColor;
-            button.style.border = `1px solid ${customBorderColor}`;
-          }
-          
-          // Apply custom sizes if provided
-          if (customFontSize && customFontSize !== config.buttonFontSize) {
-            button.style.fontSize = `${customFontSize}px`;
-          }
-          if (customPadding && customPadding !== config.buttonPadding) {
-            button.style.padding = `${customPadding}rem 1.5rem`;
-          }
-          if (customBorderRadius && customBorderRadius !== config.buttonBorderRadius) {
-            button.style.borderRadius = `${customBorderRadius}px`;
-          }
-          
-        } else if (buttonStyle === 'primary') {
-          // Primary style but no primary button found - detect and apply theme colors
+        // Apply primary button styling
+        if (buttonStyle === 'primary') {
           classes += ' button button--primary btn btn-primary';
           
           const themeColors = detectThemeColors();
-          const primaryBg = customBgColor && customBgColor.trim() ? customBgColor : 
-                           (themeColors.primaryBg || '#000000');
-          const primaryText = customTextColor && customTextColor.trim() ? customTextColor : 
-                             (themeColors.primaryText || '#ffffff');
-          const primaryBorder = customBorderColor && customBorderColor.trim() ? customBorderColor : 
-                              (themeColors.primaryBorder || primaryBg);
           
-          const fontSize = customFontSize && customFontSize !== config.buttonFontSize ? `${customFontSize}px` : '1rem';
-          const padding = customPadding && customPadding !== config.buttonPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem';
-          const borderRadius = customBorderRadius && customBorderRadius !== config.buttonBorderRadius ? `${customBorderRadius}px` : '4px';
+          // Declare color variables in outer scope for hover effects
+          let primaryBg, primaryText, primaryBorder;
           
-          button.style.backgroundColor = primaryBg;
-          button.style.color = primaryText;
-          button.style.border = `1px solid ${primaryBorder}`;
-          button.style.borderRadius = borderRadius;
-          button.style.padding = padding;
-          button.style.fontSize = fontSize;
-          button.style.fontWeight = '600';
+          // Cascading fallback: Add to Cart → Buy Now → Primary Button → Theme Colors → Defaults
+          if (themeColors.matchingButton) {
+            const matchingBtn = themeColors.matchingButton;
+            const computed = matchingBtn.computed;
+            
+            // Copy all relevant styles from matching button (Add to Cart, Buy Now, or Primary)
+            const stylesToCopy = [
+              'font-family', 'font-size', 'font-weight', 'letter-spacing', 'text-transform',
+              'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+              'border-radius', 'border', 'border-color', 'border-width', 'border-style',
+              'box-shadow', 'transition', 'line-height', 'min-height', 'height'
+            ];
+            
+            stylesToCopy.forEach(prop => {
+              const value = computed.getPropertyValue(prop);
+              if (value && value !== 'initial' && value !== 'normal' && value !== 'none' && value.trim() !== '') {
+                button.style.setProperty(prop, value);
+              }
+            });
+            
+            // Copy classes from matching button (for theme compatibility)
+            const matchingClasses = matchingBtn.classes.split(' ').filter(cls => 
+              cls.trim() && 
+              cls.length > 0 && 
+              !cls.includes('disabled') && 
+              !cls.includes('loading') &&
+              !cls.includes('nusense') &&
+              cls !== 'nusense-tryon-button'
+            );
+            
+            if (matchingClasses.length > 0) {
+              classes += ' ' + matchingClasses.join(' ');
+            }
+            
+            // Apply colors (custom colors override detected colors)
+            primaryBg = customBgColor && customBgColor.trim() ? customBgColor : 
+                       (themeColors.primaryBg || computed.getPropertyValue('background-color') || '#000000');
+            primaryText = customTextColor && customTextColor.trim() ? customTextColor : 
+                         (themeColors.primaryText || computed.getPropertyValue('color') || '#ffffff');
+            primaryBorder = customBorderColor && customBorderColor.trim() ? customBorderColor : 
+                          (themeColors.primaryBorder || computed.getPropertyValue('border-color') || primaryBg);
+            
+            button.style.backgroundColor = primaryBg;
+            button.style.color = primaryText;
+            button.style.borderColor = primaryBorder;
+            
+            // Apply custom sizes if provided (override copied styles)
+            if (customFontSize && customFontSize !== config.buttonFontSize) {
+              button.style.fontSize = `${customFontSize}px`;
+            }
+            if (customPadding && customPadding !== config.buttonPadding) {
+              button.style.padding = `${customPadding}rem 1.5rem`;
+            }
+            if (customBorderRadius && customBorderRadius !== config.buttonBorderRadius) {
+              button.style.borderRadius = `${customBorderRadius}px`;
+            }
+          } else {
+            // No matching button found (Add to Cart, Buy Now, or Primary)
+            // Fallback to theme color palette from CSS variables, then defaults
+            // This happens when:
+            // 1. Page is not a product page
+            // 2. Buttons haven't loaded yet
+            // 3. Theme uses non-standard button structure
+            // 4. Buttons are hidden or in a different context
+            
+            // Use theme colors from CSS variables (detected in detectThemeColors)
+            primaryBg = customBgColor && customBgColor.trim() ? customBgColor : 
+                       (themeColors.primaryBg || '#000000');
+            primaryText = customTextColor && customTextColor.trim() ? customTextColor : 
+                         (themeColors.primaryText || '#ffffff');
+            primaryBorder = customBorderColor && customBorderColor.trim() ? customBorderColor : 
+                          (themeColors.primaryBorder || primaryBg);
+            
+            // Apply standard primary button styling with theme colors or defaults
+            const fontSize = customFontSize && customFontSize !== config.buttonFontSize ? `${customFontSize}px` : '1rem';
+            const padding = customPadding && customPadding !== config.buttonPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem';
+            const borderRadius = customBorderRadius && customBorderRadius !== config.buttonBorderRadius ? `${customBorderRadius}px` : '4px';
+            
+            button.style.backgroundColor = primaryBg;
+            button.style.color = primaryText;
+            button.style.border = `1px solid ${primaryBorder}`;
+            button.style.borderRadius = borderRadius;
+            button.style.padding = padding;
+            button.style.fontSize = fontSize;
+            button.style.fontWeight = '600';
+            button.style.minHeight = '44px';
+            button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+            button.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
+            button.style.letterSpacing = '0.01em';
+          }
+          
+          // Common styles for all primary buttons
           button.style.cursor = 'pointer';
-          button.style.minHeight = '44px';
           button.style.display = 'inline-flex';
           button.style.alignItems = 'center';
           button.style.justifyContent = 'center';
-          button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
-          button.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
-          button.style.letterSpacing = '0.01em';
           button.style.userSelect = 'none';
           button.style.willChange = 'transform, box-shadow';
           
-          // Smart hover effect
+          // Smart hover effect (works for both Add to Cart found and not found cases)
           const originalBg = primaryBg;
           const originalBorder = primaryBorder;
           let hoverBg = themeColors.primaryHoverBg;
@@ -520,105 +589,8 @@
       }
     };
 
-    // Function to scroll to button and highlight it
-    const scrollToAndHighlightButton = function() {
-      if (!button || !button.offsetParent || button.dataset.highlighted === 'true') return;
-      
-      try {
-        button.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        
-        const originalOutline = button.style.outline;
-        const originalBoxShadow = button.style.boxShadow;
-        const originalTransition = button.style.transition;
-        const originalZIndex = button.style.zIndex;
-        
-        button.style.outline = '3px solid #007bff';
-        button.style.outlineOffset = '2px';
-        button.style.boxShadow = '0 0 0 4px rgba(0, 123, 255, 0.3)';
-        button.style.transition = 'all 0.3s ease';
-        button.style.zIndex = '9999';
-        
-        setTimeout(function() {
-          button.style.outline = originalOutline;
-          button.style.outlineOffset = '';
-          button.style.boxShadow = originalBoxShadow;
-          button.style.transition = originalTransition;
-          button.style.zIndex = originalZIndex;
-          button.dataset.highlighted = 'true';
-        }, 3000);
-      } catch (e) {
-        console.warn('NUSENSE: Could not scroll/highlight button:', e);
-      }
-    };
-
     // Debounced apply config function
     const debouncedApplyConfig = debounce(applyButtonConfig, 100);
-
-    // Auto-position function
-    const positionButton = function() {
-      if (button.dataset.positioningDisabled === 'true' || button.dataset.manualPosition === 'true') return;
-      
-      const targetButton = findTargetButtonForPositioning();
-      if (!targetButton) {
-        if (!button.dataset.positionCheckAttempted) {
-          button.dataset.positionCheckAttempted = 'true';
-        }
-        return;
-      }
-      
-      if (targetButton && button.parentNode && !button.dataset.positioned) {
-        const targetParent = targetButton.parentElement;
-        const buttonParent = button.parentElement;
-        
-        if (buttonParent !== targetParent || 
-            !targetParent.contains(button) ||
-            (targetParent.contains(button) && button.nextSibling !== targetButton && 
-             !Array.from(targetParent.children).some((child, index, arr) => 
-               child === button && arr[index + 1] === targetButton))) {
-          
-          const form = targetButton.closest('form') || targetParent;
-          if (form && form.contains(targetButton)) {
-            try {
-              form.insertBefore(button, targetButton);
-              button.dataset.positioned = 'true';
-              button.dataset.validatedPosition = 'true';
-              button.classList.add('nusense-positioned');
-              
-              const customMarginBottom = button.dataset.marginBottom || config.marginBottom || '0.75';
-              if (customMarginBottom && customMarginBottom !== config.marginBottom) {
-                button.style.marginBottom = `${customMarginBottom}rem`;
-              } else if (!button.style.marginBottom) {
-                button.style.marginBottom = '0.75rem';
-              }
-              
-              applyPositioning(
-                button.dataset.alignment || config.buttonAlignment || 'auto',
-                button.dataset.marginTop || config.marginTop || '0',
-                customMarginBottom,
-                button.dataset.marginLeft || config.marginLeft || '0',
-                button.dataset.marginRight || config.marginRight || '0'
-              );
-              
-              if (!button.dataset.highlighted) {
-                setTimeout(scrollToAndHighlightButton, 300);
-              }
-            } catch (e) {
-              console.warn('NUSENSE: Could not auto-position button:', e);
-              button.dataset.positioningDisabled = 'true';
-            }
-          }
-        }
-      } else if (targetParent && targetParent.contains(button)) {
-        button.dataset.positioned = 'true';
-        button.dataset.validatedPosition = 'true';
-        if (!button.dataset.highlighted) {
-          setTimeout(scrollToAndHighlightButton, 300);
-        }
-      }
-    };
-
-    // Debounced position function
-    const debouncedPosition = debounce(positionButton, 200);
 
     // Initialize
     // Note: Button starts with data-loading="true" from Liquid template
@@ -629,132 +601,17 @@
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function() {
         setTimeout(applyButtonConfig, 100);
-        if (!button.dataset.highlighted) {
-          setTimeout(scrollToAndHighlightButton, 500);
-        }
       });
     } else {
       setTimeout(applyButtonConfig, 100);
-      if (!button.dataset.highlighted) {
-        setTimeout(scrollToAndHighlightButton, 500);
-      }
     }
 
     // Retry application for dynamic content
     setTimeout(applyButtonConfig, 500);
     setTimeout(applyButtonConfig, 1000);
 
-    // Auto-position if enabled
-    const autoPosition = button.dataset.autoPosition === 'true' || button.dataset.autoPosition === true;
-    if (autoPosition) {
-      positionButton();
-      
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-          setTimeout(positionButton, 100);
-        });
-      } else {
-        setTimeout(positionButton, 100);
-      }
-
-      // Consolidated MutationObserver for positioning
-      // CRITICAL: Only watch button's immediate parent to avoid interfering with stock alerts
-      // Following Shopify best practices - minimize DOM observation scope
-      const positionObserver = new MutationObserver(function(mutations) {
-        // Only process mutations that directly affect the button or its immediate container
-        let shouldProcess = false;
-        mutations.forEach(function(mutation) {
-          // Process attribute changes (class/id changes on button or parent)
-          if (mutation.type === 'attributes') {
-            const target = mutation.target;
-            // Only process if it's the button itself or its immediate parent
-            if (target === button || target === button.parentElement) {
-              shouldProcess = true;
-              return;
-            }
-          }
-          
-          // For added nodes, only process if they're directly related to the button
-          if (mutation.addedNodes.length > 0) {
-            for (let node of mutation.addedNodes) {
-              if (node.nodeType === 1) {
-                // Only process if it's the button itself or affects button positioning
-                if (node === button || button.contains(node) || node.contains(button)) {
-                  shouldProcess = true;
-                  break;
-                }
-              }
-            }
-          }
-        });
-        
-        if (shouldProcess) {
-          debouncedPosition();
-        }
-      });
-      
-      // ONLY observe the button's immediate parent container
-      // This completely avoids watching product forms or stock alerts
-      const observeTarget = button.parentElement;
-      
-      if (observeTarget && observeTarget !== document.body && observeTarget !== document.documentElement) {
-        try {
-          positionObserver.observe(observeTarget, {
-            childList: true,
-            subtree: false, // Don't watch subtree - only direct children
-            attributeFilter: ['class', 'id'] // Only watch class/id changes
-          });
-        } catch (error) {
-          // Silently fail if observer setup fails
-        }
-      }
-
-      // Limited retry attempts
-      let retryCount = 0;
-      const maxRetries = 3;
-      const positionChecker = setInterval(function() {
-        retryCount++;
-        if (button.dataset.positioningDisabled === 'true' || 
-            button.dataset.manualPosition === 'true' ||
-            retryCount > maxRetries ||
-            button.dataset.validatedPosition === 'true') {
-          clearInterval(positionChecker);
-          positionObserver.disconnect();
-          return;
-        }
-        if (!button.dataset.positioned || button.dataset.positioned !== 'true') {
-          positionButton();
-        } else {
-          clearInterval(positionChecker);
-          positionObserver.disconnect();
-        }
-      }, 1000);
-
-      // Manual position detection
-      const manualPositionObserver = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-            if (button.style.position || button.style.top || button.style.left) {
-              button.dataset.manualPosition = 'true';
-              button.dataset.positioningDisabled = 'true';
-              positionObserver.disconnect();
-              clearInterval(positionChecker);
-            }
-          }
-        });
-      });
-      manualPositionObserver.observe(button, {
-        attributes: true,
-        attributeFilter: ['style', 'class']
-      });
-
-      // Cleanup
-      window.addEventListener('beforeunload', function() {
-        positionObserver.disconnect();
-        manualPositionObserver.disconnect();
-        clearInterval(positionChecker);
-      });
-    }
+    // Note: Auto-positioning is handled by the theme editor (admin side)
+    // The button position is determined by where the merchant places the app block in the theme editor
 
     // Consolidated MutationObserver for config changes
     const configObserver = new MutationObserver(function(mutations) {
@@ -1197,8 +1054,7 @@
 
     return {
       button: button,
-      applyConfig: applyButtonConfig,
-      position: positionButton
+      applyConfig: applyButtonConfig
     };
   };
 
@@ -1221,7 +1077,7 @@
         marginBottom: btn.dataset.marginBottom || '0.75',
         marginLeft: btn.dataset.marginLeft || '0',
         marginRight: btn.dataset.marginRight || '0',
-        customCss: '',
+        customCss: btn.dataset.customCss || '',
         widgetUrl: btn.dataset.widgetUrl || '',
         shopDomain: btn.dataset.shopDomain || ''
       };

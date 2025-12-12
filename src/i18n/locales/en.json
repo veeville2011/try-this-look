@@ -209,7 +209,7 @@
       "step2Instruction1": "In the theme editor, open a product page",
       "step2Instruction2": "Click Add Block in the desired section",
       "step2Instruction3": "In the Apps category, select \"NUSENSE Try-On Button\"",
-      "step2Instruction4": "Customize the button text, style, and other settings (button will automatically position above Add to Cart if detected correctly, otherwise position manually)",
+      "step2Instruction4": "Customize the button text, style, and other settings. Position the button by dragging the app block in the theme editor to your desired location.",
       "step2Instruction5": "Rearrange the block by dragging if necessary, then click Save",
       "step2Important": "Important:",
       "step2ImportantText": "App blocks are available only on Online Store 2.0 themes (JSON templates). Update your theme if necessary.",

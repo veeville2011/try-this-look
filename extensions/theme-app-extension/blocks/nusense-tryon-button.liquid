@@ -261,15 +261,12 @@
       "info": "Enable to make button full width. Disable to allow flexible width (can be placed next to other buttons)"
     },
     {
-      "type": "checkbox",
-      "id": "auto_position_above_cart",
-      "label": "Auto-position Above Add to Cart",
-      "default": true,
-      "info": "Automatically position the button above the Add to Cart button on product pages"
-    },
-    {
       "type": "header",
       "content": "Positioning & Spacing"
+    },
+    {
+      "type": "paragraph",
+      "content": "Position the button by dragging the app block in the theme editor. Use the spacing settings below to adjust margins around the button."
     },
     {
       "type": "select",
@@ -424,6 +421,7 @@
 {% assign margin_bottom = block.settings.margin_bottom | default: 0.8 %}
 {% assign margin_left = block.settings.margin_left | default: 0 %}
 {% assign margin_right = block.settings.margin_right | default: 0 %}
+{% assign custom_css = block.settings.custom_css %}
 
 {% comment %}
   Handle checkbox values - they can be true, false, or nil
@@ -438,12 +436,6 @@
   {% assign button_width_full = true %}
 {% else %}
   {% assign button_width_full = false %}
-{% endif %}
-
-{% if block.settings.auto_position_above_cart == true or block.settings.auto_position_above_cart == 'true' %}
-  {% assign auto_position_above_cart = true %}
-{% else %}
-  {% assign auto_position_above_cart = false %}
 {% endif %}
 
 {% comment %}
@@ -478,7 +470,6 @@
   data-button-style="{{ button_style }}"
   data-show-icon="{{ show_icon }}"
   data-button-width-full="{{ button_width_full }}"
-  data-auto-position="{{ auto_position_above_cart }}"
   data-background-color="{{ button_background_color }}"
   data-text-color="{{ button_text_color }}"
   data-border-color="{{ button_border_color }}"
@@ -491,6 +482,7 @@
   data-margin-left="{{ margin_left }}"
   data-margin-right="{{ margin_right }}"
   data-button-icon="{{ button_icon }}"
+  data-custom-css="{{ custom_css }}"
   data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
   data-loading="true"
   style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
