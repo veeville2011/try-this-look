@@ -18,6 +18,53 @@
     };
   };
 
+  // Color manipulation utilities
+  const lightenColor = function(color, amount) {
+    try {
+      if (color.startsWith('#')) {
+        const rgb = parseInt(color.slice(1), 16);
+        const r = Math.min(255, ((rgb >> 16) & 0xff) + Math.round(255 * amount));
+        const g = Math.min(255, ((rgb >> 8) & 0xff) + Math.round(255 * amount));
+        const b = Math.min(255, (rgb & 0xff) + Math.round(255 * amount));
+        return `rgb(${r}, ${g}, ${b})`;
+      } else if (color.startsWith('rgb')) {
+        const matches = color.match(/\d+/g);
+        if (matches && matches.length >= 3) {
+          const r = Math.min(255, parseInt(matches[0]) + Math.round(255 * amount));
+          const g = Math.min(255, parseInt(matches[1]) + Math.round(255 * amount));
+          const b = Math.min(255, parseInt(matches[2]) + Math.round(255 * amount));
+          return `rgb(${r}, ${g}, ${b})`;
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    return color;
+  };
+
+  const darkenColor = function(color, amount) {
+    try {
+      if (color.startsWith('#')) {
+        const rgb = parseInt(color.slice(1), 16);
+        const r = Math.max(0, ((rgb >> 16) & 0xff) * (1 - amount));
+        const g = Math.max(0, ((rgb >> 8) & 0xff) * (1 - amount));
+        const b = Math.max(0, (rgb & 0xff) * (1 - amount));
+        return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+      } else if (color.startsWith('rgb')) {
+        const matches = color.match(/\d+/g);
+        if (matches && matches.length >= 3) {
+          const r = Math.max(0, parseInt(matches[0]) * (1 - amount));
+          const g = Math.max(0, parseInt(matches[1]) * (1 - amount));
+          const b = Math.max(0, parseInt(matches[2]) * (1 - amount));
+          return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    return color;
+  };
+
   // Initialize button instance
   const initButton = function(buttonId, config) {
     const button = document.getElementById(buttonId);
@@ -341,17 +388,49 @@
         const showIcon = button.dataset.showIcon === 'true' || button.dataset.showIcon === true;
         const buttonWidthFull = button.dataset.buttonWidthFull === 'true' || button.dataset.buttonWidthFull === true;
         
-        // Get custom color/size settings
-        const customBgColor = button.dataset.backgroundColor || config.buttonBackgroundColor || '';
-        const customTextColor = button.dataset.textColor || config.buttonTextColor || '';
-        const customBorderColor = button.dataset.borderColor || config.buttonBorderColor || '';
-        const customFontSize = button.dataset.fontSize || config.buttonFontSize || '';
-        const customPadding = button.dataset.padding || config.buttonPadding || '';
-        const customBorderRadius = button.dataset.borderRadius || config.buttonBorderRadius || '';
-        const customCss = button.dataset.customCss || config.customCss || '';
+        // Get custom color/size settings - properly handle empty strings from Liquid
+        // Use getAttribute to check if attribute exists, then check if it has a value
+        const getDataAttribute = function(attrName, configKey, defaultValue) {
+          const attrValue = button.getAttribute('data-' + attrName);
+          if (attrValue !== null && attrValue !== undefined && attrValue.trim() !== '') {
+            return attrValue.trim();
+          }
+          if (config && config[configKey] && config[configKey].toString().trim() !== '') {
+            return config[configKey].toString().trim();
+          }
+          return defaultValue || '';
+        };
+        
+        const customBgColor = getDataAttribute('background-color', 'buttonBackgroundColor', '');
+        const customTextColor = getDataAttribute('text-color', 'buttonTextColor', '');
+        const customBorderColor = getDataAttribute('border-color', 'buttonBorderColor', '');
+        const customFontSize = getDataAttribute('font-size', 'buttonFontSize', '');
+        const customPadding = getDataAttribute('padding', 'buttonPadding', '');
+        const customBorderRadius = getDataAttribute('border-radius', 'buttonBorderRadius', '');
+        const customCss = getDataAttribute('custom-css', 'customCss', '');
         
         // Build class list
         let classes = 'nusense-tryon-button';
+        
+        // ============================================
+        // PRIORITY ORDER FOR BUTTON STYLING:
+        // ============================================
+        // 1. CUSTOM SETTINGS (HIGHEST PRIORITY)
+        //    - Custom Background Color
+        //    - Custom Text Color
+        //    - Custom Border Color
+        //    - Custom Font Size
+        //    - Custom Padding
+        //    - Custom Border Radius
+        //    - Custom CSS
+        //
+        // 2. THEME-DETECTED VALUES (MEDIUM PRIORITY)
+        //    - Colors/styles from matching theme buttons (Add to Cart, Buy Now, Primary)
+        //    - Theme colors from CSS variables
+        //
+        // 3. DEFAULT VALUES (LOWEST PRIORITY)
+        //    - Hardcoded defaults (#000000, #ffffff, etc.)
+        // ============================================
         
         // Apply primary button styling
         if (buttonStyle === 'primary') {
@@ -362,7 +441,9 @@
           // Declare color variables in outer scope for hover effects
           let primaryBg, primaryText, primaryBorder;
           
-          // Cascading fallback: Add to Cart → Buy Now → Primary Button → Theme Colors → Defaults
+          // STEP 1: Copy styles from matching theme button (if found)
+          // Priority: Add to Cart → Buy Now → Primary Button
+          // NOTE: Custom settings will override these copied styles below
           if (themeColors.matchingButton) {
             const matchingBtn = themeColors.matchingButton;
             const computed = matchingBtn.computed;
@@ -396,27 +477,43 @@
               classes += ' ' + matchingClasses.join(' ');
             }
             
-            // Apply colors (custom colors override detected colors)
-            primaryBg = customBgColor && customBgColor.trim() ? customBgColor : 
-                       (themeColors.primaryBg || computed.getPropertyValue('background-color') || '#000000');
-            primaryText = customTextColor && customTextColor.trim() ? customTextColor : 
-                         (themeColors.primaryText || computed.getPropertyValue('color') || '#ffffff');
-            primaryBorder = customBorderColor && customBorderColor.trim() ? customBorderColor : 
-                          (themeColors.primaryBorder || computed.getPropertyValue('border-color') || primaryBg);
+            // STEP 2: Apply colors with PRIORITY ORDER
+            // Priority 1: Custom colors (HIGHEST)
+            // Priority 2: Theme-detected colors from matching button
+            // Priority 3: Theme colors from CSS variables
+            // Priority 4: Defaults
+            if (customBgColor) {
+              primaryBg = customBgColor; // CUSTOM SETTING - HIGHEST PRIORITY
+            } else {
+              primaryBg = themeColors.primaryBg || computed.getPropertyValue('background-color') || '#000000';
+            }
+            
+            if (customTextColor) {
+              primaryText = customTextColor; // CUSTOM SETTING - HIGHEST PRIORITY
+            } else {
+              primaryText = themeColors.primaryText || computed.getPropertyValue('color') || '#ffffff';
+            }
+            
+            if (customBorderColor) {
+              primaryBorder = customBorderColor; // CUSTOM SETTING - HIGHEST PRIORITY
+            } else {
+              primaryBorder = themeColors.primaryBorder || computed.getPropertyValue('border-color') || primaryBg;
+            }
             
             button.style.backgroundColor = primaryBg;
             button.style.color = primaryText;
             button.style.borderColor = primaryBorder;
             
-            // Apply custom sizes if provided (override copied styles)
-            if (customFontSize && customFontSize !== config.buttonFontSize) {
-              button.style.fontSize = `${customFontSize}px`;
+            // STEP 3: Apply custom sizes (OVERRIDE copied styles)
+            // Custom sizes ALWAYS override theme-detected sizes
+            if (customFontSize) {
+              button.style.fontSize = `${customFontSize}px`; // CUSTOM SETTING - HIGHEST PRIORITY
             }
-            if (customPadding && customPadding !== config.buttonPadding) {
-              button.style.padding = `${customPadding}rem 1.5rem`;
+            if (customPadding) {
+              button.style.padding = `${customPadding}rem 1.5rem`; // CUSTOM SETTING - HIGHEST PRIORITY
             }
-            if (customBorderRadius && customBorderRadius !== config.buttonBorderRadius) {
-              button.style.borderRadius = `${customBorderRadius}px`;
+            if (customBorderRadius) {
+              button.style.borderRadius = `${customBorderRadius}px`; // CUSTOM SETTING - HIGHEST PRIORITY
             }
           } else {
             // No matching button found (Add to Cart, Buy Now, or Primary)
@@ -427,18 +524,34 @@
             // 3. Theme uses non-standard button structure
             // 4. Buttons are hidden or in a different context
             
-            // Use theme colors from CSS variables (detected in detectThemeColors)
-            primaryBg = customBgColor && customBgColor.trim() ? customBgColor : 
-                       (themeColors.primaryBg || '#000000');
-            primaryText = customTextColor && customTextColor.trim() ? customTextColor : 
-                         (themeColors.primaryText || '#ffffff');
-            primaryBorder = customBorderColor && customBorderColor.trim() ? customBorderColor : 
-                          (themeColors.primaryBorder || primaryBg);
+            // Apply colors with PRIORITY ORDER
+            // Priority 1: Custom colors (HIGHEST)
+            // Priority 2: Theme colors from CSS variables
+            // Priority 3: Defaults
+            if (customBgColor) {
+              primaryBg = customBgColor; // CUSTOM SETTING - HIGHEST PRIORITY
+            } else {
+              primaryBg = themeColors.primaryBg || '#000000';
+            }
             
-            // Apply standard primary button styling with theme colors or defaults
-            const fontSize = customFontSize && customFontSize !== config.buttonFontSize ? `${customFontSize}px` : '1rem';
-            const padding = customPadding && customPadding !== config.buttonPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem';
-            const borderRadius = customBorderRadius && customBorderRadius !== config.buttonBorderRadius ? `${customBorderRadius}px` : '4px';
+            if (customTextColor) {
+              primaryText = customTextColor; // CUSTOM SETTING - HIGHEST PRIORITY
+            } else {
+              primaryText = themeColors.primaryText || '#ffffff';
+            }
+            
+            if (customBorderColor) {
+              primaryBorder = customBorderColor; // CUSTOM SETTING - HIGHEST PRIORITY
+            } else {
+              primaryBorder = themeColors.primaryBorder || primaryBg;
+            }
+            
+            // Apply sizes with PRIORITY ORDER
+            // Priority 1: Custom sizes (HIGHEST)
+            // Priority 2: Defaults
+            const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+            const padding = customPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+            const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
             
             button.style.backgroundColor = primaryBg;
             button.style.color = primaryText;
@@ -534,10 +647,197 @@
           
         } else if (buttonStyle === 'secondary') {
           classes += ' button button--secondary btn btn-secondary';
+          
+          // Apply secondary button styling
+          const themeColors = detectThemeColors();
+          
+          // Apply colors with PRIORITY ORDER
+          // Priority 1: Custom colors (HIGHEST)
+          // Priority 2: Theme colors (lightened primary)
+          // Priority 3: Defaults
+          let secondaryBg, secondaryText, secondaryBorder;
+          
+          if (customBgColor) {
+            secondaryBg = customBgColor; // CUSTOM SETTING - HIGHEST PRIORITY
+          } else {
+            secondaryBg = themeColors.primaryBg ? lightenColor(themeColors.primaryBg, 0.2) : '#f5f5f5';
+          }
+          
+          if (customTextColor) {
+            secondaryText = customTextColor; // CUSTOM SETTING - HIGHEST PRIORITY
+          } else {
+            secondaryText = themeColors.primaryBg || '#000000';
+          }
+          
+          if (customBorderColor) {
+            secondaryBorder = customBorderColor; // CUSTOM SETTING - HIGHEST PRIORITY
+          } else {
+            secondaryBorder = themeColors.primaryBg || '#e0e0e0';
+          }
+          
+          // Apply sizes with PRIORITY ORDER
+          // Priority 1: Custom sizes (HIGHEST)
+          // Priority 2: Defaults
+          const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+          const padding = customPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+          const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+          
+          button.style.backgroundColor = secondaryBg;
+          button.style.color = secondaryText;
+          button.style.border = `1px solid ${secondaryBorder}`;
+          button.style.borderRadius = borderRadius;
+          button.style.padding = padding;
+          button.style.fontSize = fontSize;
+          button.style.fontWeight = '600';
+          button.style.minHeight = '44px';
+          button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+          button.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          button.style.cursor = 'pointer';
+          button.style.display = 'inline-flex';
+          button.style.alignItems = 'center';
+          button.style.justifyContent = 'center';
+          button.style.userSelect = 'none';
+          
+          // Hover effect for secondary
+          const originalSecondaryBg = secondaryBg;
+          const hoverSecondaryBg = darkenColor(secondaryBg, 0.1);
+          button.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = hoverSecondaryBg;
+            this.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+          });
+          button.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = originalSecondaryBg;
+            this.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          });
+          
         } else if (buttonStyle === 'outline') {
           classes += ' button button--outline btn btn-outline';
+          
+          // Apply outline button styling
+          const themeColors = detectThemeColors();
+          
+          // Apply colors with PRIORITY ORDER
+          // Priority 1: Custom colors (HIGHEST)
+          // Priority 2: Theme colors
+          // Priority 3: Defaults
+          let outlineBg = 'transparent';
+          let outlineText, outlineBorder;
+          
+          if (customTextColor) {
+            outlineText = customTextColor; // CUSTOM SETTING - HIGHEST PRIORITY
+          } else {
+            outlineText = themeColors.primaryBg || '#000000';
+          }
+          
+          if (customBorderColor) {
+            outlineBorder = customBorderColor; // CUSTOM SETTING - HIGHEST PRIORITY
+          } else {
+            outlineBorder = themeColors.primaryBg || '#000000';
+          }
+          
+          // Apply sizes with PRIORITY ORDER
+          // Priority 1: Custom sizes (HIGHEST)
+          // Priority 2: Defaults
+          const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+          const padding = customPadding ? `${customPadding}rem 1.5rem` : '0.75rem 1.5rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+          const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+          
+          button.style.backgroundColor = outlineBg;
+          button.style.color = outlineText;
+          button.style.border = `2px solid ${outlineBorder}`;
+          button.style.borderRadius = borderRadius;
+          button.style.padding = padding;
+          button.style.fontSize = fontSize;
+          button.style.fontWeight = '600';
+          button.style.minHeight = '44px';
+          button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+          button.style.boxShadow = 'none';
+          button.style.cursor = 'pointer';
+          button.style.display = 'inline-flex';
+          button.style.alignItems = 'center';
+          button.style.justifyContent = 'center';
+          button.style.userSelect = 'none';
+          
+          // Hover effect for outline
+          const hoverOutlineBg = outlineBorder;
+          const hoverOutlineText = customTextColor ? customTextColor : '#ffffff';
+          button.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = hoverOutlineBg;
+            this.style.color = hoverOutlineText;
+            this.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+          });
+          button.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = outlineBg;
+            this.style.color = outlineText;
+            this.style.boxShadow = 'none';
+          });
+          
         } else if (buttonStyle === 'minimal') {
           classes += ' button button--tertiary btn btn-link';
+          
+          // Apply minimal button styling
+          const themeColors = detectThemeColors();
+          
+          // Apply colors with PRIORITY ORDER
+          // Priority 1: Custom colors (HIGHEST)
+          // Priority 2: Theme colors
+          // Priority 3: Defaults
+          let minimalBg = 'transparent';
+          let minimalText, minimalBorder = 'transparent';
+          
+          if (customTextColor) {
+            minimalText = customTextColor; // CUSTOM SETTING - HIGHEST PRIORITY
+          } else {
+            minimalText = themeColors.primaryBg || '#000000';
+          }
+          
+          // Apply sizes with PRIORITY ORDER
+          // Priority 1: Custom sizes (HIGHEST)
+          // Priority 2: Defaults
+          const fontSize = customFontSize ? `${customFontSize}px` : '1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+          const padding = customPadding ? `${customPadding}rem 1rem` : '0.5rem 1rem'; // CUSTOM SETTING - HIGHEST PRIORITY
+          const borderRadius = customBorderRadius ? `${customBorderRadius}px` : '4px'; // CUSTOM SETTING - HIGHEST PRIORITY
+          
+          button.style.backgroundColor = minimalBg;
+          button.style.color = minimalText;
+          button.style.border = `1px solid ${minimalBorder}`;
+          button.style.borderRadius = borderRadius;
+          button.style.padding = padding;
+          button.style.fontSize = fontSize;
+          button.style.fontWeight = '500';
+          button.style.minHeight = '44px';
+          button.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+          button.style.boxShadow = 'none';
+          button.style.textDecoration = 'none';
+          button.style.cursor = 'pointer';
+          button.style.display = 'inline-flex';
+          button.style.alignItems = 'center';
+          button.style.justifyContent = 'center';
+          button.style.userSelect = 'none';
+          
+          // Hover effect for minimal
+          const hoverMinimalBg = customBgColor ? lightenColor(customBgColor, 0.9) : 'rgba(0, 0, 0, 0.05)';
+          button.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = hoverMinimalBg;
+            this.style.textDecoration = 'underline';
+          });
+          button.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = minimalBg;
+            this.style.textDecoration = 'none';
+          });
+        }
+        
+        // Apply custom sizes to ALL button styles (if not already applied above)
+        if (buttonStyle !== 'primary' && buttonStyle !== 'secondary' && buttonStyle !== 'outline' && buttonStyle !== 'minimal') {
+          if (customFontSize) {
+            button.style.fontSize = `${customFontSize}px`;
+          }
+          if (customPadding) {
+            button.style.padding = `${customPadding}rem 1.5rem`;
+          }
+          if (customBorderRadius) {
+            button.style.borderRadius = `${customBorderRadius}px`;
+          }
         }
         
         // Apply full width
@@ -559,8 +859,8 @@
           }
         }
         
-        // Apply custom CSS if provided
-        if (customCss && customCss.trim() && customCss !== config.customCss) {
+        // Apply custom CSS if provided - use scoped selector for better specificity
+        if (customCss) {
           let existingStyle = document.getElementById('nusense-custom-css-' + buttonId);
           if (existingStyle) {
             existingStyle.remove();
@@ -568,7 +868,16 @@
           
           const styleTag = document.createElement('style');
           styleTag.id = 'nusense-custom-css-' + buttonId;
-          styleTag.textContent = customCss;
+          // Scope the CSS to this specific button for better specificity
+          let scopedCss = customCss;
+          // If CSS contains .nusense-tryon-button, scope it to this button ID
+          if (scopedCss.includes('.nusense-tryon-button')) {
+            scopedCss = scopedCss.replace(/\.nusense-tryon-button/g, `#${buttonId}.nusense-tryon-button`);
+          } else {
+            // If no selector is provided, wrap the CSS with the button ID selector
+            scopedCss = `#${buttonId}.nusense-tryon-button { ${scopedCss} }`;
+          }
+          styleTag.textContent = scopedCss;
           document.head.appendChild(styleTag);
         }
         
@@ -576,7 +885,7 @@
         applyPositioning(
           button.dataset.alignment || config.buttonAlignment || 'auto',
           button.dataset.marginTop || config.marginTop || '0',
-          button.dataset.marginBottom || config.marginBottom || '0.75',
+          button.dataset.marginBottom || config.marginBottom || '0',
           button.dataset.marginLeft || config.marginLeft || '0',
           button.dataset.marginRight || config.marginRight || '0'
         );
