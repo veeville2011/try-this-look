@@ -26,11 +26,22 @@ import {
   Tag,
   Coins,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
@@ -54,6 +65,7 @@ const Index = () => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
 
@@ -174,15 +186,9 @@ const Index = () => {
       return;
     }
 
-    // Confirmation dialog
-    const confirmed = window.confirm(t("index.errors.confirmCancel"));
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
       setCancelling(true);
+      setShowCancelDialog(false); // Close dialog
 
       // Use remote API service
       const data = await cancelSubscription(
@@ -194,10 +200,11 @@ const Index = () => {
       // Refresh subscription status
       await refreshSubscription();
 
+      toast.success(t("index.planCard.subscriptionCancelled") || "Subscription cancelled successfully");
       console.log("[Billing] Subscription cancelled successfully", data);
     } catch (error: any) {
       console.error("[Billing] Failed to cancel subscription", error);
-      alert(error.message || t("index.errors.cancelError"));
+      toast.error(error.message || t("index.errors.cancelError") || "Failed to cancel subscription");
     } finally {
       setCancelling(false);
     }
@@ -1141,21 +1148,80 @@ const Index = () => {
                              subscription.subscription !== null && 
                              !subscription.isFree && 
                              subscription.subscription?.id ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                                  onClick={handleCancelSubscription}
-                                  disabled={cancelling}
-                                  aria-label={cancelling
-                                    ? t("index.planCard.cancelling")
-                                    : t("index.planCard.cancelSubscription")}
-                                >
-                                  <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                                  {cancelling
-                                    ? t("index.planCard.cancelling")
-                                    : t("index.planCard.cancelSubscription")}
-                                </Button>
+                                <>
+                                  <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                                    <AlertDialogContent className="bg-card border-border shadow-lg max-w-md">
+                                      <AlertDialogHeader className="space-y-4">
+                                        {/* Warning Icon Section */}
+                                        <div className="flex items-center gap-3">
+                                          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 border border-destructive/20 flex-shrink-0">
+                                            <AlertTriangle className="w-5 h-5 text-destructive" aria-hidden="true" />
+                                          </div>
+                                          <AlertDialogTitle className="text-lg font-semibold text-foreground leading-tight">
+                                            {t("index.planCard.confirmCancelTitle") || "Cancel Subscription"}
+                                          </AlertDialogTitle>
+                                        </div>
+                                        <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed pt-2">
+                                          {t("index.errors.confirmCancel") || "Are you sure you want to cancel your subscription? Your subscription will remain active until the end of the current billing period."}
+                                        </AlertDialogDescription>
+                                        {/* Warning Info Box */}
+                                        <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg mt-2">
+                                          <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                            <Shield
+                                              className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
+                                              aria-hidden="true"
+                                            />
+                                            <span>
+                                              <strong className="font-semibold text-foreground">
+                                                {t("index.planCard.important") || "Important:"}{" "}
+                                              </strong>
+                                              {t("index.planCard.cancelWarning") || "You'll continue to have access to all features until your current billing period ends."}
+                                            </span>
+                                          </p>
+                                        </div>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-6">
+                                        <AlertDialogCancel 
+                                          className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 mt-0"
+                                        >
+                                          {t("common.cancel") || "Keep Subscription"}
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={handleCancelSubscription}
+                                          disabled={cancelling}
+                                          className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive/20 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                        >
+                                          {cancelling ? (
+                                            <>
+                                              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-destructive-foreground mr-1.5" aria-hidden="true" />
+                                              {t("index.planCard.cancelling") || "Cancelling..."}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                                              {t("index.planCard.confirmCancel") || "Yes, Cancel Subscription"}
+                                            </>
+                                          )}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                    onClick={() => setShowCancelDialog(true)}
+                                    disabled={cancelling}
+                                    aria-label={cancelling
+                                      ? t("index.planCard.cancelling")
+                                      : t("index.planCard.cancelSubscription")}
+                                  >
+                                    <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                                    {cancelling
+                                      ? t("index.planCard.cancelling")
+                                      : t("index.planCard.cancelSubscription")}
+                                  </Button>
+                                </>
                               ) : (
                                 <div className="w-full" aria-hidden="true" />
                               )}
