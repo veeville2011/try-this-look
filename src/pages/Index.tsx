@@ -1184,7 +1184,7 @@ const Index = () => {
                                         <AlertDialogCancel 
                                           className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 mt-0"
                                         >
-                                          {t("common.cancel") || "Keep Subscription"}
+                                          {t("index.planCard.keepSubscription") || t("common.cancel") || "Keep Subscription"}
                                         </AlertDialogCancel>
                                         <AlertDialogAction
                                           onClick={handleCancelSubscription}
