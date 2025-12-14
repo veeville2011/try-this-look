@@ -1,0 +1,874 @@
+{% comment %}
+  NUSENSE TryON Button App Embed Block
+  This is an app embed block that displays the try-on button on product pages
+  Merchants can add this app embed to their theme layout via the theme customizer
+  The button will automatically appear on all product pages
+  All customization, styling, and positioning options are maintained exactly as the app block version
+{% endcomment %}
+
+{% comment %} Include the snippet that sets up image extraction and communication {% endcomment %}
+{% render 'nusense-tryon-script' %}
+
+{% comment %} Fallback styles for button - ensures primary styling is always visible {% endcomment %}
+<style>
+  .nusense-tryon-button {
+    /* Base button styles - ensures button is always visible and clickable */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer !important;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 44px !important;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    will-change: transform, box-shadow;
+  }
+  
+  /* Primary button fallback styling - applied by default */
+  .nusense-tryon-button.button--primary,
+  .nusense-tryon-button.btn-primary,
+  .nusense-tryon-button.btn--primary,
+  .nusense-tryon-button.button,
+  .nusense-tryon-button.btn {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em;
+  }
+  
+  .nusense-tryon-button.button--primary:hover,
+  .nusense-tryon-button.btn-primary:hover,
+  .nusense-tryon-button.btn--primary:hover,
+  .nusense-tryon-button.button:hover,
+  .nusense-tryon-button.btn:hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-1px);
+    opacity: 1 !important;
+  }
+  
+  .nusense-tryon-button.button--primary:focus,
+  .nusense-tryon-button.btn-primary:focus,
+  .nusense-tryon-button.btn--primary:focus,
+  .nusense-tryon-button.button:focus,
+  .nusense-tryon-button.btn:focus {
+    outline: 2px solid #ffffff !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  .nusense-tryon-button.button--primary:active,
+  .nusense-tryon-button.btn-primary:active,
+  .nusense-tryon-button.btn--primary:active,
+  .nusense-tryon-button.button:active,
+  .nusense-tryon-button.btn:active {
+    background-color: #0d0d0d !important;
+    border-color: #0d0d0d !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    transform: translateY(0);
+  }
+  
+  /* If no theme classes detected at all, ensure perfect primary action button styling */
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]) {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #000000 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Hover state - professional action button hover */
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):hover {
+    background-color: #1a1a1a !important;
+    border-color: #1a1a1a !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-1px);
+    opacity: 1 !important;
+  }
+  
+  /* Focus state - accessibility and keyboard navigation */
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus {
+    outline: 2px solid #ffffff !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus:not(:focus-visible) {
+    outline: none !important;
+  }
+  
+  /* Active/pressed state - provides tactile feedback */
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):active {
+    background-color: #0d0d0d !important;
+    border-color: #0d0d0d !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    transform: translateY(0);
+  }
+  
+  /* Disabled state - when button is loading or disabled */
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[disabled],
+  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[aria-disabled="true"] {
+    background-color: #666666 !important;
+    border-color: #666666 !important;
+    color: #ffffff !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  
+  /* Secondary button fallback styling */
+  .nusense-tryon-button.button--secondary,
+  .nusense-tryon-button.btn-secondary,
+  .nusense-tryon-button.btn--secondary {
+    background-color: #f5f5f5 !important;
+    color: #000000 !important;
+    border: 1px solid #e0e0e0 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  }
+  
+  .nusense-tryon-button.button--secondary:hover,
+  .nusense-tryon-button.btn-secondary:hover,
+  .nusense-tryon-button.btn--secondary:hover {
+    background-color: #e8e8e8 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Outline button fallback styling */
+  .nusense-tryon-button.button--outline,
+  .nusense-tryon-button.btn-outline,
+  .nusense-tryon-button.btn--outline {
+    background-color: transparent !important;
+    color: #000000 !important;
+    border: 2px solid #000000 !important;
+    box-shadow: none !important;
+  }
+  
+  .nusense-tryon-button.button--outline:hover,
+  .nusense-tryon-button.btn-outline:hover,
+  .nusense-tryon-button.btn--outline:hover {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Minimal button fallback styling */
+  .nusense-tryon-button.button--tertiary,
+  .nusense-tryon-button.btn-link,
+  .nusense-tryon-button.btn--link {
+    background-color: transparent !important;
+    color: #000000 !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+  }
+  
+  .nusense-tryon-button.button--tertiary:hover,
+  .nusense-tryon-button.btn-link:hover,
+  .nusense-tryon-button.btn--link:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    text-decoration: underline !important;
+  }
+  
+  /* Full width */
+  .nusense-tryon-button.button--full-width,
+  .nusense-tryon-button.btn-block,
+  .nusense-tryon-button.btn--full-width {
+    width: 100% !important;
+  }
+  
+  /* Ensure button text is visible */
+  .nusense-tryon-button .button__text {
+    color: inherit !important;
+  }
+  
+  /* Ensure button is always visible */
+  .nusense-tryon-button[style*="display: none"] {
+    display: inline-flex !important;
+  }
+  
+  /* Loading state */
+  .nusense-tryon-button[data-loading="true"] {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  
+  /* Widget overlay styles */
+  .nusense-widget-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .nusense-widget-container {
+    position: relative;
+    width: 95vw;
+    max-width: 1200px;
+    height: 90vh;
+  }
+  
+  .nusense-widget-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .nusense-widget-close:hover {
+    background: #f0f0f0;
+  }
+  
+  .nusense-widget-close:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+
+  /* Container for embed button - hidden by default, shown only on product pages */
+  .nusense-tryon-button-embed-container {
+    display: none;
+  }
+  
+  .nusense-tryon-button-embed-container.is-product-page {
+    display: block;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "NUSENSE Try-On Button",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "Try Now"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button Style",
+      "options": [
+        {
+          "value": "primary",
+          "label": "Primary"
+        },
+        {
+          "value": "secondary",
+          "label": "Secondary"
+        },
+        {
+          "value": "outline",
+          "label": "Outline"
+        },
+        {
+          "value": "minimal",
+          "label": "Minimal"
+        }
+      ],
+      "default": "primary"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_icon",
+      "label": "Show Icon",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_icon",
+      "label": "Button Icon (emoji)",
+      "default": "✨"
+    },
+    {
+      "type": "checkbox",
+      "id": "button_width_full",
+      "label": "Full Width Button",
+      "default": true,
+      "info": "Enable to make button full width. Disable to allow flexible width (can be placed next to other buttons)"
+    },
+    {
+      "type": "header",
+      "content": "Positioning & Spacing"
+    },
+    {
+      "type": "paragraph",
+      "content": "The button will automatically appear on all product pages. Use the spacing settings below to adjust margins around the button."
+    },
+    {
+      "type": "select",
+      "id": "button_alignment",
+      "label": "Button Alignment",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Match Theme)"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "auto",
+      "info": "Horizontal alignment of the button. 'Auto' matches the Add to Cart button alignment."
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "label": "Top Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space above the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "label": "Bottom Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space below the button (spacing before Add to Cart button)"
+    },
+    {
+      "type": "range",
+      "id": "margin_left",
+      "label": "Left Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the left of the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_right",
+      "label": "Right Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the right of the button"
+    },
+    {
+      "type": "header",
+      "content": "Advanced Customization"
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Button Background Color",
+      "info": "Override theme colors with a custom background color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "info": "Override theme colors with a custom text color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button Border Color",
+      "info": "Override theme colors with a custom border color. Leave empty to use theme colors."
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "Font Size (px)",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16,
+      "unit": "px",
+      "info": "Customize button font size"
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "label": "Padding (rem)",
+      "min": 0.2,
+      "max": 3,
+      "step": 0.2,
+      "default": 0.8,
+      "unit": "rem",
+      "info": "Customize button padding"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Border Radius (px)",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "default": 4,
+      "unit": "px",
+      "info": "Customize button border radius"
+    },
+    {
+      "type": "text",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "info": "Add custom CSS to further customize the button. Use selector: .nusense-tryon-button",
+      "placeholder": ".nusense-tryon-button { /* your styles */ }"
+    }
+  ]
+}
+{% endschema %}
+
+{% comment %}
+  Read all block settings with proper defaults
+  Checkboxes return true/false or nil, so we need to handle them properly
+{% endcomment %}
+{% assign button_text = block.settings.button_text | default: 'Try Now' %}
+{% assign button_style = block.settings.button_style | default: 'primary' %}
+{% assign button_icon = block.settings.button_icon | default: '✨' %}
+{% assign button_background_color = block.settings.button_background_color %}
+{% assign button_text_color = block.settings.button_text_color %}
+{% assign button_border_color = block.settings.button_border_color %}
+{% assign button_font_size = block.settings.button_font_size | default: 16 %}
+{% assign button_padding = block.settings.button_padding | default: 0.8 %}
+{% assign button_border_radius = block.settings.button_border_radius | default: 4 %}
+{% assign button_alignment = block.settings.button_alignment | default: 'auto' %}
+{% assign margin_top = block.settings.margin_top | default: 0 %}
+{% assign margin_bottom = block.settings.margin_bottom | default: 0 %}
+{% assign margin_left = block.settings.margin_left | default: 0 %}
+{% assign margin_right = block.settings.margin_right | default: 0 %}
+{% assign custom_css = block.settings.custom_css %}
+
+{% comment %}
+  Handle checkbox values - they can be true, false, or nil
+{% endcomment %}
+{% if block.settings.show_icon == true or block.settings.show_icon == 'true' %}
+  {% assign show_icon = true %}
+{% else %}
+  {% assign show_icon = false %}
+{% endif %}
+
+{% if block.settings.button_width_full == true or block.settings.button_width_full == 'true' %}
+  {% assign button_width_full = true %}
+{% else %}
+  {% assign button_width_full = false %}
+{% endif %}
+
+{% comment %}
+  Build button classes based on style variant
+  Shopify themes use various naming conventions:
+  - Dawn/Debut: button, button--primary, button--secondary, button--outline
+  - Custom themes: btn, btn-primary, btn-secondary, etc.
+  We'll use JavaScript to detect and match the theme's button classes
+{% endcomment %}
+{% assign button_classes = 'button nusense-tryon-button' %}
+{% case button_style %}
+  {% when 'secondary' %}
+    {% assign button_classes = button_classes | append: ' button--secondary' %}
+  {% when 'outline' %}
+    {% assign button_classes = button_classes | append: ' button--outline' %}
+  {% when 'minimal' %}
+    {% assign button_classes = button_classes | append: ' button--tertiary' %}
+  {% else %}
+    {% assign button_classes = button_classes | append: ' button--primary' %}
+{% endcase %}
+{% if button_width_full %}
+  {% assign button_classes = button_classes | append: ' button--full-width' %}
+{% endif %}
+
+{% comment %}
+  App Embed Block: Button container that will be dynamically positioned on product pages
+  The button will only be visible on product pages and will be inserted near the Add to Cart button
+{% endcomment %}
+<div 
+  id="nusense-tryon-button-embed-{{ block.id }}" 
+  class="nusense-tryon-button-embed-container"
+  data-block-id="{{ block.id }}"
+  data-button-text="{{ button_text }}"
+  data-button-style="{{ button_style }}"
+  data-button-icon="{{ button_icon }}"
+  data-show-icon="{{ show_icon }}"
+  data-button-width-full="{{ button_width_full }}"
+  data-button-classes="{{ button_classes }}"
+  data-button-alignment="{{ button_alignment }}"
+  data-margin-top="{{ margin_top }}"
+  data-margin-bottom="{{ margin_bottom }}"
+  data-margin-left="{{ margin_left }}"
+  data-margin-right="{{ margin_right }}"
+  {% if button_background_color != blank %}data-background-color="{{ button_background_color }}"{% endif %}
+  {% if button_text_color != blank %}data-text-color="{{ button_text_color }}"{% endif %}
+  {% if button_border_color != blank %}data-border-color="{{ button_border_color }}"{% endif %}
+  {% if button_font_size != blank %}data-font-size="{{ button_font_size }}"{% endif %}
+  {% if button_padding != blank %}data-padding="{{ button_padding }}"{% endif %}
+  {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius }}"{% endif %}
+  {% if custom_css != blank %}data-custom-css="{{ custom_css }}"{% endif %}
+  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
+  data-shop-domain="{{ shop.permanent_domain }}"
+  style="display: none;"
+>
+  <button 
+    id="nusense-tryon-btn-{{ block.id }}" 
+    class="{{ button_classes }}"
+    aria-label="{{ button_text }}"
+    data-product-id=""
+    data-shop-domain="{{ shop.permanent_domain }}"
+    data-button-style="{{ button_style }}"
+    data-show-icon="{{ show_icon }}"
+    data-button-width-full="{{ button_width_full }}"
+    {% if button_background_color != blank %}data-background-color="{{ button_background_color }}"{% endif %}
+    {% if button_text_color != blank %}data-text-color="{{ button_text_color }}"{% endif %}
+    {% if button_border_color != blank %}data-border-color="{{ button_border_color }}"{% endif %}
+    {% if button_font_size != blank %}data-font-size="{{ button_font_size }}"{% endif %}
+    {% if button_padding != blank %}data-padding="{{ button_padding }}"{% endif %}
+    {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius }}"{% endif %}
+    data-alignment="{{ button_alignment }}"
+    data-margin-top="{{ margin_top }}"
+    data-margin-bottom="{{ margin_bottom }}"
+    data-margin-left="{{ margin_left }}"
+    data-margin-right="{{ margin_right }}"
+    data-button-icon="{{ button_icon }}"
+    {% if custom_css != blank %}data-custom-css="{{ custom_css }}"{% endif %}
+    data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
+    data-loading="true"
+    style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
+  >
+    <span class="button__icon" data-icon="{{ button_icon }}" aria-hidden="true" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon }}</span>
+    <span class="button__text" id="nusense-tryon-desc-{{ block.id }}">{{ button_text }}</span>
+  </button>
+</div>
+
+{% comment %} Load external JavaScript file for button functionality {% endcomment %}
+<script src="{{ 'nusense-tryon-button.js' | asset_url }}" defer></script>
+
+{% comment %}
+  App Embed Block Initialization Script
+  This script detects if we're on a product page and dynamically inserts the button
+  It maintains all styling, positioning, and customization exactly as the app block version
+{% endcomment %}
+<script>
+(function() {
+  'use strict';
+  
+  const blockId = '{{ block.id }}';
+  const containerId = 'nusense-tryon-button-embed-' + blockId;
+  const buttonId = 'nusense-tryon-btn-' + blockId;
+  
+  // Wait for DOM to be ready
+  function initEmbedButton() {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    // Function to detect if we're on a product page
+    function isProductPage() {
+      // Check multiple methods to detect product page
+      
+      // Method 1: Check URL pattern
+      const pathname = window.location.pathname || '';
+      const isProductPath = /\/products\//.test(pathname);
+      
+      // Method 2: Check for product data in window
+      const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
+                             !!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
+      
+      // Method 3: Check for product JSON-LD schema
+      const hasProductSchema = !!document.querySelector('script[type="application/ld+json"]');
+      
+      // Method 4: Check for product form
+      const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
+      
+      // Method 5: Check for common product page selectors
+      const hasProductSelectors = !!(
+        document.querySelector('.product') ||
+        document.querySelector('[data-product-id]') ||
+        document.querySelector('.product-single') ||
+        document.querySelector('.product__info')
+      );
+      
+      return isProductPath || (hasProductData && hasProductForm) || (hasProductSelectors && hasProductForm);
+    }
+    
+    // Function to get product ID from page
+    function getProductId() {
+      // Priority 1: From NUSENSE_PRODUCT_DATA (set by snippet)
+      if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
+        return window.NUSENSE_PRODUCT_DATA.id;
+      }
+      
+      // Priority 2: From window.Shopify.product
+      if (window.Shopify && window.Shopify.product && window.Shopify.product.id) {
+        return window.Shopify.product.id;
+      }
+      
+      // Priority 3: From JSON-LD schema
+      try {
+        const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+        for (let script of schemaScripts) {
+          try {
+            const data = JSON.parse(script.textContent);
+            if (data['@type'] === 'Product' && data.productID) {
+              return parseInt(data.productID, 10);
+            }
+            if (Array.isArray(data) && data[0] && data[0]['@type'] === 'Product' && data[0].productID) {
+              return parseInt(data[0].productID, 10);
+            }
+          } catch (e) {
+            // Continue to next script
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      // Priority 4: From JSON script tags (Shopify 2.0 themes)
+      try {
+        const jsonScripts = document.querySelectorAll('script[type="application/json"]');
+        for (let script of jsonScripts) {
+          try {
+            const data = JSON.parse(script.textContent);
+            if (data.product && data.product.id) {
+              return data.product.id;
+            }
+          } catch (e) {
+            // Continue to next script
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      // Priority 5: From data attributes
+      const productElement = document.querySelector('[data-product-id]');
+      if (productElement) {
+        const productId = productElement.getAttribute('data-product-id');
+        if (productId) {
+          return parseInt(productId, 10);
+        }
+      }
+      
+      // Priority 6: From URL
+      try {
+        const urlMatch = window.location.pathname.match(/\/products\/([^\/]+)/);
+        if (urlMatch) {
+          // Try to find product ID from meta tags or other sources
+          const metaProductId = document.querySelector('meta[property="product:retailer_item_id"]');
+          if (metaProductId) {
+            return parseInt(metaProductId.getAttribute('content'), 10);
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      return null;
+    }
+    
+    // Function to find insertion point for button (near Add to Cart button)
+    function findInsertionPoint() {
+      // Priority 1: Find Add to Cart button/form
+      const addToCartButton = document.querySelector('button[name="add"]') ||
+                              document.querySelector('button[type="submit"][name="add"]') ||
+                              document.querySelector('input[type="submit"][name="add"]') ||
+                              document.querySelector('button[data-add-to-cart]') ||
+                              document.querySelector('[data-add-to-cart-button]');
+      
+      if (addToCartButton) {
+        // Try to find parent container
+        const form = addToCartButton.closest('form');
+        if (form) {
+          // Insert before the form
+          return { element: form, position: 'beforebegin' };
+        }
+        
+        const parent = addToCartButton.parentElement;
+        if (parent) {
+          // Insert before the Add to Cart button
+          return { element: addToCartButton, position: 'beforebegin' };
+        }
+      }
+      
+      // Priority 2: Find product form
+      const productForm = document.querySelector('form[action*="/cart/add"]');
+      if (productForm) {
+        return { element: productForm, position: 'beforebegin' };
+      }
+      
+      // Priority 3: Find product info wrapper
+      const productInfo = document.querySelector('.product__info') ||
+                          document.querySelector('.product-single__meta') ||
+                          document.querySelector('.product-info') ||
+                          document.querySelector('[data-product-info]');
+      
+      if (productInfo) {
+        return { element: productInfo, position: 'inside' };
+      }
+      
+      // Priority 4: Find main product container
+      const productContainer = document.querySelector('.product') ||
+                               document.querySelector('.product-single') ||
+                               document.querySelector('[data-product]') ||
+                               document.querySelector('main');
+      
+      if (productContainer) {
+        return { element: productContainer, position: 'inside' };
+      }
+      
+      // Fallback: Insert into body
+      return { element: document.body, position: 'inside' };
+    }
+    
+    // Function to insert button into page
+    function insertButton() {
+      if (!isProductPage()) {
+        // Not on product page, hide container
+        container.style.display = 'none';
+        return;
+      }
+      
+      const productId = getProductId();
+      if (!productId) {
+        // Can't find product ID, hide container
+        container.style.display = 'none';
+        return;
+      }
+      
+      // Update button with product ID
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.setAttribute('data-product-id', productId);
+      }
+      
+      // Find insertion point
+      const insertion = findInsertionPoint();
+      if (!insertion || !insertion.element) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      // Check if button is already inserted
+      if (container.parentElement && container.parentElement !== document.body) {
+        // Already inserted, just show it
+        container.style.display = 'block';
+        container.classList.add('is-product-page');
+        return;
+      }
+      
+      // Insert button into page
+      try {
+        if (insertion.position === 'inside') {
+          insertion.element.appendChild(container);
+        } else {
+          insertion.element.insertAdjacentElement(insertion.position, container);
+        }
+        
+        // Show container
+        container.style.display = 'block';
+        container.classList.add('is-product-page');
+        
+        // Initialize button styling and positioning (same as app block)
+        // The nusense-tryon-button.js will handle the rest
+        if (button) {
+          // Trigger button initialization if script is loaded
+          if (window.NUSENSE_BUTTON_INITIALIZED) {
+            // Button script already loaded, manually trigger initialization
+            setTimeout(function() {
+              // Button will be initialized by the main script
+            }, 100);
+          }
+        }
+      } catch (e) {
+        // Error inserting button, hide container
+        container.style.display = 'none';
+      }
+    }
+    
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(insertButton, 100);
+      });
+    } else {
+      setTimeout(insertButton, 100);
+    }
+    
+    // Re-check on navigation (for SPA themes)
+    let lastUrl = window.location.href;
+    const checkUrlChange = function() {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        setTimeout(insertButton, 200);
+      }
+    };
+    
+    // Use MutationObserver to detect page changes
+    const observer = new MutationObserver(function() {
+      checkUrlChange();
+    });
+    
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    // Also check on popstate (browser back/forward)
+    window.addEventListener('popstate', function() {
+      setTimeout(insertButton, 200);
+    });
+  }
+  
+  // Initialize when script loads
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEmbedButton);
+  } else {
+    initEmbedButton();
+  }
+})();
+</script>
+
