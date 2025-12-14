@@ -653,7 +653,7 @@
       "clear": "Clear",
       "clearPhoto": "Clear uploaded photo",
       "clearAll": "Clear all",
-      "generate": "Generate virtual try-on",
+      "generate": "Generate",
       "generateImage": "Generate Image",
       "generateMultiple": "Generate {{count}} Image",
       "generateMultiple_plural": "Generate {{count}} Images",
@@ -662,7 +662,8 @@
       "retry": "Retry",
       "addToCart": "Add to Cart",
       "buyNow": "Buy Now",
-      "generateHelp": "Please upload a photo and select a garment to generate the virtual try-on"
+      "generateHelp": "Please upload a photo and select a garment to generate the virtual try-on",
+      "back": "Back"
     },
     "tabs": {
       "ariaLabel": "Try-on mode",
@@ -688,7 +689,7 @@
         "title": "Your Photo"
       },
       "selectClothing": {
-        "title": "Select a Clothing Item",
+        "title": "Select an item",
         "description": "Select a clothing item on this page"
       },
       "selectGarments": {
@@ -740,6 +741,7 @@
       "missingPhotoOrGarments_plural": "Generation requires a photo and at least {{count}} selected items.",
       "unexpectedError": "An unexpected error occurred",
       "generationError": "Generation error",
+      "authenticationRequired": "Please log in to use this service",
       "storeInfoUnavailable": "Store information unavailable",
       "failedToLoadGarmentImage": "Unable to load garment image: {{url}}",
       "failedToLoadImage": "Failed to load image",
@@ -789,12 +791,18 @@
       "srOnlyText": "Upload your photo or use a demo photo",
       "uploadAreaAriaLabel": "Upload your photo - Click or press Enter to select an image",
       "clickToUpload": "Click to upload your photo",
+      "takePhoto": "Take a photo of yourself",
+      "chooseClearPhoto": "Choose a clear photo of yourself",
+      "choosePhoto": "Choose a photo",
       "acceptedFormats": "Accepted formats: JPG, PNG (max 10 MB)",
       "selectFileAriaLabel": "Select an image file",
-      "or": "or",
-      "selectDemoPhoto": "Select a demo photo",
-      "selectDemoPhotoAriaLabel": "Select demo photo {{index}}",
-      "demoPhotoAlt": "Demo photo {{index}} for virtual try-on",
+      "or": "OR",
+      "selectDemoPhoto": "Select demo model {{id}}",
+      "chooseDemoModel": "Choose a demo model",
+      "selectDemoModel": "Select a demo model",
+      "selectDemoPhotoAriaLabel": "Select demo photo {{id}}",
+      "demoPhotoAlt": "Demo photo {{id}} for virtual try-on",
+      "demoModalAriaLabel": "Select a demo model",
       "alreadyGenerated": "Already generated",
       "previewAlt": "Preview of uploaded photo",
       "uploadSuccess": "Photo uploaded successfully!",

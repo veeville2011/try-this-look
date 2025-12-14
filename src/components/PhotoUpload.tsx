@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, Camera, CheckCircle } from "lucide-react";
+import { X, Camera, Info, User, ArrowLeft } from "lucide-react";
+import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
 
 interface PhotoUploadProps {
   onPhotoUpload: (
@@ -12,28 +11,19 @@ interface PhotoUploadProps {
   ) => void;
   generatedPersonKeys?: Set<string>;
   matchingPersonKeys?: string[];
+  initialView?: "file" | "demo" | null; // Control which view to show initially
 }
-
-// Fixed IDs for demo pictures - these will be sent as personKey to the fashion API
-const DEMO_PHOTOS = [
-  { url: "/assets/demo_pics/p1.jpg", id: "new_demo_person_1" },
-  { url: "/assets/demo_pics/p2.jpg", id: "new_demo_person_2" },
-  { url: "/assets/demo_pics/p3.jpg", id: "new_demo_person_3" },
-  { url: "/assets/demo_pics/p4.jpg", id: "new_demo_person_4" },
-] as const;
-
-// Map demo photo URLs to their fixed IDs
-export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
-  DEMO_PHOTOS.map((photo) => [photo.url, photo.id])
-);
 
 export default function PhotoUpload({
   onPhotoUpload,
   generatedPersonKeys = new Set(),
   matchingPersonKeys = [],
+  initialView = null,
 }: PhotoUploadProps) {
   const { t } = useTranslation();
   const [preview, setPreview] = useState<string | null>(null);
+  const [showFilePicker, setShowFilePicker] = useState(initialView === "file");
+  const [showDemoModel, setShowDemoModel] = useState(initialView === "demo");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if a demo photo has been generated before
@@ -58,9 +48,14 @@ export default function PhotoUpload({
         const dataURL = reader.result as string;
         setPreview(dataURL);
         onPhotoUpload(dataURL, false, undefined);
+        setShowFilePicker(false);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleFilePickerClick = () => {
+    setShowFilePicker(true);
   };
 
   const handleDemoPhotoSelect = async (url: string) => {
@@ -72,6 +67,7 @@ export default function PhotoUpload({
         const dataURL = reader.result as string;
         setPreview(dataURL);
         onPhotoUpload(dataURL, true, url);
+        setShowDemoModel(false);
       };
       reader.readAsDataURL(blob);
     } catch (error) {
@@ -79,131 +75,232 @@ export default function PhotoUpload({
     }
   };
 
+  const handleDemoModelClick = () => {
+    setShowDemoModel(true);
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-5 md:space-y-6">
-      <div className="sr-only">
-        {t("tryOnWidget.photoUpload.srOnlyText") || "Téléchargez votre photo ou utilisez une photo de démonstration"}
-      </div>
-
-      {/* Upload Area */}
-      <Card className="p-4 sm:p-5 md:p-6 lg:p-8 border-2 border-dashed border-primary/30 bg-card hover:border-primary/50 hover:bg-accent/30 transition-all duration-200 cursor-pointer flex items-center group focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-        <div
-          className="text-center w-full"
-          onClick={() => fileInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          aria-label={t("tryOnWidget.photoUpload.uploadAreaAriaLabel") || "Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image"}
-          aria-describedby="upload-instructions"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              fileInputRef.current?.click();
-            }
-          }}
-        >
-          <div
-            className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 rounded bg-primary/10 group-hover:bg-primary/15 flex items-center justify-center transition-colors duration-200"
-            aria-hidden="true"
-          >
-            <Camera className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-primary transition-transform duration-200 group-hover:scale-110" />
-          </div>
-          <p className="text-sm sm:text-base md:text-lg font-semibold mb-1 sm:mb-2 px-2">
-            {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
-          </p>
-          <p
-            id="upload-instructions"
-            className="text-[10px] sm:text-xs text-muted-foreground px-2"
-          >
-            {t("tryOnWidget.photoUpload.acceptedFormats") || "Formats acceptés : JPG, PNG (max 10 Mo)"}
-          </p>
+    <>
+      <div className="flex flex-col bg-white w-full h-full min-h-[456px] rounded-2xl">
+        <div className="sr-only">
+          {t("tryOnWidget.photoUpload.srOnlyText") || "Téléchargez votre photo ou utilisez une photo de démonstration"}
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileSelect}
-          className="hidden"
-          aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
-          aria-describedby="upload-instructions"
-        />
-      </Card>
 
-      {/* Separator OU */}
-      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 my-1 sm:my-2">
-        <div className="h-px flex-1 bg-border" />
-        <span className="px-3 sm:px-4 py-1 sm:py-2 rounded-md bg-card border border-border text-muted-foreground font-semibold text-xs sm:text-sm whitespace-nowrap">
-          {t("tryOnWidget.photoUpload.or") || "ou"}
-        </span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-
-      {/* Demo Photos */}
-      <div>
-        <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base md:text-lg flex items-center gap-2">
-          <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-          <span>{t("tryOnWidget.photoUpload.selectDemoPhoto") || "Sélectionner une photo de démonstration"}</span>
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-          {DEMO_PHOTOS.map((photo, index) => (
-            <Card
-              key={photo.id}
-              className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              onClick={() => handleDemoPhotoSelect(photo.url)}
+        {!showFilePicker && !showDemoModel ? (
+          <div className="flex flex-col bg-white w-full py-3.5 px-4 gap-4 rounded-2xl">
+            {/* "Choisir une photo" Section - File Picker */}
+            <div
+              className="flex flex-col items-center self-stretch bg-slate-50 py-[63px] rounded-2xl border border-solid border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+              onClick={handleFilePickerClick}
               role="button"
               tabIndex={0}
-              aria-label={`${t("tryOnWidget.photoUpload.selectDemoPhotoAriaLabel", { index: index + 1 }) || `Sélectionner la photo de démonstration ${index + 1}`}${isGenerated(photo.url) ? ` - ${t("tryOnWidget.photoUpload.alreadyGenerated") || "Déjà généré"}` : ""}`}
+              aria-label={t("tryOnWidget.photoUpload.uploadAreaAriaLabel") || "Choisir une photo - Cliquez ou appuyez sur Entrée pour sélectionner une image"}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  handleDemoPhotoSelect(photo.url);
+                  handleFilePickerClick();
                 }
               }}
             >
-              <div className="relative w-full bg-muted/30 flex items-center justify-center overflow-hidden">
-                <img
-                  src={photo.url}
-                  alt={t("tryOnWidget.photoUpload.demoPhotoAlt", { index: index + 1 }) || `Photo de démonstration ${index + 1} pour l'essayage virtuel`}
-                  className="w-full h-auto object-contain"
-                  loading="lazy"
-                />
-                {/* Tick indicators: show only when the API returned a matching person */}
-                {isMatching(photo.url) && (
-                  <div className="absolute top-2 right-2">
-                    <CheckCircle
-                      className="h-4 w-4 sm:h-5 sm:w-5 fill-background text-primary"
-                      aria-hidden="true"
-                    />
-                  </div>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {preview && (
-        <div role="status" aria-live="polite">
-          <Card className="p-3 sm:p-4 bg-success/10 border-success">
-            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-muted/30 rounded border border-border flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
-                <img
-                  src={preview}
-                  alt={t("tryOnWidget.photoUpload.previewAlt") || "Aperçu de la photo téléchargée"}
-                  className="h-full w-auto object-contain"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-success text-sm sm:text-base">
-                  {t("tryOnWidget.photoUpload.uploadSuccess") || "Photo téléchargée avec succès !"}
-                </p>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {t("tryOnWidget.photoUpload.nextStepHint") || "Passez à l'étape suivante pour sélectionner un vêtement"}
-                </p>
+              <Camera className="w-12 h-12 text-slate-700 mb-4" strokeWidth={1.5} aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                <span className="text-black text-base font-medium">
+                  {t("tryOnWidget.photoUpload.choosePhoto") || "Choisir une photo"}
+                </span>
+                <Info className="w-4 h-4 text-slate-600" strokeWidth={2} aria-hidden="true" />
               </div>
             </div>
-          </Card>
-        </div>
-      )}
-    </div>
+
+            {/* Separator OU */}
+            <div className="flex items-center self-stretch">
+              <div className="bg-slate-200 w-[164px] h-[1px] mr-2.5"></div>
+              <span className="text-slate-800 text-base font-bold mr-[13px]">
+                {t("tryOnWidget.photoUpload.or") || "OU"}
+              </span>
+              <div className="bg-slate-200 w-[164px] h-[1px] flex-1"></div>
+            </div>
+
+            {/* "Choisir un modèle de démonstration" Section - Demo Photo Selection */}
+            <div
+              className="flex flex-col items-center self-stretch bg-white rounded-2xl border border-solid border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors relative overflow-hidden"
+              onClick={handleDemoModelClick}
+              role="button"
+              tabIndex={0}
+              aria-label={t("tryOnWidget.photoUpload.chooseDemoModel") || "Choisir un modèle de démonstration"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleDemoModelClick();
+                }
+              }}
+            >
+              <div className="flex flex-col items-center self-stretch py-[11px] mt-[61px] mb-[7px] mx-[34px] gap-2 rounded-lg">
+                <User className="w-5 h-5 text-[#303030]" strokeWidth={1.5} aria-hidden="true" />
+                <span className="text-[#303030] text-base font-medium">
+                  {t("tryOnWidget.photoUpload.chooseDemoModel") || "Choisir un modèle de démonstration"}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <div className="flex flex-col items-start w-[73px] relative mr-[1px]">
+                  <img
+                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/bibq0aat_expires_30_days.png"
+                    className="w-[73px] h-[49px] object-contain"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <img
+                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/op2kgj0f_expires_30_days.png"
+                    className="w-[88px] h-[26px] absolute bottom-0 right-[51px] object-contain"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                </div>
+                <img
+                  src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/h6ofmzgz_expires_30_days.png"
+                  className="w-[53px] h-[52px] object-contain"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <div className="flex flex-col items-start w-[73px] relative">
+                  <img
+                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/nueaxiav_expires_30_days.png"
+                    className="w-[73px] h-[49px] object-contain"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <img
+                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/hz00w8ly_expires_30_days.png"
+                    className="w-[88px] h-[26px] absolute bottom-0 left-[52px] object-contain"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : showFilePicker ? (
+          /* Expanded File Picker View */
+          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl">
+            {/* Header with back button and title */}
+            <div className="flex items-center gap-3 mb-3">
+              <button
+                onClick={() => setShowFilePicker(false)}
+                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+              >
+                <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+              </button>
+              <h2 className="text-lg font-semibold text-slate-800">
+                {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
+              </h2>
+            </div>
+
+            {/* Subtitle */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-slate-600">
+                {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+              </span>
+              <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+            </div>
+
+            {/* Upload Area - Takes full remaining space */}
+            <div
+              className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-colors min-h-[400px] py-8 px-4"
+              onClick={() => fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              aria-label={t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+            >
+              <Camera className="w-16 h-16 text-blue-600 mb-4" strokeWidth={1.5} aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                <span className="text-slate-700 text-base font-medium">
+                  {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
+                </span>
+                <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
+              />
+            </div>
+          </div>
+        ) : showDemoModel ? (
+          /* Expanded Demo Model Selection View */
+          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl">
+            {/* Header with back button and title */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowDemoModel(false)}
+                  className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                  aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                >
+                  <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                </button>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  {t("tryOnWidget.photoUpload.selectDemoModel") || "Sélectionner un modèle de démonstration"}
+                </h2>
+              </div>
+            </div>
+
+            {/* Demo Photos Grid - 3 rows, 4 columns */}
+            <div className="flex-1 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+              <div className="grid grid-cols-4 gap-3">
+                {DEMO_PHOTOS_ARRAY.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="relative group cursor-pointer"
+                    onClick={() => handleDemoPhotoSelect(photo.url)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t("tryOnWidget.photoUpload.selectDemoPhoto", { id: photo.id }) || `Sélectionner le modèle ${photo.id}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleDemoPhotoSelect(photo.url);
+                      }
+                    }}
+                  >
+                    <div className="relative rounded-md overflow-hidden border border-slate-200 group-hover:border-slate-400 transition-colors bg-white flex items-center justify-center h-[120px]">
+                      <img
+                        src={photo.url}
+                        alt={t("tryOnWidget.photoUpload.demoPhotoAlt", { id: photo.id }) || `Modèle de démonstration ${photo.id}`}
+                        className="h-full w-auto object-contain rounded-md"
+                        loading="lazy"
+                        onError={(e) => {
+                          // Handle image load error
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      {(isGenerated(photo.url) || isMatching(photo.url)) && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-5 h-5 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
+                            <div className={`w-3 h-3 rounded-full ${
+                              isGenerated(photo.url) ? "bg-green-500" : "bg-primary"
+                            }`} aria-hidden="true" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+    </>
   );
 }

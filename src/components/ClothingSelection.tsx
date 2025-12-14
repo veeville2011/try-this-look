@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ClothingSelectionProps {
@@ -16,6 +16,7 @@ interface ClothingSelectionProps {
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
   matchingClothingKeys?: string[];
+  showFinalLayout?: boolean; // Show 2+2 layout only when both photo and clothing are selected
 }
 
 export default function ClothingSelection({
@@ -30,12 +31,15 @@ export default function ClothingSelection({
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
   matchingClothingKeys = [],
+  showFinalLayout = false,
 }: ClothingSelectionProps) {
   const { t } = useTranslation();
   const [validImages, setValidImages] = useState<string[]>([]);
   const [validRecommendedImages, setValidRecommendedImages] = useState<
     string[]
   >([]);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
+  const recommendedScrollRef = useRef<HTMLDivElement>(null);
 
   // Check if an image has been generated before (image generation)
   const isGenerated = (imageUrl: string): boolean => {
@@ -85,6 +89,25 @@ export default function ClothingSelection({
     const unique = Array.from(new Set(recommendedImages.filter(Boolean)));
     setValidRecommendedImages(unique);
   }, [recommendedImages]);
+
+  // Touch/swipe handlers for horizontal scrolling
+  const handleTouchStart = (e: React.TouchEvent, ref: React.RefObject<HTMLDivElement>) => {
+    if (!ref.current) return;
+    const startX = e.touches[0].clientX;
+    const scrollLeft = ref.current.scrollLeft;
+    ref.current.dataset.startX = startX.toString();
+    ref.current.dataset.scrollLeft = scrollLeft.toString();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, ref: React.RefObject<HTMLDivElement>) => {
+    if (!ref.current || !ref.current.dataset.startX) return;
+    const x = e.touches[0].clientX;
+    const startX = parseFloat(ref.current.dataset.startX);
+    const scrollLeft = parseFloat(ref.current.dataset.scrollLeft || "0");
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    ref.current.scrollLeft = scrollLeft - walk;
+  };
+
   if (validImages.length === 0 && !selectedImage) {
     return (
       <div role="alert" aria-live="polite">
@@ -102,107 +125,174 @@ export default function ClothingSelection({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Heading intentionally removed per design */}
-
-      {!selectedImage && (
+      {showFinalLayout ? (
+        /* Final Layout - Show 2+2 grid when both photo and clothing are selected */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           <div className="space-y-3 sm:space-y-4 pb-2">
-            {/* Main Product Images */}
+            {/* Main Product Images - Show first 2 */}
             {validImages.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                {validImages.slice(0, 9).map((image, index) => (
-                <Card
-                  key={index}
-                  className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-                    selectedImage === image
-                      ? "ring-4 ring-primary shadow-lg scale-105"
-                      : "hover:ring-2 hover:ring-primary/50"
-                  }`}
-                  onClick={() => onSelect(image)}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
-                    index: index + 1,
-                    suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`
-                  }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`}
-                  aria-pressed={selectedImage === image}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelect(image);
-                    }
-                  }}
-                >
-                  <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
+              <div className="flex items-start self-stretch mb-2.5 mr-6 gap-[9px]">
+                {validImages.slice(0, 2).map((image, index) => (
+                  <img
+                    key={index}
+                    src={image}
+                    className={`w-[173px] h-[164px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
+                      selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
+                    }`}
+                    onClick={() => onSelect(image)}
+                    role="button"
+                    tabIndex={0}
+                    alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
+                      index: index + 1,
+                      suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                    }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                    aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
+                      index: index + 1,
+                      suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                    }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                    aria-pressed={selectedImage === image}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelect(image);
+                      }
+                    }}
+                    loading="lazy"
+                    onError={() => {
+                      setValidImages((prev) =>
+                        prev.filter((u) => u !== image)
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Recommended Products Section */}
+            {validRecommendedImages.length > 0 && (
+              <>
+                <span className="text-slate-800 text-sm font-bold mb-2 mr-56 block">
+                  {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
+                </span>
+                <div className="flex items-start mr-[91px] gap-2">
+                  {validRecommendedImages.slice(0, 2).map((image, index) => (
                     <img
+                      key={`recommended-${index}`}
                       src={image}
-                      alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
+                      className={`w-[140px] h-[165px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
+                        selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
+                      }`}
+                      onClick={() => onSelect(image)}
+                      role="button"
+                      tabIndex={0}
+                      alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
                         index: index + 1,
                         suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                      }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                      className="h-full w-auto object-contain"
+                      }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                      aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", { 
+                        index: index + 1,
+                        suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                      }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                      aria-pressed={selectedImage === image}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelect(image);
+                        }
+                      }}
                       loading="lazy"
                       onError={() => {
-                        setValidImages((prev) =>
+                        setValidRecommendedImages((prev) =>
                           prev.filter((u) => u !== image)
                         );
                       }}
                     />
-                    {/* Indicators: show only when the API returned a matching clothing item */}
-                    {isMatching(image) && (
-                      <div className="absolute top-2 right-2 flex flex-col gap-1">
-                        <CheckCircle
-                          className="h-4 w-4 sm:h-5 sm:w-5 fill-background text-primary"
-                          aria-hidden="true"
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Original Layout - Horizontal scrollable when not both selected */
+        <>
+          {!selectedImage && (
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+              <div className="space-y-3 sm:space-y-4 pb-2">
+                {/* Main Product Images - Horizontal Scroll */}
+                {validImages.length > 0 && (
+                  <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 snap-x snap-mandatory">
+                    <div className="flex items-start min-w-max gap-[9px]">
+                      {validImages.map((image, index) => (
+                        <img
+                          key={index}
+                          src={image}
+                          className={`w-[173px] h-[164px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 snap-start ${
+                            selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
+                          }`}
+                          onClick={() => onSelect(image)}
+                          role="button"
+                          tabIndex={0}
+                          alt={t("tryOnWidget.clothingSelection.clothingImageAlt", {
+                            index: index + 1,
+                            suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                          }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                          aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", {
+                            index: index + 1,
+                            suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                          }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                          aria-pressed={selectedImage === image}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onSelect(image);
+                            }
+                          }}
+                          loading="lazy"
+                          onError={() => {
+                            setValidImages((prev) =>
+                              prev.filter((u) => u !== image)
+                            );
+                          }}
                         />
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </Card>
-              ))}
-            </div>
-          )}
+                )}
 
-          {/* Recommended Products Section */}
-          {validRecommendedImages.length > 0 && (
-            <div className="space-y-2 sm:space-y-3">
-              <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits Recommandés"}
-              </h3>
-              <div className="relative">
-                <div className="overflow-x-auto overflow-y-hidden scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 snap-x snap-mandatory">
-                  <div className="flex gap-2 sm:gap-3 md:gap-4 min-w-max">
-                    {validRecommendedImages.map((image, index) => (
-                      <Card
-                        key={`recommended-${index}`}
-                        className={`flex-shrink-0 w-24 sm:w-28 md:w-32 lg:w-36 overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative snap-start focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-                          selectedImage === image
-                            ? "ring-4 ring-primary shadow-lg scale-105"
-                            : "hover:ring-2 hover:ring-primary/50"
-                        }`}
-                        onClick={() => onSelect(image)}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", { 
-                          index: index + 1,
-                          suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`
-                        }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}${isGenerated(image) ? ` - ${t("tryOnWidget.clothingSelection.alreadyGenerated") || "Déjà généré"}` : ""}`}
-                        aria-pressed={selectedImage === image}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            onSelect(image);
-                          }
-                        }}
-                      >
-                        <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-32 sm:h-36 md:h-40 lg:h-44">
+                {/* Recommended Products Section - Horizontal Scroll */}
+                {validRecommendedImages.length > 0 && (
+                  <div className="mt-4">
+                    <span className="text-slate-800 text-sm font-bold mb-2 mr-56 block">
+                      {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
+                    </span>
+                    <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 snap-x snap-mandatory">
+                      <div className="flex items-start min-w-max gap-2">
+                        {validRecommendedImages.map((image, index) => (
                           <img
+                            key={`recommended-${index}`}
                             src={image}
-                            alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
+                            className={`w-[140px] h-[165px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 snap-start ${
+                              selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
+                            }`}
+                            onClick={() => onSelect(image)}
+                            role="button"
+                            tabIndex={0}
+                            alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", {
                               index: index + 1,
                               suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
                             }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                            className="h-full w-auto object-contain"
+                            aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", {
+                              index: index + 1,
+                              suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                            }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                            aria-pressed={selectedImage === image}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onSelect(image);
+                              }
+                            }}
                             loading="lazy"
                             onError={() => {
                               setValidRecommendedImages((prev) =>
@@ -210,71 +300,61 @@ export default function ClothingSelection({
                               );
                             }}
                           />
-                          {/* Indicators: show only when the API returned a matching clothing item */}
-                          {isMatching(image) && (
-                            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 flex flex-col gap-1">
-                              <CheckCircle
-                                className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-background text-primary"
-                                aria-hidden="true"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </Card>
-                    ))}
+                        ))}
+                      </div>
+                    </div>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {selectedImage && (
+            <div className="flex-1 flex flex-col min-h-0" role="status" aria-live="polite">
+              <div className="relative rounded-2xl bg-card p-2 sm:p-3 border border-border shadow-sm flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
+                  <h3 className="font-semibold text-sm sm:text-base">
+                    {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onSelect("")}
+                    className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label={t("tryOnWidget.clothingSelection.clearSelectionAriaLabel") || "Effacer la sélection du vêtement"}
+                  >
+                    <XCircle
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
+                      aria-hidden="true"
+                    />
+                    <span>{t("tryOnWidget.clothingSelection.clear") || "Effacer"}</span>
+                  </Button>
+                </div>
+                <div className="relative flex-1 rounded-md overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0">
+                  <img
+                    src={selectedImage}
+                    alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
+                    className="h-full w-auto object-contain max-h-full rounded-md"
+                  />
+                  {/* Indicators: show tick when API returned matching clothing item */}
+                  {isMatching(selectedImage) && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle
+                        className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
+                          showCachedCombination ? "text-green-500" : "text-primary"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">
+                        {isGenerated(selectedImage) && "Image générée."}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
-          </div>
-        </div>
-      )}
-
-      {selectedImage && (
-        <div className="flex-1 flex flex-col min-h-0" role="status" aria-live="polite">
-          <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm flex-1 flex flex-col min-h-0">
-            <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
-              <h3 className="font-semibold text-sm sm:text-base">
-                {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onSelect("")}
-                className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label={t("tryOnWidget.clothingSelection.clearSelectionAriaLabel") || "Effacer la sélection du vêtement"}
-              >
-                <XCircle
-                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
-                  aria-hidden="true"
-                />
-                <span>{t("tryOnWidget.clothingSelection.clear") || "Effacer"}</span>
-              </Button>
-            </div>
-            <div className="relative flex-1 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0">
-              <img
-                src={selectedImage}
-                alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
-                className="h-full w-auto object-contain max-h-full"
-              />
-              {/* Indicators: show tick when API returned matching clothing item */}
-              {isMatching(selectedImage) && (
-                <div className="absolute top-2 right-2">
-                  <CheckCircle
-                    className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
-                      showCachedCombination ? "text-green-500" : "text-primary"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <span className="sr-only">
-                    {isGenerated(selectedImage) && "Image générée."}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

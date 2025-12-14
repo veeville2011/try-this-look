@@ -20,7 +20,7 @@ dotenv.config({ path: join(__dirname, ".env") });
 const API_SECRET = process.env.VITE_SHOPIFY_API_SECRET;
 const WEBHOOK_URL =
   process.env.WEBHOOK_URL ||
-  "http://localhost:3000/webhooks/app/subscriptions/update";
+  "https://try-this-look.vercel.app/webhooks/app/subscriptions/update";
 const SHOP_DOMAIN = process.env.TEST_SHOP || "test-shop.myshopify.com";
 
 if (!API_SECRET) {

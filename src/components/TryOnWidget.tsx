@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import PhotoUpload, { DEMO_PHOTO_ID_MAP } from "./PhotoUpload";
+import PhotoUpload from "./PhotoUpload";
+import { DEMO_PHOTO_ID_MAP } from "@/constants/demoPhotos";
 import ClothingSelection from "./ClothingSelection";
-import ResultDisplay from "./ResultDisplay";
 import {
   extractShopifyProductInfo,
   extractProductImages,
@@ -34,7 +34,7 @@ import {
 } from "@/services/cartOutfitApi";
 import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, ArrowLeft, Info } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -149,6 +149,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<
     string | null
   >(null);
+  const [photoSelectionMethod, setPhotoSelectionMethod] = useState<"file" | "demo" | null>(null);
   // Try Single Tab - Independent image state (from parent window or page extraction)
   const [singleTabImages, setSingleTabImages] = useState<string[]>([]);
   const [singleTabImagesWithIds, setSingleTabImagesWithIds] = useState<
@@ -224,6 +225,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   };
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
+  const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -883,13 +886,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   ) => {
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
-    // Track if a demo photo was selected and its URL
+    // Track which selection method was used
     if (isDemoPhoto && demoPhotoUrl) {
+      setPhotoSelectionMethod("demo");
       setSelectedDemoPhotoUrl(demoPhotoUrl);
       // Set personKey in Redux for key mappings
       const personKey = DEMO_PHOTO_ID_MAP.get(demoPhotoUrl);
       setReduxPersonKey(personKey || null);
     } else {
+      setPhotoSelectionMethod("file");
       setSelectedDemoPhotoUrl(null);
       // Clear personKey in Redux when custom photo is uploaded
       setReduxPersonKey(null);
@@ -1121,6 +1126,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const handleClearUploadedImage = () => {
     setUploadedImage(null);
     setSelectedDemoPhotoUrl(null);
+    setPhotoSelectionMethod(null); // Clear selection method to reset to default view
     // Clear personKey in Redux
     setReduxPersonKey(null);
     try {
@@ -1131,12 +1137,102 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setStatusMessage(t("tryOnWidget.status.photoCleared") || "Photo effacée. Téléchargez votre photo.");
   };
 
+  // Get product data if available (from Shopify parent window)
+  const getProductData = (): { id?: number; title?: string; url?: string } | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      if (
+        window.parent !== window &&
+        (window.parent as any).NUSENSE_PRODUCT_DATA
+      ) {
+        return (window.parent as any).NUSENSE_PRODUCT_DATA;
+      }
+      if ((window as any).NUSENSE_PRODUCT_DATA) {
+        return (window as any).NUSENSE_PRODUCT_DATA;
+      }
+    } catch (error) {
+      // Cross-origin access might fail, that's okay
+    }
+    return null;
+  };
+
+  const handleBuyNow = async () => {
+    if (isBuyNowLoading) return;
+
+    setIsBuyNowLoading(true);
+
+    try {
+      const isInIframe = window.parent !== window;
+      const productData = getProductData();
+
+      if (isInIframe) {
+        const message = {
+          type: "NUSENSE_BUY_NOW",
+          ...(productData && { product: productData }),
+        };
+        window.parent.postMessage(message, "*");
+
+        toast.info(t("tryOnWidget.resultDisplay.addingToCart") || "Ajout au panier...", {
+          description: t("tryOnWidget.resultDisplay.redirectingToCheckout") || "Redirection vers la page de paiement en cours.",
+        });
+
+        setTimeout(() => {
+          setIsBuyNowLoading(false);
+        }, 10000);
+      } else {
+        setIsBuyNowLoading(false);
+        toast.error(t("tryOnWidget.resultDisplay.featureUnavailable") || "Fonctionnalité non disponible", {
+          description: t("tryOnWidget.resultDisplay.featureUnavailableDescription") || "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
+        });
+      }
+    } catch (error) {
+      setIsBuyNowLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+        description: t("tryOnWidget.resultDisplay.buyNowError") || "Impossible de procéder à l'achat. Veuillez réessayer.",
+      });
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (isAddToCartLoading) return;
+
+    setIsAddToCartLoading(true);
+
+    try {
+      const isInIframe = window.parent !== window;
+      const productData = getProductData();
+
+      if (isInIframe) {
+        const message = {
+          type: "NUSENSE_ADD_TO_CART",
+          ...(productData && { product: productData }),
+        };
+        window.parent.postMessage(message, "*");
+
+        setTimeout(() => {
+          setIsAddToCartLoading(false);
+        }, 10000);
+      } else {
+        setIsAddToCartLoading(false);
+        toast.error(t("tryOnWidget.resultDisplay.featureUnavailable") || "Fonctionnalité non disponible", {
+          description: t("tryOnWidget.resultDisplay.featureUnavailableDescription") || "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
+        });
+      }
+    } catch (error) {
+      setIsAddToCartLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+        description: t("tryOnWidget.resultDisplay.addToCartError") || "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
+      });
+    }
+  };
+
   const handleReset = () => {
     setCurrentStep(1);
     setUploadedImage(null);
     setSelectedClothing(null);
     setSelectedClothingKey(null);
     setSelectedDemoPhotoUrl(null);
+    setPhotoSelectionMethod(null);
     setGeneratedImage(null);
     setError(null);
     setProgress(0);
@@ -1343,6 +1439,96 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     void runCartMultipleGeneration();
   };
 
+  const handleDownload = async (imageUrl: string) => {
+    try {
+      let blob: Blob | null = null;
+
+      if (imageUrl.startsWith("data:")) {
+        const response = await fetch(imageUrl);
+        blob = await response.blob();
+      } else if (imageUrl.startsWith("blob:")) {
+        const response = await fetch(imageUrl);
+        blob = await response.blob();
+      } else {
+        try {
+          const response = await fetch(imageUrl, {
+            mode: "cors",
+            credentials: "omit",
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          blob = await response.blob();
+        } catch (fetchError) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+
+          blob = await new Promise<Blob>((resolve, reject) => {
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                  reject(new Error("Could not get canvas context"));
+                  return;
+                }
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blobResult) => {
+                  if (blobResult) {
+                    resolve(blobResult);
+                  } else {
+                    reject(new Error(t("tryOnWidget.errors.failedToConvertCanvas") || "Failed to convert canvas to blob"));
+                  }
+                }, "image/png");
+              } catch (error) {
+                reject(error);
+              }
+            };
+            img.onerror = () => reject(new Error(t("tryOnWidget.errors.failedToLoadImage") || "Failed to load image"));
+            img.src = imageUrl;
+          });
+        }
+      }
+
+      if (!blob) {
+        throw new Error(t("tryOnWidget.errors.failedToCreateBlob") || "Failed to create blob");
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const extension = "png";
+      const filename = `essayage-virtuel-${Date.now()}.${extension}`;
+      link.download = filename;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success(t("tryOnWidget.download.success") || "Téléchargement réussi", {
+        description: t("tryOnWidget.download.successDescription") || "L'image a été téléchargée avec succès.",
+      });
+    } catch (error) {
+      try {
+        window.open(imageUrl, "_blank");
+        toast.info(t("tryOnWidget.download.openingInNewTab") || "Ouverture dans un nouvel onglet", {
+          description: t("tryOnWidget.download.openingInNewTabDescription") || "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
+        });
+      } catch (openError) {
+        toast.error(t("tryOnWidget.download.error") || "Erreur de téléchargement", {
+          description: t("tryOnWidget.download.errorDescription") || "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
+        });
+      }
+    }
+  };
+
   const handleCartMultipleDownload = async (imageUrl: string, index?: number) => {
     if (downloadingIndex !== null) return;
 
@@ -1516,8 +1702,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   return (
     <div
-      className="w-full h-full overflow-y-auto"
-      style={{ backgroundColor: "#fef3f3", minHeight: "100vh" }}
+      className="w-full h-full overflow-y-auto bg-white"
+      style={{ minHeight: "100vh" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
     >
@@ -1543,61 +1729,36 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         </div>
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4 border-b border-border shadow-sm">
-        <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="inline-flex flex-col flex-shrink-0 min-w-0">
-            <h1
-              className="inline-flex items-center tracking-wide leading-none whitespace-nowrap text-2xl sm:text-3xl md:text-4xl font-bold"
-              aria-label={t("tryOnWidget.brand.ariaLabel") || "NULOOK - Essayage Virtuel Alimenté par IA"}
-            >
-              <span style={{ color: "#ce0003" }} aria-hidden="true">
-                NU
-              </span>
-              <span style={{ color: "#564646" }} aria-hidden="true">
-                LOOK
-              </span>
-            </h1>
-            <p className="mt-0.5 sm:mt-1 text-left leading-tight tracking-tight whitespace-nowrap text-[10px] sm:text-xs md:text-sm text-[#3D3232] font-medium">
-              {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3 flex-shrink-0">
-            {!isGenerating && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleReset}
-                className="group text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 text-xs sm:text-sm px-3 sm:px-4 h-[44px] sm:h-9 md:h-10 whitespace-nowrap shadow-sm hover:shadow-md gap-2 flex items-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
-              >
-                <RotateCcw
-                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                  aria-hidden="true"
+      {/* Main Container */}
+      <div className="items-start bg-white">
+        <div className="bg-white w-full max-w-[898px] mx-auto py-8 rounded-2xl">
+          {/* Header */}
+          <header className="sticky top-0 z-10 bg-white">
+            <div className="flex justify-between items-center self-stretch p-[1px] mb-[17px] mx-8">
+              <div className="flex flex-col items-start w-[212px] gap-0.5">
+                <img
+                  src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
+                  className="w-[126px] h-[19px] mr-[86px] object-contain"
+                  alt="NUSENSE"
+                  aria-label={t("tryOnWidget.brand.ariaLabel") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
                 />
-                <span>{t("tryOnWidget.buttons.reset") || "Réinitialiser"}</span>
-              </Button>
-            )}
-            <LanguageSwitcher />
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={handleClose}
-              className="h-[44px] w-[44px] sm:h-9 sm:w-9 md:h-10 md:w-10 rounded-md bg-error text-error-foreground hover:bg-error/90 border-error transition-all duration-200 group shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2"
-              aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
-              title={t("tryOnWidget.buttons.close") || "Fermer"}
-            >
-              <X
-                className="h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:rotate-90 duration-300"
-                aria-hidden="true"
-              />
-            </Button>
-          </div>
-        </div>
-      </header>
+                <span className="text-slate-800 text-sm whitespace-nowrap">
+                  {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
+                </span>
+              </div>
+              <button
+                onClick={handleClose}
+                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+                aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
+                title={t("tryOnWidget.buttons.close") || "Fermer"}
+              >
+                <X className="w-5 h-5 text-slate-600" aria-hidden="true" />
+              </button>
+            </div>
+          </header>
 
-      {/* Tabs Navigation and Content */}
-      <Tabs
+          {/* Tabs Navigation and Content */}
+          <Tabs
         value={activeTab}
         onValueChange={(value) => {
           // Only allow tab switching for vto-demo store
@@ -1667,231 +1828,326 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           </section>
         )}
 
-      {/* Content */}
-      <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-4 sm:space-y-5 md:space-y-6">
         {/* Try Single Tab - Current UI */}
-        <TabsContent value="single" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
-        {/* Selection sections - always visible */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
-          {/* Left Panel: Upload / Preview */}
-          <section aria-labelledby="upload-heading" className="flex flex-col">
-            <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
-                <div
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
-                  aria-hidden="true"
-                >
-                  1
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2
-                    id="upload-heading"
-                    className="text-base sm:text-lg font-semibold"
-                  >
-                    {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
-                  </h2>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex-1 flex flex-col min-h-0">
-                {!uploadedImage && (
-                  <div className="flex-1 flex items-center justify-center">
-                    <PhotoUpload
-                      onPhotoUpload={handlePhotoUpload}
-                      generatedPersonKeys={generatedPersonKeys}
-                      matchingPersonKeys={personKeys}
-                    />
+        <TabsContent value="single" className="mt-0">
+          {/* Content */}
+          {(isGenerating || generatedImage) ? (
+            /* Result Layout: Generated image on left, Person + Clothing on right */
+            <div className="flex items-start self-stretch mb-4 mx-8 gap-6">
+              {/* Left Panel: Generated Image */}
+              <section aria-labelledby="result-heading" className="flex flex-col flex-1 min-h-0">
+                <div className="flex flex-col items-start bg-white w-[405px] py-[13px] rounded-2xl">
+                  <div className="flex items-center mb-[1px] ml-4 gap-2">
+                    <span className="text-slate-800 text-xl font-bold">
+                      {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
+                    </span>
                   </div>
-                )}
-
-                {uploadedImage && (
-                  <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm flex-1 flex flex-col min-h-0">
-                    <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
-                      <h3 className="font-semibold text-sm sm:text-base">
-                        {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
-                      </h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClearUploadedImage}
-                        className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                        aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
-                        aria-describedby="upload-heading"
-                      >
-                        <XCircle
-                          className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
-                          aria-hidden="true"
-                        />
-                        <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
-                      </Button>
+                  <div className="flex items-center mb-[17px] ml-4 gap-[7px]">
+                    <span className="text-slate-800 text-sm">
+                      {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
+                    </span>
+                    <Info className="w-4 h-4 text-slate-800" aria-hidden="true" />
+                  </div>
+                  {isGenerating ? (
+                    <div className="w-[373px] h-[368px] mx-4 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Skeleton className="w-full h-full rounded-xl" />
                     </div>
-                    <div className="relative flex-1 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0">
+                  ) : generatedImage ? (
+                    <img
+                      src={generatedImage}
+                      alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
+                      className="w-[373px] h-[368px] mx-4 rounded-xl object-contain bg-white"
+                    />
+                  ) : null}
+                </div>
+              </section>
+
+              {/* Vertical Divider */}
+              <div className="bg-slate-200 w-[1px] h-[456px] hidden lg:block"></div>
+
+              {/* Right Panel: Person Image + Clothing Image */}
+              <section aria-labelledby="inputs-heading" className="flex flex-col items-start w-full lg:w-[379px] py-[15px] rounded-2xl">
+                {isGenerating ? (
+                  /* Loading state: Person and clothing images side by side, no headings */
+                  <div className="flex items-center gap-3 w-full">
+                    {uploadedImage && (
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                        className="h-full w-auto object-contain max-h-full"
+                        className="w-[183px] h-[183px] rounded-md object-contain bg-white"
                       />
-                      {/* Single tick indicator with outlined circle for generated demo photos */}
-                      {selectedDemoPhotoUrl &&
-                        (() => {
-                          const personKey =
-                            DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl);
-                          const isPersonGenerated =
-                            personKey &&
-                            generatedPersonKeys.has(String(personKey));
+                    )}
+                    {selectedClothing && (
+                      <img
+                        src={selectedClothing}
+                        alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
+                        className="w-[121px] h-[182px] rounded-md object-contain bg-white"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  /* Result state: Person and clothing images with headings */
+                  <>
+                    {/* Person Image Section */}
+                    {uploadedImage && (
+                      <div className="flex flex-col items-start bg-white w-full mb-4 py-[13px] rounded-2xl">
+                        <div className="flex items-center mb-[1px] ml-4 gap-2">
+                          <span className="text-slate-800 text-xl font-bold">
+                            {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
+                          </span>
+                        </div>
+                        <div className="flex items-center mb-[17px] ml-4 gap-[7px]">
+                          <span className="text-slate-800 text-sm">
+                            {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                          </span>
+                          <Info className="w-4 h-4 text-slate-800" aria-hidden="true" />
+                        </div>
+                        <img
+                          src={uploadedImage}
+                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                          className="w-[173px] h-[164px] mx-4 rounded-md object-contain bg-white"
+                        />
+                      </div>
+                    )}
 
-                          // Check if both person and clothing keys exist in the same record
-                          const clothingKey = selectedClothing
-                            ? singleTabImagesWithIds.get(selectedClothing)
-                            : null;
-                          const areBothGenerated =
-                            personKey &&
-                            clothingKey &&
-                            generatedKeyCombinations.has(
-                              `${String(personKey)}-${String(clothingKey)}`
-                            );
+                    {/* Clothing Image Section */}
+                    {selectedClothing && (
+                      <div className="flex flex-col items-start bg-white w-full py-[13px] rounded-2xl">
+                        <div className="flex items-center mb-[1px] ml-4 gap-2">
+                          <span className="text-slate-800 text-xl font-bold">
+                            {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
+                          </span>
+                        </div>
+                        <img
+                          src={selectedClothing}
+                          alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
+                          className="w-[173px] h-[164px] mx-4 mt-[17px] rounded-2xl object-contain bg-white"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
+            </div>
+          ) : (
+            /* Default Layout: Upload on left, Clothing selection on right */
+            <div className="flex items-start self-stretch mb-4 mx-8 gap-6">
+              {/* Left Panel: Upload / Preview */}
+              <section aria-labelledby="upload-heading" className="flex flex-col flex-1 min-h-0">
+                {!uploadedImage && (
+                  <PhotoUpload
+                    onPhotoUpload={handlePhotoUpload}
+                    generatedPersonKeys={generatedPersonKeys}
+                    matchingPersonKeys={personKeys}
+                    initialView={photoSelectionMethod}
+                  />
+                )}
 
-                          return (
-                            isPersonGenerated && (
-                              <div className="absolute top-2 right-2">
-                                <CheckCircle
-                                  className={`h-5 w-5 sm:h-6 sm:w-6 fill-background ${
-                                    areBothGenerated
-                                      ? "text-green-500"
-                                      : "text-primary"
-                                  }`}
-                                  aria-hidden="true"
-                                />
-                                <span className="sr-only">
-                                  {t("tryOnWidget.ariaLabels.photoAlreadyGenerated") || "Cette photo a déjà été générée"}
-                                </span>
-                              </div>
-                            )
-                          );
-                        })()}
+                {uploadedImage && (
+                  <div className="flex flex-col items-start bg-white w-[405px] py-[13px] rounded-2xl">
+                    <div className="flex items-center mb-[1px] ml-4 gap-2">
+                      <button
+                        onClick={handleClearUploadedImage}
+                        className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                        aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                      >
+                        <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
+                      </button>
+                      <span className="text-slate-800 text-xl font-bold">
+                        {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
+                      </span>
                     </div>
+                    <div className="flex items-center mb-[17px] ml-11 gap-[7px]">
+                      <span className="text-slate-800 text-sm">
+                        {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                      </span>
+                      <Info className="w-4 h-4 text-slate-800" aria-hidden="true" />
+                    </div>
+                    <img
+                      src={uploadedImage}
+                      alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                      className="w-[373px] h-[368px] mx-4 rounded-md object-contain bg-white"
+                    />
                   </div>
                 )}
-              </div>
-            </Card>
-          </section>
+              </section>
 
-          {/* Right Panel: Clothing Selection */}
-          <section aria-labelledby="clothing-heading" className="flex flex-col">
-            <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
-                <div
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
-                  aria-hidden="true"
+              {/* Vertical Divider */}
+              <div className="bg-slate-200 w-[1px] h-[456px] hidden lg:block"></div>
+
+              {/* Right Panel: Clothing Selection */}
+              <section aria-labelledby="clothing-heading" className="flex flex-col items-start w-full lg:w-[379px] py-[15px] rounded-2xl">
+                <span className="text-slate-800 text-xl font-bold mb-[1px] mr-40 whitespace-nowrap">
+                  {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
+                </span>
+                <span className="text-slate-800 text-sm mb-[13px] mr-[43px] whitespace-nowrap">
+                  {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
+                </span>
+                <div className="flex-1 flex flex-col min-h-0 w-full">
+                  <ClothingSelection
+                    images={singleTabImages}
+                    recommendedImages={recommendedImages}
+                    selectedImage={selectedClothing}
+                    onSelect={handleClothingSelect}
+                    onRefreshImages={handleRefreshImages}
+                    availableImagesWithIds={singleTabImagesWithIds}
+                    generatedClothingKeys={generatedClothingKeys}
+                    generatedKeyCombinations={generatedKeyCombinations}
+                    selectedDemoPhotoUrl={selectedDemoPhotoUrl}
+                    demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
+                    matchingClothingKeys={clothingKeys}
+                    showFinalLayout={!!uploadedImage && !!selectedClothing}
+                  />
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Footer buttons */}
+          {!isGenerating && !generatedImage && (
+            /* Default buttons: Reset and Generate */
+            <div className="flex flex-col items-end self-stretch">
+              <div className="flex items-start mr-8 gap-4">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center justify-center bg-white w-[171px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
+                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                 >
-                  2
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2
-                    id="clothing-heading"
-                    className="text-base sm:text-lg font-semibold"
-                  >
-                    {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un Article de Vêtement"}
-                  </h2>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
+                  <RotateCcw className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                  <span className="text-[#303030] text-base font-medium">
+                    {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                  </span>
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={!selectedClothing || !uploadedImage || isGenerating}
+                  className={`flex items-center justify-center w-[145px] h-11 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 ${
+                    selectedClothing && uploadedImage && !isGenerating
+                      ? "bg-[#048FCF] hover:bg-[#0378b3]"
+                      : "bg-slate-200 opacity-50 cursor-not-allowed"
+                  }`}
+                  aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                  aria-describedby={
+                    !selectedClothing || !uploadedImage
+                      ? "generate-help"
+                      : undefined
+                  }
+                >
+                  <Sparkles className={`w-5 h-5 flex-shrink-0 ${
+                    selectedClothing && uploadedImage && !isGenerating
+                      ? "text-[#F2F2F2]"
+                      : "text-slate-400"
+                  }`} aria-hidden="true" />
+                  <span className={`text-base font-medium ${
+                    selectedClothing && uploadedImage && !isGenerating
+                      ? "text-[#F2F2F2]"
+                      : "text-slate-400"
+                  }`}>
+                    {t("tryOnWidget.buttons.generate") || "Générer"}
+                  </span>
+                </button>
+                {(!selectedClothing || !uploadedImage) && (
+                  <p id="generate-help" className="sr-only">
+                    {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
                   </p>
-                </div>
+                )}
               </div>
+            </div>
+          )}
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <ClothingSelection
-                  images={singleTabImages}
-                  recommendedImages={recommendedImages}
-                  selectedImage={selectedClothing}
-                  onSelect={handleClothingSelect}
-                  onRefreshImages={handleRefreshImages}
-                  availableImagesWithIds={singleTabImagesWithIds}
-                  generatedClothingKeys={generatedClothingKeys}
-                  generatedKeyCombinations={generatedKeyCombinations}
-                  selectedDemoPhotoUrl={selectedDemoPhotoUrl}
-                  demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
-                  matchingClothingKeys={clothingKeys}
-                />
-              </div>
-            </Card>
-          </section>
-        </div>
-
-        {/* Generate button - show when not generating */}
-        {!isGenerating && (
-          <div className="pt-1 sm:pt-2 flex justify-center">
-            <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
-              <Button
-                onClick={handleGenerate}
-                disabled={!selectedClothing || !uploadedImage || isGenerating}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
-                aria-describedby={
-                  !selectedClothing || !uploadedImage
-                    ? "generate-help"
-                    : undefined
-                }
+          {(isGenerating || generatedImage) && (
+            /* Result buttons: Reset on left, Buy Now and Add to Cart on right */
+            <div className="flex justify-end items-start self-stretch gap-4 mx-8">
+              {/* Reset button on left */}
+              <button
+                onClick={handleReset}
+                className="flex items-center justify-center bg-white w-[163px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                disabled={isGenerating}
               >
-                <Sparkles
-                  className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                  aria-hidden="true"
-                />
-                {t("tryOnWidget.buttons.generateImage") || "Générer Image"}
-              </Button>
-              {(!selectedClothing || !uploadedImage) && (
-                <p id="generate-help" className="sr-only">
-                  {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
-                </p>
+                <RotateCcw className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                <span className="text-[#303030] text-base font-medium">
+                  {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                </span>
+              </button>
+
+              {/* Download, Buy Now and Add to Cart buttons on right */}
+              {!isGenerating && generatedImage && (
+                <div className="flex items-start gap-4">
+                  <button
+                    onClick={() => handleDownload(generatedImage)}
+                    className="flex items-center justify-center bg-white w-[145px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
+                    aria-label={t("tryOnWidget.buttons.download") || "Télécharger"}
+                  >
+                    <Download className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                    <span className="text-[#303030] text-base font-medium">
+                      {t("tryOnWidget.buttons.download") || "Télécharger"}
+                    </span>
+                  </button>
+                  <div className="flex items-start w-[462px] gap-4">
+                    <button
+                      onClick={handleBuyNow}
+                    disabled={isBuyNowLoading || isAddToCartLoading}
+                    className="flex items-center justify-center bg-white w-[233px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                  >
+                    {isBuyNowLoading ? (
+                      <Loader2 className="w-5 h-5 text-[#303030] flex-shrink-0 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CreditCard className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="text-[#303030] text-base font-medium">
+                      {isBuyNowLoading 
+                        ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                        : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
+                      }
+                    </span>
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isBuyNowLoading || isAddToCartLoading}
+                    className="flex items-center justify-center bg-[#048FCF] w-[213px] h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                  >
+                    {isAddToCartLoading ? (
+                      <Loader2 className="w-5 h-5 text-[#F2F2F2] flex-shrink-0 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ShoppingCart className="w-5 h-5 text-[#F2F2F2] flex-shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="text-[#F2F2F2] text-base font-medium">
+                      {isAddToCartLoading
+                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
+                      }
+                    </span>
+                  </button>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Results section - always visible with skeleton when loading */}
-        <section
-          className="pt-2 sm:pt-4"
-          aria-labelledby="results-heading"
-          aria-live="polite"
-          aria-busy={isGenerating}
-        >
-          <h2 id="results-heading" className="sr-only">
-            {t("tryOnWidget.sections.results.title") || "Résultats de l'essayage virtuel"}
-          </h2>
-          <ResultDisplay
-            generatedImage={generatedImage}
-            personImage={uploadedImage}
-            clothingImage={selectedClothing}
-            isGenerating={isGenerating}
-            progress={progress}
-          />
-        </section>
-
-        {error && (
-          <div role="alert" aria-live="assertive">
-            <Card className="p-6 bg-error/10 border-error">
-              <p className="text-error font-medium" id="error-message">
-                {error}
-              </p>
-              <Button
-                variant="secondary"
-                onClick={handleReset}
-                className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
-                aria-describedby="error-message"
-              >
-                <RotateCcw
-                  className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                  aria-hidden="true"
-                />
-                <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
-              </Button>
-            </Card>
-          </div>
-        )}
+          {error && (
+            <div role="alert" aria-live="assertive" className="mx-8">
+              <Card className="p-6 bg-error/10 border-error">
+                <p className="text-error font-medium" id="error-message">
+                  {error}
+                </p>
+                <button
+                  onClick={handleReset}
+                  className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex items-center"
+                  aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
+                  aria-describedby="error-message"
+                >
+                  <RotateCcw
+                    className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
+                    aria-hidden="true"
+                  />
+                  <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
+                </button>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         {/* Try Multiple Tab - Cart Mode */}
@@ -2396,136 +2652,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </div>
               </Card>
             )}
-
-            {/* Results section */}
-            <section
-              className="pt-2 sm:pt-4"
-              aria-labelledby="results-multiple-heading"
-              aria-live="polite"
-              aria-busy={isGeneratingMultiple}
-            >
-              <h2 id="results-multiple-heading" className="sr-only">
-                {t("tryOnWidget.sections.results.multiple.title") || "Résultats de l'essayage virtuel - Mode Multiple"}
-              </h2>
-              {isGeneratingMultiple ? (
-                <Card className="p-4 sm:p-6 border-border bg-card">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                      <h2 className="text-base sm:text-lg font-semibold">
-                        {t("tryOnWidget.status.generating") || "Génération en cours..."}
-                      </h2>
-                    </div>
-                    <Skeleton className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg" />
-                  </div>
-                </Card>
-              ) : cartResults ? (
-                <Card className="p-4 sm:p-6 border-border bg-card">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                        <h2 className="text-base sm:text-lg font-semibold">
-                          {t("tryOnWidget.sections.results.generated") || "Résultats Générés"}
-                        </h2>
-                      </div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">
-                        {t("tryOnWidget.results.successful", { successful: cartResults.summary.successful, total: cartResults.summary.totalGarments }) || `${cartResults.summary.successful} / ${cartResults.summary.totalGarments} réussis`}
-                        {cartResults.summary.cached > 0 && ` • ${t("tryOnWidget.results.cachedCount", { count: cartResults.summary.cached }) || `${cartResults.summary.cached} en cache`}`}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {cartResults.results
-                        .filter((r) => r.status === "success")
-                        .map((result, index) => {
-                          const imageUrl = result.image || result.imageUrl;
-                          if (!imageUrl) return null;
-
-                          return (
-                            <Card
-                              key={result.index}
-                              className="p-3 sm:p-4 border-border bg-card"
-                            >
-                              <div className="space-y-3">
-                                <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 h-64 sm:h-72 md:h-80 flex items-center justify-center">
-                                  <img
-                                    src={imageUrl}
-                                    alt={t("tryOnWidget.ariaLabels.tryOnResult", { index: index + 1 }) || `Résultat de l'essayage virtuel ${index + 1}`}
-                                    className="h-full w-auto object-contain"
-                                    loading="lazy"
-                                  />
-                                  {result.cached && (
-                                    <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-[10px] px-2 py-1 rounded">
-                                      {t("tryOnWidget.results.cached") || "Cache"}
-                                    </div>
-                                  )}
-                                  {result.status === "success" && (
-                                    <div className="absolute top-2 left-2">
-                                      <CheckCircle
-                                        className="h-5 w-5 text-green-500 bg-background rounded-full"
-                                        aria-hidden="true"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-
-                                <Button
-                                  onClick={() => handleCartMultipleDownload(imageUrl, index)}
-                                  disabled={downloadingIndex === index}
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full"
-                                  aria-label={t("tryOnWidget.ariaLabels.downloadImage", { index: index + 1 }) || `Télécharger l'image ${index + 1}`}
-                                >
-                                  {downloadingIndex === index ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                  ) : (
-                                    <Download className="h-4 w-4 mr-2" />
-                                  )}
-                                  {t("tryOnWidget.buttons.download") || "Télécharger"}
-                                </Button>
-
-                                {result.processingTime > 0 && (
-                                  <p className="text-[10px] text-muted-foreground text-center">
-                                    {(result.processingTime / 1000).toFixed(1)}s
-                                  </p>
-                                )}
-                              </div>
-                            </Card>
-                          );
-                        })}
-                    </div>
-
-                    {cartResults.summary.failed > 0 && (
-                      <div className="mt-4 p-3 bg-warning/10 border border-warning rounded">
-                        <p className="text-sm text-warning font-semibold">
-                          {t("tryOnWidget.errors.failedGenerations", { count: cartResults.summary.failed }) || `${cartResults.summary.failed} article${cartResults.summary.failed > 1 ? "s" : ""} n'ont pas pu être généré${cartResults.summary.failed > 1 ? "s" : ""}`}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ) : (
-                <Card className="p-6 text-center">
-                  <div
-                    className="w-full min-h-[400px] flex flex-col items-center justify-center gap-3 text-muted-foreground"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <div
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center"
-                      aria-hidden="true"
-                    >
-                      <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-                      {t("tryOnWidget.sections.results.noResults") || "Aucun résultat généré"}
-                    </p>
-                  </div>
-                </Card>
-              )}
-            </section>
 
             {/* Error Display */}
             {errorMultiple && (
@@ -3043,158 +3169,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </Card>
             )}
 
-            {/* Results section */}
-            <section
-              className="pt-2 sm:pt-4"
-              aria-labelledby="results-look-heading"
-              aria-live="polite"
-              aria-busy={isGeneratingMultiple}
-            >
-              <h2 id="results-look-heading" className="sr-only">
-                {t("tryOnWidget.sections.results.look.title") || "Résultats de l'essayage virtuel - Mode Tenue"}
-              </h2>
-              {isGeneratingMultiple ? (
-                <Card className="p-4 sm:p-6 border-border bg-card">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                      <h2 className="text-base sm:text-lg font-semibold">
-                        {t("tryOnWidget.status.generating") || "Génération en cours..."}
-                      </h2>
-                    </div>
-                    <Skeleton className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg" />
-                  </div>
-                </Card>
-              ) : outfitResult ? (
-                <Card className="p-4 sm:p-6 border-border bg-card ring-2 ring-primary/20 shadow-lg">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                      <h2 className="text-base sm:text-lg font-semibold">
-                        {t("tryOnWidget.sections.results.outfitGenerated") || "Tenue Complète Générée"}
-                      </h2>
-                    </div>
-
-                    {(() => {
-                      const imageUrl = outfitResult.data.image || outfitResult.data.imageUrl;
-                      if (!imageUrl) {
-                        return (
-                          <Card className="p-6 text-center bg-error/10 border-error">
-                            <XCircle className="h-12 w-12 mx-auto mb-4 text-error" />
-                            <p className="text-error font-semibold">
-                              {t("tryOnWidget.errors.generationError") || "Erreur lors de la génération"}
-                            </p>
-                          </Card>
-                        );
-                      }
-
-                      return (
-                        <>
-                          <div className="relative rounded-lg border border-border/50 bg-gradient-to-br from-muted/20 to-muted/5 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-300">
-                            <img
-                              src={imageUrl}
-                              alt={t("tryOnWidget.ariaLabels.outfitGenerated") || "Tenue complète générée par intelligence artificielle"}
-                              className="w-full max-h-[80vh] object-contain"
-                              loading="lazy"
-                            />
-                            {outfitResult.data.cached && (
-                              <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground text-xs px-3 py-1.5 rounded">
-                                {t("tryOnWidget.results.cached") || "En cache"}
-                              </div>
-                            )}
-                          </div>
-
-                          {outfitResult.data.garmentTypes && outfitResult.data.garmentTypes.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {outfitResult.data.garmentTypes.map((type, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs px-2 py-1 bg-muted rounded text-muted-foreground"
-                                >
-                                  {type}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <Button
-                              onClick={() => handleCartMultipleDownload(imageUrl)}
-                              disabled={downloadingIndex !== null}
-                              variant="outline"
-                              size="sm"
-                              className="w-full"
-                              aria-label={t("tryOnWidget.ariaLabels.downloadOutfit") || "Télécharger l'image de la tenue"}
-                            >
-                              {downloadingIndex !== null ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : (
-                                <Download className="h-4 w-4 mr-2" />
-                              )}
-                              {t("tryOnWidget.buttons.download") || "Télécharger"}
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                toast.info(t("tryOnWidget.toast.comingSoon") || "Fonctionnalité à venir", {
-                                  description: t("tryOnWidget.toast.addToCartComingSoon") || "L'ajout au panier sera disponible prochainement.",
-                                });
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="w-full border-green-500/80 text-green-600 hover:bg-green-50"
-                              aria-label={t("tryOnWidget.ariaLabels.addAllToCart") || "Ajouter tous les articles au panier"}
-                            >
-                              <ShoppingCart className="h-4 w-4 mr-2" />
-                              {t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                toast.info(t("tryOnWidget.toast.comingSoon") || "Fonctionnalité à venir", {
-                                  description: t("tryOnWidget.toast.buyNowComingSoon") || "L'achat immédiat sera disponible prochainement.",
-                                });
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="w-full border-red-500/80 text-red-600 hover:bg-red-50"
-                              aria-label={t("tryOnWidget.ariaLabels.buyAllNow") || "Acheter tous les articles maintenant"}
-                            >
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              {t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                            </Button>
-                          </div>
-
-                          {outfitResult.data.processingTime > 0 && (
-                            <p className="text-xs text-muted-foreground text-center">
-                              {t("tryOnWidget.results.processingTime") || "Temps de traitement:"} {(outfitResult.data.processingTime / 1000).toFixed(1)}s
-                              {outfitResult.data.creditsDeducted > 0 && ` • ${t("tryOnWidget.results.creditsUsed", { count: outfitResult.data.creditsDeducted }) || `${outfitResult.data.creditsDeducted} crédit${outfitResult.data.creditsDeducted > 1 ? "s" : ""} utilisé${outfitResult.data.creditsDeducted > 1 ? "s" : ""}`}`}
-                            </p>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </Card>
-              ) : (
-                <Card className="p-6 text-center">
-                  <div
-                    className="w-full min-h-[400px] flex flex-col items-center justify-center gap-3 text-muted-foreground"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <div
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted/50 flex items-center justify-center"
-                      aria-hidden="true"
-                    >
-                      <ImageIcon className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground/60" />
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground/80 text-center px-4">
-                      {t("tryOnWidget.sections.results.noResults") || "Aucun résultat généré"}
-                    </p>
-                  </div>
-                </Card>
-              )}
-            </section>
-
             {/* Error Display */}
             {errorMultiple && (
               <div role="alert" aria-live="assertive">
@@ -3227,8 +3201,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
             )}
           </TabsContent>
+        </Tabs>
         </div>
-      </Tabs>
+      </div>
     </div>
   );
 }

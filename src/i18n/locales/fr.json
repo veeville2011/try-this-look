@@ -653,7 +653,7 @@
       "clear": "Effacer",
       "clearPhoto": "Effacer la photo téléchargée",
       "clearAll": "Effacer tout",
-      "generate": "Générer l'essayage virtuel",
+      "generate": "Générer",
       "generateImage": "Générer Image",
       "generateMultiple": "Générer {{count}} Image",
       "generateMultiple_plural": "Générer {{count}} Images",
@@ -662,7 +662,8 @@
       "retry": "Réessayer",
       "addToCart": "Ajouter au Panier",
       "buyNow": "Acheter Maintenant",
-      "generateHelp": "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"
+      "generateHelp": "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel",
+      "back": "Retour"
     },
     "tabs": {
       "ariaLabel": "Mode d'essayage",
@@ -688,7 +689,7 @@
         "title": "Votre Photo"
       },
       "selectClothing": {
-        "title": "Sélectionner un Article de Vêtement",
+        "title": "Sélectionner un article",
         "description": "Sélectionnez un article de vêtement sur cette page"
       },
       "selectGarments": {
@@ -740,6 +741,7 @@
       "missingPhotoOrGarments_plural": "La génération nécessite une photo et au moins {{count}} articles sélectionnés.",
       "unexpectedError": "Une erreur inattendue s'est produite",
       "generationError": "Erreur de génération",
+      "authenticationRequired": "Veuillez vous connecter pour utiliser ce service",
       "storeInfoUnavailable": "Informations de magasin non disponibles",
       "failedToLoadGarmentImage": "Impossible de charger l'image de l'article: {{url}}",
       "failedToLoadImage": "Échec du chargement de l'image",
@@ -789,19 +791,25 @@
       "srOnlyText": "Téléchargez votre photo ou utilisez une photo de démonstration",
       "uploadAreaAriaLabel": "Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image",
       "clickToUpload": "Cliquez pour télécharger votre photo",
+      "takePhoto": "Prenez une photo de vous",
+      "chooseClearPhoto": "Choisissez une photo claire de vous",
+      "choosePhoto": "Choisir une photo",
       "acceptedFormats": "Formats acceptés : JPG, PNG (max 10 Mo)",
       "selectFileAriaLabel": "Sélectionner un fichier image",
-      "or": "ou",
-      "selectDemoPhoto": "Sélectionner une photo de démonstration",
-      "selectDemoPhotoAriaLabel": "Sélectionner la photo de démonstration {{index}}",
-      "demoPhotoAlt": "Photo de démonstration {{index}} pour l'essayage virtuel",
+      "or": "OU",
+      "selectDemoPhoto": "Sélectionner le modèle {{id}}",
+      "chooseDemoModel": "Choisir un modèle de démonstration",
+      "selectDemoModel": "Sélectionner un modèle de démonstration",
+      "selectDemoPhotoAriaLabel": "Sélectionner le modèle {{id}}",
+      "demoPhotoAlt": "Modèle de démonstration {{id}} pour l'essayage virtuel",
+      "demoModalAriaLabel": "Sélectionner un modèle de démonstration",
       "alreadyGenerated": "Déjà généré",
       "previewAlt": "Aperçu de la photo téléchargée",
       "uploadSuccess": "Photo téléchargée avec succès !",
       "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement"
     },
     "clothingSelection": {
-      "recommendedProducts": "Produits Recommandés",
+      "recommendedProducts": "Produits recommandés",
       "selectedItem": "Article Sélectionné",
       "clear": "Effacer",
       "clearSelectionAriaLabel": "Effacer la sélection du vêtement",
