@@ -685,16 +685,11 @@
     if (!productForm) return null;
     
     // Find submit control within the form
-    // Note: We accept disabled buttons too, as they may become enabled when variant is selected
     const submitButton = productForm.querySelector('button[type="submit"]') ||
                          productForm.querySelector('input[type="submit"]');
     
-    if (submitButton && isPrimaryPurchaseElement(submitButton)) {
-      // Check visibility (but allow disabled buttons - they're still valid targets)
-      const style = window.getComputedStyle(submitButton);
-      if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
-        return submitButton;
-      }
+    if (submitButton && isElementVisible(submitButton) && isPrimaryPurchaseElement(submitButton)) {
+      return submitButton;
     }
     
     return null;
@@ -705,23 +700,14 @@
     const selectors = [
       'button[name="add"]',
       'button[data-add-to-cart]',
-      'button[data-cart-submit]',
-      '[data-product-form] button[type="submit"]',
-      '.product-form button[type="submit"]',
-      '[data-add-to-cart-button]',
-      '.add-to-cart-button',
-      '.product-form__submit'
+      'button[data-cart-submit]'
     ];
     
     for (const selector of selectors) {
       const elements = document.querySelectorAll(selector);
       for (const element of elements) {
-        // Accept disabled buttons too (they may become enabled)
-        const style = window.getComputedStyle(element);
-        if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
-          if (isPrimaryPurchaseElement(element)) {
-            return element;
-          }
+        if (isElementVisible(element) && isPrimaryPurchaseElement(element)) {
+          return element;
         }
       }
     }
@@ -838,23 +824,12 @@
       // Find Add to Cart button using tiered strategy
       const addToCartButton = findAddToCartButton();
       if (!addToCartButton) {
-        // Add to Cart button not found - this can happen in several edge cases:
-        // 1. Sold out/out of stock products (button may be disabled/hidden)
-        // 2. Pre-order products (different button text/behavior)
-        // 3. Subscription-only products (different purchase flow)
-        // 4. Products requiring custom options (no standard Add to Cart)
-        // 5. "Contact us" or "Notify me" products (no Add to Cart button)
-        // 6. Variant selection required (button disabled until variant selected)
-        // 7. Products loading dynamically (button not in DOM yet)
-        // 8. Custom theme implementations (non-standard form structure)
-        // 9. Products with quantity limits (button may be disabled)
-        // 10. Products with selling plans only (subscription required)
-        //
-        // Keep button visible and place it in a reasonable location
+        // Add to Cart button not found yet, but keep button visible
         // The MutationObserver will keep trying to find and position it
+        // Place button in a reasonable location (near product form or product info)
         const productForm = document.querySelector('form[action*="/cart/add"]');
         if (productForm && container.parentElement !== productForm.parentElement) {
-          // Try to place near the form (even if submit button isn't visible yet)
+          // Try to place near the form
           const formParent = productForm.parentElement;
           if (formParent) {
             formParent.insertBefore(container, productForm);
@@ -865,7 +840,6 @@
                               document.querySelector('.product-single__meta') ||
                               document.querySelector('.product-info') ||
                               document.querySelector('[data-product-info]') ||
-                              document.querySelector('[data-product-form]') ||
                               document.querySelector('main');
           if (productInfo) {
             productInfo.appendChild(container);
