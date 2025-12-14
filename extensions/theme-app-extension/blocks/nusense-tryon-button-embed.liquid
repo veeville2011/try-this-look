@@ -263,6 +263,11 @@
   /* Container for embed button - hidden by default, shown only on product pages */
   .nusense-tryon-button-embed-container {
     display: none;
+    position: static;
+    float: none;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    z-index: auto;
   }
   
   .nusense-tryon-button-embed-container.is-product-page {
@@ -589,9 +594,9 @@
 <script src="{{ 'nusense-tryon-button.js' | asset_url }}" defer></script>
 
 {% comment %}
-  App Embed Block Initialization Script
-  This script detects if we're on a product page and dynamically inserts the button
-  It maintains all styling, positioning, and customization exactly as the app block version
+  App Embed Block Positioning Script
+  Repositions the EXISTING Try On button to appear immediately above the Add to Cart button.
+  Uses universal, theme-agnostic detection that works across all Shopify themes and languages.
 {% endcomment %}
 <script>
 (function() {
@@ -601,274 +606,410 @@
   const containerId = 'nusense-tryon-button-embed-' + blockId;
   const buttonId = 'nusense-tryon-btn-' + blockId;
   
-  // Wait for DOM to be ready
-  function initEmbedButton() {
-    const container = document.getElementById(containerId);
-    if (!container) return;
+  // Track if positioning is in progress to prevent duplicate operations
+  let isPositioning = false;
+  let lastPositionedUrl = null;
+  
+  // Function to check if element is visible and valid
+  function isElementVisible(element) {
+    if (!element) return false;
     
-    // Function to detect if we're on a product page
-    function isProductPage() {
-      // Check multiple methods to detect product page
-      
-      // Method 1: Check URL pattern
-      const pathname = window.location.pathname || '';
-      const isProductPath = /\/products\//.test(pathname);
-      
-      // Method 2: Check for product data in window
-      const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
-                             !!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
-      
-      // Method 3: Check for product JSON-LD schema
-      const hasProductSchema = !!document.querySelector('script[type="application/ld+json"]');
-      
-      // Method 4: Check for product form
-      const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
-      
-      // Method 5: Check for common product page selectors
-      const hasProductSelectors = !!(
-        document.querySelector('.product') ||
-        document.querySelector('[data-product-id]') ||
-        document.querySelector('.product-single') ||
-        document.querySelector('.product__info')
-      );
-      
-      return isProductPath || (hasProductData && hasProductForm) || (hasProductSelectors && hasProductForm);
+    // Check if element has offsetParent (visible in layout)
+    if (element.offsetParent === null) {
+      // Element might be hidden, but check if it's just not in layout flow
+      const style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        return false;
+      }
     }
     
-    // Function to get product ID from page
-    function getProductId() {
-      // Priority 1: From NUSENSE_PRODUCT_DATA (set by snippet)
-      if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
-        return window.NUSENSE_PRODUCT_DATA.id;
-      }
-      
-      // Priority 2: From window.Shopify.product
-      if (window.Shopify && window.Shopify.product && window.Shopify.product.id) {
-        return window.Shopify.product.id;
-      }
-      
-      // Priority 3: From JSON-LD schema
-      try {
-        const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
-        for (let script of schemaScripts) {
-          try {
-            const data = JSON.parse(script.textContent);
-            if (data['@type'] === 'Product' && data.productID) {
-              return parseInt(data.productID, 10);
-            }
-            if (Array.isArray(data) && data[0] && data[0]['@type'] === 'Product' && data[0].productID) {
-              return parseInt(data[0].productID, 10);
-            }
-          } catch (e) {
-            // Continue to next script
-          }
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-      
-      // Priority 4: From JSON script tags (Shopify 2.0 themes)
-      try {
-        const jsonScripts = document.querySelectorAll('script[type="application/json"]');
-        for (let script of jsonScripts) {
-          try {
-            const data = JSON.parse(script.textContent);
-            if (data.product && data.product.id) {
-              return data.product.id;
-            }
-          } catch (e) {
-            // Continue to next script
-          }
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-      
-      // Priority 5: From data attributes
-      const productElement = document.querySelector('[data-product-id]');
-      if (productElement) {
-        const productId = productElement.getAttribute('data-product-id');
-        if (productId) {
-          return parseInt(productId, 10);
-        }
-      }
-      
-      // Priority 6: From URL
-      try {
-        const urlMatch = window.location.pathname.match(/\/products\/([^\/]+)/);
-        if (urlMatch) {
-          // Try to find product ID from meta tags or other sources
-          const metaProductId = document.querySelector('meta[property="product:retailer_item_id"]');
-          if (metaProductId) {
-            return parseInt(metaProductId.getAttribute('content'), 10);
-          }
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-      
-      return null;
+    // Check if element is disabled
+    if (element.disabled === true) {
+      return false;
     }
     
-    // Function to find insertion point for button (near Add to Cart button)
-    function findInsertionPoint() {
-      // Priority 1: Find Add to Cart button/form
-      const addToCartButton = document.querySelector('button[name="add"]') ||
-                              document.querySelector('button[type="submit"][name="add"]') ||
-                              document.querySelector('input[type="submit"][name="add"]') ||
-                              document.querySelector('button[data-add-to-cart]') ||
-                              document.querySelector('[data-add-to-cart-button]');
+    // Check if element is inside a hidden container (cart drawer, modal, popup)
+    let parent = element.parentElement;
+    while (parent && parent !== document.body) {
+      const parentStyle = window.getComputedStyle(parent);
+      const parentId = parent.id || '';
+      const parentClass = parent.className || '';
       
-      if (addToCartButton) {
-        // Try to find parent container
-        const form = addToCartButton.closest('form');
-        if (form) {
-          // Insert before the form
-          return { element: form, position: 'beforebegin' };
-        }
-        
-        const parent = addToCartButton.parentElement;
-        if (parent) {
-          // Insert before the Add to Cart button
-          return { element: addToCartButton, position: 'beforebegin' };
-        }
+      // Skip if inside hidden containers
+      if (parentStyle.display === 'none' || 
+          parentStyle.visibility === 'hidden' ||
+          parentId.includes('drawer') ||
+          parentId.includes('modal') ||
+          parentId.includes('popup') ||
+          parentId.includes('quick-view') ||
+          parentClass.includes('drawer') ||
+          parentClass.includes('modal') ||
+          parentClass.includes('popup') ||
+          parentClass.includes('quick-view')) {
+        return false;
       }
       
-      // Priority 2: Find product form
-      const productForm = document.querySelector('form[action*="/cart/add"]');
-      if (productForm) {
-        return { element: productForm, position: 'beforebegin' };
-      }
-      
-      // Priority 3: Find product info wrapper
-      const productInfo = document.querySelector('.product__info') ||
-                          document.querySelector('.product-single__meta') ||
-                          document.querySelector('.product-info') ||
-                          document.querySelector('[data-product-info]');
-      
-      if (productInfo) {
-        return { element: productInfo, position: 'inside' };
-      }
-      
-      // Priority 4: Find main product container
-      const productContainer = document.querySelector('.product') ||
-                               document.querySelector('.product-single') ||
-                               document.querySelector('[data-product]') ||
-                               document.querySelector('main');
-      
-      if (productContainer) {
-        return { element: productContainer, position: 'inside' };
-      }
-      
-      // Fallback: Insert into body
-      return { element: document.body, position: 'inside' };
+      parent = parent.parentElement;
     }
     
-    // Function to insert button into page
-    function insertButton() {
+    return true;
+  }
+  
+  // Function to check if element belongs to primary product purchase flow
+  function isPrimaryPurchaseElement(element) {
+    if (!element) return false;
+    
+    // Must be inside a product purchase form
+    const form = element.closest('form[action*="/cart/add"]');
+    if (!form) return false;
+    
+    // Check if form is the main product form (not a quick-add or variant selector)
+    const formId = form.id || '';
+    const formClass = form.className || '';
+    
+    // Exclude quick-add forms, variant selectors, or mini forms
+    if (formId.includes('quick') ||
+        formId.includes('mini') ||
+        formClass.includes('quick') ||
+        formClass.includes('mini') ||
+        formClass.includes('variant-selector')) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  // Tier 1: Primary detection - Shopify invariant form[action*="/cart/add"]
+  function findAddToCartTier1() {
+    const productForm = document.querySelector('form[action*="/cart/add"]');
+    if (!productForm) return null;
+    
+    // Find submit control within the form
+    const submitButton = productForm.querySelector('button[type="submit"]') ||
+                         productForm.querySelector('input[type="submit"]');
+    
+    if (submitButton && isElementVisible(submitButton) && isPrimaryPurchaseElement(submitButton)) {
+      return submitButton;
+    }
+    
+    return null;
+  }
+  
+  // Tier 2: Fallback detection for edge-case themes
+  function findAddToCartTier2() {
+    const selectors = [
+      'button[name="add"]',
+      'button[data-add-to-cart]',
+      'button[data-cart-submit]'
+    ];
+    
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        if (isElementVisible(element) && isPrimaryPurchaseElement(element)) {
+          return element;
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  // Main function to find Add to Cart button using tiered strategy
+  function findAddToCartButton() {
+    // Tier 1: Primary (Shopify invariant)
+    const tier1Result = findAddToCartTier1();
+    if (tier1Result) {
+      return tier1Result;
+    }
+    
+    // Tier 2: Fallback
+    const tier2Result = findAddToCartTier2();
+    if (tier2Result) {
+      return tier2Result;
+    }
+    
+    return null;
+  }
+  
+  // Function to get product ID from page
+  function getProductId() {
+    // Priority 1: From NUSENSE_PRODUCT_DATA (set by snippet)
+    if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
+      return window.NUSENSE_PRODUCT_DATA.id;
+    }
+    
+    // Priority 2: From window.Shopify.product
+    if (window.Shopify && window.Shopify.product && window.Shopify.product.id) {
+      return window.Shopify.product.id;
+    }
+    
+    // Priority 3: From JSON script tags (Shopify 2.0 themes)
+    try {
+      const jsonScripts = document.querySelectorAll('script[type="application/json"]');
+      for (let script of jsonScripts) {
+        try {
+          const data = JSON.parse(script.textContent);
+          if (data.product && data.product.id) {
+            return data.product.id;
+          }
+        } catch (e) {
+          // Continue to next script
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    
+    return null;
+  }
+  
+  // Function to check if we're on a product page
+  function isProductPage() {
+    const pathname = window.location.pathname || '';
+    const isProductPath = /\/products\//.test(pathname);
+    const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
+    return isProductPath && hasProductForm;
+  }
+  
+  // Main positioning function - repositions EXISTING button
+  function positionTryOnButton() {
+    // Prevent duplicate positioning operations
+    if (isPositioning) return;
+    
+    const currentUrl = window.location.href;
+    if (lastPositionedUrl === currentUrl && document.getElementById(containerId) && document.getElementById(containerId).parentElement && document.getElementById(containerId).parentElement !== document.body) {
+      // Already positioned for this URL, skip
+      return;
+    }
+    
+    isPositioning = true;
+    
+    try {
+      // Get the EXISTING button container (already in DOM from app embed)
+      const container = document.getElementById(containerId);
+      if (!container) {
+        isPositioning = false;
+        return;
+      }
+      
+      // Check if we're on a product page
       if (!isProductPage()) {
-        // Not on product page, hide container
         container.style.display = 'none';
+        isPositioning = false;
         return;
       }
       
+      // Get product ID and update button
       const productId = getProductId();
-      if (!productId) {
-        // Can't find product ID, hide container
-        container.style.display = 'none';
-        return;
-      }
-      
-      // Update button with product ID
       const button = document.getElementById(buttonId);
-      if (button) {
+      if (button && productId) {
         button.setAttribute('data-product-id', productId);
       }
       
-      // Find insertion point
-      const insertion = findInsertionPoint();
-      if (!insertion || !insertion.element) {
+      // Find Add to Cart button using tiered strategy
+      const addToCartButton = findAddToCartButton();
+      if (!addToCartButton) {
+        // Add to Cart button not found, hide Try On button
         container.style.display = 'none';
+        isPositioning = false;
         return;
       }
       
-      // Check if button is already inserted
-      if (container.parentElement && container.parentElement !== document.body) {
-        // Already inserted, just show it
-        container.style.display = 'block';
-        container.classList.add('is-product-page');
+      // Ensure container is visible and properly styled
+      container.style.display = 'block';
+      container.classList.add('is-product-page');
+      
+      // Apply bottom margin to avoid visual crowding (normal document flow)
+      if (!container.style.marginBottom || container.style.marginBottom === '') {
+        container.style.marginBottom = '0.75rem';
+      }
+      
+      // Ensure container uses normal document flow (block-level, full width)
+      container.style.position = '';
+      container.style.float = '';
+      container.style.zIndex = '';
+      
+      // Check if button is already correctly positioned
+      const currentParent = container.parentElement;
+      const addToCartParent = addToCartButton.parentElement;
+      
+      // If already positioned correctly (immediately before Add to Cart), skip
+      if (currentParent === addToCartParent && 
+          container.nextSibling === addToCartButton) {
+        lastPositionedUrl = currentUrl;
+        isPositioning = false;
         return;
       }
       
-      // Insert button into page
-      try {
-        if (insertion.position === 'inside') {
-          insertion.element.appendChild(container);
-        } else {
-          insertion.element.insertAdjacentElement(insertion.position, container);
-        }
-        
-        // Show container
-        container.style.display = 'block';
-        container.classList.add('is-product-page');
-        
-        // Initialize button styling and positioning (same as app block)
-        // The nusense-tryon-button.js will handle the rest
-        if (button) {
-          // Trigger button initialization if script is loaded
-          if (window.NUSENSE_BUTTON_INITIALIZED) {
-            // Button script already loaded, manually trigger initialization
-            setTimeout(function() {
-              // Button will be initialized by the main script
-            }, 100);
-          }
-        }
-      } catch (e) {
-        // Error inserting button, hide container
+      // Move the EXISTING button to be immediately before Add to Cart button
+      // Use insertBefore for normal document flow positioning
+      if (addToCartParent) {
+        addToCartParent.insertBefore(container, addToCartButton);
+        lastPositionedUrl = currentUrl;
+      }
+      
+    } catch (e) {
+      // Error in positioning, hide button to prevent layout issues
+      const container = document.getElementById(containerId);
+      if (container) {
         container.style.display = 'none';
       }
+    } finally {
+      isPositioning = false;
     }
-    
-    // Initialize on page load
+  }
+  
+  // Debounce function to prevent excessive repositioning
+  let positionTimeout = null;
+  function debouncedPosition() {
+    if (positionTimeout) {
+      clearTimeout(positionTimeout);
+    }
+    positionTimeout = setTimeout(function() {
+      positionTryOnButton();
+    }, 150);
+  }
+  
+  // Initialize positioning
+  function initPositioning() {
+    // Initial positioning
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(insertButton, 100);
+        setTimeout(positionTryOnButton, 200);
       });
     } else {
-      setTimeout(insertButton, 100);
+      setTimeout(positionTryOnButton, 200);
     }
     
-    // Re-check on navigation (for SPA themes)
+    // MutationObserver for dynamic themes (variant changes, form updates)
+    const observer = new MutationObserver(function(mutations) {
+      let shouldReposition = false;
+      
+      for (const mutation of mutations) {
+        // Check if product form or Add to Cart button was added/modified
+        if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1) {
+              // Check if a form or button was added
+              if (node.tagName === 'FORM' && node.action && node.action.includes('/cart/add')) {
+                shouldReposition = true;
+                break;
+              }
+              if (node.tagName === 'BUTTON' || node.tagName === 'INPUT') {
+                const form = node.closest('form[action*="/cart/add"]');
+                if (form) {
+                  shouldReposition = true;
+                  break;
+                }
+              }
+              // Check if Add to Cart button exists in added subtree
+              if (node.querySelector && (
+                  node.querySelector('form[action*="/cart/add"]') ||
+                  node.querySelector('button[type="submit"]') ||
+                  node.querySelector('button[name="add"]')
+                )) {
+                shouldReposition = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Check if attributes changed on forms or buttons
+        if (mutation.type === 'attributes') {
+          const target = mutation.target;
+          if (target.tagName === 'FORM' || target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
+            const form = target.closest('form[action*="/cart/add"]');
+            if (form) {
+              shouldReposition = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (shouldReposition) {
+        debouncedPosition();
+      }
+    });
+    
+    // Observe document body for changes
+    if (document.body) {
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
+      });
+    } else {
+      // Wait for body to be available
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          if (document.body) {
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
+            });
+          }
+        });
+      }
+    }
+    
+    // Handle navigation changes (SPA themes, browser back/forward)
     let lastUrl = window.location.href;
+    let urlCheckIntervalId = null;
+    let urlCheckCount = 0;
+    const INITIAL_CHECK_INTERVAL = 500; // Check every 500ms initially (first 10 seconds)
+    const STABLE_CHECK_INTERVAL = 3000; // Then check every 3 seconds
+    const MAX_CHECKS_BEFORE_STABLE = 20; // Switch to stable interval after 20 checks (~10 seconds)
+    
     const checkUrlChange = function() {
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
-        setTimeout(insertButton, 200);
+        lastPositionedUrl = null; // Reset to allow repositioning
+        urlCheckCount = 0; // Reset counter on URL change
+        
+        // Restart with initial frequency when URL changes
+        if (urlCheckIntervalId) {
+          clearInterval(urlCheckIntervalId);
+        }
+        startUrlChecking();
+        
+        setTimeout(positionTryOnButton, 300);
       }
     };
     
-    // Use MutationObserver to detect page changes
-    const observer = new MutationObserver(function() {
-      checkUrlChange();
-    });
+    window.addEventListener('popstate', checkUrlChange);
     
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
+    // Optimized URL checking for SPA themes
+    // Checks more frequently initially, then reduces frequency after page is stable
+    function startUrlChecking() {
+      urlCheckCount = 0;
+      
+      function performCheck() {
+        checkUrlChange();
+        urlCheckCount++;
+        
+        // Switch to less frequent checking after initial period
+        if (urlCheckCount >= MAX_CHECKS_BEFORE_STABLE && urlCheckIntervalId) {
+          clearInterval(urlCheckIntervalId);
+          urlCheckIntervalId = setInterval(performCheck, STABLE_CHECK_INTERVAL);
+        }
+      }
+      
+      // Start with frequent checks
+      urlCheckIntervalId = setInterval(performCheck, INITIAL_CHECK_INTERVAL);
+    }
     
-    // Also check on popstate (browser back/forward)
-    window.addEventListener('popstate', function() {
-      setTimeout(insertButton, 200);
-    });
+    // Start optimized URL checking
+    startUrlChecking();
   }
   
-  // Initialize when script loads
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initEmbedButton);
-  } else {
-    initEmbedButton();
-  }
+  // Start positioning logic
+  initPositioning();
 })();
 </script>
 
