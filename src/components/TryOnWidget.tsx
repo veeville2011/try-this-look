@@ -501,6 +501,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         const parentImages = event.data.images || [];
         const parentRecommendedImages = event.data.recommendedImages || [];
 
+        console.log(
+          "[TryOnWidget] Received NUSENSE_PRODUCT_IMAGES:",
+          parentImages.length,
+          "images,",
+          parentRecommendedImages.length,
+          "recommended"
+        );
+
         if (parentImages.length > 0) {
           // Always prioritize and use parent images - they come from the actual Shopify product page
           // These are extracted using Shopify Liquid objects (product.media/product.images)
@@ -628,13 +636,29 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Always request images when switching to clothing step, even if we have some images
       // This ensures we get the latest images from the parent window
       console.log("[TryOnWidget] Requesting images from parent (mobileStep:", mobileStep, ", activeTab:", activeTab, ", currentImages:", singleTabImages.length, ")");
-      try {
-        window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
-      } catch (error) {
-        console.error("[TryOnWidget] Failed to request images from parent window:", error);
-      }
+      
+      // Request images immediately
+      const requestImages = () => {
+        try {
+          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+        } catch (error) {
+          console.error("[TryOnWidget] Failed to request images from parent window:", error);
+        }
+      };
+      
+      requestImages();
+      
+      // Also retry after a short delay in case the parent wasn't ready
+      const retryTimeout = setTimeout(() => {
+        if (singleTabImages.length === 0) {
+          console.log("[TryOnWidget] Retrying image request after delay");
+          requestImages();
+        }
+      }, 500);
+      
+      return () => clearTimeout(retryTimeout);
     }
-  }, [mobileStep, activeTab]);
+  }, [mobileStep, activeTab, singleTabImages.length]);
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {

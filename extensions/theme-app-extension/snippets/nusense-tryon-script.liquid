@@ -677,17 +677,29 @@ return img.url && typeof img.url === 'string' && img.url.trim().length > 0;
 return false;
 });
 if (images.length > 0) {
+if (CONFIG && CONFIG.debug) {
+console.log('NUSENSE: Found', images.length, 'images from NUSENSE_PRODUCT_DATA');
+}
 return images;
 }
 }
 {% endif %}
 images = extractFromShopifyJSON();
 if (images.length > 0) {
+if (CONFIG && CONFIG.debug) {
+console.log('NUSENSE: Found', images.length, 'images from Shopify JSON');
+}
 return images;
 }
 images = extractFromDOM();
 if (images.length > 0) {
+if (CONFIG && CONFIG.debug) {
+console.log('NUSENSE: Found', images.length, 'images from DOM');
+}
 return images;
+}
+if (CONFIG && CONFIG.debug) {
+console.warn('NUSENSE: No images found from any source');
 }
 return [];
 }
@@ -882,6 +894,9 @@ event.source.postMessage(storeInfo, '*');
 return;
 }
 if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
+if (CONFIG && CONFIG.debug) {
+console.log('NUSENSE: Received NUSENSE_REQUEST_IMAGES from:', event.origin);
+}
 handleImageRequest(event);
 return;
 }
@@ -902,6 +917,12 @@ console.error('NUSENSE: Error in message handler:', error);
 function handleImageRequest(event) {
 const images = getProductImages();
 const recommendedImages = getRecommendedProductsImages(images);
+if (CONFIG && CONFIG.debug) {
+console.log('NUSENSE: handleImageRequest called, images found:', images.length, 'recommended:', recommendedImages.length);
+if (images.length === 0) {
+console.log('NUSENSE: No images found. NUSENSE_PRODUCT_DATA:', window.NUSENSE_PRODUCT_DATA ? 'exists' : 'missing');
+}
+}
 if (event.source && event.source !== window) {
 try {
 event.source.postMessage({
@@ -909,7 +930,13 @@ type: 'NUSENSE_PRODUCT_IMAGES',
 images: images,
 recommendedImages: recommendedImages
 }, '*');
+if (CONFIG && CONFIG.debug) {
+console.log('NUSENSE: Sent images to widget:', images.length);
+}
 } catch (e) {
+if (CONFIG && CONFIG.debug) {
+console.error('NUSENSE: Error sending images to widget:', e);
+}
 }
 }
 }
