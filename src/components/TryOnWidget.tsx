@@ -1741,6 +1741,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     
     // Mark as closing to prevent double-trigger
+    // Flag will be reset when component unmounts (when overlay is closed)
     isClosingRef.current = true;
     
     if (isInIframe) {
@@ -1752,11 +1753,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         // Reset closing flag on error so user can try again
         isClosingRef.current = false;
       }
-      // In iframe mode, parent handles the close, so don't call onClose here
-      // Reset closing flag after a short delay to allow for retry if needed
-      setTimeout(() => {
-        isClosingRef.current = false;
-      }, 1000);
+      // In iframe mode, parent handles the close
+      // When overlay is closed, component will unmount and flag resets naturally
       return;
     }
     
@@ -1764,11 +1762,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (onClose) {
       onClose();
     }
-    
-    // Reset closing flag after a short delay
-    setTimeout(() => {
-      isClosingRef.current = false;
-    }, 1000);
+    // Flag will be reset when component unmounts
   };
 
   return (
@@ -1822,14 +1816,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   handleClose(e);
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onMouseUp={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
                 }}
                 className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
