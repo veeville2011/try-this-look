@@ -339,157 +339,60 @@ parent = parent.parentElement;
 }
 return true;
 }
-function isPrimaryPurchaseElement(element) {
-if (!element) return false;
-const elementId = String(element.getAttribute('id') || element.id || '');
-const elementClass = String(element.className || (element.classList ? Array.from(element.classList).join(' ') : ''));
-const elementText = (element.textContent || '').toLowerCase().trim();
-if ((typeof elementId === 'string' && (elementId.includes('quick') || elementId.includes('mini') || elementId.includes('drawer'))) ||
-(typeof elementClass === 'string' && (elementClass.includes('quick') || elementClass.includes('mini') || elementClass.includes('drawer') || elementClass.includes('variant-selector')))) {
-return false;
-}
-const form = element.closest('form[action*="/cart/add"]');
-if (form) {
-const formId = String(form.getAttribute('id') || form.id || '');
-const formClass = String(form.className || (form.classList ? Array.from(form.classList).join(' ') : ''));
-if ((typeof formId === 'string' && (formId.includes('quick') || formId.includes('mini'))) ||
-(typeof formClass === 'string' && (formClass.includes('quick') || formClass.includes('mini') || formClass.includes('variant-selector')))) {
-return false;
-}
-return true;
-}
-if (elementText.includes('add to cart') ||
-elementText.includes('buy now') ||
-elementText.includes('purchase') ||
-(typeof elementId === 'string' && (elementId.includes('add-to-cart') || elementId.includes('addtocart'))) ||
-(typeof elementClass === 'string' && (elementClass.includes('add-to-cart') || elementClass.includes('addtocart') || elementClass.includes('product-form__cart-submit') || elementClass.includes('product-form__submit')))) {
-return true;
-}
-return false;
-}
-function findAddToCartTier1() {
-const productForm = document.querySelector('form[action*="/cart/add"]');
-if (!productForm) {
-console.log('[NUSENSE] Tier1: No product form found');
-return null;
-}
-console.log('[NUSENSE] Tier1: Found product form:', productForm);
-const formId = String(productForm.getAttribute('id') || productForm.id || '');
-const formClass = String(productForm.className || (productForm.classList ? Array.from(productForm.classList).join(' ') : ''));
-console.log('[NUSENSE] Tier1: Form ID:', formId, 'Form Class:', formClass);
-if ((typeof formId === 'string' && (formId.includes('quick') || formId.includes('mini'))) ||
-(typeof formClass === 'string' && (formClass.includes('quick') || formClass.includes('mini') || formClass.includes('variant-selector')))) {
-console.log('[NUSENSE] Tier1: Form is quick/mini/variant-selector, skipping');
-return null;
-}
-let submitButton = productForm.querySelector('button[type="submit"]') ||
-productForm.querySelector('input[type="submit"]') ||
-productForm.querySelector('button[name="add"]') ||
-productForm.querySelector('button[data-add-to-cart]') ||
-productForm.querySelector('button:not([type])');
-if (!submitButton) {
-console.log('[NUSENSE] Tier1: No specific submit button found, trying all buttons in form');
-const allButtons = productForm.querySelectorAll('button');
-console.log('[NUSENSE] Tier1: Found', allButtons.length, 'buttons in form');
-for (const btn of allButtons) {
-if (isElementVisible(btn) && isPrimaryPurchaseElement(btn)) {
-submitButton = btn;
-console.log('[NUSENSE] Tier1: Found valid button:', btn, 'Type:', btn.type, 'Name:', btn.name, 'ID:', btn.id, 'Class:', btn.className);
-break;
-}
-}
-if (!submitButton) {
-console.log('[NUSENSE] Tier1: No valid button found in form. Form HTML:', productForm.outerHTML.substring(0, 500));
-console.log('[NUSENSE] Tier1: All buttons:', Array.from(allButtons).map(b => ({tag: b.tagName, type: b.type, name: b.name, id: b.id, class: b.className, visible: isElementVisible(b), primary: isPrimaryPurchaseElement(b)})));
-return null;
-}
-}
-console.log('[NUSENSE] Tier1: Found submit button:', submitButton, 'Type:', submitButton.type, 'Name:', submitButton.name, 'ID:', submitButton.id, 'Class:', submitButton.className);
-if (!isElementVisible(submitButton)) {
-const style = window.getComputedStyle(submitButton);
-console.log('[NUSENSE] Tier1: Submit button not visible. Display:', style.display, 'Visibility:', style.visibility, 'Opacity:', style.opacity, 'Offset:', submitButton.offsetWidth, 'x', submitButton.offsetHeight);
-return null;
-}
-if (!isPrimaryPurchaseElement(submitButton)) {
-console.log('[NUSENSE] Tier1: Submit button failed primary purchase check');
-return null;
-}
-console.log('[NUSENSE] Tier1: ✅ SUCCESS - Found Add to Cart button:', submitButton);
-return submitButton;
-}
-function findAddToCartTier2() {
-const selectors = [
-'button[name="add"]',
-'button[data-add-to-cart]',
-'button[data-cart-submit]',
-'#add-to-cart',
-'#addToCart',
-'.add-to-cart-button',
-'.add-to-cart',
-'.product-form__cart-submit',
-'.product-form__submit',
-'[data-product-form] button[type="submit"]',
-'.product-form button[type="submit"]',
-'form[action*="/cart/add"] button[type="submit"]',
-'button[aria-label*="add to cart" i]',
-'button[aria-label*="add" i]'
+function findProductTitleContainer() {
+console.log('[NUSENSE] Finding product title container...');
+const titleSelectors = [
+'h1.product__title',
+'h1.product-title',
+'h1.product-name',
+'h1[data-testid*="product"]',
+'.product__title h1',
+'.product-title h1',
+'.product-name h1',
+'h1.title',
+'[data-product-title]',
+'[data-product-title] h1'
 ];
-for (const selector of selectors) {
+for (const selector of titleSelectors) {
 try {
-const elements = document.querySelectorAll(selector);
-for (const element of elements) {
-if (isElementVisible(element) && isPrimaryPurchaseElement(element)) {
-console.log('[NUSENSE] Tier2: Found Add to Cart button:', element, 'using selector:', selector);
-return element;
+const titleElement = document.querySelector(selector);
+if (titleElement && isElementVisible(titleElement)) {
+console.log('[NUSENSE] Found product title:', titleElement, 'using selector:', selector);
+const titleContainer = titleElement.parentElement;
+if (titleContainer && titleContainer !== document.body) {
+console.log('[NUSENSE] Found title container:', titleContainer);
+return {title: titleElement, container: titleContainer};
 }
 }
 } catch (e) {
-console.log('[NUSENSE] Tier2: Selector failed:', selector, e);
+console.log('[NUSENSE] Title selector failed:', selector, e);
 }
 }
-console.log('[NUSENSE] Tier2: No Add to Cart button found with common selectors');
-return null;
-}
-function findAddToCartTier3() {
-const allButtons = document.querySelectorAll('button');
-const addToCartKeywords = ['add to cart', 'add', 'cart', 'buy now', 'purchase'];
-for (const button of allButtons) {
-if (!isElementVisible(button) || !isPrimaryPurchaseElement(button)) continue;
-const buttonText = (button.textContent || '').toLowerCase().trim();
-const buttonId = String(button.getAttribute('id') || button.id || '').toLowerCase();
-const buttonClass = String(button.className || (button.classList ? Array.from(button.classList).join(' ') : '')).toLowerCase();
-const buttonAriaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
-for (const keyword of addToCartKeywords) {
-if (buttonText.includes(keyword) ||
-buttonId.includes(keyword) ||
-buttonClass.includes(keyword) ||
-buttonAriaLabel.includes(keyword)) {
-const form = button.closest('form[action*="/cart/add"]');
-if (form || buttonText.includes('add to cart') || buttonText.includes('buy now')) {
-console.log('[NUSENSE] Tier3: Found Add to Cart button by text/content:', button);
-return button;
+const productInfoSelectors = [
+'.product__info',
+'.product-single__meta',
+'.product-info',
+'[data-product-info]',
+'[data-product-form]',
+'.product-details',
+'.product-main',
+'main.product'
+];
+for (const selector of productInfoSelectors) {
+try {
+const container = document.querySelector(selector);
+if (container && container !== document.body) {
+const titleInContainer = container.querySelector('h1');
+if (titleInContainer && isElementVisible(titleInContainer)) {
+console.log('[NUSENSE] Found product info container with title:', container);
+return {title: titleInContainer, container: container};
 }
 }
+} catch (e) {
+console.log('[NUSENSE] Product info selector failed:', selector, e);
 }
 }
-console.log('[NUSENSE] Tier3: No Add to Cart button found by text matching');
-return null;
-}
-function findAddToCartButton() {
-console.log('[NUSENSE] Starting Add to Cart button detection...');
-const tier1Result = findAddToCartTier1();
-if (tier1Result) {
-return tier1Result;
-}
-const tier2Result = findAddToCartTier2();
-if (tier2Result) {
-return tier2Result;
-}
-const tier3Result = findAddToCartTier3();
-if (tier3Result) {
-return tier3Result;
-}
-console.warn('[NUSENSE] All tiers failed - Add to Cart button not found');
+console.warn('[NUSENSE] Product title container not found');
 return null;
 }
 function getProductId() {
@@ -565,9 +468,40 @@ if (button && productId) {
 button.setAttribute('data-product-id', productId);
 }
 container.classList.add('is-product-page');
-const addToCartButton = findAddToCartButton();
-if (!addToCartButton) {
-console.warn('[NUSENSE] Add to Cart button not found, using fallback positioning');
+const titleResult = findProductTitleContainer();
+if (titleResult && titleResult.container) {
+const titleContainer = titleResult.container;
+const titleElement = titleResult.title;
+const currentParent = container.parentElement;
+if (currentParent === titleContainer && container.nextSibling === titleElement.nextSibling) {
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+return;
+}
+if (titleElement && titleElement.nextSibling) {
+titleContainer.insertBefore(container, titleElement.nextSibling);
+} else {
+titleContainer.appendChild(container);
+}
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
+if (!container.style.marginTop || container.style.marginTop === '') {
+container.style.marginTop = '1rem';
+}
+if (!container.style.marginBottom || container.style.marginBottom === '') {
+container.style.marginBottom = '0.75rem';
+}
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+return;
+}
+console.warn('[NUSENSE] Product title container not found, using fallback positioning');
 const productForm = document.querySelector('form[action*="/cart/add"]');
 if (productForm && container.parentElement !== productForm.parentElement) {
 const formParent = productForm.parentElement;
@@ -622,39 +556,6 @@ container.style.opacity = '1';
 container.classList.add('is-positioned');
 isPositioning = false;
 return;
-}
-if (!container.style.marginBottom || container.style.marginBottom === '') {
-container.style.marginBottom = '0.75rem';
-}
-container.style.position = '';
-container.style.float = '';
-container.style.zIndex = '';
-const currentParent = container.parentElement;
-const addToCartParent = addToCartButton.parentElement;
-if (currentParent === addToCartParent &&
-container.nextSibling === addToCartButton) {
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-lastPositionedUrl = currentUrl;
-isPositioning = false;
-return;
-}
-if (addToCartParent) {
-addToCartParent.insertBefore(container, addToCartButton);
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-lastPositionedUrl = currentUrl;
-} else {
-console.warn('[NUSENSE] Add to Cart button parent not found');
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-}
 } catch (e) {
 console.error('[NUSENSE] Error positioning button:', e);
 const container = document.getElementById(containerId);
@@ -710,9 +611,11 @@ break;
 }
 }
 if (node.querySelector && (
-node.querySelector('form[action*="/cart/add"]') ||
-node.querySelector('button[type="submit"]') ||
-node.querySelector('button[name="add"]')
+node.querySelector('h1.product__title') ||
+node.querySelector('h1.product-title') ||
+node.querySelector('.product__info') ||
+node.querySelector('.product-single__meta') ||
+node.querySelector('[data-product-title]')
 )) {
 shouldReposition = true;
 break;
