@@ -348,14 +348,56 @@ return null;
 }
 console.log('[NUSENSE] Found product form:', productForm);
 console.log('[NUSENSE] Step 2: Locating primary submit control (Add to Cart)...');
-const submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"]'));
+let submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type]), button[form]'));
 if (submitButtons.length === 0) {
-console.warn('[NUSENSE] No submit buttons found in form - aborting');
+console.log('[NUSENSE] No submit buttons in form, searching for buttons with form attribute...');
+const formId = productForm.id;
+if (formId) {
+submitButtons = Array.from(document.querySelectorAll('button[form="' + formId + '"], input[form="' + formId + '"]'));
+}
+}
+if (submitButtons.length === 0) {
+console.log('[NUSENSE] No explicit submit buttons found, searching for buttons near form...');
+const formParent = productForm.parentElement;
+if (formParent) {
+const nearbyButtons = Array.from(formParent.querySelectorAll('button'));
+for (const btn of nearbyButtons) {
+if (btn.form === productForm || btn.getAttribute('form') === productForm.id || (btn.onclick && btn.onclick.toString().includes('cart'))) {
+submitButtons.push(btn);
+}
+}
+}
+}
+if (submitButtons.length === 0) {
+console.log('[NUSENSE] No buttons found, using form as fallback target');
+const formParent = productForm.parentElement;
+if (formParent && formParent !== document.body && formParent !== document.documentElement) {
+return {
+isGroup: false,
+insertTarget: productForm,
+insertParent: formParent
+};
+}
+console.warn('[NUSENSE] Cannot determine insertion point - aborting');
 return null;
 }
-const visibleSubmitButtons = submitButtons.filter(btn => isElementVisible(btn));
+const visibleSubmitButtons = submitButtons.filter(btn => {
+if (!isElementVisible(btn)) return false;
+if (btn.disabled) return false;
+if (btn.getAttribute('aria-hidden') === 'true') return false;
+return true;
+});
 if (visibleSubmitButtons.length === 0) {
-console.warn('[NUSENSE] No visible submit buttons found - aborting');
+console.log('[NUSENSE] No visible submit buttons found, using form as fallback target');
+const formParent = productForm.parentElement;
+if (formParent && formParent !== document.body && formParent !== document.documentElement) {
+return {
+isGroup: false,
+insertTarget: productForm,
+insertParent: formParent
+};
+}
+console.warn('[NUSENSE] Cannot determine insertion point - aborting');
 return null;
 }
 console.log('[NUSENSE] Found', visibleSubmitButtons.length, 'visible submit button(s)');
@@ -379,8 +421,13 @@ insertTarget: primarySubmitButton,
 insertParent: primarySubmitButton.parentElement
 };
 }
-const submitButtonsInGroup = Array.from(buttonGroup.querySelectorAll('button[type="submit"], input[type="submit"]'));
-const visibleButtonsInGroup = submitButtonsInGroup.filter(btn => isElementVisible(btn));
+const submitButtonsInGroup = Array.from(buttonGroup.querySelectorAll('button, input[type="submit"]'));
+const visibleButtonsInGroup = submitButtonsInGroup.filter(btn => {
+if (!visibleSubmitButtons.includes(btn)) return false;
+if (!isElementVisible(btn)) return false;
+if (btn.disabled) return false;
+return true;
+});
 if (visibleButtonsInGroup.length >= 2) {
 console.log('[NUSENSE] Found button group with', visibleButtonsInGroup.length, 'submit buttons:', buttonGroup);
 return {
