@@ -339,223 +339,65 @@ parent = parent.parentElement;
 }
 return true;
 }
+function findVisibleButtons(container) {
+if (!container) return [];
+const allButtons = Array.from(container.querySelectorAll('button, input[type="submit"], input[type="button"]'));
+return allButtons.filter(btn => isElementVisible(btn) && !btn.disabled && btn.getAttribute('aria-hidden') !== 'true');
+}
+function isHorizontalLayout(element) {
+if (!element) return false;
+const style = window.getComputedStyle(element);
+const display = style.display;
+const flexDirection = style.flexDirection;
+const gridTemplateColumns = style.gridTemplateColumns;
+return (display === 'flex' || display === 'inline-flex') && (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '') ||
+(display === 'grid' && gridTemplateColumns !== 'none');
+}
 function findPurchaseActionBoundary() {
-console.log('[NUSENSE] Step 1: Locating product purchase boundary (invariant)...');
 const allForms = Array.from(document.querySelectorAll('form[action*="/cart/add"]'));
-console.log('[NUSENSE] Found', allForms.length, 'form(s) with /cart/add action');
-let productForm = null;
-for (const form of allForms) {
+let productForm = allForms.find(form => {
 const formClass = String(form.className || '').toLowerCase();
 const formId = String(form.id || '').toLowerCase();
-if (formClass.includes('payment-terms') || formId.includes('payment-terms') || formId.includes('installment')) {
-console.log('[NUSENSE] Skipping payment-terms/installment form:', form);
-continue;
-}
-productForm = form;
-console.log('[NUSENSE] Found main product form:', productForm);
-break;
-}
-if (!productForm && allForms.length > 0) {
-productForm = allForms[0];
-console.log('[NUSENSE] Using first form as fallback:', productForm);
-}
-if (!productForm) {
-console.warn('[NUSENSE] Product form not found - aborting');
-return null;
-}
-console.log('[NUSENSE] Using product form:', productForm, 'ID:', productForm.id, 'Class:', productForm.className);
-console.log('[NUSENSE] Step 2: Locating primary submit control (Add to Cart)...');
-let submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type]), button[form]'));
-if (submitButtons.length === 0) {
-console.log('[NUSENSE] No submit buttons in form, searching for buttons with form attribute...');
-const formId = productForm.id;
-if (formId) {
-submitButtons = Array.from(document.querySelectorAll('button[form="' + formId + '"], input[form="' + formId + '"]'));
-}
+return !formClass.includes('payment-terms') && !formId.includes('payment-terms') && !formId.includes('installment');
+}) || allForms[0];
+if (!productForm) return null;
+let submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])'));
+if (submitButtons.length === 0 && productForm.id) {
+submitButtons = Array.from(document.querySelectorAll('button[form="' + productForm.id + '"], input[form="' + productForm.id + '"]'));
 }
 if (submitButtons.length === 0) {
-console.log('[NUSENSE] No explicit submit buttons found, searching for buttons near form...');
-const formParent = productForm.parentElement;
-if (formParent) {
-const nearbyButtons = Array.from(formParent.querySelectorAll('button'));
-for (const btn of nearbyButtons) {
-if (btn.form === productForm || btn.getAttribute('form') === productForm.id || (btn.onclick && btn.onclick.toString().includes('cart'))) {
-submitButtons.push(btn);
-}
-}
-}
-}
-if (submitButtons.length === 0) {
-console.log('[NUSENSE] No buttons found, using form as fallback target');
 const formParent = productForm.parentElement;
 if (formParent && formParent !== document.body && formParent !== document.documentElement) {
-return {
-isGroup: false,
-insertTarget: productForm,
-insertParent: formParent
-};
+return {isGroup: false, insertTarget: productForm, insertParent: formParent};
 }
-console.warn('[NUSENSE] Cannot determine insertion point - aborting');
 return null;
 }
-const visibleSubmitButtons = submitButtons.filter(btn => {
-if (!isElementVisible(btn)) return false;
-if (btn.disabled) return false;
-if (btn.getAttribute('aria-hidden') === 'true') return false;
-return true;
-});
+const visibleSubmitButtons = submitButtons.filter(btn => isElementVisible(btn) && !btn.disabled && btn.getAttribute('aria-hidden') !== 'true');
 if (visibleSubmitButtons.length === 0) {
-console.log('[NUSENSE] No visible submit buttons found, using form as fallback target');
 const formParent = productForm.parentElement;
 if (formParent && formParent !== document.body && formParent !== document.documentElement) {
-return {
-isGroup: false,
-insertTarget: productForm,
-insertParent: formParent
-};
+return {isGroup: false, insertTarget: productForm, insertParent: formParent};
 }
-console.warn('[NUSENSE] Cannot determine insertion point - aborting');
 return null;
 }
-console.log('[NUSENSE] Found', visibleSubmitButtons.length, 'visible submit button(s)');
 const primarySubmitButton = visibleSubmitButtons[0];
-console.log('[NUSENSE] Step 3: Detecting button group vs single button...');
 const buttonParent = primarySubmitButton.parentElement;
 const buttonGrandParent = buttonParent ? buttonParent.parentElement : null;
-console.log('[NUSENSE] Button parent element:', buttonParent, 'Tag:', buttonParent ? buttonParent.tagName : 'null');
-console.log('[NUSENSE] Button grandparent element:', buttonGrandParent, 'Tag:', buttonGrandParent ? buttonGrandParent.tagName : 'null');
-const allButtonsInParent = Array.from(buttonParent.querySelectorAll('button, input[type="submit"], input[type="button"]'));
-const visibleButtonsInParent = allButtonsInParent.filter(btn => {
-if (!isElementVisible(btn)) return false;
-if (btn.disabled) return false;
-if (btn.getAttribute('aria-hidden') === 'true') return false;
-if (btn.type === 'button' && !btn.onclick && !btn.getAttribute('data-action')) {
-const btnText = (btn.textContent || '').toLowerCase().trim();
-if (!btnText || btnText.length < 3) return false;
+const visibleButtonsInParent = findVisibleButtons(buttonParent);
+const visibleButtonsInGrandParent = buttonGrandParent && buttonGrandParent !== document.body && buttonGrandParent !== document.documentElement ? findVisibleButtons(buttonGrandParent) : [];
+if (visibleButtonsInParent.length >= 2 && isHorizontalLayout(buttonParent)) {
+return {isGroup: true, insertTarget: buttonParent, insertParent: buttonParent.parentElement};
 }
-return true;
-});
-let allButtonsInGrandParent = [];
-let visibleButtonsInGrandParent = [];
-if (buttonGrandParent && buttonGrandParent !== document.body && buttonGrandParent !== document.documentElement) {
-allButtonsInGrandParent = Array.from(buttonGrandParent.querySelectorAll('button, input[type="submit"], input[type="button"]'));
-visibleButtonsInGrandParent = allButtonsInGrandParent.filter(btn => {
-if (!isElementVisible(btn)) return false;
-if (btn.disabled) return false;
-if (btn.getAttribute('aria-hidden') === 'true') return false;
-if (btn.type === 'button' && !btn.onclick && !btn.getAttribute('data-action')) {
-const btnText = (btn.textContent || '').toLowerCase().trim();
-if (!btnText || btnText.length < 3) return false;
-}
-return true;
-});
-}
-console.log('[NUSENSE] Found', visibleButtonsInParent.length, 'total visible buttons in parent container');
-console.log('[NUSENSE] Found', visibleButtonsInGrandParent.length, 'total visible buttons in grandparent container');
-if (visibleButtonsInParent.length >= 2) {
-const parentStyle = window.getComputedStyle(buttonParent);
-const display = parentStyle.display;
-const flexDirection = parentStyle.flexDirection;
-const gridTemplateColumns = parentStyle.gridTemplateColumns;
-const isFlexRow = display === 'flex' && (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '');
-const isGrid = display === 'grid' && gridTemplateColumns !== 'none';
-const isInlineFlex = display === 'inline-flex';
-const isHorizontalLayout = isFlexRow || isGrid || isInlineFlex;
-console.log('[NUSENSE] Parent layout - Display:', display, 'FlexDirection:', flexDirection, 'IsHorizontal:', isHorizontalLayout);
-if (isHorizontalLayout) {
-console.log('[NUSENSE] Case B: Multiple buttons in horizontal layout - treating as button group');
-return {
-isGroup: true,
-insertTarget: buttonParent,
-insertParent: buttonParent.parentElement,
-buttons: visibleButtonsInParent
-};
-} else {
-const children = Array.from(buttonParent.children);
-const buttonChildren = children.filter(child => visibleButtonsInParent.includes(child));
-if (buttonChildren.length >= 2) {
-const firstButtonIndex = children.indexOf(buttonChildren[0]);
-const lastButtonIndex = children.indexOf(buttonChildren[buttonChildren.length - 1]);
-if (lastButtonIndex - firstButtonIndex < 3) {
-console.log('[NUSENSE] Case B: Multiple buttons close together - treating as button group');
-return {
-isGroup: true,
-insertTarget: buttonParent,
-insertParent: buttonParent.parentElement,
-buttons: visibleButtonsInParent
-};
-}
-}
-}
-}
-if (buttonGrandParent && visibleButtonsInGrandParent.length >= 2 && visibleButtonsInParent.length < 2) {
-const grandParentStyle = window.getComputedStyle(buttonGrandParent);
-const display = grandParentStyle.display;
-const flexDirection = grandParentStyle.flexDirection;
-const gridTemplateColumns = grandParentStyle.gridTemplateColumns;
-const isFlexRow = display === 'flex' && (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '');
-const isGrid = display === 'grid' && gridTemplateColumns !== 'none';
-const isInlineFlex = display === 'inline-flex';
-const isHorizontalLayout = isFlexRow || isGrid || isInlineFlex;
-console.log('[NUSENSE] Grandparent layout - Display:', display, 'FlexDirection:', flexDirection, 'IsHorizontal:', isHorizontalLayout);
-if (isHorizontalLayout) {
-console.log('[NUSENSE] Case B: Multiple buttons in grandparent horizontal layout - treating as button group');
-return {
-isGroup: true,
-insertTarget: buttonGrandParent,
-insertParent: buttonGrandParent.parentElement,
-buttons: visibleButtonsInGrandParent
-};
-} else {
-const children = Array.from(buttonGrandParent.children);
-const buttonChildren = children.filter(child => visibleButtonsInGrandParent.includes(child));
-if (buttonChildren.length >= 2) {
-const firstButtonIndex = children.indexOf(buttonChildren[0]);
-const lastButtonIndex = children.indexOf(buttonChildren[buttonChildren.length - 1]);
-if (lastButtonIndex - firstButtonIndex < 3) {
-console.log('[NUSENSE] Case B: Multiple buttons close together in grandparent - treating as button group');
-return {
-isGroup: true,
-insertTarget: buttonGrandParent,
-insertParent: buttonGrandParent.parentElement,
-buttons: visibleButtonsInGrandParent
-};
-}
-}
-}
-}
-if (visibleSubmitButtons.length === 1 && visibleButtonsInParent.length === 1 && visibleButtonsInGrandParent.length <= 1) {
-console.log('[NUSENSE] Case A: Single button detected');
-return {
-isGroup: false,
-insertTarget: primarySubmitButton,
-insertParent: buttonParent
-};
+if (buttonGrandParent && visibleButtonsInGrandParent.length >= 2 && visibleButtonsInParent.length < 2 && isHorizontalLayout(buttonGrandParent)) {
+return {isGroup: true, insertTarget: buttonGrandParent, insertParent: buttonGrandParent.parentElement};
 }
 if (visibleButtonsInParent.length >= 2) {
-console.log('[NUSENSE] Case B: Multiple buttons detected in parent - treating as button group');
-return {
-isGroup: true,
-insertTarget: buttonParent,
-insertParent: buttonParent.parentElement,
-buttons: visibleButtonsInParent
-};
+return {isGroup: true, insertTarget: buttonParent, insertParent: buttonParent.parentElement};
 }
 if (visibleButtonsInGrandParent.length >= 2) {
-console.log('[NUSENSE] Case B: Multiple buttons detected in grandparent - treating as button group');
-return {
-isGroup: true,
-insertTarget: buttonGrandParent,
-insertParent: buttonGrandParent.parentElement,
-buttons: visibleButtonsInGrandParent
-};
+return {isGroup: true, insertTarget: buttonGrandParent, insertParent: buttonGrandParent.parentElement};
 }
-console.log('[NUSENSE] Case A: Single button detected (fallback)');
-return {
-isGroup: false,
-insertTarget: primarySubmitButton,
-insertParent: buttonParent
-};
+return {isGroup: false, insertTarget: primarySubmitButton, insertParent: buttonParent};
 }
 function getProductId() {
 if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
@@ -599,24 +441,17 @@ return hasProductForm || hasProductData;
 }
 function positionTryOnButton() {
 if (isPositioning) return;
-if (document.getElementById(containerId) && document.getElementById(containerId).classList.contains('is-positioned') && document.getElementById(containerId).parentElement && document.getElementById(containerId).parentElement !== document.body) {
-const currentUrl = window.location.href;
-if (lastPositionedUrl === currentUrl) {
 const container = document.getElementById(containerId);
-if (container && (container.style.display === 'none' || window.getComputedStyle(container).display === 'none')) {
+if (!container) return;
+const currentUrl = window.location.href;
+if (lastPositionedUrl === currentUrl && container.classList.contains('is-positioned') && container.parentElement && container.parentElement !== document.body) {
+if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 }
 return;
 }
-}
-const container = document.getElementById(containerId);
-if (!container) {
-console.warn('[NUSENSE] Container not found:', containerId);
-return;
-}
-const currentUrl = window.location.href;
 isPositioning = true;
 try {
 if (!isProductPage()) {
@@ -632,10 +467,8 @@ const button = document.getElementById(buttonId);
 if (button && productId) {
 button.setAttribute('data-product-id', productId);
 }
-container.classList.add('is-product-page');
 const purchaseBoundary = findPurchaseActionBoundary();
-if (!purchaseBoundary || !purchaseBoundary.insertParent || !purchaseBoundary.insertTarget) {
-console.warn('[NUSENSE] Purchase boundary not found - failing silently');
+if (!purchaseBoundary || !purchaseBoundary.insertParent || !purchaseBoundary.insertTarget || purchaseBoundary.insertParent === document.body || purchaseBoundary.insertParent === document.documentElement) {
 container.style.display = 'none';
 container.style.visibility = 'hidden';
 container.style.opacity = '0';
@@ -645,28 +478,8 @@ return;
 }
 const insertParent = purchaseBoundary.insertParent;
 const insertTarget = purchaseBoundary.insertTarget;
-console.log('[NUSENSE] Insert parent:', insertParent, 'Insert target:', insertTarget);
-if (insertParent === document.body || insertParent === document.documentElement) {
-console.warn('[NUSENSE] Insert parent is body/document - failing silently');
-container.style.display = 'none';
-container.style.visibility = 'hidden';
-container.style.opacity = '0';
-container.classList.remove('is-positioned');
-isPositioning = false;
-return;
-}
-if (!insertParent || !insertTarget) {
-console.error('[NUSENSE] Invalid insert parent or target:', insertParent, insertTarget);
-container.style.display = 'none';
-container.style.visibility = 'hidden';
-container.style.opacity = '0';
-container.classList.remove('is-positioned');
-isPositioning = false;
-return;
-}
 const currentParent = container.parentElement;
 if (currentParent === insertParent && container.nextSibling === insertTarget) {
-console.log('[NUSENSE] Button already correctly positioned');
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -675,16 +488,12 @@ lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
 }
-try {
 if (currentParent && currentParent !== document.body) {
 container.remove();
 }
 const insertParentStyle = window.getComputedStyle(insertParent);
-const insertParentDisplay = insertParentStyle.display;
-const insertParentFlexDirection = insertParentStyle.flexDirection;
-const insertParentGridTemplateColumns = insertParentStyle.gridTemplateColumns;
-const isInsertParentFlexRow = (insertParentDisplay === 'flex' || insertParentDisplay === 'inline-flex') && (insertParentFlexDirection === 'row' || insertParentFlexDirection === 'row-reverse' || insertParentFlexDirection === '');
-const isInsertParentGrid = insertParentDisplay === 'grid' && insertParentGridTemplateColumns !== 'none';
+const isInsertParentFlexRow = (insertParentStyle.display === 'flex' || insertParentStyle.display === 'inline-flex') && (insertParentStyle.flexDirection === 'row' || insertParentStyle.flexDirection === 'row-reverse' || insertParentStyle.flexDirection === '');
+const isInsertParentGrid = insertParentStyle.display === 'grid' && insertParentStyle.gridTemplateColumns !== 'none';
 if (purchaseBoundary.isGroup && (isInsertParentFlexRow || isInsertParentGrid)) {
 container.style.width = '100%';
 container.style.flexBasis = '100%';
@@ -693,95 +502,31 @@ container.style.flexGrow = '0';
 container.style.clear = 'both';
 container.style.order = '-1';
 if (isInsertParentFlexRow) {
-container.style.flexBasis = '100%';
-container.style.width = '100%';
 container.style.minWidth = '100%';
 container.style.maxWidth = '100%';
 }
 if (isInsertParentGrid) {
 container.style.gridColumn = '1 / -1';
-container.style.width = '100%';
 }
-console.log('[NUSENSE] Applied full-width row-breaking styles for button group in flex/grid layout');
 }
 insertParent.insertBefore(container, insertTarget);
-console.log('[NUSENSE] Button inserted before target:', insertTarget);
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
-const insertTargetStyle = window.getComputedStyle(insertTarget);
-const insertTargetWidth = insertTargetStyle.width;
-const insertTargetMaxWidth = insertTargetStyle.maxWidth;
-const insertTargetOffsetWidth = insertTarget.offsetWidth || 0;
-const insertParentOffsetWidth = insertParent.offsetWidth || 0;
-const isTargetFullWidth = insertTargetWidth === '100%' || insertTargetMaxWidth === '100%' || (insertParentOffsetWidth > 0 && insertTargetOffsetWidth >= insertParentOffsetWidth * 0.95);
-if (purchaseBoundary.isGroup || isTargetFullWidth) {
-if (!container.style.width || container.style.width === '') {
-container.style.width = '100%';
-}
-if (!container.style.flexBasis || container.style.flexBasis === '') {
-container.style.flexBasis = '100%';
-}
-container.style.flexShrink = '0';
-container.style.flexGrow = '0';
-container.style.clear = 'both';
-if (insertParentDisplay === 'flex' || insertParentDisplay === 'inline-flex') {
-if (!container.style.flexBasis || container.style.flexBasis === '') {
-container.style.flexBasis = '100%';
-}
-container.style.flexShrink = '0';
-container.style.flexGrow = '0';
-const flexDirection = insertParentStyle.flexDirection;
-if (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '') {
-container.style.flexBasis = '100%';
-container.style.width = '100%';
-container.style.minWidth = '100%';
-container.style.maxWidth = '100%';
-if (!container.style.order || container.style.order === '') {
-container.style.order = '-1';
-}
-}
-}
-if (insertParentDisplay === 'grid') {
-container.style.gridColumn = '1 / -1';
-container.style.width = '100%';
-}
-console.log('[NUSENSE] Applied full-width styles - isGroup:', purchaseBoundary.isGroup, 'isTargetFullWidth:', isTargetFullWidth, 'targetWidth:', insertTargetWidth, 'targetMaxWidth:', insertTargetMaxWidth);
-}
-if (!container.style.marginBottom || container.style.marginBottom === '') {
+if (!container.style.marginBottom) {
 container.style.marginBottom = '0.75rem';
 }
-const positionType = purchaseBoundary.isGroup ? 'above button group' : (insertTarget.tagName === 'FORM' ? 'above form' : 'above button');
-console.log('[NUSENSE] Button positioned successfully:', positionType);
-console.log('[NUSENSE] Container parent after insertion:', container.parentElement);
-console.log('[NUSENSE] Container computed display:', window.getComputedStyle(container).display);
-console.log('[NUSENSE] Container computed visibility:', window.getComputedStyle(container).visibility);
-console.log('[NUSENSE] Container computed opacity:', window.getComputedStyle(container).opacity);
 lastPositionedUrl = currentUrl;
 isPositioning = false;
-return;
-} catch (insertError) {
-console.error('[NUSENSE] Failed to insert button:', insertError);
-console.error('[NUSENSE] Insert parent:', insertParent);
-console.error('[NUSENSE] Insert target:', insertTarget);
-container.style.display = 'none';
-container.style.visibility = 'hidden';
-container.style.opacity = '0';
-container.classList.remove('is-positioned');
-isPositioning = false;
-return;
-}
 } catch (e) {
 console.error('[NUSENSE] Error positioning button:', e);
-const container = document.getElementById(containerId);
 if (container) {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
 }
-} finally {
 isPositioning = false;
 }
 }
@@ -795,145 +540,51 @@ positionTryOnButton();
 }, 150);
 }
 function initPositioning() {
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-positionTryOnButton();
-}
 if (document.readyState === 'loading') {
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', positionTryOnButton);
+} else {
 positionTryOnButton();
-});
 }
-const retryDelays = [100, 300, 500, 1000, 2000, 3000];
-retryDelays.forEach(function(delay) {
-setTimeout(function() {
-positionTryOnButton();
-}, delay);
-});
+setTimeout(positionTryOnButton, 100);
+setTimeout(positionTryOnButton, 500);
 const observer = new MutationObserver(function(mutations) {
-let shouldReposition = false;
 for (const mutation of mutations) {
 if (mutation.type === 'childList') {
 for (const node of mutation.addedNodes) {
-if (node.nodeType === 1) {
-if (node.tagName === 'FORM' && node.action && node.action.includes('/cart/add')) {
-shouldReposition = true;
-break;
-}
-if (node.tagName === 'BUTTON' || node.tagName === 'INPUT') {
-const form = node.closest('form[action*="/cart/add"]');
-if (form) {
-shouldReposition = true;
-break;
-}
-}
-if (node.querySelector && node.querySelector('form[action*="/cart/add"]')) {
-shouldReposition = true;
-break;
-}
-}
-}
-}
-if (mutation.type === 'attributes') {
-const target = mutation.target;
-if (target.tagName === 'FORM' || target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
-const form = target.closest('form[action*="/cart/add"]');
-if (form) {
-shouldReposition = true;
-break;
-}
-}
-}
-}
-if (shouldReposition) {
+if (node.nodeType === 1 && (node.tagName === 'FORM' || node.tagName === 'BUTTON' || node.tagName === 'INPUT' || (node.querySelector && node.querySelector('form[action*="/cart/add"]')))) {
 debouncedPosition();
+return;
+}
+}
+}
+if (mutation.type === 'attributes' && (mutation.target.tagName === 'FORM' || mutation.target.tagName === 'BUTTON' || mutation.target.tagName === 'INPUT')) {
+debouncedPosition();
+return;
+}
 }
 });
-if (document.body) {
+const setupObserver = function() {
 const productForm = document.querySelector('form[action*="/cart/add"]');
-if (productForm && productForm.parentElement && productForm.parentElement !== document.body) {
-observer.observe(productForm.parentElement, {
-childList: true,
-subtree: true,
-attributes: true,
-attributeFilter: ['action', 'type', 'name', 'disabled']
-});
-} else {
-observer.observe(document.body, {
-childList: true,
-subtree: true,
-attributes: true,
-attributeFilter: ['action', 'type', 'name', 'disabled']
-});
-}
-} else {
-if (document.readyState === 'loading') {
-document.addEventListener('DOMContentLoaded', function() {
+const target = productForm && productForm.parentElement && productForm.parentElement !== document.body ? productForm.parentElement : document.body;
+observer.observe(target, {childList: true, subtree: true, attributes: true, attributeFilter: ['action', 'type', 'name', 'disabled']});
+};
 if (document.body) {
-const productForm = document.querySelector('form[action*="/cart/add"]');
-if (productForm && productForm.parentElement && productForm.parentElement !== document.body) {
-observer.observe(productForm.parentElement, {
-childList: true,
-subtree: true,
-attributes: true,
-attributeFilter: ['action', 'type', 'name', 'disabled']
-});
+setupObserver();
 } else {
-observer.observe(document.body, {
-childList: true,
-subtree: true,
-attributes: true,
-attributeFilter: ['action', 'type', 'name', 'disabled']
-});
+document.addEventListener('DOMContentLoaded', setupObserver);
 }
-}
-});
-}
-}
-document.addEventListener('shopify:section:load', function(event) {
-debouncedPosition();
-});
-document.addEventListener('shopify:section:reorder', function(event) {
-debouncedPosition();
-});
+document.addEventListener('shopify:section:load', debouncedPosition);
+document.addEventListener('shopify:section:reorder', debouncedPosition);
 let lastUrl = window.location.href;
-let urlCheckIntervalId = null;
-let urlCheckCount = 0;
-const INITIAL_CHECK_INTERVAL = 500;
-const STABLE_CHECK_INTERVAL = 3000;
-const MAX_CHECKS_BEFORE_STABLE = 20;
-const checkUrlChange = function() {
+window.addEventListener('popstate', function() {
 if (window.location.href !== lastUrl) {
 lastUrl = window.location.href;
 lastPositionedUrl = null;
-urlCheckCount = 0;
-if (urlCheckIntervalId) {
-clearInterval(urlCheckIntervalId);
-}
-startUrlChecking();
 setTimeout(positionTryOnButton, 300);
 }
-};
-window.addEventListener('popstate', checkUrlChange);
-function startUrlChecking() {
-urlCheckCount = 0;
-function performCheck() {
-checkUrlChange();
-urlCheckCount++;
-if (urlCheckCount >= MAX_CHECKS_BEFORE_STABLE && urlCheckIntervalId) {
-clearInterval(urlCheckIntervalId);
-urlCheckIntervalId = setInterval(performCheck, STABLE_CHECK_INTERVAL);
-}
-}
-urlCheckIntervalId = setInterval(performCheck, INITIAL_CHECK_INTERVAL);
-}
-startUrlChecking();
+});
 }
 initPositioning();
-if (document.body) {
-positionTryOnButton();
-}
-window.addEventListener('load', function() {
-setTimeout(positionTryOnButton, 100);
-});
 })();</script>
+
 
