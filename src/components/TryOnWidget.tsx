@@ -1894,33 +1894,34 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       {/* Main Container */}
       <div className="items-start bg-white">
-        <div className="bg-white w-full max-w-[898px] mx-auto py-4 sm:py-6 px-4 sm:px-6 rounded-2xl">
-          {/* Header */}
-          <header className="sticky top-0 z-10 bg-white">
-            <div className="flex justify-between items-center self-stretch py-3 mb-3">
-              <div className="flex flex-col items-start gap-1">
-                <img
-                  src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
-                  className="w-32 h-5 sm:w-40 sm:h-6 object-contain"
-                  alt={t("tryOnWidget.brand.name") || "NUSENSE"}
-                  aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
-                />
-                <span className="text-slate-800 text-xs sm:text-sm whitespace-nowrap">
-                  {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
-                </span>
-              </div>
-              <button
-                onClick={handleClose}
-                className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
-                title={t("tryOnWidget.buttons.close") || "Fermer"}
-                type="button"
-              >
-                <X className="w-5 h-5 text-slate-600" aria-hidden="true" />
-              </button>
+        {/* Header - Full width */}
+        <header className="sticky top-0 z-10 bg-white w-full">
+          <div className="flex justify-between items-center self-stretch py-3 mb-3 px-3 sm:px-4">
+            <div className="flex flex-col items-start gap-1">
+              <img
+                src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
+                className="w-32 h-5 sm:w-40 sm:h-6 object-contain"
+                alt={t("tryOnWidget.brand.name") || "NUSENSE"}
+                aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
+              />
+              <span className="text-slate-800 text-xs sm:text-sm whitespace-nowrap">
+                {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
+              </span>
             </div>
-          </header>
+            <button
+              onClick={handleClose}
+              className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
+              title={t("tryOnWidget.buttons.close") || "Fermer"}
+              type="button"
+            >
+              <X className="w-5 h-5 text-slate-600" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
 
+        {/* Content Container - Fit content */}
+        <div className="bg-white max-w-fit py-3 sm:py-4 px-3 sm:px-4 rounded-2xl">
           {/* Tabs Navigation and Content */}
           <Tabs
         value={activeTab}
@@ -1980,7 +1981,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-8">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-6">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
@@ -2120,7 +2121,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-8">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-6">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
@@ -2224,7 +2225,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full">
                   {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
                 </h2>
-                <p className="text-slate-800 text-sm mb-4 w-full">
+                <p className="text-slate-800 text-sm mb-3 w-full">
                   {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
                 </p>
                 <div className="flex-1 flex flex-col min-h-0 w-full">

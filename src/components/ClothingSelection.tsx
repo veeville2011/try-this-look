@@ -144,18 +144,18 @@ export default function ClothingSelection({
     <div className="flex flex-col h-full min-h-0">
       {showFinalLayout ? (
         /* Final Layout - Show 2+2 grid when both photo and clothing are selected */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          <div className="space-y-3 sm:space-y-4 pb-2">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+          <div className="space-y-4 pb-2">
             {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side with horizontal scroll fallback */}
             {validImages.length > 0 && (
-              <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-1 px-2 lg:px-2 pt-1">
-                <div className="flex flex-col lg:flex-row items-start self-stretch mb-2 lg:mb-2.5 lg:mr-6 gap-0 lg:gap-[9px] min-w-max mx-6 lg:mx-0">
+              <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-1 px-2 lg:px-2 pt-2">
+                <div className="flex flex-col lg:flex-row items-start self-stretch mb-3 lg:mb-3 gap-0 lg:gap-3 min-w-max mx-6 lg:mx-0">
                   {validImages.slice(0, 2).map((image, index) => (
                     <img
                       key={index}
                       src={image}
                     className={`w-full lg:w-[173px] h-[135px] lg:h-[164px] ${index === 0 ? 'mb-2 lg:mb-0' : 'mb-4 lg:mb-0'} object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
-                      selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
+                      selectedImage === image ? "ring-2 ring-primary/70 ring-offset-3 ring-offset-white shadow-sm" : "ring-0"
                     }`}
                       onClick={() => onSelect(image)}
                       role="button"
@@ -190,17 +190,17 @@ export default function ClothingSelection({
             {/* Recommended Products Section */}
             {filteredRecommendedImages.length > 0 && (
               <>
-                <span className="text-slate-800 text-sm font-bold mb-2 lg:mr-56 block ml-8 lg:ml-0 whitespace-nowrap">
+                <span className="text-slate-800 text-sm font-bold mb-3 lg:mr-56 block ml-8 lg:ml-0 whitespace-nowrap">
                   {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                 </span>
-                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-2 lg:px-2 pt-1">
-                  <div className="flex items-start lg:mr-[91px] gap-2 mx-6 lg:mx-0 min-w-max">
+                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-2 lg:px-2 pt-2">
+                  <div className="flex items-start lg:mr-[91px] gap-3 mx-6 lg:mx-0 min-w-max">
                     {filteredRecommendedImages.slice(0, 2).map((image, index) => (
                       <img
                         key={`recommended-${index}`}
                         src={image}
                       className={`w-[140px] h-[169px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
-                        selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
+                        selectedImage === image ? "ring-2 ring-primary/70 ring-offset-3 ring-offset-white shadow-sm" : "ring-0"
                       }`}
                         onClick={() => onSelect(image)}
                         role="button"
@@ -238,18 +238,18 @@ export default function ClothingSelection({
         /* Original Layout - Horizontal scrollable when not both selected */
         <>
           {/* Always show images - removed !selectedImage condition */}
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          <div className="space-y-3 sm:space-y-4 pb-2">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+          <div className="space-y-4 pb-2">
               {/* Main Product Images - Horizontal Scroll */}
               {validImages.length > 0 && (
-                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 pt-1 snap-x snap-mandatory">
-                  <div className="flex items-start min-w-max gap-[9px]">
+                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 pt-2 snap-x snap-mandatory">
+                  <div className="flex items-start min-w-max gap-3">
                     {validImages.map((image, index) => (
                       <img
                         key={index}
                         src={image}
                         className={`w-[173px] h-[164px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 snap-start ${
-                          selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
+                          selectedImage === image ? "ring-2 ring-primary/70 ring-offset-3 ring-offset-white shadow-sm" : "ring-0"
                         }`}
                         onClick={() => onSelect(image)}
                         role="button"
@@ -284,17 +284,17 @@ export default function ClothingSelection({
               {/* Recommended Products Section - Horizontal Scroll */}
               {filteredRecommendedImages.length > 0 && (
                 <div className="mt-4">
-                  <span className="text-slate-800 text-sm font-bold mb-2 mr-56 block whitespace-nowrap">
+                  <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
                     {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                   </span>
-                  <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 pt-1 snap-x snap-mandatory">
-                    <div className="flex items-start min-w-max gap-2">
+                  <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 pt-2 snap-x snap-mandatory">
+                    <div className="flex items-start min-w-max gap-3">
                       {filteredRecommendedImages.map((image, index) => (
                         <img
                           key={`recommended-${index}`}
                           src={image}
                           className={`w-[140px] h-[165px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 snap-start ${
-                            selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
+                            selectedImage === image ? "ring-2 ring-primary/70 ring-offset-3 ring-offset-white shadow-sm" : "ring-0"
                           }`}
                           onClick={() => onSelect(image)}
                           role="button"
