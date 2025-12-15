@@ -51,6 +51,16 @@ import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
 import { useCategorizedProducts } from "@/hooks/useCategorizedProducts";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TryOnWidgetProps {
   isOpen?: boolean;
@@ -256,6 +266,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   
   // Version selection (1 or 2, default: 1)
   const [selectedVersion, setSelectedVersion] = useState<number | null>(1);
+  
+  // Confirmation dialog states
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [showTabSwitchConfirm, setShowTabSwitchConfirm] = useState(false);
+  const [pendingTab, setPendingTab] = useState<"single" | "multiple" | "look" | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Derive store_products from Redux state for backward compatibility
   const store_products = reduxCategories.length > 0 || reduxUncategorized
@@ -922,6 +939,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   ) => {
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
+    setHasUnsavedChanges(true);
     // Track which selection method was used
     if (isDemoPhoto && demoPhotoUrl) {
       setPhotoSelectionMethod("demo");
@@ -944,6 +962,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const handleClothingSelect = (imageUrl: string) => {
     setSelectedClothing(imageUrl);
     storage.saveClothingUrl(imageUrl);
+    setHasUnsavedChanges(true);
 
     // Get the clothing ID if available (clear if imageUrl is empty)
     if (imageUrl) {
@@ -1022,6 +1041,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       if (result.status === "success" && result.image) {
         setGeneratedImage(result.image);
         storage.saveGeneratedImage(result.image);
+        setHasUnsavedChanges(false);
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage(t("tryOnWidget.status.resultReadyActions") || "Résultat prêt. Vous pouvez acheter ou télécharger.");
@@ -1267,6 +1287,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   };
 
   const handleReset = () => {
+    setShowResetConfirm(false);
     setCurrentStep(1);
     setUploadedImage(null);
     setSelectedClothing(null);
@@ -1277,6 +1298,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setError(null);
     setProgress(0);
     setSelectedVersion(1); // Reset version selection to default
+    setHasUnsavedChanges(false);
     // Reset key mappings in Redux
     resetKeyMappings();
     storage.clearSession();
@@ -1296,6 +1318,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setErrorMultiple(null);
     setProgressMultiple(0);
     setBatchProgress(null);
+  };
+  
+  const handleResetClick = () => {
+    if (hasUnsavedChanges || uploadedImage || selectedClothing || generatedImage) {
+      setShowResetConfirm(true);
+    } else {
+      handleReset();
+    }
   };
 
   // Cart/Outfit handlers
@@ -1321,11 +1351,25 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     };
 
     setSelectedGarments([...selectedGarments, newGarment]);
+    setHasUnsavedChanges(true);
   };
 
   const handleGarmentDeselect = (index: number) => {
     const newGarments = selectedGarments.filter((_, i) => i !== index);
     setSelectedGarments(newGarments);
+    setHasUnsavedChanges(newGarments.length > 0 || cartMultipleImage !== null);
+  };
+  
+  const handleClearAllGarments = () => {
+    if (selectedGarments.length > 0) {
+      setShowClearAllConfirm(true);
+    }
+  };
+  
+  const confirmClearAllGarments = () => {
+    setShowClearAllConfirm(false);
+    setSelectedGarments([]);
+    setHasUnsavedChanges(cartMultipleImage !== null);
   };
 
   const runCartMultipleGeneration = async () => {
@@ -1362,15 +1406,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         ? DEMO_PHOTO_ID_MAP.get(cartMultipleDemoPhotoUrl) || undefined
         : undefined;
 
-      // Fetch all garment images
-      const garmentBlobs: Blob[] = [];
+      // Fetch all garment images and convert to Files
+      const garmentFiles: File[] = [];
       const garmentKeys: string[] = [];
 
       for (const garment of selectedGarments) {
         try {
           const response = await fetch(garment.url);
           const blob = await response.blob();
-          garmentBlobs.push(blob);
+          // Convert Blob to File for API compatibility
+          const file = new File([blob], `garment-${garment.id || Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+          garmentFiles.push(file);
 
           // Get garment key if available
           const garmentId = activeTab === "multiple" 
@@ -1395,8 +1441,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setProgressMultiple(0);
 
         const result = await generateCartTryOn(
-          personBlob,
-          garmentBlobs,
+          personBlob as File | Blob,
+          garmentFiles as File[],
           storeName,
           garmentKeys.length > 0 ? garmentKeys : undefined,
           personKey,
@@ -1431,8 +1477,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         }, 1000);
 
         const result = await generateOutfitLook(
-          personBlob,
-          garmentBlobs,
+          personBlob as File | Blob,
+          garmentFiles as File[],
           garmentTypes,
           storeName,
           garmentKeys.length > 0 ? garmentKeys : undefined,
@@ -1728,6 +1774,50 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   }, [isVtoDemoStore, activeTab]);
 
   // Handle close - if in iframe, notify parent window
+  const performTabSwitch = (newTab: "single" | "multiple" | "look") => {
+    setActiveTab(newTab);
+    setHasUnsavedChanges(false);
+    
+    // Reset cart/outfit state when switching away from multiple/look tabs
+    if (newTab === "single") {
+      setCartMultipleImage(null);
+      setCartMultipleDemoPhotoUrl(null);
+      setSelectedGarments([]);
+      setCartResults(null);
+      setOutfitResult(null);
+      setErrorMultiple(null);
+      setProgressMultiple(0);
+      setBatchProgress(null);
+      setSelectedCategory("all"); // Reset category filter
+      // Try Single tab images are already independent, no need to restore
+    }
+    
+    // Clear selected garments when switching between multiple and look tabs
+    if ((activeTab === "multiple" || activeTab === "look") && (newTab === "multiple" || newTab === "look")) {
+      setSelectedGarments([]);
+      setCartResults(null);
+      setOutfitResult(null);
+      setErrorMultiple(null);
+      setProgressMultiple(0);
+      setBatchProgress(null);
+      // Keep category filter when switching between multiple and look tabs
+    }
+  };
+  
+  const confirmTabSwitch = () => {
+    if (pendingTab) {
+      performTabSwitch(pendingTab);
+      setPendingTab(null);
+    }
+    setShowTabSwitchConfirm(false);
+    setHasUnsavedChanges(false);
+  };
+  
+  const cancelTabSwitch = () => {
+    setPendingTab(null);
+    setShowTabSwitchConfirm(false);
+  };
+
   const handleClose = (e?: React.MouseEvent) => {
     // Prevent event propagation to avoid double-triggering or step navigation
     if (e) {
@@ -1804,38 +1894,22 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       <div className="items-start bg-white">
         <div className="bg-white w-full max-w-[898px] mx-auto py-8 rounded-2xl">
           {/* Header */}
-          <header className="sticky top-0 z-10 bg-white">
-            <div className="flex justify-between items-center self-stretch p-[1px] mb-[17px] mx-8">
-              <div className="flex flex-col items-start w-[212px] gap-0.5">
+          <header className="sticky top-0 z-10 bg-white border-b border-border/40">
+            <div className="flex justify-between items-center self-stretch p-4 mb-4 mx-4 sm:mx-6 lg:mx-8">
+              <div className="flex flex-col items-start gap-1">
                 <img
                   src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
-                  className="w-[126px] h-[19px] mr-[86px] object-contain"
+                  className="w-32 h-5 sm:w-40 sm:h-6 object-contain"
                   alt={t("tryOnWidget.brand.name") || "NUSENSE"}
                   aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
                 />
-                <span className="text-slate-800 text-sm whitespace-nowrap">
+                <span className="text-slate-800 text-xs sm:text-sm whitespace-nowrap">
                   {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
                 </span>
               </div>
               <button
-                onClick={(e) => {
-                  // Immediately stop all event propagation to prevent any other handlers
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Stop immediate propagation on native event
-                  const nativeEvent = e.nativeEvent as any;
-                  if (nativeEvent && typeof nativeEvent.stopImmediatePropagation === 'function') {
-                    nativeEvent.stopImmediatePropagation();
-                  }
-                  // Call handleClose directly - it will handle iframe communication
-                  handleClose(e);
-                }}
-                onMouseDown={(e) => {
-                  // Prevent any mousedown events from interfering
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+                onClick={handleClose}
+                className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
                 title={t("tryOnWidget.buttons.close") || "Fermer"}
                 type="button"
@@ -1855,59 +1929,42 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           }
           
           const newTab = value as "single" | "multiple" | "look";
-          setActiveTab(newTab);
           
-          // Reset cart/outfit state when switching away from multiple/look tabs
-          if (newTab === "single") {
-            setCartMultipleImage(null);
-            setCartMultipleDemoPhotoUrl(null);
-            setSelectedGarments([]);
-            setCartResults(null);
-            setOutfitResult(null);
-            setErrorMultiple(null);
-            setProgressMultiple(0);
-            setBatchProgress(null);
-            setSelectedCategory("all"); // Reset category filter
-            // Try Single tab images are already independent, no need to restore
+          // Check for unsaved changes before switching tabs
+          if (hasUnsavedChanges && activeTab !== newTab) {
+            setPendingTab(newTab);
+            setShowTabSwitchConfirm(true);
+            return;
           }
           
-          // Clear selected garments when switching between multiple and look tabs
-          if ((activeTab === "multiple" || activeTab === "look") && (newTab === "multiple" || newTab === "look")) {
-            setSelectedGarments([]);
-            setCartResults(null);
-            setOutfitResult(null);
-            setErrorMultiple(null);
-            setProgressMultiple(0);
-            setBatchProgress(null);
-            // Keep category filter when switching between multiple and look tabs
-          }
+          performTabSwitch(newTab);
         }}
         className="w-full"
       >
         {/* Tabs Navigation - Only show for vto-demo store */}
         {isVtoDemoStore && (
           <section
-            className="px-3 sm:px-4 md:px-5 lg:px-6 pt-2 sm:pt-3"
+            className="px-4 sm:px-6 lg:px-8 pt-4"
             aria-label={t("tryOnWidget.tabs.ariaLabel") || "Mode d'essayage"}
           >
-            <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1">
+            <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1 gap-1">
               <TabsTrigger
                 value="single"
-                className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="px-4 py-2.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.tabs.single.ariaLabel") || "Try on a single item"}
               >
                 {t("tryOnWidget.tabs.single.label") || "TryOn"}
               </TabsTrigger>
               <TabsTrigger
                 value="multiple"
-                className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="px-4 py-2.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.tabs.multiple.ariaLabel") || "Try multiple items from cart"}
               >
                 {t("tryOnWidget.tabs.multiple.label") || "TryCart"}
               </TabsTrigger>
               <TabsTrigger
                 value="look"
-                className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="px-4 py-2.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.tabs.look.ariaLabel") || "Try a complete outfit"}
               >
                 {t("tryOnWidget.tabs.look.label") || "TryOutfit"}
@@ -1921,86 +1978,94 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-4 mx-0 lg:mx-8 gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8 gap-6">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
-                <div className="flex justify-between items-start self-stretch mb-3 mx-8">
-                  <div className="flex flex-col shrink-0 items-start gap-[1px]">
-                    <span className="text-slate-800 text-xl font-bold">
+                <div className="flex justify-between items-start self-stretch mb-4 px-4">
+                  <div className="flex flex-col shrink-0 items-start gap-1">
+                    <h2 className="text-slate-800 text-xl sm:text-2xl font-semibold">
                       {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
-                    </span>
-                    <span className="text-slate-800 text-sm">
+                    </h2>
+                    <p className="text-slate-800 text-sm">
                       {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
-                    </span>
+                    </p>
                   </div>
-                  <Info className="w-11 h-11 text-slate-800" aria-hidden="true" />
+                  <Info className="w-5 h-5 sm:w-6 sm:h-6 text-slate-800 flex-shrink-0" aria-hidden="true" />
                 </div>
                 
                 {/* Generated Image */}
                 {isGenerating ? (
-                  <div className="self-stretch h-[492px] mb-8 mx-8 rounded-2xl bg-slate-100 flex items-center justify-center">
-                    <Skeleton className="w-full h-full rounded-2xl" />
+                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 px-4 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <Skeleton className="w-full h-full min-h-[400px] rounded-xl" />
                   </div>
                 ) : generatedImage ? (
-                  <img
-                    src={generatedImage}
-                    alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
-                    className="self-stretch h-[492px] mb-8 mx-8 rounded-2xl object-contain bg-white"
-                  />
+                  <div className="self-stretch mb-8 px-4 rounded-xl bg-white overflow-hidden">
+                    <img
+                      src={generatedImage}
+                      alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
+                      className="w-full h-auto max-h-[600px] object-contain"
+                    />
+                  </div>
                 ) : null}
               </div>
 
               {/* Desktop Layout: Side by side */}
               {/* Left Panel: Generated Image */}
-              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-0 w-auto">
-                <div className="flex flex-col items-start bg-white w-[405px] py-[13px] rounded-2xl">
-                  <div className="flex items-center mb-[1px] ml-4 gap-2">
-                    <span className="text-slate-800 text-xl font-bold">
+              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-0 max-w-md">
+                <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
+                  <div className="flex items-center mb-1 px-4 gap-2">
+                    <h2 className="text-slate-800 text-xl font-semibold">
                       {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
-                    </span>
+                    </h2>
                   </div>
-                  <div className="flex items-center mb-[17px] ml-4 gap-[7px]">
-                    <span className="text-slate-800 text-sm">
+                  <div className="flex items-center mb-4 px-4 gap-2">
+                    <p className="text-slate-800 text-sm">
                       {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
-                    </span>
-                    <Info className="w-4 h-4 text-slate-800" aria-hidden="true" />
+                    </p>
+                    <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                   </div>
                   {isGenerating ? (
-                    <div className="w-[373px] h-[368px] mx-4 rounded-xl bg-slate-100 flex items-center justify-center">
-                      <Skeleton className="w-full h-full rounded-xl" />
+                    <div className="w-full min-h-[400px] max-h-[500px] mx-4 rounded-lg bg-slate-100 flex items-center justify-center">
+                      <Skeleton className="w-full h-full min-h-[400px] rounded-lg" />
                     </div>
                   ) : generatedImage ? (
-                    <img
-                      src={generatedImage}
-                      alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
-                      className="w-[373px] h-[368px] mx-4 rounded-xl object-contain bg-white"
-                    />
+                    <div className="w-full mx-4 rounded-lg bg-white overflow-hidden">
+                      <img
+                        src={generatedImage}
+                        alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
+                        className="w-full h-auto max-h-[500px] object-contain"
+                      />
+                    </div>
                   ) : null}
                 </div>
               </section>
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-200 w-[1px] h-[456px] hidden lg:block"></div>
+              <div className="bg-border w-px self-stretch hidden lg:block"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
-              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-[379px] py-[15px] rounded-2xl">
+              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full max-w-sm gap-4">
                 {isGenerating ? (
                   /* Loading state: Person and clothing images side by side, no headings */
-                  <div className="flex items-center gap-3 w-full">
+                  <div className="flex items-center gap-4 w-full">
                     {uploadedImage && (
-                      <img
-                        src={uploadedImage}
-                        alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                        className="w-[183px] h-[183px] rounded-md object-contain bg-white"
-                      />
+                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden">
+                        <img
+                          src={uploadedImage}
+                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                          className="w-full h-auto aspect-square object-contain"
+                        />
+                      </div>
                     )}
                     {selectedClothing && (
-                      <img
-                        src={selectedClothing}
-                        alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
-                        className="w-[121px] h-[182px] rounded-md object-contain bg-white"
-                      />
+                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden">
+                        <img
+                          src={selectedClothing}
+                          alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
+                          className="w-full h-auto aspect-square object-contain"
+                        />
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -2008,39 +2073,43 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   <>
                     {/* Person Image Section */}
                     {uploadedImage && (
-                      <div className="flex flex-col items-start bg-white w-full mb-4 py-[13px] rounded-2xl">
-                        <div className="flex items-center mb-[1px] ml-4 gap-2">
-                          <span className="text-slate-800 text-xl font-bold">
+                      <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
+                        <div className="flex items-center mb-1 px-4 gap-2">
+                          <h3 className="text-slate-800 text-lg font-semibold">
                             {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
-                          </span>
+                          </h3>
                         </div>
-                        <div className="flex items-center mb-[17px] ml-4 gap-[7px]">
-                          <span className="text-slate-800 text-sm">
+                        <div className="flex items-center mb-4 px-4 gap-2">
+                          <p className="text-slate-800 text-sm">
                             {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
-                          </span>
-                          <Info className="w-4 h-4 text-slate-800" aria-hidden="true" />
+                          </p>
+                          <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                         </div>
-                        <img
-                          src={uploadedImage}
-                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                          className="w-[173px] h-[164px] mx-4 rounded-md object-contain bg-white"
-                        />
+                        <div className="w-full px-4">
+                          <img
+                            src={uploadedImage}
+                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                            className="w-full h-auto max-h-[200px] rounded-lg object-contain bg-white"
+                          />
+                        </div>
                       </div>
                     )}
 
                     {/* Clothing Image Section */}
                     {selectedClothing && (
-                      <div className="flex flex-col items-start bg-white w-full py-[13px] rounded-2xl">
-                        <div className="flex items-center mb-[1px] ml-4 gap-2">
-                          <span className="text-slate-800 text-xl font-bold">
+                      <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
+                        <div className="flex items-center mb-1 px-4 gap-2">
+                          <h3 className="text-slate-800 text-lg font-semibold">
                             {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
-                          </span>
+                          </h3>
                         </div>
-                        <img
-                          src={selectedClothing}
-                          alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
-                          className="w-[173px] h-[164px] mx-4 mt-[17px] rounded-2xl object-contain bg-white"
-                        />
+                        <div className="w-full px-4 mt-4">
+                          <img
+                            src={selectedClothing}
+                            alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
+                            className="w-full h-auto max-h-[200px] rounded-lg object-contain bg-white"
+                          />
+                        </div>
                       </div>
                     )}
                   </>
@@ -2049,13 +2118,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-4 mx-4 sm:mx-6 lg:mx-8 gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8 gap-6">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="upload-heading" 
-                className={`flex flex-col flex-1 min-h-0 w-full lg:w-auto ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col flex-1 min-h-0 w-full lg:max-w-md ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
               >
                 {!uploadedImage && (
                   <PhotoUpload
@@ -2067,48 +2136,49 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 )}
 
                 {uploadedImage && (
-                  <div className="flex flex-col items-start bg-white w-full lg:w-[405px] py-[13px] rounded-2xl">
-                    <div className="flex items-center mb-[1px] ml-4 gap-2">
+                  <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
+                    <div className="flex items-center mb-1 px-4 gap-2">
                       <button
                         onClick={handleClearUploadedImage}
-                        className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                        className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
                         aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
                       >
                         <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
                       </button>
-                      <span className="text-slate-800 text-xl font-bold">
+                      <h2 className="text-slate-800 text-xl font-semibold">
                         {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
-                      </span>
+                      </h2>
                     </div>
-                    <div className="flex items-center mb-[17px] ml-11 gap-[7px]">
-                      <span className="text-slate-800 text-sm">
+                    <div className="flex items-center mb-4 px-4 gap-2">
+                      <p className="text-slate-800 text-sm">
                         {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
-                      </span>
-                      <Info className="w-4 h-4 text-slate-800" aria-hidden="true" />
+                      </p>
+                      <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <img
-                      src={uploadedImage}
-                      alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                      className="w-full lg:w-[373px] h-auto lg:h-[368px] mx-4 rounded-md object-contain bg-white"
-                    />
+                    <div className="w-full px-4">
+                      <img
+                        src={uploadedImage}
+                        alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                        className="w-full h-auto max-h-[400px] rounded-lg object-contain bg-white"
+                      />
+                    </div>
                   </div>
                 )}
               </section>
 
               {/* Mobile Continue Button - Show after photo selection */}
               {uploadedImage && mobileStep === "photo" && (
-                <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-4 gap-4">
-                  <button
-                    onClick={handleReset}
-                    className="flex items-center justify-center self-stretch bg-white h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
+                <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-6 gap-4">
+                  <Button
+                    onClick={handleResetClick}
+                    variant={"outline" as const}
+                    className="w-full h-11"
                     aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                   >
-                    <RotateCcw className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
-                    <span className="text-[#303030] text-base font-medium">
-                      {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                    </span>
-                  </button>
-                  <button
+                    <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                    {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                  </Button>
+                  <Button
                     onClick={() => {
                       // Always request images when switching to clothing step to ensure we have the latest images
                       const isInIframe = window.parent !== window;
@@ -2121,42 +2191,40 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       }
                       setMobileStep("clothing");
                     }}
-                    className="flex items-center justify-center self-stretch bg-[#048FCF] h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
+                    className="w-full h-11 bg-primary hover:bg-primary/90"
                     aria-label={t("tryOnWidget.buttons.continue") || "Continuer"}
                   >
-                    <span className="text-[#F2F2F2] text-base font-medium">
-                      {t("tryOnWidget.buttons.continue") || "Continuer"}
-                    </span>
-                  </button>
+                    {t("tryOnWidget.buttons.continue") || "Continuer"}
+                  </Button>
                 </div>
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-200 w-[1px] h-[456px] hidden lg:block"></div>
+              <div className="bg-border w-px self-stretch hidden lg:block"></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:w-[379px] py-0 lg:py-[15px] px-0 lg:px-0 rounded-2xl ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-4 px-4 lg:px-0 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
                   <button
                     onClick={() => setMobileStep("photo")}
-                    className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors mb-4 lg:hidden"
+                    className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors mb-4 lg:hidden"
                     aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
                   >
                     <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
                   </button>
                 )}
-                <span className="text-slate-800 text-xl font-bold mb-[1px] lg:mr-40 whitespace-nowrap ml-8 lg:ml-0">
+                <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full">
                   {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
-                </span>
-                <span className="text-slate-800 text-sm mb-[13px] lg:mr-[43px] whitespace-nowrap ml-8 lg:ml-0">
+                </h2>
+                <p className="text-slate-800 text-sm mb-4 w-full">
                   {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
-                </span>
+                </p>
                 <div className="flex-1 flex flex-col min-h-0 w-full">
                   <ClothingSelection
                     images={singleTabImages}
@@ -2183,45 +2251,31 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Mobile: Hide when in photo step (Continue button shown above), show when in clothing step */
             /* Desktop: Always show */
             <div className={`flex flex-col items-end self-stretch ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
-              <div className="flex flex-col sm:flex-row items-start self-stretch sm:mr-8 gap-4 px-4 sm:px-0">
-                <button
-                  onClick={handleReset}
-                  className="flex items-center justify-center bg-white w-full sm:w-[171px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
+              <div className="flex flex-col sm:flex-row items-start self-stretch gap-4 px-4 sm:px-0 sm:mr-8">
+                <Button
+                  onClick={handleResetClick}
+                  variant={"outline" as const}
+                  className="w-full sm:w-auto min-w-[140px] h-11"
                   aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                 >
-                  <RotateCcw className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
-                  <span className="text-[#303030] text-base font-medium">
-                    {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                  </span>
-                </button>
-                <button
+                  <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                </Button>
+                <Button
                   onClick={handleGenerate}
                   disabled={!selectedClothing || !uploadedImage || isGenerating}
-                  className={`flex items-center justify-center w-full sm:w-[145px] h-11 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 ${
-                    selectedClothing && uploadedImage && !isGenerating
-                      ? "bg-[#048FCF] hover:bg-[#0378b3]"
-                      : "bg-slate-200 opacity-50 cursor-not-allowed"
-                  }`}
+                  className="w-full sm:w-auto min-w-[140px] h-11"
                   aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
                   aria-describedby={
                     !selectedClothing || !uploadedImage
                       ? "generate-help"
                       : undefined
                   }
+                  aria-busy={isGenerating}
                 >
-                  <Sparkles className={`w-5 h-5 flex-shrink-0 ${
-                    selectedClothing && uploadedImage && !isGenerating
-                      ? "text-[#F2F2F2]"
-                      : "text-slate-400"
-                  }`} aria-hidden="true" />
-                  <span className={`text-base font-medium ${
-                    selectedClothing && uploadedImage && !isGenerating
-                      ? "text-[#F2F2F2]"
-                      : "text-slate-400"
-                  }`}>
-                    {t("tryOnWidget.buttons.generate") || "Générer"}
-                  </span>
-                </button>
+                  <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.generate") || "Générer"}
+                </Button>
                 {(!selectedClothing || !uploadedImage) && (
                   <p id="generate-help" className="sr-only">
                     {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
@@ -2235,125 +2289,118 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Result buttons: Mobile - Stacked vertically, Desktop - Horizontal layout */
             <>
               {/* Mobile Layout: Stacked buttons */}
-              <div className="flex flex-col self-stretch px-8 lg:hidden mb-8 gap-4">
-                <button
-                  onClick={handleReset}
-                  className="flex items-center justify-center bg-white self-stretch h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+              <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-8 gap-4">
+                <Button
+                  onClick={handleResetClick}
+                  variant={"outline" as const}
                   disabled={isGenerating}
+                  className="w-full h-11"
+                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                  aria-busy={isGenerating}
                 >
-                  <RotateCcw className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
-                  <span className="text-[#303030] text-base font-medium">
-                    {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                  </span>
-                </button>
+                  <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                </Button>
 
-                <button
+                <Button
                   onClick={handleBuyNow}
                   disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                  className="flex items-center justify-center bg-white self-stretch h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant={"outline" as const}
+                  className="w-full h-11"
                   aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                  aria-busy={isBuyNowLoading}
                 >
                   {isBuyNowLoading ? (
-                    <Loader2 className="w-5 h-5 text-[#303030] flex-shrink-0 animate-spin" aria-hidden="true" />
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                   ) : (
-                    <CreditCard className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                    <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
                   )}
-                  <span className="text-[#303030] text-base font-medium">
-                    {isBuyNowLoading 
-                      ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                      : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
-                    }
-                  </span>
-                </button>
-                <button
+                  {isBuyNowLoading 
+                    ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                    : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
+                  }
+                </Button>
+                <Button
                   onClick={handleAddToCart}
                   disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                  className="flex justify-between items-center bg-[#048FCF] self-stretch h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-11 bg-primary hover:bg-primary/90"
                   aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                  aria-busy={isAddToCartLoading}
                 >
-                  <div className="flex items-center gap-2.5">
-                    {isAddToCartLoading ? (
-                      <Loader2 className="w-5 h-5 text-[#F2F2F2] flex-shrink-0 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <ShoppingCart className="w-5 h-5 text-[#F2F2F2] flex-shrink-0" aria-hidden="true" />
-                    )}
-                    <span className="text-[#F2F2F2] text-base font-medium">
-                      {isAddToCartLoading
-                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
-                      }
-                    </span>
-                  </div>
-                </button>
+                  {isAddToCartLoading ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                  )}
+                  {isAddToCartLoading
+                    ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                    : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
+                  }
+                </Button>
               </div>
 
               {/* Desktop Layout: Horizontal buttons */}
-              <div className="hidden lg:flex justify-end items-start self-stretch gap-4 mx-8">
+              <div className="hidden lg:flex justify-end items-start self-stretch gap-4 mx-4 sm:mx-6 lg:mx-8">
                 {/* Reset button on left */}
-                <button
-                  onClick={handleReset}
-                  className="flex items-center justify-center bg-white w-[163px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                <Button
+                  onClick={handleResetClick}
+                  variant={"outline" as const}
                   disabled={isGenerating}
+                  className="min-w-[140px] h-11"
+                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                  aria-busy={isGenerating}
                 >
-                  <RotateCcw className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
-                  <span className="text-[#303030] text-base font-medium">
-                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                  </span>
-                </button>
+                  <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                </Button>
 
                 {/* Download, Buy Now and Add to Cart buttons on right */}
                 {!isGenerating && generatedImage && (
                   <div className="flex items-start gap-4">
-                    <button
+                    <Button
                       onClick={() => handleDownload(generatedImage)}
-                      className="flex items-center justify-center bg-white w-[145px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
+                      variant={"outline" as const}
+                      className="min-w-[140px] h-11"
                       aria-label={t("tryOnWidget.buttons.download") || "Télécharger"}
                     >
-                      <Download className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
-                      <span className="text-[#303030] text-base font-medium">
-                        {t("tryOnWidget.buttons.download") || "Télécharger"}
-                      </span>
-                    </button>
-                    <div className="flex items-start w-[462px] gap-4">
-                      <button
-                        onClick={handleBuyNow}
+                      <Download className="w-5 h-5 mr-2" aria-hidden="true" />
+                      {t("tryOnWidget.buttons.download") || "Télécharger"}
+                    </Button>
+                    <Button
+                      onClick={handleBuyNow}
                       disabled={isBuyNowLoading || isAddToCartLoading}
-                      className="flex items-center justify-center bg-white w-[233px] h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      variant={"outline" as const}
+                      className="min-w-[200px] h-11"
                       aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                      aria-busy={isBuyNowLoading}
                     >
                       {isBuyNowLoading ? (
-                        <Loader2 className="w-5 h-5 text-[#303030] flex-shrink-0 animate-spin" aria-hidden="true" />
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                       ) : (
-                        <CreditCard className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                        <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
                       )}
-                      <span className="text-[#303030] text-base font-medium">
-                        {isBuyNowLoading 
-                          ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                          : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
-                        }
-                      </span>
-                    </button>
-                    <button
+                      {isBuyNowLoading 
+                        ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                        : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
+                      }
+                    </Button>
+                    <Button
                       onClick={handleAddToCart}
                       disabled={isBuyNowLoading || isAddToCartLoading}
-                      className="flex items-center justify-center bg-[#048FCF] w-[213px] h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="min-w-[180px] h-11 bg-primary hover:bg-primary/90"
                       aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                      aria-busy={isAddToCartLoading}
                     >
                       {isAddToCartLoading ? (
-                        <Loader2 className="w-5 h-5 text-[#F2F2F2] flex-shrink-0 animate-spin" aria-hidden="true" />
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                       ) : (
-                        <ShoppingCart className="w-5 h-5 text-[#F2F2F2] flex-shrink-0" aria-hidden="true" />
+                        <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
                       )}
-                      <span className="text-[#F2F2F2] text-base font-medium">
-                        {isAddToCartLoading
-                          ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                          : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
-                        }
-                      </span>
-                    </button>
-                    </div>
+                      {isAddToCartLoading
+                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
+                      }
+                    </Button>
                   </div>
                 )}
               </div>
@@ -2361,53 +2408,115 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           )}
 
           {error && (
-            <div role="alert" aria-live="assertive" className="mx-8">
-              <Card className="p-6 bg-error/10 border-error">
-                <p className="text-error font-medium" id="error-message">
+            <div role="alert" aria-live="assertive" className="mx-4 sm:mx-6 lg:mx-8 mb-6">
+              <Card className="p-6 bg-destructive/10 border-destructive">
+                <p className="text-destructive font-medium mb-4" id="error-message">
                   {error}
                 </p>
-                <button
-                  onClick={handleReset}
-                  className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex items-center"
+                <Button
+                  onClick={handleResetClick}
+                  variant={"outline" as const}
+                  className="w-full sm:w-auto"
                   aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
                   aria-describedby="error-message"
                 >
-                  <RotateCcw
-                    className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                    aria-hidden="true"
-                  />
-                  <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
-                </button>
+                  <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                </Button>
               </Card>
             </div>
           )}
+          
+          {/* Confirmation Dialogs */}
+          <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("tryOnWidget.confirm.reset.title") || "Réinitialiser l'application ?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("tryOnWidget.confirm.reset.description") || "Toutes vos sélections et résultats seront perdus. Cette action ne peut pas être annulée."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {t("tryOnWidget.confirm.cancel") || "Annuler"}
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                  {t("tryOnWidget.confirm.reset.action") || "Réinitialiser"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <AlertDialog open={showClearAllConfirm} onOpenChange={setShowClearAllConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("tryOnWidget.confirm.clearAll.title") || "Effacer toutes les sélections ?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("tryOnWidget.confirm.clearAll.description") || "Tous les articles sélectionnés seront retirés. Cette action ne peut pas être annulée."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {t("tryOnWidget.confirm.cancel") || "Annuler"}
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={confirmClearAllGarments}>
+                  {t("tryOnWidget.confirm.clearAll.action") || "Effacer tout"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <AlertDialog open={showTabSwitchConfirm} onOpenChange={setShowTabSwitchConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("tryOnWidget.confirm.tabSwitch.title") || "Changer d'onglet ?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("tryOnWidget.confirm.tabSwitch.description") || "Vous avez des modifications non enregistrées. Changer d'onglet réinitialisera vos sélections. Voulez-vous continuer ?"}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={cancelTabSwitch}>
+                  {t("tryOnWidget.confirm.cancel") || "Annuler"}
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={confirmTabSwitch}>
+                  {t("tryOnWidget.confirm.tabSwitch.action") || "Continuer"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         {/* Try Multiple Tab - Cart Mode */}
-        <TabsContent value="multiple" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+        <TabsContent value="multiple" className="mt-0 space-y-6">
             {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mx-4 sm:mx-6 lg:mx-8">
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-multiple-heading" className="flex flex-col">
-                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
+                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
+                  <div className="flex items-center gap-3 mb-4 flex-shrink-0">
                     <div
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
                       aria-hidden="true"
                     >
                       1
-      </div>
+                    </div>
                     <div className="min-w-0 flex-1">
                       <h2
                         id="upload-multiple-heading"
-                        className="text-base sm:text-lg font-semibold"
+                        className="text-lg font-semibold"
                       >
                         {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
                       </h2>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
                       </p>
-    </div>
+                    </div>
                   </div>
 
                   <div className="flex-1 flex flex-col min-h-0">
@@ -2428,7 +2537,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
                           <Button
-                            variant="outline"
+                            variant={"outline" as const}
                             size="sm"
                             onClick={() => {
                               setCartMultipleImage(null);
@@ -2459,10 +2568,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Right Panel: Garment Selection */}
               <section aria-labelledby="garments-multiple-heading" className="flex flex-col">
-                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
+                  <div className="flex items-center gap-3 mb-4">
                     <div
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
                       aria-hidden="true"
                     >
                       2
@@ -2470,11 +2579,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="min-w-0 flex-1">
                       <h2
                         id="garments-multiple-heading"
-                        className="text-base sm:text-lg font-semibold"
+                        className="text-lg font-semibold"
                       >
                         {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
                       </h2>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {t("tryOnWidget.sections.selectGarments.multiple.description") || "Sélectionnez 1-6 articles"}
                       </p>
                     </div>
@@ -2482,7 +2591,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                   {/* Category Filter Dropdown - Enhanced UI/UX */}
                   {isLoadingCategories && (
-                    <div className="mb-4 sm:mb-5">
+                    <div className="mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Filter className="h-4 w-4 text-muted-foreground" />
                         <label className="text-sm font-semibold">
@@ -2498,7 +2607,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   )}
                   {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
-                    <div className="mb-4 sm:mb-5">
+                    <div className="mb-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Filter className="h-4 w-4 text-primary" />
                         <label
@@ -2582,7 +2691,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   )}
                   {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
-                    <div className="mb-4 sm:mb-5 p-4 rounded-lg border border-border bg-muted/30">
+                    <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Package className="h-4 w-4" />
                         <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
@@ -2590,17 +2699,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   )}
 
-                  <div className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-4">
+                  <div className="flex flex-col flex-1 min-h-0 space-y-4">
                     {/* Products Count & Selection Counter - Fixed Header */}
                     <div className="flex-shrink-0 space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm sm:text-base font-semibold">
+                            <span className="text-sm font-semibold">
                               {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
                             </span>
                             <span
-                              className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
+                              className={`text-xs px-2 py-1 rounded-full ${
                                 selectedGarments.length >= 1 && selectedGarments.length < 6
                                   ? "bg-primary/10 text-primary"
                                   : selectedGarments.length >= 6
@@ -2612,7 +2721,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </span>
                           </div>
                           {multipleTabImages.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Grid3x3 className="h-3.5 w-3.5" />
                               <span>
                                 {multipleTabImages.length} {t("tryOnWidget.filters.availableProducts") || "produits disponibles"}
@@ -2622,17 +2731,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         </div>
                         {selectedGarments.length > 0 && (
                           <Button
-                            variant="outline"
+                            variant={"outline" as const}
                             size="sm"
-                            onClick={() => {
-                              for (let i = selectedGarments.length - 1; i >= 0; i--) {
-                                handleGarmentDeselect(i);
-                              }
-                            }}
-                            className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
+                            onClick={handleClearAllGarments}
+                            className="h-9 px-3 text-sm gap-1.5"
                             aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
                           >
-                            <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                            <XCircle className="h-4 w-4" aria-hidden="true" />
                             <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
                           </Button>
                         )}
@@ -2642,7 +2747,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       {selectedGarments.length < 1 && (
                         <div
                           role="alert"
-                          className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
                         >
                           {t("tryOnWidget.validation.minGarmentsMultiple") || "Sélectionnez au moins 1 article pour continuer"}
                         </div>
@@ -2651,7 +2756,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       {selectedGarments.length >= 6 && (
                         <div
                           role="alert"
-                          className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
                         >
                           {t("tryOnWidget.validation.maxGarmentsMultiple") || "Maximum 6 articles sélectionnés"}
                         </div>
@@ -2662,18 +2767,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {multipleTabImages.length === 0 ? (
                         <div role="alert" aria-live="polite" className="h-full flex items-center justify-center">
-                          <Card className="p-6 sm:p-8 md:p-10 text-center bg-muted/30 border-border">
-                            <div className="flex flex-col items-center gap-3">
-                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted flex items-center justify-center">
-                                <Package className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                          <Card className="p-8 text-center bg-muted/30 border-border">
+                            <div className="flex flex-col items-center gap-4">
+                              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                <Package className="h-8 w-8 text-muted-foreground" />
                               </div>
                               <div>
-                                <p className="font-semibold text-foreground text-sm sm:text-base md:text-lg mb-1">
+                                <p className="font-semibold text-foreground text-base mb-2">
                                   {selectedCategory === "all"
                                     ? t("tryOnWidget.errors.noProducts") || "Aucun produit disponible"
                                     : t("tryOnWidget.errors.noProductsInCategory") || "Aucun produit dans cette catégorie"}
                                 </p>
-                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground">
                                   {selectedCategory === "all"
                                     ? t("tryOnWidget.errors.noProductsDescription") || "Les produits seront disponibles une fois chargés"
                                     : t("tryOnWidget.errors.noProductsInCategoryDescription") || "Essayez de sélectionner une autre catégorie"}
@@ -2683,7 +2788,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </Card>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 animate-in fade-in-0 duration-300 pb-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-in fade-in-0 duration-300 pb-2">
                           {multipleTabImages.map((imageUrl, index) => {
                             const garment: ProductImage = {
                               url: imageUrl,
@@ -2767,7 +2872,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               </span>
                             </div>
                             <Button
-                              variant="outline"
+                              variant={"outline" as const}
                               size="sm"
                               onClick={() => {
                                 for (let i = selectedGarments.length - 1; i >= 0; i--) {
@@ -2794,7 +2899,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                     {index + 1}
                                   </div>
                                   <Button
-                                    variant="destructive"
+                                    variant={"destructive" as const}
                                     size="icon"
                                     onClick={() => handleGarmentDeselect(index)}
                                     className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl"
@@ -2819,18 +2924,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-1 sm:pt-2 flex justify-center">
-                <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+              <div className="pt-2 flex justify-center px-4 sm:px-6 lg:px-8">
+                <div className="w-full max-w-2xl">
                   <Button
                     onClick={handleCartMultipleGenerate}
                     disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="w-full h-12 text-base min-h-[44px]"
                     aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                    aria-busy={isGeneratingMultiple}
                   >
-                    <Sparkles
-                      className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                      aria-hidden="true"
-                    />
+                    <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
                     {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
                   </Button>
                 </div>
@@ -2839,20 +2942,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Progress Tracker */}
             {isGeneratingMultiple && (
-              <Card className="p-4 sm:p-6 border-border bg-card">
-                <div className="space-y-4">
+              <Card className="p-6 border-border bg-card mx-4 sm:mx-6 lg:mx-8">
+                <div className="space-y-4" aria-busy="true">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Loader2
-                          className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary"
+                          className="h-5 w-5 animate-spin text-primary"
                           aria-hidden="true"
                         />
-                        <span className="text-sm sm:text-base font-semibold">
+                        <span className="text-base font-semibold">
                           {t("tryOnWidget.status.generating") || "Génération en cours..."}
                         </span>
                       </div>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground">
                         {batchProgress
                           ? Math.round((batchProgress.completed / batchProgress.total) * 100)
                           : progressMultiple}%
@@ -2865,12 +2968,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           : progressMultiple
                       }
                       className="h-2"
+                      aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
                     />
                   </div>
 
                   {batchProgress && (
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">
                           {t("tryOnWidget.progress.garmentsProcessed") || "Articles traités"}: {batchProgress.completed} / {batchProgress.total}
                         </span>
@@ -2888,13 +2992,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Error Display */}
             {errorMultiple && (
-              <div role="alert" aria-live="assertive">
-                <Card className="p-6 bg-error/10 border-error">
-                  <p className="text-error font-medium" id="error-multiple-message">
+              <div role="alert" aria-live="assertive" className="mx-4 sm:mx-6 lg:mx-8 mb-6">
+                <Card className="p-6 bg-destructive/10 border-destructive">
+                  <p className="text-destructive font-medium mb-4" id="error-multiple-message">
                     {errorMultiple}
                   </p>
                   <Button
-                    variant="secondary"
+                    variant={"outline" as const}
                     onClick={() => {
                       setErrorMultiple(null);
                       setCartMultipleImage(null);
@@ -2903,16 +3007,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       setCartResults(null);
                       setProgressMultiple(0);
                       setBatchProgress(null);
+                      setHasUnsavedChanges(false);
                     }}
-                    className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="w-full sm:w-auto"
                     aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
                     aria-describedby="error-multiple-message"
                   >
-                    <RotateCcw
-                      className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                      aria-hidden="true"
-                    />
-                    <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
+                    <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
                   </Button>
                 </Card>
               </div>
@@ -2920,15 +3022,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           </TabsContent>
 
           {/* Try Look Tab - Outfit Mode */}
-          <TabsContent value="look" className="mt-0 space-y-4 sm:space-y-5 md:space-y-6">
+          <TabsContent value="look" className="mt-0 space-y-6">
             {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mx-4 sm:mx-6 lg:mx-8">
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-look-heading" className="flex flex-col">
-                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
+                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
+                  <div className="flex items-center gap-3 mb-4 flex-shrink-0">
                     <div
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
                       aria-hidden="true"
                     >
                       1
@@ -2936,11 +3038,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="min-w-0 flex-1">
                       <h2
                         id="upload-look-heading"
-                        className="text-base sm:text-lg font-semibold"
+                        className="text-lg font-semibold"
                       >
                         {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
                       </h2>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
                       </p>
                     </div>
@@ -2964,7 +3066,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
                           <Button
-                            variant="outline"
+                            variant={"outline" as const}
                             size="sm"
                             onClick={() => {
                               setCartMultipleImage(null);
@@ -2995,10 +3097,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Right Panel: Garment Selection */}
               <section aria-labelledby="garments-look-heading" className="flex flex-col">
-                <Card className="p-3 sm:p-4 md:p-5 border-border bg-card flex flex-col h-[600px] sm:h-[700px] md:h-[800px]">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
+                  <div className="flex items-center gap-3 mb-4">
                     <div
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm sm:text-base flex-shrink-0 shadow-sm"
+                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
                       aria-hidden="true"
                     >
                       2
@@ -3006,11 +3108,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="min-w-0 flex-1">
                       <h2
                         id="garments-look-heading"
-                        className="text-base sm:text-lg font-semibold"
+                        className="text-lg font-semibold"
                       >
                         {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
                       </h2>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {t("tryOnWidget.sections.selectGarments.look.description") || "Sélectionnez 2-8 articles pour une tenue complète"}
                       </p>
                     </div>
@@ -3018,7 +3120,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                   {/* Category Filter Dropdown - Enhanced UI/UX */}
                   {isLoadingCategories && (
-                    <div className="mb-4 sm:mb-5">
+                    <div className="mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Filter className="h-4 w-4 text-muted-foreground" />
                         <label className="text-sm font-semibold">
@@ -3034,7 +3136,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   )}
                   {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
-                    <div className="mb-4 sm:mb-5">
+                    <div className="mb-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Filter className="h-4 w-4 text-primary" />
                         <label
@@ -3118,7 +3220,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   )}
                   {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
-                    <div className="mb-4 sm:mb-5 p-4 rounded-lg border border-border bg-muted/30">
+                    <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Package className="h-4 w-4" />
                         <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
@@ -3126,17 +3228,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                   )}
 
-                  <div className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-4">
+                  <div className="flex flex-col flex-1 min-h-0 space-y-4">
                     {/* Products Count & Selection Counter - Fixed Header */}
                     <div className="flex-shrink-0 space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm sm:text-base font-semibold">
+                            <span className="text-sm font-semibold">
                               {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
                             </span>
                             <span
-                              className={`text-xs sm:text-sm px-2 py-1 rounded-full ${
+                              className={`text-xs px-2 py-1 rounded-full ${
                                 selectedGarments.length >= 2 && selectedGarments.length < 8
                                   ? "bg-primary/10 text-primary"
                                   : selectedGarments.length >= 8
@@ -3148,7 +3250,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </span>
                           </div>
                           {lookTabImages.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Grid3x3 className="h-3.5 w-3.5" />
                               <span>
                                 {lookTabImages.length} {t("tryOnWidget.filters.availableProducts") || "produits disponibles"}
@@ -3158,17 +3260,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         </div>
                         {selectedGarments.length > 0 && (
                           <Button
-                            variant="outline"
+                            variant={"outline" as const}
                             size="sm"
-                            onClick={() => {
-                              for (let i = selectedGarments.length - 1; i >= 0; i--) {
-                                handleGarmentDeselect(i);
-                              }
-                            }}
-                            className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
+                            onClick={handleClearAllGarments}
+                            className="h-9 px-3 text-sm gap-1.5"
                             aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
                           >
-                            <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                            <XCircle className="h-4 w-4" aria-hidden="true" />
                             <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
                           </Button>
                         )}
@@ -3178,7 +3276,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       {selectedGarments.length < 2 && (
                         <div
                           role="alert"
-                          className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
                         >
                           {t("tryOnWidget.validation.minGarmentsLook") || "Sélectionnez au moins 2 articles pour continuer"}
                         </div>
@@ -3187,7 +3285,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       {selectedGarments.length >= 8 && (
                         <div
                           role="alert"
-                          className="text-xs sm:text-sm text-warning bg-warning/10 p-2 rounded"
+                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
                         >
                           {t("tryOnWidget.validation.maxGarmentsLook") || "Maximum 8 articles sélectionnés"}
                         </div>
@@ -3198,18 +3296,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {lookTabImages.length === 0 ? (
                         <div role="alert" aria-live="polite" className="h-full flex items-center justify-center">
-                          <Card className="p-6 sm:p-8 md:p-10 text-center bg-muted/30 border-border">
-                            <div className="flex flex-col items-center gap-3">
-                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted flex items-center justify-center">
-                                <Package className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                          <Card className="p-8 text-center bg-muted/30 border-border">
+                            <div className="flex flex-col items-center gap-4">
+                              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                <Package className="h-8 w-8 text-muted-foreground" />
                               </div>
                               <div>
-                                <p className="font-semibold text-foreground text-sm sm:text-base md:text-lg mb-1">
+                                <p className="font-semibold text-foreground text-base mb-2">
                                   {selectedCategory === "all"
                                     ? t("tryOnWidget.errors.noProducts") || "Aucun produit disponible"
                                     : t("tryOnWidget.errors.noProductsInCategory") || "Aucun produit dans cette catégorie"}
                                 </p>
-                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground">
                                   {selectedCategory === "all"
                                     ? t("tryOnWidget.errors.noProductsDescription") || "Les produits seront disponibles une fois chargés"
                                     : t("tryOnWidget.errors.noProductsInCategoryDescription") || "Essayez de sélectionner une autre catégorie"}
@@ -3219,7 +3317,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </Card>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 animate-in fade-in-0 duration-300 pb-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-in fade-in-0 duration-300 pb-2">
                           {lookTabImages.map((imageUrl, index) => {
                             const garment: ProductImage = {
                               url: imageUrl,
@@ -3303,7 +3401,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               </span>
                             </div>
                             <Button
-                              variant="outline"
+                              variant={"outline" as const}
                               size="sm"
                               onClick={() => {
                                 for (let i = selectedGarments.length - 1; i >= 0; i--) {
@@ -3330,7 +3428,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                     {index + 1}
                                   </div>
                                   <Button
-                                    variant="destructive"
+                                    variant={"destructive" as const}
                                     size="icon"
                                     onClick={() => handleGarmentDeselect(index)}
                                     className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl"
@@ -3355,18 +3453,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-1 sm:pt-2 flex justify-center">
-                <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+              <div className="pt-2 flex justify-center px-4 sm:px-6 lg:px-8">
+                <div className="w-full max-w-2xl">
                   <Button
                     onClick={handleCartMultipleGenerate}
                     disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="w-full h-12 text-base min-h-[44px]"
                     aria-label={t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
+                    aria-busy={isGeneratingMultiple}
                   >
-                    <Sparkles
-                      className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
-                      aria-hidden="true"
-                    />
+                    <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
                     {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
                   </Button>
                 </div>
@@ -3375,27 +3471,31 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Progress Tracker */}
             {isGeneratingMultiple && (
-              <Card className="p-4 sm:p-6 border-border bg-card">
-                <div className="space-y-4">
+              <Card className="p-6 border-border bg-card mx-4 sm:mx-6 lg:mx-8">
+                <div className="space-y-4" aria-busy="true">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Loader2
-                          className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary"
+                          className="h-5 w-5 animate-spin text-primary"
                           aria-hidden="true"
                         />
-                        <span className="text-sm sm:text-base font-semibold">
+                        <span className="text-base font-semibold">
                           {t("tryOnWidget.status.generatingOutfit") || "Génération de la tenue complète..."}
                         </span>
                       </div>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground">
                         {progressMultiple}%
                       </span>
                     </div>
-                    <Progress value={progressMultiple} className="h-2" />
+                    <Progress 
+                      value={progressMultiple} 
+                      className="h-2"
+                      aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
+                    />
                   </div>
 
-                  <div className="text-xs sm:text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     {t("tryOnWidget.status.generatingOutfitTime") || "La génération d'une tenue complète peut prendre 10 à 15 secondes..."}
                   </div>
                 </div>
@@ -3404,13 +3504,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Error Display */}
             {errorMultiple && (
-              <div role="alert" aria-live="assertive">
-                <Card className="p-6 bg-error/10 border-error">
-                  <p className="text-error font-medium" id="error-look-message">
+              <div role="alert" aria-live="assertive" className="mx-4 sm:mx-6 lg:mx-8 mb-6">
+                <Card className="p-6 bg-destructive/10 border-destructive">
+                  <p className="text-destructive font-medium mb-4" id="error-look-message">
                     {errorMultiple}
                   </p>
                   <Button
-                    variant="secondary"
+                    variant={"outline" as const}
                     onClick={() => {
                       setErrorMultiple(null);
                       setCartMultipleImage(null);
@@ -3419,16 +3519,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       setOutfitResult(null);
                       setProgressMultiple(0);
                       setBatchProgress(null);
+                      setHasUnsavedChanges(false);
                     }}
-                    className="group mt-4 gap-2 text-secondary-foreground hover:bg-secondary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="w-full sm:w-auto"
                     aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
                     aria-describedby="error-look-message"
                   >
-                    <RotateCcw
-                      className="h-4 w-4 transition-transform group-hover:rotate-[-120deg] duration-500"
-                      aria-hidden="true"
-                    />
-                    <span>{t("tryOnWidget.buttons.retry") || "Réessayer"}</span>
+                    <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
                   </Button>
                 </Card>
               </div>
@@ -3440,3 +3538,4 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     </div>
   );
 }
+
