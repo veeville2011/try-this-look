@@ -277,6 +277,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
+  // Track if we're currently closing to prevent double-close
+  const isClosingRef = useRef<boolean>(false);
   console.log({ storeInfo });
   // Set initial status message
   useEffect(() => {
@@ -624,11 +626,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Request images from parent window if we're in iframe mode and on single tab
       // This ensures images are loaded when switching to clothing step on mobile
       if (singleTabImages.length === 0) {
+        console.log("[TryOnWidget] Requesting images from parent (mobileStep:", mobileStep, ", activeTab:", activeTab, ")");
         try {
           window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
         } catch (error) {
-          // Failed to request images from parent window
+          console.error("[TryOnWidget] Failed to request images from parent window:", error);
         }
+      } else {
+        console.log("[TryOnWidget] Images already loaded:", singleTabImages.length, "images");
       }
     }
   }, [mobileStep, activeTab, singleTabImages.length]);
@@ -1720,11 +1725,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   // Handle close - if in iframe, notify parent window
   const handleClose = (e?: React.MouseEvent) => {
+    // Prevent double-closing
+    if (isClosingRef.current) {
+      return;
+    }
+    
     // Prevent event propagation to avoid double-triggering
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
+    
+    // Mark as closing to prevent double-trigger
+    isClosingRef.current = true;
     
     if (isInIframe) {
       // Send message to parent window to close the modal
@@ -1732,8 +1745,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         window.parent.postMessage({ type: "NUSENSE_CLOSE_WIDGET" }, "*");
       } catch (error) {
         // Failed to send close message to parent
+        // Reset closing flag on error so user can try again
+        isClosingRef.current = false;
       }
       // In iframe mode, parent handles the close, so don't call onClose here
+      // Reset closing flag after a short delay to allow for retry if needed
+      setTimeout(() => {
+        isClosingRef.current = false;
+      }, 1000);
       return;
     }
     
@@ -1741,6 +1760,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (onClose) {
       onClose();
     }
+    
+    // Reset closing flag after a short delay
+    setTimeout(() => {
+      isClosingRef.current = false;
+    }, 1000);
   };
 
   return (
@@ -1790,8 +1814,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </span>
               </div>
               <button
-                onClick={(e) => handleClose(e)}
-                onMouseDown={(e) => e.preventDefault()} // Prevent focus issues that might cause double-click
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClose(e);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
                 title={t("tryOnWidget.buttons.close") || "Fermer"}
