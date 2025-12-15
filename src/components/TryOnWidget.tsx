@@ -1894,10 +1894,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       {/* Main Container */}
       <div className="items-start bg-white">
-        <div className="bg-white w-full max-w-[898px] mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 rounded-2xl">
+        <div className="bg-white w-full max-w-[898px] mx-auto py-4 sm:py-6 px-3 sm:px-4 lg:px-6 rounded-2xl">
           {/* Header */}
           <header className="sticky top-0 z-10 bg-white">
-            <div className="flex justify-between items-center self-stretch px-4 sm:px-6 lg:px-8 py-4 mb-4">
+            <div className="flex justify-between items-center self-stretch py-3 mb-3">
               <div className="flex flex-col items-start gap-1">
                 <img
                   src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
@@ -1946,7 +1946,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {/* Tabs Navigation - Only show for vto-demo store */}
         {isVtoDemoStore && (
           <section
-            className="px-4 sm:px-6 lg:px-8 pt-4 pb-0"
+            className="pt-3 pb-0"
             aria-label={t("tryOnWidget.tabs.ariaLabel") || "Mode d'essayage"}
           >
             <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1 gap-1">
@@ -1980,11 +1980,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 px-4 sm:px-6 lg:px-8 gap-6 lg:gap-8">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-8">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
-                <div className="flex justify-between items-start self-stretch mb-4 px-4">
+                <div className="flex justify-between items-start self-stretch mb-4">
                   <div className="flex flex-col shrink-0 items-start gap-1">
                     <h2 className="text-slate-800 text-xl sm:text-2xl font-semibold">
                       {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
@@ -1998,11 +1998,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Generated Image */}
                 {isGenerating ? (
-                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 px-4 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden">
+                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden">
                     <Skeleton className="w-full h-full min-h-[400px] rounded-xl" />
                   </div>
                 ) : generatedImage ? (
-                  <div className="self-stretch mb-8 px-4 rounded-xl bg-white overflow-hidden">
+                  <div className="self-stretch mb-8 rounded-xl bg-white overflow-hidden">
                     <img
                       src={generatedImage}
                       alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
@@ -2120,7 +2120,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 px-4 sm:px-6 lg:px-8 gap-6 lg:gap-8">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-8">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
@@ -2170,7 +2170,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Mobile Continue Button - Show after photo selection */}
               {uploadedImage && mobileStep === "photo" && (
-                <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-6 mt-0 gap-4">
+                <div className="flex flex-col self-stretch lg:hidden mb-6 mt-0 gap-4">
                   <Button
                     onClick={handleResetClick}
                     variant={"outline" as const}
@@ -2209,7 +2209,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 px-4 lg:px-0 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
@@ -2243,47 +2243,44 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     showFinalLayout={!!uploadedImage && !!selectedClothing}
                   />
                 </div>
-              </section>
-            </div>
-          )}
-
-          {/* Footer buttons */}
-          {!isGenerating && !generatedImage && (
-            /* Default buttons: Reset and Generate */
-            /* Mobile: Hide when in photo step (Continue button shown above), show when in clothing step */
-            /* Desktop: Always show */
-            <div className={`flex flex-col items-end self-stretch lg:items-end lg:justify-end px-4 sm:px-6 lg:px-8 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
-              <div className="flex flex-col sm:flex-row items-end sm:items-center self-stretch gap-4 sm:px-0 sm:mr-8 lg:ml-auto lg:justify-end">
-                <Button
-                  onClick={handleResetClick}
-                  variant={"outline" as const}
-                  className="w-full sm:w-auto min-w-[140px] h-11"
-                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
-                >
-                  <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                </Button>
-                <Button
-                  onClick={handleGenerate}
-                  disabled={!selectedClothing || !uploadedImage || isGenerating}
-                  className="w-full sm:w-auto min-w-[140px] h-11"
-                  aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
-                  aria-describedby={
-                    !selectedClothing || !uploadedImage
-                      ? "generate-help"
-                      : undefined
-                  }
-                  aria-busy={isGenerating}
-                >
-                  <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {t("tryOnWidget.buttons.generate") || "Générer"}
-                </Button>
-                {(!selectedClothing || !uploadedImage) && (
-                  <p id="generate-help" className="sr-only">
-                    {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
-                  </p>
+                
+                {/* Action buttons - Inside clothing section, aligned to right, at bottom */}
+                {!isGenerating && !generatedImage && (
+                  <div className={`flex flex-col items-end w-full mt-4 pt-4 border-t border-border/40 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
+                    <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
+                      <Button
+                        onClick={handleResetClick}
+                        variant={"outline" as const}
+                        className="w-full sm:w-auto min-w-[140px] h-11"
+                        aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                      >
+                        <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                      </Button>
+                      <Button
+                        onClick={handleGenerate}
+                        disabled={!selectedClothing || !uploadedImage || isGenerating}
+                        className="w-full sm:w-auto min-w-[140px] h-11"
+                        aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                        aria-describedby={
+                          !selectedClothing || !uploadedImage
+                            ? "generate-help"
+                            : undefined
+                        }
+                        aria-busy={isGenerating}
+                      >
+                        <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.generate") || "Générer"}
+                      </Button>
+                      {(!selectedClothing || !uploadedImage) && (
+                        <p id="generate-help" className="sr-only">
+                          {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </div>
+              </section>
             </div>
           )}
 
@@ -2291,7 +2288,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Result buttons: Mobile - Stacked vertically, Desktop - Horizontal layout */
             <>
               {/* Mobile Layout: Stacked buttons */}
-              <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-8 gap-4">
+              <div className="flex flex-col self-stretch lg:hidden mb-8 gap-4">
                 <Button
                   onClick={handleResetClick}
                   variant={"outline" as const}
@@ -2342,7 +2339,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
 
               {/* Desktop Layout: Horizontal buttons aligned right */}
-              <div className="hidden lg:flex justify-end items-start self-stretch mb-6 px-4 sm:px-6 lg:px-8">
+              <div className="hidden lg:flex justify-end items-start self-stretch mb-6">
                 <div className="flex items-start gap-4">
                   {!isGenerating && generatedImage && (
                     <>
@@ -2410,7 +2407,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           )}
 
           {error && (
-            <div role="alert" aria-live="assertive" className="px-4 sm:px-6 lg:px-8 mb-6">
+            <div role="alert" aria-live="assertive" className="mb-6">
               <Card className="p-6 bg-destructive/10 border-destructive">
                 <p className="text-destructive font-medium mb-4" id="error-message">
                   {error}
@@ -2505,7 +2502,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {/* Try Multiple Tab - Cart Mode */}
         <TabsContent value="multiple" className="mt-0 space-y-6">
             {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-multiple-heading" className="flex flex-col">
                 <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
@@ -2934,7 +2931,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-2 flex justify-center px-4 sm:px-6 lg:px-8">
+              <div className="pt-2 flex justify-center">
                 <div className="w-full max-w-2xl">
                   <Button
                     onClick={handleCartMultipleGenerate}
@@ -2952,7 +2949,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Progress Tracker */}
             {isGeneratingMultiple && (
-              <Card className="p-6 border-border bg-card px-4 sm:px-6 lg:px-8">
+              <Card className="p-6 border-border bg-card">
                 <div className="space-y-4" aria-busy="true">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -3002,7 +2999,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Error Display */}
             {errorMultiple && (
-              <div role="alert" aria-live="assertive" className="px-4 sm:px-6 lg:px-8 mb-6">
+              <div role="alert" aria-live="assertive" className="mb-6">
                 <Card className="p-6 bg-destructive/10 border-destructive">
                   <p className="text-destructive font-medium mb-4" id="error-multiple-message">
                     {errorMultiple}
@@ -3034,7 +3031,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Try Look Tab - Outfit Mode */}
           <TabsContent value="look" className="mt-0 space-y-6">
             {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-look-heading" className="flex flex-col">
                 <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
@@ -3463,7 +3460,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Generate button */}
             {!isGeneratingMultiple && (
-              <div className="pt-2 flex justify-center px-4 sm:px-6 lg:px-8">
+              <div className="pt-2 flex justify-center">
                 <div className="w-full max-w-2xl">
                   <Button
                     onClick={handleCartMultipleGenerate}
@@ -3481,7 +3478,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Progress Tracker */}
             {isGeneratingMultiple && (
-              <Card className="p-6 border-border bg-card px-4 sm:px-6 lg:px-8">
+              <Card className="p-6 border-border bg-card">
                 <div className="space-y-4" aria-busy="true">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -3514,7 +3511,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
             {/* Error Display */}
             {errorMultiple && (
-              <div role="alert" aria-live="assertive" className="px-4 sm:px-6 lg:px-8 mb-6">
+              <div role="alert" aria-live="assertive" className="mb-6">
                 <Card className="p-6 bg-destructive/10 border-destructive">
                   <p className="text-destructive font-medium mb-4" id="error-look-message">
                     {errorMultiple}
