@@ -1740,12 +1740,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       e.stopPropagation();
     }
     
-    // Mark as closing to prevent double-trigger
-    // Flag will be reset when component unmounts (when overlay is closed)
+    // Mark as closing immediately
     isClosingRef.current = true;
     
     if (isInIframe) {
-      // Send message to parent window to close the modal
+      // Send message to parent window to close the modal immediately
+      // This must be synchronous - no delays or async operations
       try {
         window.parent.postMessage({ type: "NUSENSE_CLOSE_WIDGET" }, "*");
       } catch (error) {

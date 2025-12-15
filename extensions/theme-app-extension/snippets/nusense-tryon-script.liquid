@@ -906,6 +906,11 @@ function handleMessage(event) {
 if (!event.data || !event.data.type || !event.data.type.startsWith('NUSENSE_')) {
 return;
 }
+// NUSENSE_CLOSE_WIDGET is handled by the button.js script, not here
+// Don't log or interfere with it - let it pass through to other listeners
+if (event.data && event.data.type === 'NUSENSE_CLOSE_WIDGET') {
+return;
+}
 console.log('NUSENSE: Message received', {
 type: event.data.type,
 hasSource: !!event.source,
