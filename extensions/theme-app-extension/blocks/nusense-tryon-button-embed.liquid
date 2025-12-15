@@ -679,14 +679,37 @@ try {
 if (currentParent && currentParent !== document.body) {
 container.remove();
 }
+const insertParentStyle = window.getComputedStyle(insertParent);
+const insertParentDisplay = insertParentStyle.display;
+const insertParentFlexDirection = insertParentStyle.flexDirection;
+const insertParentGridTemplateColumns = insertParentStyle.gridTemplateColumns;
+const isInsertParentFlexRow = (insertParentDisplay === 'flex' || insertParentDisplay === 'inline-flex') && (insertParentFlexDirection === 'row' || insertParentFlexDirection === 'row-reverse' || insertParentFlexDirection === '');
+const isInsertParentGrid = insertParentDisplay === 'grid' && insertParentGridTemplateColumns !== 'none';
+if (purchaseBoundary.isGroup && (isInsertParentFlexRow || isInsertParentGrid)) {
+container.style.width = '100%';
+container.style.flexBasis = '100%';
+container.style.flexShrink = '0';
+container.style.flexGrow = '0';
+container.style.clear = 'both';
+container.style.order = '-1';
+if (isInsertParentFlexRow) {
+container.style.flexBasis = '100%';
+container.style.width = '100%';
+container.style.minWidth = '100%';
+container.style.maxWidth = '100%';
+}
+if (isInsertParentGrid) {
+container.style.gridColumn = '1 / -1';
+container.style.width = '100%';
+}
+console.log('[NUSENSE] Applied full-width row-breaking styles for button group in flex/grid layout');
+}
 insertParent.insertBefore(container, insertTarget);
 console.log('[NUSENSE] Button inserted before target:', insertTarget);
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
-const insertParentStyle = window.getComputedStyle(insertParent);
-const insertParentDisplay = insertParentStyle.display;
 const insertTargetStyle = window.getComputedStyle(insertTarget);
 const insertTargetWidth = insertTargetStyle.width;
 const insertTargetMaxWidth = insertTargetStyle.maxWidth;
@@ -694,19 +717,30 @@ const insertTargetOffsetWidth = insertTarget.offsetWidth || 0;
 const insertParentOffsetWidth = insertParent.offsetWidth || 0;
 const isTargetFullWidth = insertTargetWidth === '100%' || insertTargetMaxWidth === '100%' || (insertParentOffsetWidth > 0 && insertTargetOffsetWidth >= insertParentOffsetWidth * 0.95);
 if (purchaseBoundary.isGroup || isTargetFullWidth) {
+if (!container.style.width || container.style.width === '') {
 container.style.width = '100%';
+}
+if (!container.style.flexBasis || container.style.flexBasis === '') {
 container.style.flexBasis = '100%';
+}
 container.style.flexShrink = '0';
 container.style.flexGrow = '0';
 container.style.clear = 'both';
 if (insertParentDisplay === 'flex' || insertParentDisplay === 'inline-flex') {
+if (!container.style.flexBasis || container.style.flexBasis === '') {
 container.style.flexBasis = '100%';
+}
 container.style.flexShrink = '0';
 container.style.flexGrow = '0';
 const flexDirection = insertParentStyle.flexDirection;
 if (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '') {
 container.style.flexBasis = '100%';
 container.style.width = '100%';
+container.style.minWidth = '100%';
+container.style.maxWidth = '100%';
+if (!container.style.order || container.style.order === '') {
+container.style.order = '-1';
+}
 }
 }
 if (insertParentDisplay === 'grid') {
