@@ -1729,32 +1729,38 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   // Handle close - if in iframe, notify parent window
   const handleClose = (e?: React.MouseEvent) => {
-    // Prevent double-closing
-    if (isClosingRef.current) {
-      return;
-    }
-    
-    // Prevent event propagation to avoid double-triggering
+    // Prevent event propagation to avoid double-triggering or step navigation
     if (e) {
       e.preventDefault();
       e.stopPropagation();
+      // Stop immediate propagation on native event if available
+      const nativeEvent = e.nativeEvent as any;
+      if (nativeEvent && typeof nativeEvent.stopImmediatePropagation === 'function') {
+        nativeEvent.stopImmediatePropagation();
+      }
     }
     
-    // Mark as closing immediately
-    isClosingRef.current = true;
+    // Prevent multiple rapid clicks within 100ms (reduced from 200ms for faster response)
+    const now = Date.now();
+    const lastCloseTime = (window as any).__nusenseLastCloseTime || 0;
+    if (now - lastCloseTime < 100) {
+      return;
+    }
+    (window as any).__nusenseLastCloseTime = now;
     
     if (isInIframe) {
       // Send message to parent window to close the modal immediately
-      // This must be synchronous - no delays or async operations
+      // The parent listener is set up when overlay is created, so it should receive this
       try {
         window.parent.postMessage({ type: "NUSENSE_CLOSE_WIDGET" }, "*");
       } catch (error) {
         // Failed to send close message to parent
-        // Reset closing flag on error so user can try again
-        isClosingRef.current = false;
+        console.error("[TryOnWidget] Failed to send close message:", error);
+        // Reset the debounce timer so user can try again
+        (window as any).__nusenseLastCloseTime = 0;
       }
       // In iframe mode, parent handles the close
-      // When overlay is closed, component will unmount and flag resets naturally
+      // Widget will unmount when parent closes the overlay
       return;
     }
     
@@ -1762,11 +1768,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (onClose) {
       onClose();
     }
-    // Flag will be reset when component unmounts
   };
 
   return (
     <div
+      data-nusense-widget="true"
       className="w-full h-full overflow-y-auto bg-white"
       style={{ minHeight: "100vh" }}
       role="main"
@@ -1813,9 +1819,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
               <button
                 onClick={(e) => {
+                  // Immediately stop all event propagation to prevent any other handlers
                   e.preventDefault();
                   e.stopPropagation();
+                  // Stop immediate propagation on native event
+                  const nativeEvent = e.nativeEvent as any;
+                  if (nativeEvent && typeof nativeEvent.stopImmediatePropagation === 'function') {
+                    nativeEvent.stopImmediatePropagation();
+                  }
+                  // Call handleClose directly - it will handle iframe communication
                   handleClose(e);
+                }}
+                onMouseDown={(e) => {
+                  // Prevent any mousedown events from interfering
+                  e.preventDefault();
+                  e.stopPropagation();
                 }}
                 className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
