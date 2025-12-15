@@ -27,42 +27,49 @@
   let currentResizeHandler = null;
   let isOpeningWidget = false; // Flag to prevent concurrent modal opens
 
+  // Single delegated event listener on document body (more efficient and prevents duplicates)
+  function handleButtonClick(e) {
+    const button = e.target.closest('[id^="nusense-tryon-btn"], .nusense-tryon-button');
+    if (!button) {
+      return; // Not a NUSENSE button
+    }
+    
+    // Skip if already processing or modal is open
+    if (document.getElementById('nusense-widget-overlay') || window.NUSENSE_IS_OPENING) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    openWidget();
+  }
+
   // Initialize widget
   function initWidget() {
-    // Find all try-on buttons
-    const buttons = document.querySelectorAll('[id^="nusense-tryon-btn"], .nusense-tryon-button');
-    
-    buttons.forEach(function(button) {
-      // Skip if already initialized
-      if (button.dataset.nusenseInitialized === 'true') {
-        return;
-      }
-      
-      button.dataset.nusenseInitialized = 'true';
-      
-      button.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        openWidget();
-      });
-    });
+    // Use event delegation on document body - only set up ONCE
+    if (!window.NUSENSE_CLICK_LISTENER_ADDED) {
+      document.body.addEventListener('click', handleButtonClick, true); // Use capture phase
+      window.NUSENSE_CLICK_LISTENER_ADDED = true;
+    }
   }
 
   // Open widget in modal
   function openWidget() {
-    // Prevent concurrent modal opens
-    if (isOpeningWidget) {
-      return; // Already opening, ignore this call
-    }
-    
-    // Check if widget is already open - prevent duplicate modals
+    // Check if widget is already open - prevent duplicate modals (check FIRST, before any other logic)
     const existingOverlay = document.getElementById('nusense-widget-overlay');
     if (existingOverlay) {
       return; // Widget is already open, don't create another one
     }
     
-    // Set flag to prevent concurrent opens
+    // Prevent concurrent modal opens using global flag
+    if (window.NUSENSE_IS_OPENING) {
+      return; // Already opening, ignore this call
+    }
+    
+    // Set global flag to prevent concurrent opens (use window property to survive script reloads)
+    window.NUSENSE_IS_OPENING = true;
     isOpeningWidget = true;
     
     // Create modal overlay
@@ -160,8 +167,9 @@
     overlay.appendChild(container);
     document.body.appendChild(overlay);
     
-    // Reset opening flag once overlay is in DOM
+    // Reset opening flags once overlay is in DOM
     isOpeningWidget = false;
+    window.NUSENSE_IS_OPENING = false;
 
     // Handle window resize to maintain correct width
     currentResizeHandler = function() {
@@ -209,8 +217,9 @@
   function closeWidget() {
     const overlay = document.getElementById('nusense-widget-overlay');
     if (overlay) {
-      // Reset opening flag
+      // Reset opening flags
       isOpeningWidget = false;
+      window.NUSENSE_IS_OPENING = false;
       
       // Remove resize handler
       if (currentResizeHandler) {
@@ -232,8 +241,9 @@
         originalBodyOverflow = null;
       }, 200);
     } else {
-      // Reset flag even if overlay not found
+      // Reset flags even if overlay not found
       isOpeningWidget = false;
+      window.NUSENSE_IS_OPENING = false;
     }
   }
 
