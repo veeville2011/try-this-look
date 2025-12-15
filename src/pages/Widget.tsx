@@ -64,7 +64,7 @@ export default function Widget() {
   }, []);
 
   return (
-    <div className="w-fit h-auto">
+    <div className="w-full h-auto mx-auto">
       <TryOnWidget />
     </div>
   );
