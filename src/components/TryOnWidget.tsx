@@ -625,18 +625,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (isInIframe && activeTab === "single") {
       // Request images from parent window if we're in iframe mode and on single tab
       // This ensures images are loaded when switching to clothing step on mobile
-      if (singleTabImages.length === 0) {
-        console.log("[TryOnWidget] Requesting images from parent (mobileStep:", mobileStep, ", activeTab:", activeTab, ")");
-        try {
-          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
-        } catch (error) {
-          console.error("[TryOnWidget] Failed to request images from parent window:", error);
-        }
-      } else {
-        console.log("[TryOnWidget] Images already loaded:", singleTabImages.length, "images");
+      // Always request images when switching to clothing step, even if we have some images
+      // This ensures we get the latest images from the parent window
+      console.log("[TryOnWidget] Requesting images from parent (mobileStep:", mobileStep, ", activeTab:", activeTab, ", currentImages:", singleTabImages.length, ")");
+      try {
+        window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+      } catch (error) {
+        console.error("[TryOnWidget] Failed to request images from parent window:", error);
       }
     }
-  }, [mobileStep, activeTab, singleTabImages.length]);
+  }, [mobileStep, activeTab]);
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {
@@ -2102,13 +2100,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </button>
                   <button
                     onClick={() => {
-                      // Request images when switching to clothing step if not already loaded
+                      // Always request images when switching to clothing step to ensure we have the latest images
                       const isInIframe = window.parent !== window;
-                      if (isInIframe && singleTabImages.length === 0) {
+                      if (isInIframe) {
                         try {
                           window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
                         } catch (error) {
-                          // Failed to request images from parent window
+                          console.error("[TryOnWidget] Failed to request images from parent window:", error);
                         }
                       }
                       setMobileStep("clothing");

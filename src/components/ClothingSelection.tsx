@@ -118,7 +118,9 @@ export default function ClothingSelection({
     ref.current.scrollLeft = scrollLeft - walk;
   };
 
-  if (validImages.length === 0 && !selectedImage) {
+  // Only show "no clothing detected" if we have no images AND no selected image AND images prop is empty (not loading)
+  // This prevents showing the error message while images are being loaded
+  if (validImages.length === 0 && !selectedImage && images.length === 0) {
     return (
       <div role="alert" aria-live="polite">
         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
