@@ -403,19 +403,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         });
       }
 
-      const requestImages = () => {
-        try {
-          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
-        } catch (error) {
-          // Error communicating with parent window
-        }
-      };
-
-      // Request immediately - parent window will extract images from Shopify page
-      requestImages();
-
       // DO NOT extract from widget's own page when in iframe mode
-      // Wait for parent window to send images via postMessage
+      // Images will be requested in a separate useEffect that handles activeTab changes
+      // This ensures images are requested at the right time and only when needed
       return;
     }
 
@@ -627,38 +617,23 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     return () => window.removeEventListener("message", handleMessage);
   }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length]); // Include fetchStoreInfoFromRedux in dependencies
 
-  // Request images when switching to clothing step on mobile or when activeTab is "single"
+  // Request images from parent window when in iframe mode and on single tab
+  // This runs:
+  // 1. On initial mount when activeTab is "single"
+  // 2. When activeTab changes to "single"
+  // 3. When switching to clothing step on mobile (to ensure images are loaded)
   useEffect(() => {
     const isInIframe = window.parent !== window;
-    if (isInIframe && activeTab === "single") {
-      // Request images from parent window if we're in iframe mode and on single tab
-      // This ensures images are loaded when switching to clothing step on mobile
-      // Always request images when switching to clothing step, even if we have some images
-      // This ensures we get the latest images from the parent window
-      console.log("[TryOnWidget] Requesting images from parent (mobileStep:", mobileStep, ", activeTab:", activeTab, ", currentImages:", singleTabImages.length, ")");
-      
-      // Request images immediately
-      const requestImages = () => {
-        try {
-          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
-        } catch (error) {
-          console.error("[TryOnWidget] Failed to request images from parent window:", error);
-        }
-      };
-      
-      requestImages();
-      
-      // Also retry after a short delay in case the parent wasn't ready
-      const retryTimeout = setTimeout(() => {
-        if (singleTabImages.length === 0) {
-          console.log("[TryOnWidget] Retrying image request after delay");
-          requestImages();
-        }
-      }, 500);
-      
-      return () => clearTimeout(retryTimeout);
+    
+    // Only request images if we're in iframe mode, on single tab, and don't have images yet
+    if (isInIframe && activeTab === "single" && singleTabImages.length === 0) {
+      try {
+        window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+      } catch (error) {
+        // Error communicating with parent window - will be handled by message listener
+      }
     }
-  }, [mobileStep, activeTab, singleTabImages.length]);
+  }, [activeTab, mobileStep]); // Only depend on activeTab and mobileStep, not singleTabImages.length
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {

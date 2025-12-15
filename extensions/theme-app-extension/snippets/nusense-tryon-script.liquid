@@ -894,10 +894,10 @@ event.source.postMessage(storeInfo, '*');
 return;
 }
 if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
-if (CONFIG && CONFIG.debug) {
-console.log('NUSENSE: Received NUSENSE_REQUEST_IMAGES from:', event.origin);
-}
+// Verify the request is from an iframe (not from the same window)
+if (event.source && event.source !== window) {
 handleImageRequest(event);
+}
 return;
 }
 if (event.data && event.data.type && (
@@ -915,39 +915,40 @@ console.error('NUSENSE: Error in message handler:', error);
 }
 }
 function handleImageRequest(event) {
+// Always respond to image requests, even if no images found
 const images = getProductImages();
 const recommendedImages = getRecommendedProductsImages(images);
-if (CONFIG && CONFIG.debug) {
-console.log('NUSENSE: handleImageRequest called, images found:', images.length, 'recommended:', recommendedImages.length);
-if (images.length === 0) {
-console.log('NUSENSE: No images found. NUSENSE_PRODUCT_DATA:', window.NUSENSE_PRODUCT_DATA ? 'exists' : 'missing');
+
+// Verify we have a valid event source (the iframe)
+if (!event.source || event.source === window) {
+return; // Invalid request source
 }
-}
-if (event.source && event.source !== window) {
+
 try {
 event.source.postMessage({
 type: 'NUSENSE_PRODUCT_IMAGES',
 images: images,
 recommendedImages: recommendedImages
 }, '*');
-if (CONFIG && CONFIG.debug) {
-console.log('NUSENSE: Sent images to widget:', images.length);
-}
 } catch (e) {
-if (CONFIG && CONFIG.debug) {
-console.error('NUSENSE: Error sending images to widget:', e);
+// Failed to send message - iframe might have been closed
 }
 }
-}
-}
+// Set up message listener immediately - must be ready before widget requests images
 if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
 window.addEventListener('message', handleMessage);
 window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
 }
+
+// Ensure message listener is set up even if DOM is still loading
 if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', function() {
+// Listener already set up above, just ensure it's active
+if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
+window.addEventListener('message', handleMessage);
+window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
+}
 });
-} else {
 }
 })();</script>
 
