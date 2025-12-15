@@ -74,6 +74,12 @@
       #nusense-widget-container {
         animation: slideUp 0.3s ease;
       }
+      @media (min-width: 768px) {
+        #nusense-widget-container {
+          width: 900px !important;
+          max-width: 900px !important;
+        }
+      }
     `;
     document.head.appendChild(style);
 
@@ -82,7 +88,7 @@
     container.id = 'nusense-widget-container';
     container.style.cssText = `
       width: 95vw;
-      max-width: 806px;
+      max-width: 1200px;
       height: 90vh;
       max-height: 900px;
       position: relative;
