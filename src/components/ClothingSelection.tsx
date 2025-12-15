@@ -139,7 +139,7 @@ export default function ClothingSelection({
     <div className="flex flex-col h-full min-h-0">
       {showFinalLayout ? (
         /* Final Layout - Show 2+2 grid when both photo and clothing are selected */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           <div className="space-y-3 sm:space-y-4 pb-2">
             {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side with horizontal scroll fallback */}
             {validImages.length > 0 && (
@@ -233,7 +233,7 @@ export default function ClothingSelection({
         /* Original Layout - Horizontal scrollable when not both selected */
         <>
           {/* Always show images - removed !selectedImage condition */}
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           <div className="space-y-3 sm:space-y-4 pb-2">
               {/* Main Product Images - Horizontal Scroll */}
               {validImages.length > 0 && (
