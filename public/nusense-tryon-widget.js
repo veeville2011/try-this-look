@@ -149,9 +149,23 @@
     const iframe = document.createElement('iframe');
     iframe.id = 'nusense-widget-iframe';
     
-    // Pass product data via URL query parameter
-    const productDataStr = productData ? encodeURIComponent(JSON.stringify(productData)) : '';
-    iframe.src = config.widgetUrl + '/widget' + (productDataStr ? '?product=' + productDataStr : '');
+    // Build URL with query parameters
+    const urlParams = new URLSearchParams();
+    
+    // Pass product data if available
+    if (productData) {
+      urlParams.set('product', encodeURIComponent(JSON.stringify(productData)));
+    }
+    
+    // Pass parent viewport info so iframe knows if it's desktop or mobile
+    // This is critical because the iframe might be 900px (less than lg:1024px breakpoint)
+    // but the parent window is desktop, so we need to tell the iframe it's desktop mode
+    const parentIsDesktop = window.innerWidth >= 768;
+    urlParams.set('parentWidth', window.innerWidth.toString());
+    urlParams.set('parentIsDesktop', parentIsDesktop.toString());
+    
+    const queryString = urlParams.toString();
+    iframe.src = config.widgetUrl + '/widget' + (queryString ? '?' + queryString : '');
     
     iframe.style.cssText = `
       width: 100%;
