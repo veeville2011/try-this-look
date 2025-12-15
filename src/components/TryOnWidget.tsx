@@ -1865,7 +1865,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   return (
     <div
       data-nusense-widget="true"
-      className="w-[500px] h-full overflow-y-auto bg-white"
+      className="w-fit h-full overflow-y-auto bg-white"
       style={{ minHeight: "100vh", fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
@@ -1893,8 +1893,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       )}
 
     
-        {/* Content Container - Fixed width */}
-        <div className="bg-white w-full py-3 sm:py-4 px-2 sm:px-3 rounded-2xl">
+        {/* Content Container - Fit content */}
+        <div className="bg-white max-w-fit py-3 sm:py-4 px-2 sm:px-3 rounded-2xl">
           {/* Header - Aligned with content container */}
           <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center py-3 mb-3">
