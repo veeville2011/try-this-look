@@ -1896,7 +1896,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       <div className="items-start bg-white">
         <div className="bg-white w-full max-w-[898px] mx-auto py-6 sm:py-8 rounded-2xl">
           {/* Header */}
-          <header className="sticky top-0 z-10 bg-white border-b border-border/40">
+          <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center self-stretch px-4 sm:px-6 lg:px-8 py-4 mb-4">
               <div className="flex flex-col items-start gap-1">
                 <img
@@ -2341,70 +2341,70 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </Button>
               </div>
 
-              {/* Desktop Layout: Horizontal buttons */}
-              <div className="hidden lg:flex justify-end items-start self-stretch gap-4 mb-6 mx-4 sm:mx-6 lg:mx-8">
-                {/* Reset button on left */}
-                <Button
-                  onClick={handleResetClick}
-                  variant={"outline" as const}
-                  disabled={isGenerating}
-                  className="min-w-[140px] h-11"
-                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
-                  aria-busy={isGenerating}
-                >
-                  <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                </Button>
+              {/* Desktop Layout: Horizontal buttons aligned right */}
+              <div className="hidden lg:flex justify-end items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8">
+                <div className="flex items-start gap-4">
+                  {!isGenerating && generatedImage && (
+                    <>
+                      <Button
+                        onClick={() => handleDownload(generatedImage)}
+                        variant={"outline" as const}
+                        className="min-w-[140px] h-11"
+                        aria-label={t("tryOnWidget.buttons.download") || "Télécharger"}
+                      >
+                        <Download className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.download") || "Télécharger"}
+                      </Button>
+                      <Button
+                        onClick={handleBuyNow}
+                        disabled={isBuyNowLoading || isAddToCartLoading}
+                        variant={"outline" as const}
+                        className="min-w-[200px] h-11"
+                        aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                        aria-busy={isBuyNowLoading}
+                      >
+                        {isBuyNowLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {isBuyNowLoading 
+                          ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                          : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
+                        }
+                      </Button>
+                      <Button
+                        onClick={handleAddToCart}
+                        disabled={isBuyNowLoading || isAddToCartLoading}
+                        className="min-w-[180px] h-11 bg-primary hover:bg-primary/90"
+                        aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                        aria-busy={isAddToCartLoading}
+                      >
+                        {isAddToCartLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {isAddToCartLoading
+                          ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                          : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
+                        }
+                      </Button>
+                    </>
+                  )}
 
-                {/* Download, Buy Now and Add to Cart buttons on right */}
-                {!isGenerating && generatedImage && (
-                  <div className="flex items-start gap-4">
-                    <Button
-                      onClick={() => handleDownload(generatedImage)}
-                      variant={"outline" as const}
-                      className="min-w-[140px] h-11"
-                      aria-label={t("tryOnWidget.buttons.download") || "Télécharger"}
-                    >
-                      <Download className="w-5 h-5 mr-2" aria-hidden="true" />
-                      {t("tryOnWidget.buttons.download") || "Télécharger"}
-                    </Button>
-                    <Button
-                      onClick={handleBuyNow}
-                      disabled={isBuyNowLoading || isAddToCartLoading}
-                      variant={"outline" as const}
-                      className="min-w-[200px] h-11"
-                      aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                      aria-busy={isBuyNowLoading}
-                    >
-                      {isBuyNowLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                      )}
-                      {isBuyNowLoading 
-                        ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                        : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
-                      }
-                    </Button>
-                    <Button
-                      onClick={handleAddToCart}
-                      disabled={isBuyNowLoading || isAddToCartLoading}
-                      className="min-w-[180px] h-11 bg-primary hover:bg-primary/90"
-                      aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                      aria-busy={isAddToCartLoading}
-                    >
-                      {isAddToCartLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                      )}
-                      {isAddToCartLoading
-                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
-                      }
-                    </Button>
-                  </div>
-                )}
+                  <Button
+                    onClick={handleResetClick}
+                    variant={"outline" as const}
+                    disabled={isGenerating}
+                    className="min-w-[140px] h-11"
+                    aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                    aria-busy={isGenerating}
+                  >
+                    <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                  </Button>
+                </div>
               </div>
             </>
           )}
@@ -2434,18 +2434,26 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {t("tryOnWidget.confirm.reset.title") || "Réinitialiser l'application ?"}
+                  {t("tryOnWidget.confirm.reset.title", {
+                    defaultValue: "Reset the experience?",
+                  })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {t("tryOnWidget.confirm.reset.description") || "Toutes vos sélections et résultats seront perdus. Cette action ne peut pas être annulée."}
+                  {t("tryOnWidget.confirm.reset.description", {
+                    defaultValue:
+                      "All selections and results will be cleared. This cannot be undone.",
+                  })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>
-                  {t("tryOnWidget.confirm.cancel") || "Annuler"}
+                  {t("tryOnWidget.confirm.cancel", { defaultValue: "Cancel" })}
                 </AlertDialogCancel>
-                <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                  {t("tryOnWidget.confirm.reset.action") || "Réinitialiser"}
+                <AlertDialogAction
+                  onClick={handleReset}
+                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                >
+                  {t("tryOnWidget.confirm.reset.action", { defaultValue: "Reset" })}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

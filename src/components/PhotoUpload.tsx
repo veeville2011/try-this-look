@@ -172,7 +172,7 @@ export default function PhotoUpload({
                 }
               }}
             >
-              <div className="flex flex-col items-center self-stretch py-[11px] mt-[61px] mb-[7px] mx-[34px] gap-2 rounded-lg">
+              <div className="flex flex-col items-center justify-center text-center w-full py-[11px] mt-[61px] mb-[7px] px-4 gap-2 rounded-lg">
                 <User className="w-5 h-5 text-[#303030]" strokeWidth={1.5} aria-hidden="true" />
                 <span className="text-[#303030] text-base font-medium">
                   {t("tryOnWidget.photoUpload.chooseDemoModel") || "Choisir un modèle de démonstration"}
@@ -243,7 +243,7 @@ export default function PhotoUpload({
 
             {/* Upload Area - Takes full remaining space */}
             <div
-              className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-colors min-h-[400px] py-8 px-4"
+              className="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-colors min-h-[400px] py-8 px-4"
               onClick={() => fileInputRef.current?.click()}
               role="button"
               tabIndex={0}
@@ -256,8 +256,8 @@ export default function PhotoUpload({
               }}
             >
               <Camera className="w-16 h-16 text-blue-600 mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <div className="flex items-center gap-2">
-                <span className="text-slate-700 text-base font-medium">
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-slate-700 text-base font-medium text-center">
                   {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
                 </span>
                 <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />

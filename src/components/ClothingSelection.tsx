@@ -141,70 +141,28 @@ export default function ClothingSelection({
         /* Final Layout - Show 2+2 grid when both photo and clothing are selected */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           <div className="space-y-3 sm:space-y-4 pb-2">
-            {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side */}
+            {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side with horizontal scroll fallback */}
             {validImages.length > 0 && (
-              <div className="flex flex-col lg:flex-row items-start self-stretch mb-2 lg:mb-2.5 lg:mr-6 gap-0 lg:gap-[9px] mx-8 lg:mx-0">
-                {validImages.slice(0, 2).map((image, index) => (
-                  <img
-                    key={index}
-                    src={image}
-                    className={`w-full lg:w-[173px] h-[135px] lg:h-[164px] ${index === 0 ? 'mb-2 lg:mb-0' : 'mb-4 lg:mb-0'} object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
-                      selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
-                    }`}
-                    onClick={() => onSelect(image)}
-                    role="button"
-                    tabIndex={0}
-                    alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
-                      index: index + 1,
-                      suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                    }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                    aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
-                      index: index + 1,
-                      suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
-                    }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
-                    aria-pressed={selectedImage === image}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onSelect(image);
-                      }
-                    }}
-                    loading="lazy"
-                    onError={() => {
-                      setValidImages((prev) =>
-                        prev.filter((u) => u !== image)
-                      );
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Recommended Products Section */}
-            {validRecommendedImages.length > 0 && (
-              <>
-                <span className="text-slate-800 text-sm font-bold mb-2 lg:mr-56 block ml-8 lg:ml-0">
-                  {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
-                </span>
-                <div className="flex items-start lg:mr-[91px] gap-2 mx-8 lg:mx-0">
-                  {validRecommendedImages.slice(0, 2).map((image, index) => (
+              <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-1 -mx-1 px-1 lg:px-0">
+                <div className="flex flex-col lg:flex-row items-start self-stretch mb-2 lg:mb-2.5 lg:mr-6 gap-0 lg:gap-[9px] min-w-max mx-8 lg:mx-0">
+                  {validImages.slice(0, 2).map((image, index) => (
                     <img
-                      key={`recommended-${index}`}
+                      key={index}
                       src={image}
-                      className={`w-[140px] h-[169px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
-                        selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
-                      }`}
+                    className={`w-full lg:w-[173px] h-[135px] lg:h-[164px] ${index === 0 ? 'mb-2 lg:mb-0' : 'mb-4 lg:mb-0'} object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
+                      selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
+                    }`}
                       onClick={() => onSelect(image)}
                       role="button"
                       tabIndex={0}
-                      alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
+                      alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
                         index: index + 1,
                         suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                      }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                      aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", { 
+                      }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                      aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
                         index: index + 1,
                         suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
-                      }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                      }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
                       aria-pressed={selectedImage === image}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -214,12 +172,58 @@ export default function ClothingSelection({
                       }}
                       loading="lazy"
                       onError={() => {
-                        setValidRecommendedImages((prev) =>
+                        setValidImages((prev) =>
                           prev.filter((u) => u !== image)
                         );
                       }}
                     />
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recommended Products Section */}
+            {validRecommendedImages.length > 0 && (
+              <>
+                <span className="text-slate-800 text-sm font-bold mb-2 lg:mr-56 block ml-8 lg:ml-0 whitespace-nowrap">
+                  {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
+                </span>
+                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 lg:px-0">
+                  <div className="flex items-start lg:mr-[91px] gap-2 mx-8 lg:mx-0 min-w-max">
+                    {validRecommendedImages.slice(0, 2).map((image, index) => (
+                      <img
+                        key={`recommended-${index}`}
+                        src={image}
+                      className={`w-[140px] h-[169px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 ${
+                        selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
+                      }`}
+                        onClick={() => onSelect(image)}
+                        role="button"
+                        tabIndex={0}
+                        alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", { 
+                          index: index + 1,
+                          suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                        }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                        aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", { 
+                          index: index + 1,
+                          suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                        }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                        aria-pressed={selectedImage === image}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelect(image);
+                          }
+                        }}
+                        loading="lazy"
+                        onError={() => {
+                          setValidRecommendedImages((prev) =>
+                            prev.filter((u) => u !== image)
+                          );
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </>
             )}
@@ -240,7 +244,7 @@ export default function ClothingSelection({
                         key={index}
                         src={image}
                         className={`w-[173px] h-[164px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 snap-start ${
-                          selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
+                          selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
                         }`}
                         onClick={() => onSelect(image)}
                         role="button"
@@ -275,7 +279,7 @@ export default function ClothingSelection({
               {/* Recommended Products Section - Horizontal Scroll */}
               {validRecommendedImages.length > 0 && (
                 <div className="mt-4">
-                  <span className="text-slate-800 text-sm font-bold mb-2 mr-56 block">
+                  <span className="text-slate-800 text-sm font-bold mb-2 mr-56 block whitespace-nowrap">
                     {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                   </span>
                   <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 snap-x snap-mandatory">
@@ -285,7 +289,7 @@ export default function ClothingSelection({
                           key={`recommended-${index}`}
                           src={image}
                           className={`w-[140px] h-[165px] object-contain bg-white rounded-md cursor-pointer transition-all hover:opacity-90 snap-start ${
-                            selectedImage === image ? "ring-2 ring-slate-400 ring-offset-2" : ""
+                            selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : "ring-0"
                           }`}
                           onClick={() => onSelect(image)}
                           role="button"
