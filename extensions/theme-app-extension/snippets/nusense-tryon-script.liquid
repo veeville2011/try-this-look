@@ -93,12 +93,14 @@ return;
 const isHomePath = (() => {
 try {
 const currentPath = (window.location.pathname || '/').trim();
-const normalizedPath = currentPath.replace(/\/+$/, '') || '/';
+var trailingSlashPattern = new RegExp('\\/+$');
+const normalizedPath = currentPath.replace(trailingSlashPattern, '') || '/';
 if (normalizedPath === '/' || normalizedPath === '') {
 return true;
 }
 if (window.Shopify && window.Shopify.routes) {
-const shopifyRoot = (window.Shopify.routes.root || '/').replace(/\/+$/, '') || '/';
+var trailingSlashPattern2 = new RegExp('\\/+$');
+const shopifyRoot = (window.Shopify.routes.root || '/').replace(trailingSlashPattern2, '') || '/';
 if (normalizedPath === shopifyRoot) {
 return true;
 }
@@ -323,10 +325,13 @@ return false;
 }
 function ensureAbsoluteUrl(url) {
 if (!url || typeof url !== 'string') return null;
-if (url.match(/^https?:\/\
+// Use RegExp constructor to avoid Liquid template issues with regex literals
+var httpsPattern = new RegExp('^https?:\\/\\/');
+if (httpsPattern.test(url)) {
 return url;
 }
-if (url.match(/^\/\
+var protocolRelativePattern = new RegExp('^\\/\\/');
+if (protocolRelativePattern.test(url)) {
 return 'https:' + url;
 }
 try {
@@ -466,7 +471,9 @@ img.currentSrc
 ].filter(Boolean);
 sources.forEach(function(src) {
 if (src && !seenUrls.has(src)) {
-if (src.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?|$)/i)) {
+// Use RegExp constructor to avoid Liquid template issues
+var imageExtPattern = new RegExp('\\.(jpg|jpeg|png|webp|gif|avif)(\\?|$)', 'i');
+if (imageExtPattern.test(src)) {
 const absUrl = ensureAbsoluteUrl(src);
 if (absUrl) {
 images.push(absUrl);
@@ -607,7 +614,9 @@ break;
 if (isMainProductImage) {
 return;
 }
-if (urlToCheck.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?|$)/i)) {
+// Use RegExp constructor to avoid Liquid template issues
+var imageExtPattern = new RegExp('\\.(jpg|jpeg|png|webp|gif|avif)(\\?|$)', 'i');
+if (imageExtPattern.test(urlToCheck)) {
 const lowerUrl = urlToCheck.toLowerCase();
 const excludePatterns = [
 'logo', 'icon', 'badge', 'payment', 'trust', 'review', 'star',
@@ -645,7 +654,8 @@ img.getAttribute('data-lazy')
 if (img.srcset) {
 const srcsetEntries = img.srcset.split(',');
 srcsetEntries.forEach(function(entry) {
-const parts = entry.trim().split(/\s+/);
+var whitespacePattern = new RegExp('\\s+');
+const parts = entry.trim().split(whitespacePattern);
 if (parts[0]) {
 sources.push(parts[0]);
 }
@@ -661,7 +671,8 @@ bgImageElements.forEach(function(el) {
 const style = window.getComputedStyle(el);
 const bgImage = style.backgroundImage;
 if (bgImage && bgImage !== 'none') {
-const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+var urlMatchPattern = new RegExp('url\\([\'"]?([^\'"]+)[\'"]?\\)');
+const urlMatch = bgImage.match(urlMatchPattern);
 if (urlMatch && urlMatch[1]) {
 addImage(urlMatch[1]);
 }
@@ -770,8 +781,12 @@ const formData = new FormData(productForm);
 const properties = {};
 for (const [key, value] of formData.entries()) {
 if (key.startsWith('properties[') && key.endsWith(']')) {
-const propKey = key.match(/properties\[(.*?)\]/)[1];
+var propKeyPattern = new RegExp('properties\\[(.*?)\\]');
+const propKeyMatch = key.match(propKeyPattern);
+if (propKeyMatch && propKeyMatch[1]) {
+const propKey = propKeyMatch[1];
 properties[propKey] = value;
+}
 }
 }
 if (Object.keys(properties).length > 0) {
