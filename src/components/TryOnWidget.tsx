@@ -1865,7 +1865,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   return (
     <div
       data-nusense-widget="true"
-      className="w-full h-full overflow-y-auto bg-white"
+      className="w-fit h-full overflow-y-auto bg-white"
       style={{ minHeight: "100vh", fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
@@ -1897,7 +1897,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         <div className="bg-white max-w-fit py-3 sm:py-4 px-2 sm:px-3 rounded-2xl">
           {/* Header - Aligned with content container */}
           <header className="sticky top-0 z-10 bg-white">
-            <div className="flex justify-between items-center self-stretch py-3 mb-3">
+            <div className="flex justify-between items-center py-3 mb-3">
               <div className="flex flex-col items-start gap-1">
                 <img
                   src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
@@ -1979,7 +1979,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-4 lg:gap-4">
+            <div className="flex flex-col lg:flex-row items-start mb-6 gap-4 lg:gap-4">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
@@ -2119,7 +2119,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-4 lg:gap-4">
+            <div className="flex flex-col lg:flex-row items-start mb-6 gap-4 lg:gap-4">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
@@ -2338,7 +2338,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
 
               {/* Desktop Layout: Horizontal buttons aligned right */}
-              <div className="hidden lg:flex justify-end items-start self-stretch mb-6">
+              <div className="hidden lg:flex justify-end items-start mb-6">
                 <div className="flex items-start gap-4">
                   {!isGenerating && generatedImage && (
                     <>
