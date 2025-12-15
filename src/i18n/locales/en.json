@@ -618,7 +618,9 @@
   "tryOnWidget": {
     "brand": {
       "subtitle": "AI-Powered Virtual Try-On",
-      "ariaLabel": "NULOOK - AI-Powered Virtual Try-On"
+      "ariaLabel": "NULOOK - AI-Powered Virtual Try-On",
+      "name": "NUSENSE",
+      "nameAlt": "NUSENSE - AI-Powered Virtual Try-On"
     },
     "ariaLabels": {
       "mainApplication": "Virtual try-on application",
@@ -663,7 +665,8 @@
       "addToCart": "Add to Cart",
       "buyNow": "Buy Now",
       "generateHelp": "Please upload a photo and select a garment to generate the virtual try-on",
-      "back": "Back"
+      "back": "Back",
+      "continue": "Continue"
     },
     "tabs": {
       "ariaLabel": "Try-on mode",
@@ -732,7 +735,8 @@
       "loadingCategories": "Loading categories...",
       "products": "products",
       "availableProducts": "products available",
-      "noCategories": "No categories available"
+      "noCategories": "No categories available",
+      "uncategorized": "Uncategorized"
     },
     "errors": {
       "errorPrefix": "Error",
@@ -747,6 +751,7 @@
       "failedToLoadImage": "Failed to load image",
       "failedToCreateBlob": "Failed to create blob",
       "failedToConvertCanvas": "Failed to convert canvas to blob",
+      "couldNotGetCanvasContext": "Could not get canvas context",
       "noGarmentImages": "No garment images detected",
       "noGarmentImagesDescription": "Make sure you have items in your cart or on the page",
       "failedGenerations": "{{count}} item could not be generated",

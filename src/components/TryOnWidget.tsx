@@ -262,7 +262,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     ? {
         categories: reduxCategories,
         uncategorized: reduxUncategorized || {
-          categoryName: "Uncategorized",
+          categoryName: t("tryOnWidget.filters.uncategorized") || "Non catégorisé",
           productCount: 0,
           products: [],
         },
@@ -347,7 +347,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     if (savedClothing) {
       setSelectedClothing(savedClothing);
-      setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer Image.");
+      setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
       // Note: clothingKey will be restored when images are loaded (see useEffect below)
     }
     if (savedResult) {
@@ -1482,7 +1482,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 canvas.height = img.naturalHeight;
                 const ctx = canvas.getContext("2d");
                 if (!ctx) {
-                  reject(new Error("Could not get canvas context"));
+                  reject(new Error(t("tryOnWidget.errors.couldNotGetCanvasContext") || "Impossible d'obtenir le contexte du canvas"));
                   return;
                 }
                 ctx.drawImage(img, 0, 0);
@@ -1578,7 +1578,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 canvas.height = img.naturalHeight;
                 const ctx = canvas.getContext("2d");
                 if (!ctx) {
-                  reject(new Error("Could not get canvas context"));
+                  reject(new Error(t("tryOnWidget.errors.couldNotGetCanvasContext") || "Impossible d'obtenir le contexte du canvas"));
                   return;
                 }
                 ctx.drawImage(img, 0, 0);
@@ -1750,8 +1750,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <img
                   src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
                   className="w-[126px] h-[19px] mr-[86px] object-contain"
-                  alt="NUSENSE"
-                  aria-label={t("tryOnWidget.brand.ariaLabel") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
+                  alt={t("tryOnWidget.brand.name") || "NUSENSE"}
+                  aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
                 />
                 <span className="text-slate-800 text-sm whitespace-nowrap">
                   {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
@@ -3273,7 +3273,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     onClick={handleCartMultipleGenerate}
                     disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg min-h-[44px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    aria-label="Générer la tenue complète"
+                    aria-label={t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
                   >
                     <Sparkles
                       className="w-4 h-4 sm:w-5 sm:h-5 mr-2"

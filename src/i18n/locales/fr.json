@@ -618,7 +618,9 @@
   "tryOnWidget": {
     "brand": {
       "subtitle": "Essayage Virtuel Alimenté par IA",
-      "ariaLabel": "NULOOK - Essayage Virtuel Alimenté par IA"
+      "ariaLabel": "NULOOK - Essayage Virtuel Alimenté par IA",
+      "name": "NUSENSE",
+      "nameAlt": "NUSENSE - Essayage Virtuel Alimenté par IA"
     },
     "ariaLabels": {
       "mainApplication": "Application d'essayage virtuel",
@@ -663,7 +665,8 @@
       "addToCart": "Ajouter au Panier",
       "buyNow": "Acheter Maintenant",
       "generateHelp": "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel",
-      "back": "Retour"
+      "back": "Retour",
+      "continue": "Continuer"
     },
     "tabs": {
       "ariaLabel": "Mode d'essayage",
@@ -732,7 +735,8 @@
       "loadingCategories": "Chargement des catégories...",
       "products": "produits",
       "availableProducts": "produits disponibles",
-      "noCategories": "Aucune catégorie disponible"
+      "noCategories": "Aucune catégorie disponible",
+      "uncategorized": "Non catégorisé"
     },
     "errors": {
       "errorPrefix": "Erreur",
@@ -747,6 +751,7 @@
       "failedToLoadImage": "Échec du chargement de l'image",
       "failedToCreateBlob": "Échec de la création du blob",
       "failedToConvertCanvas": "Échec de la conversion du canvas en blob",
+      "couldNotGetCanvasContext": "Impossible d'obtenir le contexte du canvas",
       "noGarmentImages": "Aucune image de vêtement détectée",
       "noGarmentImagesDescription": "Assurez-vous d'avoir des articles dans votre panier ou sur la page",
       "failedGenerations": "{{count}} article n'a pas pu être généré",
