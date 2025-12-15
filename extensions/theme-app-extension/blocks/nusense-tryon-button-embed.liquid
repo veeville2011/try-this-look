@@ -420,12 +420,36 @@ return null;
 console.log('[NUSENSE] Found', visibleSubmitButtons.length, 'visible submit button(s)');
 const primarySubmitButton = visibleSubmitButtons[0];
 console.log('[NUSENSE] Step 3: Detecting button group vs single button...');
+const buttonParent = primarySubmitButton.parentElement;
+console.log('[NUSENSE] Button parent element:', buttonParent, 'Tag:', buttonParent.tagName);
 if (visibleSubmitButtons.length === 1) {
-console.log('[NUSENSE] Case A: Single submit button detected');
+console.log('[NUSENSE] Only one submit button found, checking for other action buttons in parent...');
+const allButtonsInParent = Array.from(buttonParent.querySelectorAll('button, input[type="submit"], input[type="button"]'));
+const visibleButtonsInParent = allButtonsInParent.filter(btn => {
+if (!isElementVisible(btn)) return false;
+if (btn.disabled) return false;
+if (btn.getAttribute('aria-hidden') === 'true') return false;
+if (btn.type === 'button' && !btn.onclick && !btn.getAttribute('data-action')) {
+const btnText = (btn.textContent || '').toLowerCase().trim();
+if (!btnText || btnText.length < 3) return false;
+}
+return true;
+});
+console.log('[NUSENSE] Found', visibleButtonsInParent.length, 'total visible buttons in parent container');
+if (visibleButtonsInParent.length >= 2) {
+console.log('[NUSENSE] Case B: Multiple buttons detected in parent container - treating as button group');
+return {
+isGroup: true,
+insertTarget: buttonParent,
+insertParent: buttonParent.parentElement,
+buttons: visibleButtonsInParent
+};
+}
+console.log('[NUSENSE] Case A: Single button detected in parent container');
 return {
 isGroup: false,
 insertTarget: primarySubmitButton,
-insertParent: primarySubmitButton.parentElement
+insertParent: buttonParent
 };
 }
 console.log('[NUSENSE] Case B: Multiple submit buttons detected - finding shared container...');
@@ -435,18 +459,19 @@ console.log('[NUSENSE] No shared container found, using first button parent');
 return {
 isGroup: false,
 insertTarget: primarySubmitButton,
-insertParent: primarySubmitButton.parentElement
+insertParent: buttonParent
 };
 }
-const submitButtonsInGroup = Array.from(buttonGroup.querySelectorAll('button, input[type="submit"]'));
-const visibleButtonsInGroup = submitButtonsInGroup.filter(btn => {
-if (!visibleSubmitButtons.includes(btn)) return false;
+const allButtonsInGroup = Array.from(buttonGroup.querySelectorAll('button, input[type="submit"], input[type="button"]'));
+const visibleButtonsInGroup = allButtonsInGroup.filter(btn => {
 if (!isElementVisible(btn)) return false;
 if (btn.disabled) return false;
+if (btn.getAttribute('aria-hidden') === 'true') return false;
 return true;
 });
+console.log('[NUSENSE] Found', visibleButtonsInGroup.length, 'total visible buttons in group container');
 if (visibleButtonsInGroup.length >= 2) {
-console.log('[NUSENSE] Found button group with', visibleButtonsInGroup.length, 'submit buttons:', buttonGroup);
+console.log('[NUSENSE] Found button group with', visibleButtonsInGroup.length, 'buttons:', buttonGroup);
 return {
 isGroup: true,
 insertTarget: buttonGroup,
@@ -458,7 +483,7 @@ console.log('[NUSENSE] Group container found but only one visible button, treati
 return {
 isGroup: false,
 insertTarget: primarySubmitButton,
-insertParent: primarySubmitButton.parentElement
+insertParent: buttonParent
 };
 }
 function getProductId() {
