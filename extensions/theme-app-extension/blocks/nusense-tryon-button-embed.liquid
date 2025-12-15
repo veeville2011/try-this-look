@@ -276,7 +276,7 @@
     id="nusense-tryon-btn-{{ block.id }}" 
     class="{{ button_classes }}"
     aria-label="{{ button_text }}"
-    data-product-id=""
+    {% if product %}data-product-id="{{ product.id }}"{% else %}data-product-id=""{% endif %}
     data-shop-domain="{{ shop.permanent_domain }}"
     data-button-style="{{ button_style }}"
     data-show-icon="{{ show_icon }}"
@@ -518,8 +518,19 @@ return;
 }
 const productId = getProductId();
 const button = document.getElementById(buttonId);
-if (button && productId) {
+if (button) {
+// Set product ID if found, otherwise retry after a delay
+if (productId) {
 button.setAttribute('data-product-id', productId);
+} else {
+// Retry getting product ID after a delay in case NUSENSE_PRODUCT_DATA loads later
+setTimeout(function() {
+const retryProductId = getProductId();
+if (retryProductId && button) {
+button.setAttribute('data-product-id', retryProductId);
+}
+}, 500);
+}
 }
 const purchaseBoundary = findPurchaseActionBoundary();
 if (!purchaseBoundary || !purchaseBoundary.insertParent || !purchaseBoundary.insertTarget || purchaseBoundary.insertParent === document.body || purchaseBoundary.insertParent === document.documentElement) {
