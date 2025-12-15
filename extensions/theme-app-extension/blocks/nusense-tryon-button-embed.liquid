@@ -341,12 +341,29 @@ return true;
 }
 function findPurchaseActionBoundary() {
 console.log('[NUSENSE] Step 1: Locating product purchase boundary (invariant)...');
-const productForm = document.querySelector('form[action*="/cart/add"]');
+const allForms = Array.from(document.querySelectorAll('form[action*="/cart/add"]'));
+console.log('[NUSENSE] Found', allForms.length, 'form(s) with /cart/add action');
+let productForm = null;
+for (const form of allForms) {
+const formClass = String(form.className || '').toLowerCase();
+const formId = String(form.id || '').toLowerCase();
+if (formClass.includes('payment-terms') || formId.includes('payment-terms') || formId.includes('installment')) {
+console.log('[NUSENSE] Skipping payment-terms/installment form:', form);
+continue;
+}
+productForm = form;
+console.log('[NUSENSE] Found main product form:', productForm);
+break;
+}
+if (!productForm && allForms.length > 0) {
+productForm = allForms[0];
+console.log('[NUSENSE] Using first form as fallback:', productForm);
+}
 if (!productForm) {
 console.warn('[NUSENSE] Product form not found - aborting');
 return null;
 }
-console.log('[NUSENSE] Found product form:', productForm);
+console.log('[NUSENSE] Using product form:', productForm, 'ID:', productForm.id, 'Class:', productForm.className);
 console.log('[NUSENSE] Step 2: Locating primary submit control (Add to Cart)...');
 let submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type]), button[form]'));
 if (submitButtons.length === 0) {
@@ -532,6 +549,7 @@ return;
 }
 const insertParent = purchaseBoundary.insertParent;
 const insertTarget = purchaseBoundary.insertTarget;
+console.log('[NUSENSE] Insert parent:', insertParent, 'Insert target:', insertTarget);
 if (insertParent === document.body || insertParent === document.documentElement) {
 console.warn('[NUSENSE] Insert parent is body/document - failing silently');
 container.style.display = 'none';
@@ -541,8 +559,18 @@ container.classList.remove('is-positioned');
 isPositioning = false;
 return;
 }
+if (!insertParent || !insertTarget) {
+console.error('[NUSENSE] Invalid insert parent or target:', insertParent, insertTarget);
+container.style.display = 'none';
+container.style.visibility = 'hidden';
+container.style.opacity = '0';
+container.classList.remove('is-positioned');
+isPositioning = false;
+return;
+}
 const currentParent = container.parentElement;
 if (currentParent === insertParent && container.nextSibling === insertTarget) {
+console.log('[NUSENSE] Button already correctly positioned');
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -552,7 +580,11 @@ isPositioning = false;
 return;
 }
 try {
+if (currentParent && currentParent !== document.body) {
+container.remove();
+}
 insertParent.insertBefore(container, insertTarget);
+console.log('[NUSENSE] Button inserted before target:', insertTarget);
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -560,12 +592,19 @@ container.classList.add('is-positioned');
 if (!container.style.marginBottom || container.style.marginBottom === '') {
 container.style.marginBottom = '0.75rem';
 }
-console.log('[NUSENSE] Button positioned successfully:', purchaseBoundary.isGroup ? 'above button group' : 'above single button');
+const positionType = purchaseBoundary.isGroup ? 'above button group' : (insertTarget.tagName === 'FORM' ? 'above form' : 'above button');
+console.log('[NUSENSE] Button positioned successfully:', positionType);
+console.log('[NUSENSE] Container parent after insertion:', container.parentElement);
+console.log('[NUSENSE] Container computed display:', window.getComputedStyle(container).display);
+console.log('[NUSENSE] Container computed visibility:', window.getComputedStyle(container).visibility);
+console.log('[NUSENSE] Container computed opacity:', window.getComputedStyle(container).opacity);
 lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
 } catch (insertError) {
 console.error('[NUSENSE] Failed to insert button:', insertError);
+console.error('[NUSENSE] Insert parent:', insertParent);
+console.error('[NUSENSE] Insert target:', insertTarget);
 container.style.display = 'none';
 container.style.visibility = 'hidden';
 container.style.opacity = '0';
