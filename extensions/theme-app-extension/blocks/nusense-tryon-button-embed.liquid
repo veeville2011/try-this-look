@@ -339,101 +339,63 @@ parent = parent.parentElement;
 }
 return true;
 }
-function findProductPurchaseBoundary() {
-console.log('[NUSENSE] ===== STEP 1: Locate Product Purchase Boundary (Invariant) =====');
+function findPurchaseActionBoundary() {
+console.log('[NUSENSE] Step 1: Locating product purchase boundary (invariant)...');
 const productForm = document.querySelector('form[action*="/cart/add"]');
 if (!productForm) {
-console.log('[NUSENSE] STEP 1: ❌ Product form not found. Aborting positioning.');
+console.warn('[NUSENSE] Product form not found - aborting');
 return null;
 }
-console.log('[NUSENSE] STEP 1: ✅ Found product form:', productForm);
-console.log('[NUSENSE] STEP 1: Form action:', productForm.action);
-console.log('[NUSENSE] STEP 1: Form ID:', productForm.id || '(none)');
-console.log('[NUSENSE] STEP 1: Form class:', productForm.className || '(none)');
-return productForm;
-}
-function findPrimarySubmitControl(productForm) {
-console.log('[NUSENSE] ===== STEP 2: Locate Primary Submit Control (Add to Cart) =====');
-if (!productForm) {
-console.log('[NUSENSE] STEP 2: ❌ No product form provided. Aborting.');
+console.log('[NUSENSE] Found product form:', productForm);
+console.log('[NUSENSE] Step 2: Locating primary submit control (Add to Cart)...');
+const submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"]'));
+if (submitButtons.length === 0) {
+console.warn('[NUSENSE] No submit buttons found in form - aborting');
 return null;
 }
-const submitButton = productForm.querySelector('button[type="submit"], input[type="submit"]');
-if (!submitButton) {
-console.log('[NUSENSE] STEP 2: ❌ No submit button found in form. Aborting safely.');
-console.log('[NUSENSE] STEP 2: Form HTML preview:', productForm.outerHTML.substring(0, 500));
+const visibleSubmitButtons = submitButtons.filter(btn => isElementVisible(btn));
+if (visibleSubmitButtons.length === 0) {
+console.warn('[NUSENSE] No visible submit buttons found - aborting');
 return null;
 }
-console.log('[NUSENSE] STEP 2: ✅ Found primary submit button:', submitButton);
-console.log('[NUSENSE] STEP 2: Button type:', submitButton.type);
-console.log('[NUSENSE] STEP 2: Button tag:', submitButton.tagName);
-console.log('[NUSENSE] STEP 2: Button ID:', submitButton.id || '(none)');
-console.log('[NUSENSE] STEP 2: Button class:', submitButton.className || '(none)');
-console.log('[NUSENSE] STEP 2: Button text:', (submitButton.textContent || submitButton.value || '').trim().substring(0, 50));
-return submitButton;
-}
-function detectButtonGroup(submitButton) {
-console.log('[NUSENSE] ===== STEP 3: Detect Button Group vs Single Button =====');
-if (!submitButton) {
-console.log('[NUSENSE] STEP 3: ❌ No submit button provided. Aborting.');
-return null;
-}
-console.log('[NUSENSE] STEP 3: Finding nearest shared container...');
-const buttonGroup = submitButton.closest('div, section, fieldset');
-if (!buttonGroup) {
-console.log('[NUSENSE] STEP 3: ⚠️ No container found (div/section/fieldset). Using button parent.');
-const buttonParent = submitButton.parentElement;
-console.log('[NUSENSE] STEP 3: Button parent:', buttonParent);
-console.log('[NUSENSE] STEP 3: Button parent tag:', buttonParent.tagName);
-return {isGroup: false, container: buttonParent, submitButton: submitButton};
-}
-console.log('[NUSENSE] STEP 3: ✅ Found container:', buttonGroup);
-console.log('[NUSENSE] STEP 3: Container tag:', buttonGroup.tagName);
-console.log('[NUSENSE] STEP 3: Container ID:', buttonGroup.id || '(none)');
-console.log('[NUSENSE] STEP 3: Container class:', buttonGroup.className || '(none)');
-const submitButtonsInGroup = buttonGroup.querySelectorAll('button[type="submit"], input[type="submit"]');
-const visibleSubmitButtons = Array.from(submitButtonsInGroup).filter(btn => isElementVisible(btn));
-console.log('[NUSENSE] STEP 3: Total submit buttons in container:', submitButtonsInGroup.length);
-console.log('[NUSENSE] STEP 3: Visible submit buttons:', visibleSubmitButtons.length);
-visibleSubmitButtons.forEach((btn, idx) => {
-console.log('[NUSENSE] STEP 3:   Button', idx + 1, ':', btn.tagName, btn.type, '-', (btn.textContent || btn.value || '').trim().substring(0, 30));
-});
+console.log('[NUSENSE] Found', visibleSubmitButtons.length, 'visible submit button(s)');
+const primarySubmitButton = visibleSubmitButtons[0];
+console.log('[NUSENSE] Step 3: Detecting button group vs single button...');
 if (visibleSubmitButtons.length === 1) {
-console.log('[NUSENSE] STEP 3: ✅ CASE A: Single submit button detected');
-console.log('[NUSENSE] STEP 3: Placement rule: Place Try On button ABOVE the submit button');
-return {isGroup: false, container: submitButton.parentElement, submitButton: submitButton};
-} else if (visibleSubmitButtons.length >= 2) {
-console.log('[NUSENSE] STEP 3: ✅ CASE B: Multiple submit buttons detected (', visibleSubmitButtons.length, 'buttons)');
-console.log('[NUSENSE] STEP 3: Placement rule: Place Try On button ABOVE THE ENTIRE BUTTON GROUP');
-console.log('[NUSENSE] STEP 3: Button group container:', buttonGroup);
-return {isGroup: true, container: buttonGroup, submitButton: submitButton, allButtons: visibleSubmitButtons};
+console.log('[NUSENSE] Case A: Single submit button detected');
+return {
+isGroup: false,
+insertTarget: primarySubmitButton,
+insertParent: primarySubmitButton.parentElement
+};
 }
-console.log('[NUSENSE] STEP 3: ⚠️ Unexpected state. Using single button logic.');
-return {isGroup: false, container: submitButton.parentElement, submitButton: submitButton};
+console.log('[NUSENSE] Case B: Multiple submit buttons detected - finding shared container...');
+const buttonGroup = primarySubmitButton.closest('div, section, fieldset');
+if (!buttonGroup || buttonGroup === document.body || buttonGroup === document.documentElement) {
+console.log('[NUSENSE] No shared container found, using first button parent');
+return {
+isGroup: false,
+insertTarget: primarySubmitButton,
+insertParent: primarySubmitButton.parentElement
+};
 }
-function findActionButtonPosition() {
-console.log('[NUSENSE] ========================================');
-console.log('[NUSENSE] STARTING POSITIONING LOGIC');
-console.log('[NUSENSE] ========================================');
-const productForm = findProductPurchaseBoundary();
-if (!productForm) {
-console.log('[NUSENSE] ❌ Cannot proceed: No product form found');
-return null;
+const submitButtonsInGroup = Array.from(buttonGroup.querySelectorAll('button[type="submit"], input[type="submit"]'));
+const visibleButtonsInGroup = submitButtonsInGroup.filter(btn => isElementVisible(btn));
+if (visibleButtonsInGroup.length >= 2) {
+console.log('[NUSENSE] Found button group with', visibleButtonsInGroup.length, 'submit buttons:', buttonGroup);
+return {
+isGroup: true,
+insertTarget: buttonGroup,
+insertParent: buttonGroup.parentElement,
+buttons: visibleButtonsInGroup
+};
 }
-const submitButton = findPrimarySubmitControl(productForm);
-if (!submitButton) {
-console.log('[NUSENSE] ❌ Cannot proceed: No submit button found');
-return null;
-}
-const buttonGroupInfo = detectButtonGroup(submitButton);
-if (!buttonGroupInfo) {
-console.log('[NUSENSE] ❌ Cannot proceed: Could not detect button group');
-return null;
-}
-console.log('[NUSENSE] ========================================');
-console.log('[NUSENSE] POSITIONING DECISION:', buttonGroupInfo.isGroup ? 'BUTTON GROUP' : 'SINGLE BUTTON');
-console.log('[NUSENSE] ========================================');
-return buttonGroupInfo;
+console.log('[NUSENSE] Group container found but only one visible button, treating as single');
+return {
+isGroup: false,
+insertTarget: primarySubmitButton,
+insertParent: primarySubmitButton.parentElement
+};
 }
 function getProductId() {
 if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
@@ -457,7 +419,14 @@ return data.product.id;
 }
 return null;
 }
+function isThemeEditor() {
+return !!(window.Shopify && window.Shopify.designMode);
+}
 function isProductPage() {
+if (isThemeEditor()) {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+return !!productForm;
+}
 const pathname = window.location.pathname || '';
 const isProductPath = /\/products\//.test(pathname);
 if (isProductPath) {
@@ -466,54 +435,31 @@ return true;
 const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
 const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
 !!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
-const hasProductIndicators = !!(
-document.querySelector('[data-product-id]') ||
-document.querySelector('.product') ||
-document.querySelector('.product-single') ||
-document.querySelector('.product__info') ||
-document.querySelector('[data-product]') ||
-document.querySelector('script[type="application/ld+json"]')
-);
-return hasProductForm || hasProductData || hasProductIndicators;
+return hasProductForm || hasProductData;
 }
 function positionTryOnButton() {
-console.log('[NUSENSE] ========================================');
-console.log('[NUSENSE] POSITION TRY ON BUTTON - START');
-console.log('[NUSENSE] ========================================');
-if (isPositioning) {
-console.log('[NUSENSE] ⚠️ Already positioning, skipping...');
-return;
-}
-const container = document.getElementById(containerId);
-if (!container) {
-console.warn('[NUSENSE] ❌ Container not found:', containerId);
-return;
-}
-console.log('[NUSENSE] ✅ Container found:', container);
-console.log('[NUSENSE] Safety Guard: Checking if already inserted...');
-if (container.parentElement && container.parentElement !== document.body) {
-console.log('[NUSENSE] Safety Guard: Container already has parent:', container.parentElement);
-console.log('[NUSENSE] Safety Guard: Will reposition if needed');
-}
+if (isPositioning) return;
+if (document.getElementById(containerId) && document.getElementById(containerId).classList.contains('is-positioned') && document.getElementById(containerId).parentElement && document.getElementById(containerId).parentElement !== document.body) {
 const currentUrl = window.location.href;
-console.log('[NUSENSE] Current URL:', currentUrl);
-console.log('[NUSENSE] Last positioned URL:', lastPositionedUrl);
-if (lastPositionedUrl === currentUrl && container.parentElement && container.parentElement !== document.body && container.classList.contains('is-positioned')) {
-console.log('[NUSENSE] ✅ Already positioned for this URL');
-if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
-console.log('[NUSENSE] Container hidden, making visible');
+if (lastPositionedUrl === currentUrl) {
+const container = document.getElementById(containerId);
+if (container && (container.style.display === 'none' || window.getComputedStyle(container).display === 'none')) {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 }
 return;
 }
+}
+const container = document.getElementById(containerId);
+if (!container) {
+console.warn('[NUSENSE] Container not found:', containerId);
+return;
+}
+const currentUrl = window.location.href;
 isPositioning = true;
-console.log('[NUSENSE] ✅ Starting positioning process...');
 try {
-console.log('[NUSENSE] Checking if product page...');
 if (!isProductPage()) {
-console.log('[NUSENSE] ❌ Not a product page. Hiding container.');
 container.style.display = 'none';
 container.style.visibility = 'hidden';
 container.style.opacity = '0';
@@ -521,34 +467,35 @@ container.classList.remove('is-positioned');
 isPositioning = false;
 return;
 }
-console.log('[NUSENSE] ✅ Confirmed: Product page');
 const productId = getProductId();
-console.log('[NUSENSE] Product ID:', productId || '(not found)');
 const button = document.getElementById(buttonId);
 if (button && productId) {
 button.setAttribute('data-product-id', productId);
-console.log('[NUSENSE] ✅ Set product ID on button');
 }
 container.classList.add('is-product-page');
-console.log('[NUSENSE] ===== STEP 4: Execute Placement Rule =====');
-const buttonPosition = findActionButtonPosition();
-if (buttonPosition && buttonPosition.container) {
-console.log('[NUSENSE] STEP 4: ✅ Button position detected');
-console.log('[NUSENSE] STEP 4: Is group:', buttonPosition.isGroup);
-console.log('[NUSENSE] STEP 4: Target container:', buttonPosition.container);
-console.log('[NUSENSE] STEP 4: Target container tag:', buttonPosition.container.tagName);
-const targetContainer = buttonPosition.container;
+const purchaseBoundary = findPurchaseActionBoundary();
+if (!purchaseBoundary || !purchaseBoundary.insertParent || !purchaseBoundary.insertTarget) {
+console.warn('[NUSENSE] Purchase boundary not found - failing silently');
+container.style.display = 'none';
+container.style.visibility = 'hidden';
+container.style.opacity = '0';
+container.classList.remove('is-positioned');
+isPositioning = false;
+return;
+}
+const insertParent = purchaseBoundary.insertParent;
+const insertTarget = purchaseBoundary.insertTarget;
+if (insertParent === document.body || insertParent === document.documentElement) {
+console.warn('[NUSENSE] Insert parent is body/document - failing silently');
+container.style.display = 'none';
+container.style.visibility = 'hidden';
+container.style.opacity = '0';
+container.classList.remove('is-positioned');
+isPositioning = false;
+return;
+}
 const currentParent = container.parentElement;
-console.log('[NUSENSE] STEP 4: Current container parent:', currentParent);
-console.log('[NUSENSE] STEP 4: Current container next sibling:', container.nextSibling);
-if (buttonPosition.isGroup) {
-console.log('[NUSENSE] STEP 4: 📍 CASE B: Multiple buttons - Placing above button group');
-const buttonGroup = buttonPosition.container;
-const firstButtonInGroup = buttonPosition.submitButton;
-console.log('[NUSENSE] STEP 4: Button group:', buttonGroup);
-console.log('[NUSENSE] STEP 4: First button in group:', firstButtonInGroup);
-if (currentParent === buttonGroup.parentElement && container.nextSibling === buttonGroup) {
-console.log('[NUSENSE] STEP 4: ✅ Already positioned correctly above button group');
+if (currentParent === insertParent && container.nextSibling === insertTarget) {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -557,126 +504,32 @@ lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
 }
-if (buttonGroup.parentElement && buttonGroup.parentElement !== document.body) {
-console.log('[NUSENSE] STEP 4: Inserting container before button group');
-buttonGroup.parentElement.insertBefore(container, buttonGroup);
-console.log('[NUSENSE] STEP 4: ✅ Successfully placed above button group');
+try {
+insertParent.insertBefore(container, insertTarget);
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
 if (!container.style.marginBottom || container.style.marginBottom === '') {
 container.style.marginBottom = '0.75rem';
-console.log('[NUSENSE] STEP 4: Applied margin-bottom: 0.75rem');
 }
+console.log('[NUSENSE] Button positioned successfully:', purchaseBoundary.isGroup ? 'above button group' : 'above single button');
 lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
-} else {
-console.log('[NUSENSE] STEP 4: ⚠️ Button group parent is body or null, cannot place above group');
-}
-} else {
-console.log('[NUSENSE] STEP 4: 📍 CASE A: Single button - Placing above submit button');
-const submitButton = buttonPosition.submitButton;
-const buttonParent = submitButton.parentElement;
-console.log('[NUSENSE] STEP 4: Submit button:', submitButton);
-console.log('[NUSENSE] STEP 4: Button parent:', buttonParent);
-console.log('[NUSENSE] STEP 4: Button parent tag:', buttonParent.tagName);
-if (currentParent === buttonParent && container.nextSibling === submitButton) {
-console.log('[NUSENSE] STEP 4: ✅ Already positioned correctly above submit button');
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-lastPositionedUrl = currentUrl;
+} catch (insertError) {
+console.error('[NUSENSE] Failed to insert button:', insertError);
+container.style.display = 'none';
+container.style.visibility = 'hidden';
+container.style.opacity = '0';
+container.classList.remove('is-positioned');
 isPositioning = false;
 return;
 }
-if (buttonParent && buttonParent !== document.body) {
-console.log('[NUSENSE] STEP 4: Inserting container before submit button');
-buttonParent.insertBefore(container, submitButton);
-console.log('[NUSENSE] STEP 4: ✅ Successfully placed above submit button');
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-if (!container.style.marginBottom || container.style.marginBottom === '') {
-container.style.marginBottom = '0.75rem';
-console.log('[NUSENSE] STEP 4: Applied margin-bottom: 0.75rem');
-}
-lastPositionedUrl = currentUrl;
-isPositioning = false;
-return;
-} else {
-console.log('[NUSENSE] STEP 4: ⚠️ Button parent is body or null, cannot place above button');
-}
-}
-}
-console.log('[NUSENSE] ===== STEP 5: Fallback Positioning =====');
-console.warn('[NUSENSE] STEP 5: Action button position not found, using fallback positioning');
-console.log('[NUSENSE] STEP 5: Attempting fallback to product form parent...');
-const productForm = document.querySelector('form[action*="/cart/add"]');
-if (productForm && container.parentElement !== productForm.parentElement) {
-console.log('[NUSENSE] STEP 5: ✅ Found product form for fallback');
-const formParent = productForm.parentElement;
-console.log('[NUSENSE] STEP 5: Form parent:', formParent);
-if (formParent && formParent !== document.body) {
-console.log('[NUSENSE] STEP 5: Placing before product form');
-formParent.insertBefore(container, productForm);
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-console.log('[NUSENSE] STEP 5: ✅ Fallback positioning successful');
-lastPositionedUrl = currentUrl;
-isPositioning = false;
-return;
-} else {
-console.log('[NUSENSE] STEP 5: ⚠️ Form parent is body or null');
-}
-} else {
-console.log('[NUSENSE] STEP 5: ⚠️ Product form not found or already in correct parent');
-}
-console.log('[NUSENSE] STEP 5: Attempting fallback to main content...');
-if (container.parentElement === document.body || !container.parentElement) {
-const mainContent = document.querySelector('main') ||
-document.querySelector('#MainContent') ||
-document.querySelector('[role="main"]');
-if (mainContent && mainContent !== document.body) {
-console.log('[NUSENSE] STEP 5: ✅ Found main content:', mainContent);
-mainContent.appendChild(container);
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-console.log('[NUSENSE] STEP 5: ✅ Fallback to main content successful');
-lastPositionedUrl = currentUrl;
-isPositioning = false;
-return;
-} else {
-console.log('[NUSENSE] STEP 5: ⚠️ Main content not found');
-}
-}
-console.log('[NUSENSE] STEP 5: ⚠️ All fallbacks failed. Using default positioning.');
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-isPositioning = false;
-console.log('[NUSENSE] ========================================');
-console.log('[NUSENSE] POSITIONING COMPLETE');
-console.log('[NUSENSE] ========================================');
-return;
 } catch (e) {
-console.error('[NUSENSE] ========================================');
-console.error('[NUSENSE] ❌ ERROR POSITIONING BUTTON');
-console.error('[NUSENSE] ========================================');
-console.error('[NUSENSE] Error:', e);
-console.error('[NUSENSE] Error message:', e.message);
-console.error('[NUSENSE] Error stack:', e.stack);
+console.error('[NUSENSE] Error positioning button:', e);
 const container = document.getElementById(containerId);
 if (container) {
-console.log('[NUSENSE] Applying error fallback: Making container visible');
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -684,7 +537,6 @@ container.classList.add('is-positioned');
 }
 } finally {
 isPositioning = false;
-console.log('[NUSENSE] Positioning flag reset');
 }
 }
 let positionTimeout = null;
@@ -712,29 +564,23 @@ positionTryOnButton();
 }, delay);
 });
 const observer = new MutationObserver(function(mutations) {
-console.log('[NUSENSE] MutationObserver: Detected', mutations.length, 'mutation(s)');
 let shouldReposition = false;
 for (const mutation of mutations) {
 if (mutation.type === 'childList') {
-console.log('[NUSENSE] MutationObserver: childList mutation detected');
 for (const node of mutation.addedNodes) {
 if (node.nodeType === 1) {
-console.log('[NUSENSE] MutationObserver: Added node:', node.tagName);
 if (node.tagName === 'FORM' && node.action && node.action.includes('/cart/add')) {
-console.log('[NUSENSE] MutationObserver: ✅ Product form added, triggering reposition');
 shouldReposition = true;
 break;
 }
 if (node.tagName === 'BUTTON' || node.tagName === 'INPUT') {
 const form = node.closest('form[action*="/cart/add"]');
 if (form) {
-console.log('[NUSENSE] MutationObserver: ✅ Button/Input added to product form, triggering reposition');
 shouldReposition = true;
 break;
 }
 }
-if (node.tagName === 'FORM' || (node.querySelector && node.querySelector('form[action*="/cart/add"]'))) {
-console.log('[NUSENSE] MutationObserver: ✅ Form or form container added, triggering reposition');
+if (node.querySelector && node.querySelector('form[action*="/cart/add"]')) {
 shouldReposition = true;
 break;
 }
@@ -742,12 +588,10 @@ break;
 }
 }
 if (mutation.type === 'attributes') {
-console.log('[NUSENSE] MutationObserver: attributes mutation detected on:', mutation.target.tagName);
 const target = mutation.target;
 if (target.tagName === 'FORM' || target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
 const form = target.closest('form[action*="/cart/add"]');
 if (form) {
-console.log('[NUSENSE] MutationObserver: ✅ Attribute changed on product form element, triggering reposition');
 shouldReposition = true;
 break;
 }
@@ -755,31 +599,56 @@ break;
 }
 }
 if (shouldReposition) {
-console.log('[NUSENSE] MutationObserver: Triggering debounced reposition');
 debouncedPosition();
 }
 });
 if (document.body) {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+if (productForm && productForm.parentElement && productForm.parentElement !== document.body) {
+observer.observe(productForm.parentElement, {
+childList: true,
+subtree: true,
+attributes: true,
+attributeFilter: ['action', 'type', 'name', 'disabled']
+});
+} else {
 observer.observe(document.body, {
 childList: true,
 subtree: true,
 attributes: true,
-attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
+attributeFilter: ['action', 'type', 'name', 'disabled']
 });
+}
 } else {
 if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', function() {
 if (document.body) {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+if (productForm && productForm.parentElement && productForm.parentElement !== document.body) {
+observer.observe(productForm.parentElement, {
+childList: true,
+subtree: true,
+attributes: true,
+attributeFilter: ['action', 'type', 'name', 'disabled']
+});
+} else {
 observer.observe(document.body, {
 childList: true,
 subtree: true,
 attributes: true,
-attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
+attributeFilter: ['action', 'type', 'name', 'disabled']
 });
 }
+}
 });
 }
 }
+document.addEventListener('shopify:section:load', function(event) {
+debouncedPosition();
+});
+document.addEventListener('shopify:section:reorder', function(event) {
+debouncedPosition();
+});
 let lastUrl = window.location.href;
 let urlCheckIntervalId = null;
 let urlCheckCount = 0;
