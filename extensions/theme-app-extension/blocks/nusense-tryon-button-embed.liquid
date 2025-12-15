@@ -327,18 +327,12 @@ return false;
 let parent = element.parentElement;
 while (parent && parent !== document.body) {
 const parentStyle = window.getComputedStyle(parent);
-const parentId = parent.id || '';
-const parentClass = parent.className || '';
+const parentId = String(parent.getAttribute('id') || parent.id || '');
+const parentClass = String(parent.className || (parent.classList ? Array.from(parent.classList).join(' ') : ''));
 if (parentStyle.display === 'none' ||
 parentStyle.visibility === 'hidden' ||
-parentId.includes('drawer') ||
-parentId.includes('modal') ||
-parentId.includes('popup') ||
-parentId.includes('quick-view') ||
-parentClass.includes('drawer') ||
-parentClass.includes('modal') ||
-parentClass.includes('popup') ||
-parentClass.includes('quick-view')) {
+(typeof parentId === 'string' && (parentId.includes('drawer') || parentId.includes('modal') || parentId.includes('popup') || parentId.includes('quick-view'))) ||
+(typeof parentClass === 'string' && (parentClass.includes('drawer') || parentClass.includes('modal') || parentClass.includes('popup') || parentClass.includes('quick-view')))) {
 return false;
 }
 parent = parent.parentElement;
@@ -347,27 +341,19 @@ return true;
 }
 function isPrimaryPurchaseElement(element) {
 if (!element) return false;
-const elementId = element.id || '';
-const elementClass = element.className || '';
+const elementId = String(element.getAttribute('id') || element.id || '');
+const elementClass = String(element.className || (element.classList ? Array.from(element.classList).join(' ') : ''));
 const elementText = (element.textContent || '').toLowerCase().trim();
-if (elementId.includes('quick') ||
-elementId.includes('mini') ||
-elementId.includes('drawer') ||
-elementClass.includes('quick') ||
-elementClass.includes('mini') ||
-elementClass.includes('drawer') ||
-elementClass.includes('variant-selector')) {
+if ((typeof elementId === 'string' && (elementId.includes('quick') || elementId.includes('mini') || elementId.includes('drawer'))) ||
+(typeof elementClass === 'string' && (elementClass.includes('quick') || elementClass.includes('mini') || elementClass.includes('drawer') || elementClass.includes('variant-selector')))) {
 return false;
 }
 const form = element.closest('form[action*="/cart/add"]');
 if (form) {
-const formId = form.id || '';
-const formClass = form.className || '';
-if (formId.includes('quick') ||
-formId.includes('mini') ||
-formClass.includes('quick') ||
-formClass.includes('mini') ||
-formClass.includes('variant-selector')) {
+const formId = String(form.getAttribute('id') || form.id || '');
+const formClass = String(form.className || (form.classList ? Array.from(form.classList).join(' ') : ''));
+if ((typeof formId === 'string' && (formId.includes('quick') || formId.includes('mini'))) ||
+(typeof formClass === 'string' && (formClass.includes('quick') || formClass.includes('mini') || formClass.includes('variant-selector')))) {
 return false;
 }
 return true;
@@ -375,12 +361,8 @@ return true;
 if (elementText.includes('add to cart') ||
 elementText.includes('buy now') ||
 elementText.includes('purchase') ||
-elementId.includes('add-to-cart') ||
-elementId.includes('addtocart') ||
-elementClass.includes('add-to-cart') ||
-elementClass.includes('addtocart') ||
-elementClass.includes('product-form__cart-submit') ||
-elementClass.includes('product-form__submit')) {
+(typeof elementId === 'string' && (elementId.includes('add-to-cart') || elementId.includes('addtocart'))) ||
+(typeof elementClass === 'string' && (elementClass.includes('add-to-cart') || elementClass.includes('addtocart') || elementClass.includes('product-form__cart-submit') || elementClass.includes('product-form__submit')))) {
 return true;
 }
 return false;
@@ -392,7 +374,7 @@ console.log('[NUSENSE] Tier1: No product form found');
 return null;
 }
 console.log('[NUSENSE] Tier1: Found product form:', productForm);
-const formId = String(productForm.id || '');
+const formId = String(productForm.getAttribute('id') || productForm.id || '');
 const formClass = String(productForm.className || (productForm.classList ? Array.from(productForm.classList).join(' ') : ''));
 console.log('[NUSENSE] Tier1: Form ID:', formId, 'Form Class:', formClass);
 if ((typeof formId === 'string' && (formId.includes('quick') || formId.includes('mini'))) ||
@@ -474,8 +456,8 @@ const addToCartKeywords = ['add to cart', 'add', 'cart', 'buy now', 'purchase'];
 for (const button of allButtons) {
 if (!isElementVisible(button) || !isPrimaryPurchaseElement(button)) continue;
 const buttonText = (button.textContent || '').toLowerCase().trim();
-const buttonId = (button.id || '').toLowerCase();
-const buttonClass = (button.className || '').toLowerCase();
+const buttonId = String(button.getAttribute('id') || button.id || '').toLowerCase();
+const buttonClass = String(button.className || (button.classList ? Array.from(button.classList).join(' ') : '')).toLowerCase();
 const buttonAriaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
 for (const keyword of addToCartKeywords) {
 if (buttonText.includes(keyword) ||
