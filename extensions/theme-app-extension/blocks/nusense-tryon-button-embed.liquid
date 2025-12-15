@@ -392,10 +392,11 @@ console.log('[NUSENSE] Tier1: No product form found');
 return null;
 }
 console.log('[NUSENSE] Tier1: Found product form:', productForm);
-const formId = productForm.id || '';
-const formClass = productForm.className || '';
+const formId = String(productForm.id || '');
+const formClass = String(productForm.className || (productForm.classList ? Array.from(productForm.classList).join(' ') : ''));
 console.log('[NUSENSE] Tier1: Form ID:', formId, 'Form Class:', formClass);
-if (formId.includes('quick') || formId.includes('mini') || formClass.includes('quick') || formClass.includes('mini') || formClass.includes('variant-selector')) {
+if ((typeof formId === 'string' && (formId.includes('quick') || formId.includes('mini'))) ||
+(typeof formClass === 'string' && (formClass.includes('quick') || formClass.includes('mini') || formClass.includes('variant-selector')))) {
 console.log('[NUSENSE] Tier1: Form is quick/mini/variant-selector, skipping');
 return null;
 }
