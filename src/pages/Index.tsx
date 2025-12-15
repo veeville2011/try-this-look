@@ -337,8 +337,9 @@ const Index = () => {
     guideElement.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleDeepLinkClick = async (
-    template: "product" | "index" = "product"
+  // Handle deep link to add app embed blocks to theme layout
+  const handleAddAppEmbed = async (
+    embedType: "button" | "banner"
   ) => {
     // Get shop domain from App Bridge or URL params
     const shopDomain =
@@ -354,7 +355,6 @@ const Index = () => {
       return;
     }
 
-    // Plan is selected - proceed with theme editor
     // Extract store handle from domain
     // Note: Shopify always uses myshopify.com domain internally (even for custom domain stores)
     // App Bridge and URL params will always provide the myshopify.com format
@@ -364,12 +364,11 @@ const Index = () => {
       storeHandle = shopDomain.replace(".myshopify.com", "");
     }
 
-    // Construct deep link URL
-    let deepLinkUrl = "";
-    // App block deep link - opens theme editor without auto-adding the block
-    // User can manually add the block from the app blocks section wherever they want
-    // Correct format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps&template={template}
-    deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps&template=${template}`;
+    // App embed blocks are added to theme layout, not specific templates
+    // The deep link opens theme editor with app embed blocks section
+    // Format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps
+    // This opens the theme editor with app embed blocks visible in the sidebar
+    const deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps`;
 
     // Open in a new tab to avoid X-Frame-Options issues and keep the app open
     // This works whether we're in an iframe or not
@@ -1436,9 +1435,9 @@ const Index = () => {
                   <div className="mb-8 p-4 bg-info/10 border border-info/20 rounded-lg">
                     <p className="text-sm text-foreground leading-relaxed">
                       <strong className="font-semibold text-foreground">
-                        {t("index.installationGuide.appBlockNote")}{" "}
+                        {t("index.installationGuide.appEmbedNote") || "App Embed Blocks: "}
                       </strong>
-                      {t("index.installationGuide.appBlockDescription")}
+                      {t("index.installationGuide.appEmbedDescription") || "These are app embed blocks that you add to your theme layout. They automatically appear on all relevant pages (product pages for the button, home page for the banner) without needing to add them to individual templates."}
                     </p>
                   </div>
 
@@ -1464,17 +1463,17 @@ const Index = () => {
                               />
                               <div className="flex-1">
                                 <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
-                                  {t("index.installationGuide.step1Title")}
+                                  {t("index.installationGuide.step1Title") || "Access Theme Editor"}
                                 </h4>
                                 <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
-                                  {t("index.installationGuide.step1Description")}
+                                  {t("index.installationGuide.step1Description") || "Go to your Shopify admin and navigate to Online Store > Themes. Click 'Customize' on your current theme to open the theme editor."}
                                 </p>
                                 <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
                                   <p className="text-xs sm:text-sm text-foreground leading-relaxed">
                                     <strong className="font-semibold text-foreground">
-                                      {t("index.installationGuide.step1Note")}{" "}
+                                      {t("index.installationGuide.step1Note") || "Note: "}
                                     </strong>
-                                    {t("index.installationGuide.step1NoteText")}
+                                    {t("index.installationGuide.step1NoteText") || "App embed blocks are added to your theme layout, which means they work across all pages automatically. You don't need to add them to individual templates."}
                                   </p>
                                 </div>
                               </div>
@@ -1505,35 +1504,35 @@ const Index = () => {
                               />
                               <div className="flex-1">
                                 <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
-                                  {t("index.installationGuide.step2Title")}
+                                  {t("index.installationGuide.step2Title") || "Add Try-On Button App Embed"}
                                 </h4>
                                 <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
-                                  {t("index.installationGuide.step2Description")}
+                                  {t("index.installationGuide.step2Description") || "Add the Try-On button app embed to your theme layout. The button will automatically appear on all product pages above the Add to Cart button."}
                                 </p>
                                 <div className="space-y-3">
                                   <div className="p-4 bg-muted/50 rounded-lg border border-border">
                                     <p className="text-sm font-semibold text-foreground mb-3">
-                                      {t("index.installationGuide.step2Instructions")}
+                                      {t("index.installationGuide.step2Instructions") || "How to add the button:"}
                                     </p>
                                     <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                                      <li>{t("index.installationGuide.step2Instruction1")}</li>
-                                      <li>{t("index.installationGuide.step2Instruction2")}</li>
-                                      <li>{t("index.installationGuide.step2Instruction3")}</li>
-                                      <li>{t("index.installationGuide.step2Instruction4")}</li>
-                                      <li>{t("index.installationGuide.step2Instruction5")}</li>
+                                      <li>{t("index.installationGuide.step2Instruction1") || "Click the 'Add Button' button below to open your theme editor"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction2") || "In the theme editor sidebar, find 'App embeds' section"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction3") || "Click 'Add app embed' and select 'NUSENSE Try-On Button'"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction4") || "The button will automatically appear on all product pages"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction5") || "Customize the button style, text, and positioning in the app embed settings"}</li>
                                     </ol>
                                   </div>
-                                  <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                                  <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
                                     <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
-                                      <Shield
-                                        className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
+                                      <Sparkles
+                                        className="w-4 h-4 text-info flex-shrink-0 mt-0.5"
                                         aria-hidden="true"
                                       />
                                       <span>
                                         <strong className="font-semibold text-foreground">
-                                          {t("index.installationGuide.step2Important")}{" "}
+                                          {t("index.installationGuide.step2Tip") || "Tip: "}
                                         </strong>
-                                        {t("index.installationGuide.step2ImportantText")}
+                                        {t("index.installationGuide.step2TipText") || "App embed blocks are added to your theme layout, so they work across all pages automatically. The button will only show on product pages."}
                                       </span>
                                     </p>
                                   </div>
@@ -1542,20 +1541,20 @@ const Index = () => {
                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                         <div className="flex-1">
                                           <p className="text-sm font-semibold text-foreground mb-1">
-                                            {t("index.installationGuide.step2QuickAccess")}
+                                            {t("index.installationGuide.step2QuickAccess") || "Quick Installation"}
                                           </p>
                                           <p className="text-xs sm:text-sm text-muted-foreground">
-                                            {t("index.installationGuide.step2QuickAccessText")}
+                                            {t("index.installationGuide.step2QuickAccessText") || "Click below to open theme editor and add the button app embed"}
                                           </p>
                                         </div>
                                         <Button
-                                          onClick={() => handleDeepLinkClick("product")}
+                                          onClick={() => handleAddAppEmbed("button")}
                                           className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                                           size="sm"
-                                          aria-label={t("index.installationGuide.step2AddNow")}
+                                          aria-label={t("index.installationGuide.step2AddNow") || "Add Button"}
                                         >
                                           <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                                          {t("index.installationGuide.step2AddNow")}
+                                          {t("index.installationGuide.step2AddNow") || "Add Button"}
                                         </Button>
                                       </div>
                                     </div>
@@ -1564,10 +1563,10 @@ const Index = () => {
                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                         <div className="flex-1">
                                           <p className="text-sm font-semibold text-foreground mb-1">
-                                            {t("index.installationGuide.step2Restricted")}
+                                            {t("index.installationGuide.step2Restricted") || "Subscription Required"}
                                           </p>
                                           <p className="text-xs sm:text-sm text-muted-foreground">
-                                            {t("index.installationGuide.step2RestrictedText")}
+                                            {t("index.installationGuide.step2RestrictedText") || "Please select a plan to access installation features"}
                                           </p>
                                         </div>
                                         <Button
@@ -1575,9 +1574,9 @@ const Index = () => {
                                           variant="outline"
                                           className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                                           size="sm"
-                                          aria-label={t("index.installationGuide.step2ViewPricing")}
+                                          aria-label={t("index.installationGuide.step2ViewPricing") || "View Pricing"}
                                         >
-                                          {t("index.installationGuide.step2ViewPricing")}
+                                          {t("index.installationGuide.step2ViewPricing") || "View Pricing"}
                                         </Button>
                                       </div>
                                     </div>
@@ -1611,22 +1610,22 @@ const Index = () => {
                               />
                               <div className="flex-1">
                                 <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
-                                  {t("index.installationGuide.step3Title")}
+                                  {t("index.installationGuide.step3Title") || "Add Home Page Banner App Embed"}
                                 </h4>
                                 <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
-                                  {t("index.installationGuide.step3Description")}
+                                  {t("index.installationGuide.step3Description") || "Add the promotional banner app embed to your theme layout. The banner will automatically appear on your home page to promote the virtual try-on feature."}
                                 </p>
                                 <div className="space-y-3">
                                   <div className="p-4 bg-muted/50 rounded-lg border border-border">
                                     <p className="text-sm font-semibold text-foreground mb-3">
-                                      {t("index.installationGuide.step3Instructions")}
+                                      {t("index.installationGuide.step3Instructions") || "How to add the banner:"}
                                     </p>
                                     <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                                      <li>{t("index.installationGuide.step3Instruction1")}</li>
-                                      <li>{t("index.installationGuide.step3Instruction2")}</li>
-                                      <li>{t("index.installationGuide.step3Instruction3")}</li>
-                                      <li>{t("index.installationGuide.step3Instruction4")}</li>
-                                      <li>{t("index.installationGuide.step3Instruction5")}</li>
+                                      <li>{t("index.installationGuide.step3Instruction1") || "Click the 'Add Banner' button below to open your theme editor"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction2") || "In the theme editor sidebar, find 'App embeds' section"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction3") || "Click 'Add app embed' and select 'NUSENSE Try-On Banner'"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction4") || "The banner will automatically appear on your home page"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction5") || "You can enable/disable the banner anytime in the app embed settings"}</li>
                                     </ol>
                                   </div>
                                   <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
@@ -1637,9 +1636,9 @@ const Index = () => {
                                       />
                                       <span>
                                         <strong className="font-semibold text-foreground">
-                                          {t("index.installationGuide.step3Tip")}{" "}
+                                          {t("index.installationGuide.step3Tip") || "Tip: "}
                                         </strong>
-                                        {t("index.installationGuide.step3TipText")}
+                                        {t("index.installationGuide.step3TipText") || "The banner only appears on your home page. Visitors can dismiss it, and it will remember their preference for the session."}
                                       </span>
                                     </p>
                                   </div>
@@ -1648,20 +1647,20 @@ const Index = () => {
                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                         <div className="flex-1">
                                           <p className="text-sm font-semibold text-foreground mb-1">
-                                            {t("index.installationGuide.step3QuickAccess")}
+                                            {t("index.installationGuide.step3QuickAccess") || "Quick Installation"}
                                           </p>
                                           <p className="text-xs sm:text-sm text-muted-foreground">
-                                            {t("index.installationGuide.step3QuickAccessText")}
+                                            {t("index.installationGuide.step3QuickAccessText") || "Click below to open theme editor and add the banner app embed"}
                                           </p>
                                         </div>
                                         <Button
-                                          onClick={() => handleDeepLinkClick("index")}
+                                          onClick={() => handleAddAppEmbed("banner")}
                                           className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                                           size="sm"
-                                          aria-label={t("index.installationGuide.step3AddNow")}
+                                          aria-label={t("index.installationGuide.step3AddNow") || "Add Banner"}
                                         >
                                           <Link2 className="w-4 h-4 mr-2" aria-hidden="true" />
-                                          {t("index.installationGuide.step3AddNow")}
+                                          {t("index.installationGuide.step3AddNow") || "Add Banner"}
                                         </Button>
                                       </div>
                                     </div>
@@ -1670,10 +1669,10 @@ const Index = () => {
                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                         <div className="flex-1">
                                           <p className="text-sm font-semibold text-foreground mb-1">
-                                            {t("index.installationGuide.step3Restricted")}
+                                            {t("index.installationGuide.step3Restricted") || "Subscription Required"}
                                           </p>
                                           <p className="text-xs sm:text-sm text-muted-foreground">
-                                            {t("index.installationGuide.step3RestrictedText")}
+                                            {t("index.installationGuide.step3RestrictedText") || "Please select a plan to access installation features"}
                                           </p>
                                         </div>
                                         <Button
@@ -1681,9 +1680,9 @@ const Index = () => {
                                           variant="outline"
                                           className="w-full sm:w-auto whitespace-nowrap mt-2 sm:mt-0 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                                           size="sm"
-                                          aria-label={t("index.installationGuide.step3ViewPricing")}
+                                          aria-label={t("index.installationGuide.step3ViewPricing") || "View Pricing"}
                                         >
-                                          {t("index.installationGuide.step3ViewPricing")}
+                                          {t("index.installationGuide.step3ViewPricing") || "View Pricing"}
                                         </Button>
                                       </div>
                                     </div>
@@ -1717,10 +1716,10 @@ const Index = () => {
                               />
                               <div className="flex-1">
                                 <h4 className="font-semibold text-lg sm:text-xl mb-2 text-foreground">
-                                  {t("index.installationGuide.step4Title")}
+                                  {t("index.installationGuide.step4Title") || "You're All Set!"}
                                 </h4>
                                 <p className="text-sm sm:text-base text-muted-foreground mb-4 leading-relaxed">
-                                  {t("index.installationGuide.step4Description")}
+                                  {t("index.installationGuide.step4Description") || "Once you've added both app embed blocks, your virtual try-on feature is ready to use. The button will appear on all product pages, and the banner will show on your home page."}
                                 </p>
                                 <div className="p-4 bg-success/10 border border-success/20 rounded-lg">
                                   <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
@@ -1730,9 +1729,9 @@ const Index = () => {
                                     />
                                     <span>
                                       <strong className="font-semibold text-foreground">
-                                        {t("index.installationGuide.step4Congratulations")}{" "}
+                                        {t("index.installationGuide.step4Congratulations") || "Congratulations! "}
                                       </strong>
-                                      {t("index.installationGuide.step4CongratulationsText")}
+                                      {t("index.installationGuide.step4CongratulationsText") || "Your virtual try-on feature is now live. Customers can try on products directly from your product pages!"}
                                     </span>
                                   </p>
                                 </div>
