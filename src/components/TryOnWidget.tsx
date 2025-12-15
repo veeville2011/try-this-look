@@ -1894,7 +1894,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       {/* Main Container */}
       <div className="items-start bg-white">
-        <div className="bg-white w-full max-w-[898px] mx-auto py-6 sm:py-8 rounded-2xl">
+        <div className="bg-white w-full max-w-[898px] mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 rounded-2xl">
           {/* Header */}
           <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center self-stretch px-4 sm:px-6 lg:px-8 py-4 mb-4">
