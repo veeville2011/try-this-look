@@ -479,7 +479,7 @@ return;
 const insertParent = purchaseBoundary.insertParent;
 const insertTarget = purchaseBoundary.insertTarget;
 const currentParent = container.parentElement;
-if (currentParent === insertParent && container.nextSibling === insertTarget) {
+if (currentParent === insertParent && container.previousSibling === insertTarget) {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -500,7 +500,7 @@ container.style.flexBasis = '100%';
 container.style.flexShrink = '0';
 container.style.flexGrow = '0';
 container.style.clear = 'both';
-container.style.order = '-1';
+container.style.order = '1';
 if (isInsertParentFlexRow) {
 container.style.minWidth = '100%';
 container.style.maxWidth = '100%';
@@ -509,13 +509,17 @@ if (isInsertParentGrid) {
 container.style.gridColumn = '1 / -1';
 }
 }
-insertParent.insertBefore(container, insertTarget);
+if (insertTarget.nextSibling) {
+insertParent.insertBefore(container, insertTarget.nextSibling);
+} else {
+insertParent.appendChild(container);
+}
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
-if (!container.style.marginBottom) {
-container.style.marginBottom = '0.75rem';
+if (!container.style.marginTop) {
+container.style.marginTop = '0.75rem';
 }
 lastPositionedUrl = currentUrl;
 isPositioning = false;
