@@ -627,13 +627,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     
     // Only request images if we're in iframe mode, on single tab, and don't have images yet
     if (isInIframe && activeTab === "single" && singleTabImages.length === 0) {
+      console.log("[TryOnWidget] Requesting images from parent", {
+        activeTab,
+        mobileStep,
+        currentImages: singleTabImages.length,
+        isInIframe: true
+      });
       try {
         window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+        console.log("[TryOnWidget] Image request message sent to parent");
       } catch (error) {
-        // Error communicating with parent window - will be handled by message listener
+        console.error("[TryOnWidget] Failed to send image request to parent", error);
       }
     }
-  }, [activeTab, mobileStep]); // Only depend on activeTab and mobileStep, not singleTabImages.length
+  }, [activeTab, mobileStep, singleTabImages.length]); // Include singleTabImages.length to prevent duplicate requests
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {

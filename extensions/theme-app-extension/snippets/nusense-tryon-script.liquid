@@ -666,6 +666,7 @@ return allImages;
 }
 function getProductImages() {
 let images = [];
+// Priority 1: Use NUSENSE_PRODUCT_DATA (set by Liquid template)
 {% if product %}
 if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.images && Array.isArray(window.NUSENSE_PRODUCT_DATA.images)) {
 images = window.NUSENSE_PRODUCT_DATA.images.filter(function(img) {
@@ -677,30 +678,34 @@ return img.url && typeof img.url === 'string' && img.url.trim().length > 0;
 return false;
 });
 if (images.length > 0) {
-if (CONFIG && CONFIG.debug) {
 console.log('NUSENSE: Found', images.length, 'images from NUSENSE_PRODUCT_DATA');
-}
 return images;
+} else {
+console.warn('NUSENSE: NUSENSE_PRODUCT_DATA.images exists but is empty or filtered out');
 }
+} else {
+console.warn('NUSENSE: NUSENSE_PRODUCT_DATA not found or images not available');
 }
 {% endif %}
+// Priority 2: Extract from Shopify JSON scripts
 images = extractFromShopifyJSON();
 if (images.length > 0) {
-if (CONFIG && CONFIG.debug) {
 console.log('NUSENSE: Found', images.length, 'images from Shopify JSON');
+// Convert string URLs to object format for consistency
+return images.map(function(url) {
+return typeof url === 'string' ? { url: url } : url;
+});
 }
-return images;
-}
+// Priority 3: Extract from DOM
 images = extractFromDOM();
 if (images.length > 0) {
-if (CONFIG && CONFIG.debug) {
 console.log('NUSENSE: Found', images.length, 'images from DOM');
+// Convert string URLs to object format for consistency
+return images.map(function(url) {
+return typeof url === 'string' ? { url: url } : url;
+});
 }
-return images;
-}
-if (CONFIG && CONFIG.debug) {
 console.warn('NUSENSE: No images found from any source');
-}
 return [];
 }
 function handleWidgetAction(actionType, event) {
@@ -879,8 +884,15 @@ function handleMessage(event) {
 if (!event.data || !event.data.type || !event.data.type.startsWith('NUSENSE_')) {
 return;
 }
+console.log('NUSENSE: Message received', {
+type: event.data.type,
+hasSource: !!event.source,
+sourceIsWindow: event.source === window,
+origin: event.origin
+});
 try {
 if (event.data && event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
+console.log('NUSENSE: Handling NUSENSE_REQUEST_STORE_INFO');
 if (event.source && event.source !== window) {
 const storeInfo = {
 type: 'NUSENSE_STORE_INFO',
@@ -890,13 +902,23 @@ origin: window.location.origin,
 fullUrl: window.location.href
 };
 event.source.postMessage(storeInfo, '*');
+console.log('NUSENSE: Store info sent');
 }
 return;
 }
 if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
+console.log('NUSENSE: Handling NUSENSE_REQUEST_IMAGES', {
+hasSource: !!event.source,
+sourceIsWindow: event.source === window
+});
 // Verify the request is from an iframe (not from the same window)
 if (event.source && event.source !== window) {
 handleImageRequest(event);
+} else {
+console.warn('NUSENSE: NUSENSE_REQUEST_IMAGES received but event.source is invalid', {
+hasSource: !!event.source,
+sourceIsWindow: event.source === window
+});
 }
 return;
 }
@@ -919,18 +941,34 @@ function handleImageRequest(event) {
 const images = getProductImages();
 const recommendedImages = getRecommendedProductsImages(images);
 
+console.log('NUSENSE: handleImageRequest called', {
+imageCount: images.length,
+recommendedCount: recommendedImages.length,
+hasEventSource: !!event.source,
+eventSourceIsWindow: event.source === window
+});
+
 // Verify we have a valid event source (the iframe)
 if (!event.source || event.source === window) {
+console.warn('NUSENSE: Invalid event source in handleImageRequest');
 return; // Invalid request source
 }
 
 try {
-event.source.postMessage({
+const message = {
 type: 'NUSENSE_PRODUCT_IMAGES',
 images: images,
 recommendedImages: recommendedImages
-}, '*');
+};
+console.log('NUSENSE: Sending images to widget', {
+imageCount: images.length,
+recommendedCount: recommendedImages.length,
+firstImage: images.length > 0 ? (typeof images[0] === 'string' ? images[0] : images[0].url) : null
+});
+event.source.postMessage(message, '*');
+console.log('NUSENSE: Images sent successfully');
 } catch (e) {
+console.error('NUSENSE: Failed to send images to widget', e);
 // Failed to send message - iframe might have been closed
 }
 }
@@ -938,6 +976,9 @@ recommendedImages: recommendedImages
 if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
 window.addEventListener('message', handleMessage);
 window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
+console.log('NUSENSE: Message listener set up');
+} else {
+console.log('NUSENSE: Message listener already active');
 }
 
 // Ensure message listener is set up even if DOM is still loading
@@ -947,8 +988,23 @@ document.addEventListener('DOMContentLoaded', function() {
 if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
 window.addEventListener('message', handleMessage);
 window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
+console.log('NUSENSE: Message listener set up on DOMContentLoaded');
 }
 });
 }
+
+// Log NUSENSE_PRODUCT_DATA availability for debugging
+{% if product %}
+if (window.NUSENSE_PRODUCT_DATA) {
+console.log('NUSENSE: NUSENSE_PRODUCT_DATA available', {
+productId: window.NUSENSE_PRODUCT_DATA.id,
+imageCount: window.NUSENSE_PRODUCT_DATA.images ? window.NUSENSE_PRODUCT_DATA.images.length : 0
+});
+} else {
+console.warn('NUSENSE: NUSENSE_PRODUCT_DATA not found on page load');
+}
+{% endif %}
 })();</script>
+
+
 
