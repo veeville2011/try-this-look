@@ -1895,7 +1895,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       {/* Main Container */}
       <div className="items-start bg-white">
         {/* Content Container - Fit content */}
-        <div className="bg-white max-w-fit py-3 sm:py-4 px-3 sm:px-4 rounded-2xl">
+        <div className="bg-white max-w-fit py-3 sm:py-4 px-2 sm:px-3 rounded-2xl">
           {/* Header - Aligned with content container */}
           <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center self-stretch py-3 mb-3">
@@ -1980,7 +1980,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-4 lg:gap-4">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
@@ -2014,7 +2014,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Desktop Layout: Side by side */}
               {/* Left Panel: Generated Image */}
-              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-[600px] max-w-md">
+              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-[600px] max-w-sm">
                 <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                   <div className="flex items-center mb-2 px-0 gap-2 w-full">
                     <h2 className="text-slate-800 text-xl font-semibold">
@@ -2047,7 +2047,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <div className="bg-border w-px h-[600px] hidden lg:block flex-shrink-0 mx-0"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
-              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full max-w-sm min-h-[600px] gap-4">
+              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full min-h-[600px] gap-4">
                 {isGenerating ? (
                   /* Loading state: Person and clothing images side by side, no headings */
                   <div className="flex items-center gap-4 w-full">
@@ -2120,13 +2120,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-6 lg:gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 gap-4 lg:gap-4">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="upload-heading" 
-                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-md ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-sm ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
               >
                 {!uploadedImage && (
                   <PhotoUpload
