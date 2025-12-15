@@ -520,20 +520,22 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           });
 
           // Store only for Try Single tab (from parent window postMessage)
+          // Always update images even if they were previously loaded (parent might send updated images)
           setSingleTabImages(imageUrls);
           setSingleTabImagesWithIds(imageIdMap);
           imagesLoadedRef.current = true;
 
           // Debug logging
-          if (imageIdMap.size > 0) {
-            console.log(
-              "[TryOnWidget] Product images loaded:",
-              imageUrls.length,
-              "images,",
-              imageIdMap.size,
-              "with IDs"
-            );
-          }
+          console.log(
+            "[TryOnWidget] Product images loaded:",
+            imageUrls.length,
+            "images,",
+            imageIdMap.size,
+            "with IDs"
+          );
+        } else {
+          // If parent sends empty array, log it for debugging
+          console.log("[TryOnWidget] Parent sent empty images array");
         }
 
         // Set recommended images if available (recommended images are still strings for now)
@@ -544,6 +546,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             )
             .filter(Boolean);
           setRecommendedImages(recommendedUrls);
+          console.log("[TryOnWidget] Recommended images loaded:", recommendedUrls.length);
+        } else {
+          // Clear recommended images if parent sends empty array
+          setRecommendedImages([]);
         }
       }
 
@@ -610,6 +616,22 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length]); // Include fetchStoreInfoFromRedux in dependencies
+
+  // Request images when switching to clothing step on mobile or when activeTab is "single"
+  useEffect(() => {
+    const isInIframe = window.parent !== window;
+    if (isInIframe && activeTab === "single") {
+      // Request images from parent window if we're in iframe mode and on single tab
+      // This ensures images are loaded when switching to clothing step on mobile
+      if (singleTabImages.length === 0) {
+        try {
+          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+        } catch (error) {
+          // Failed to request images from parent window
+        }
+      }
+    }
+  }, [mobileStep, activeTab, singleTabImages.length]);
 
   // Fetch store info from API when storeInfo state changes (from detectStoreOrigin)
   useEffect(() => {
@@ -1697,7 +1719,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   }, [isVtoDemoStore, activeTab]);
 
   // Handle close - if in iframe, notify parent window
-  const handleClose = () => {
+  const handleClose = (e?: React.MouseEvent) => {
+    // Prevent event propagation to avoid double-triggering
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (isInIframe) {
       // Send message to parent window to close the modal
       try {
@@ -1705,7 +1733,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       } catch (error) {
         // Failed to send close message to parent
       }
+      // In iframe mode, parent handles the close, so don't call onClose here
+      return;
     }
+    
+    // Only call onClose if not in iframe mode
     if (onClose) {
       onClose();
     }
@@ -1758,10 +1790,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </span>
               </div>
               <button
-                onClick={handleClose}
+                onClick={(e) => handleClose(e)}
+                onMouseDown={(e) => e.preventDefault()} // Prevent focus issues that might cause double-click
                 className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
                 aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
                 title={t("tryOnWidget.buttons.close") || "Fermer"}
+                type="button"
               >
                 <X className="w-5 h-5 text-slate-600" aria-hidden="true" />
               </button>
@@ -2032,7 +2066,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </span>
                   </button>
                   <button
-                    onClick={() => setMobileStep("clothing")}
+                    onClick={() => {
+                      // Request images when switching to clothing step if not already loaded
+                      const isInIframe = window.parent !== window;
+                      if (isInIframe && singleTabImages.length === 0) {
+                        try {
+                          window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+                        } catch (error) {
+                          // Failed to request images from parent window
+                        }
+                      }
+                      setMobileStep("clothing");
+                    }}
                     className="flex items-center justify-center self-stretch bg-[#048FCF] h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5"
                     aria-label={t("tryOnWidget.buttons.continue") || "Continuer"}
                   >
