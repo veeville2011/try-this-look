@@ -1844,11 +1844,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-4 mx-4 sm:mx-6 lg:mx-8 gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-4 mx-0 lg:mx-8 gap-6">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
-                <div className="flex justify-between items-start self-stretch mb-3">
+                <div className="flex justify-between items-start self-stretch mb-3 mx-8">
                   <div className="flex flex-col shrink-0 items-start gap-[1px]">
                     <span className="text-slate-800 text-xl font-bold">
                       {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
@@ -1862,14 +1862,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Generated Image */}
                 {isGenerating ? (
-                  <div className="self-stretch h-[492px] mb-8 rounded-2xl bg-slate-100 flex items-center justify-center">
+                  <div className="self-stretch h-[492px] mb-8 mx-8 rounded-2xl bg-slate-100 flex items-center justify-center">
                     <Skeleton className="w-full h-full rounded-2xl" />
                   </div>
                 ) : generatedImage ? (
                   <img
                     src={generatedImage}
                     alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
-                    className="self-stretch h-[492px] mb-8 rounded-2xl object-contain bg-white"
+                    className="self-stretch h-[492px] mb-8 mx-8 rounded-2xl object-contain bg-white"
                   />
                 ) : null}
               </div>
@@ -2147,7 +2147,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Result buttons: Mobile - Stacked vertically, Desktop - Horizontal layout */
             <>
               {/* Mobile Layout: Stacked buttons */}
-              <div className="flex flex-col self-stretch px-8 mb-8 gap-4 lg:hidden">
+              <div className="flex flex-col self-stretch px-8 lg:hidden mb-8 gap-4">
                 <button
                   onClick={handleReset}
                   className="flex items-center justify-center bg-white self-stretch h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2160,48 +2160,44 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </span>
                 </button>
 
-                {(isGenerating || generatedImage) && (
-                  <>
-                    <button
-                      onClick={handleBuyNow}
-                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                      className="flex items-center justify-center bg-white self-stretch h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                    >
-                      {isBuyNowLoading ? (
-                        <Loader2 className="w-5 h-5 text-[#303030] flex-shrink-0 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <CreditCard className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
-                      )}
-                      <span className="text-[#303030] text-base font-medium">
-                        {isBuyNowLoading 
-                          ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                          : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
-                        }
-                      </span>
-                    </button>
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                      className="flex justify-between items-center bg-[#048FCF] self-stretch h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {isAddToCartLoading ? (
-                          <Loader2 className="w-5 h-5 text-[#F2F2F2] flex-shrink-0 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <ShoppingCart className="w-5 h-5 text-[#F2F2F2] flex-shrink-0" aria-hidden="true" />
-                        )}
-                        <span className="text-[#F2F2F2] text-base font-medium">
-                          {isAddToCartLoading
-                            ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                            : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
-                          }
-                        </span>
-                      </div>
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={handleBuyNow}
+                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                  className="flex items-center justify-center bg-white self-stretch h-11 rounded-lg border border-solid border-slate-200 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                >
+                  {isBuyNowLoading ? (
+                    <Loader2 className="w-5 h-5 text-[#303030] flex-shrink-0 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <CreditCard className="w-5 h-5 text-[#303030] flex-shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="text-[#303030] text-base font-medium">
+                    {isBuyNowLoading 
+                      ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                      : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
+                    }
+                  </span>
+                </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                  className="flex justify-between items-center bg-[#048FCF] self-stretch h-11 rounded-lg hover:bg-[#0378b3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 px-3 gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                >
+                  <div className="flex items-center gap-2.5">
+                    {isAddToCartLoading ? (
+                      <Loader2 className="w-5 h-5 text-[#F2F2F2] flex-shrink-0 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ShoppingCart className="w-5 h-5 text-[#F2F2F2] flex-shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="text-[#F2F2F2] text-base font-medium">
+                      {isAddToCartLoading
+                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
+                      }
+                    </span>
+                  </div>
+                </button>
               </div>
 
               {/* Desktop Layout: Horizontal buttons */}
