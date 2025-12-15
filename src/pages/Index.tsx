@@ -355,20 +355,36 @@ const Index = () => {
       return;
     }
 
-    // Extract store handle from domain
+    // Extract myshopifyDomain from shop domain
     // Note: Shopify always uses myshopify.com domain internally (even for custom domain stores)
     // App Bridge and URL params will always provide the myshopify.com format
-    // The deep link URLs require the store handle (part before .myshopify.com)
-    let storeHandle = shopDomain;
-    if (shopDomain.includes(".myshopify.com")) {
-      storeHandle = shopDomain.replace(".myshopify.com", "");
+    // The deep link URLs require the full myshopify.com domain
+    let myshopifyDomain = shopDomain;
+    if (!shopDomain.includes(".myshopify.com")) {
+      // If shopDomain is just the store handle, construct the full domain
+      myshopifyDomain = `${shopDomain}.myshopify.com`;
     }
 
-    // App embed blocks are added to theme layout, not specific templates
-    // The deep link opens theme editor with app embed blocks section
-    // Format: https://admin.shopify.com/store/{store_handle}/themes/current/editor?context=apps
-    // This opens the theme editor with app embed blocks visible in the sidebar
-    const deepLinkUrl = `https://admin.shopify.com/store/${storeHandle}/themes/current/editor?context=apps`;
+    // App API key (client_id from shopify.app.toml)
+    const apiKey = "f8de7972ae23d3484581d87137829385";
+    
+    // Determine the app embed block handle and template
+    let blockHandle: string;
+    let template: string;
+    
+    if (embedType === "button") {
+      blockHandle = "nusense-tryon-button-embed";
+      template = "product"; // Button appears on product pages
+    } else {
+      blockHandle = "nusense-tryon-banner";
+      template = "index"; // Banner appears on home page
+    }
+
+    // Deep link format for app embed blocks (per Shopify documentation):
+    // https://<myshopifyDomain>/admin/themes/current/editor?context=apps&template={template}&activateAppId={api_key}/{handle}
+    // This automatically activates the app embed block in the theme editor
+    // Note: <myshopifyDomain> should be the shop's myshopify.com domain (e.g., store-name.myshopify.com)
+    const deepLinkUrl = `https://${myshopifyDomain}/admin/themes/current/editor?context=apps&template=${template}&activateAppId=${apiKey}/${blockHandle}`;
 
     // Open in a new tab to avoid X-Frame-Options issues and keep the app open
     // This works whether we're in an iframe or not
@@ -1515,11 +1531,11 @@ const Index = () => {
                                       {t("index.installationGuide.step2Instructions") || "How to add the button:"}
                                     </p>
                                     <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                                      <li>{t("index.installationGuide.step2Instruction1") || "Click the 'Add Button' button below to open your theme editor"}</li>
-                                      <li>{t("index.installationGuide.step2Instruction2") || "In the theme editor sidebar, find 'App embeds' section"}</li>
-                                      <li>{t("index.installationGuide.step2Instruction3") || "Click 'Add app embed' and select 'NUSENSE Try-On Button'"}</li>
-                                      <li>{t("index.installationGuide.step2Instruction4") || "The button will automatically appear on all product pages"}</li>
-                                      <li>{t("index.installationGuide.step2Instruction5") || "Customize the button style, text, and positioning in the app embed settings"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction1") || "Click the 'Add Button' button below - it will automatically open your theme editor and activate the button app embed"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction2") || "The app embed block will be automatically activated and ready to use"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction3") || "The button will automatically appear on all product pages above the Add to Cart button"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction4") || "Customize the button style, text, and settings in the theme editor if needed"}</li>
+                                      <li>{t("index.installationGuide.step2Instruction5") || "Click 'Save' in the theme editor to publish your changes"}</li>
                                     </ol>
                                   </div>
                                   <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
@@ -1544,7 +1560,7 @@ const Index = () => {
                                             {t("index.installationGuide.step2QuickAccess") || "Quick Installation"}
                                           </p>
                                           <p className="text-xs sm:text-sm text-muted-foreground">
-                                            {t("index.installationGuide.step2QuickAccessText") || "Click below to open theme editor and add the button app embed"}
+                                            {t("index.installationGuide.step2QuickAccessText") || "One-click installation: Click below to automatically activate the button app embed in your theme"}
                                           </p>
                                         </div>
                                         <Button
@@ -1621,11 +1637,11 @@ const Index = () => {
                                       {t("index.installationGuide.step3Instructions") || "How to add the banner:"}
                                     </p>
                                     <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                                      <li>{t("index.installationGuide.step3Instruction1") || "Click the 'Add Banner' button below to open your theme editor"}</li>
-                                      <li>{t("index.installationGuide.step3Instruction2") || "In the theme editor sidebar, find 'App embeds' section"}</li>
-                                      <li>{t("index.installationGuide.step3Instruction3") || "Click 'Add app embed' and select 'NUSENSE Try-On Banner'"}</li>
-                                      <li>{t("index.installationGuide.step3Instruction4") || "The banner will automatically appear on your home page"}</li>
-                                      <li>{t("index.installationGuide.step3Instruction5") || "You can enable/disable the banner anytime in the app embed settings"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction1") || "Click the 'Add Banner' button below - it will automatically open your theme editor and activate the banner app embed"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction2") || "The app embed block will be automatically activated and ready to use"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction3") || "The banner will automatically appear on your home page"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction4") || "You can enable/disable the banner anytime in the app embed settings"}</li>
+                                      <li>{t("index.installationGuide.step3Instruction5") || "Click 'Save' in the theme editor to publish your changes"}</li>
                                     </ol>
                                   </div>
                                   <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
@@ -1650,7 +1666,7 @@ const Index = () => {
                                             {t("index.installationGuide.step3QuickAccess") || "Quick Installation"}
                                           </p>
                                           <p className="text-xs sm:text-sm text-muted-foreground">
-                                            {t("index.installationGuide.step3QuickAccessText") || "Click below to open theme editor and add the banner app embed"}
+                                            {t("index.installationGuide.step3QuickAccessText") || "One-click installation: Click below to automatically activate the banner app embed in your theme"}
                                           </p>
                                         </div>
                                         <Button
