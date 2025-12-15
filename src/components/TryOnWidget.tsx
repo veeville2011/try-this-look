@@ -1892,8 +1892,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         </div>
       )}
 
-      {/* Main Container */}
-      <div className="items-start bg-white">
+    
         {/* Content Container - Fit content */}
         <div className="bg-white max-w-fit py-3 sm:py-4 px-2 sm:px-3 rounded-2xl">
           {/* Header - Aligned with content container */}
@@ -3541,7 +3540,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           </TabsContent>
         </Tabs>
         </div>
-      </div>
+      
     </div>
   );
 }
