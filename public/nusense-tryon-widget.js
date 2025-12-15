@@ -6,6 +6,12 @@
 (function() {
   'use strict';
 
+  // Prevent duplicate script execution
+  if (window.NUSENSE_WIDGET_LOADED) {
+    return; // Script already loaded, don't execute again
+  }
+  window.NUSENSE_WIDGET_LOADED = true;
+
   // Configuration from window.NUSENSE_CONFIG
   const config = window.NUSENSE_CONFIG || {
     widgetUrl: 'https://try-this-look.vercel.app',
@@ -19,6 +25,7 @@
   // Store original body overflow to restore it properly
   let originalBodyOverflow = null;
   let currentResizeHandler = null;
+  let isOpeningWidget = false; // Flag to prevent concurrent modal opens
 
   // Initialize widget
   function initWidget() {
@@ -44,6 +51,20 @@
 
   // Open widget in modal
   function openWidget() {
+    // Prevent concurrent modal opens
+    if (isOpeningWidget) {
+      return; // Already opening, ignore this call
+    }
+    
+    // Check if widget is already open - prevent duplicate modals
+    const existingOverlay = document.getElementById('nusense-widget-overlay');
+    if (existingOverlay) {
+      return; // Widget is already open, don't create another one
+    }
+    
+    // Set flag to prevent concurrent opens
+    isOpeningWidget = true;
+    
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.id = 'nusense-widget-overlay';
@@ -61,9 +82,13 @@
       animation: fadeIn 0.2s ease;
     `;
 
-    // Add fade-in animation
-    const style = document.createElement('style');
-    style.textContent = `
+    // Add fade-in animation and styles (only once)
+    const styleId = 'nusense-widget-styles';
+    let style = document.getElementById(styleId);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
       @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -89,7 +114,8 @@
         }
       }
     `;
-    document.head.appendChild(style);
+      document.head.appendChild(style);
+    }
 
     // Create container
     const container = document.createElement('div');
@@ -133,6 +159,9 @@
     container.appendChild(iframe);
     overlay.appendChild(container);
     document.body.appendChild(overlay);
+    
+    // Reset opening flag once overlay is in DOM
+    isOpeningWidget = false;
 
     // Handle window resize to maintain correct width
     currentResizeHandler = function() {
@@ -180,6 +209,9 @@
   function closeWidget() {
     const overlay = document.getElementById('nusense-widget-overlay');
     if (overlay) {
+      // Reset opening flag
+      isOpeningWidget = false;
+      
       // Remove resize handler
       if (currentResizeHandler) {
         window.removeEventListener('resize', currentResizeHandler);
@@ -199,6 +231,9 @@
         }
         originalBodyOverflow = null;
       }, 200);
+    } else {
+      // Reset flag even if overlay not found
+      isOpeningWidget = false;
     }
   }
 
