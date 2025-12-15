@@ -541,30 +541,36 @@ clearTimeout(positionTimeout);
 }
 positionTimeout = setTimeout(function() {
 positionTryOnButton();
-}, 150);
+}, 50);
 }
 function initPositioning() {
 if (document.readyState === 'loading') {
-document.addEventListener('DOMContentLoaded', positionTryOnButton);
+document.addEventListener('DOMContentLoaded', function() {
+positionTryOnButton();
+requestAnimationFrame(positionTryOnButton);
+});
 } else {
 positionTryOnButton();
+requestAnimationFrame(positionTryOnButton);
 }
-setTimeout(positionTryOnButton, 100);
-setTimeout(positionTryOnButton, 500);
 const observer = new MutationObserver(function(mutations) {
+let shouldReposition = false;
 for (const mutation of mutations) {
 if (mutation.type === 'childList') {
 for (const node of mutation.addedNodes) {
 if (node.nodeType === 1 && (node.tagName === 'FORM' || node.tagName === 'BUTTON' || node.tagName === 'INPUT' || (node.querySelector && node.querySelector('form[action*="/cart/add"]')))) {
+shouldReposition = true;
+break;
+}
+}
+}
+if (shouldReposition || (mutation.type === 'attributes' && (mutation.target.tagName === 'FORM' || mutation.target.tagName === 'BUTTON' || mutation.target.tagName === 'INPUT'))) {
+shouldReposition = true;
+break;
+}
+}
+if (shouldReposition) {
 debouncedPosition();
-return;
-}
-}
-}
-if (mutation.type === 'attributes' && (mutation.target.tagName === 'FORM' || mutation.target.tagName === 'BUTTON' || mutation.target.tagName === 'INPUT')) {
-debouncedPosition();
-return;
-}
 }
 });
 const setupObserver = function() {
@@ -577,18 +583,23 @@ setupObserver();
 } else {
 document.addEventListener('DOMContentLoaded', setupObserver);
 }
-document.addEventListener('shopify:section:load', debouncedPosition);
-document.addEventListener('shopify:section:reorder', debouncedPosition);
+document.addEventListener('shopify:section:load', function() {
+requestAnimationFrame(positionTryOnButton);
+});
+document.addEventListener('shopify:section:reorder', function() {
+requestAnimationFrame(positionTryOnButton);
+});
 let lastUrl = window.location.href;
 window.addEventListener('popstate', function() {
 if (window.location.href !== lastUrl) {
 lastUrl = window.location.href;
 lastPositionedUrl = null;
-setTimeout(positionTryOnButton, 300);
+requestAnimationFrame(positionTryOnButton);
 }
 });
 }
 initPositioning();
 })();</script>
+
 
 
