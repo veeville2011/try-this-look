@@ -82,7 +82,7 @@
     container.id = 'nusense-widget-container';
     container.style.cssText = `
       width: 95vw;
-      max-width: 1200px;
+      max-width: 806px;
       height: 90vh;
       max-height: 900px;
       position: relative;

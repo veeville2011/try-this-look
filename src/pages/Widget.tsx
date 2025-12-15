@@ -1,5 +1,9 @@
-import TryOnWidgetPortal from "@/components/TryOnWidgetPortal";
+import TryOnWidget from "@/components/TryOnWidget";
 
 export default function Widget() {
-  return <TryOnWidgetPortal isOpen={true} />;
+  return (
+    <div className="w-fit h-auto">
+      <TryOnWidget />
+    </div>
+  );
 }
