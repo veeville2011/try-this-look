@@ -290,12 +290,19 @@ setTimeout(createBanner, 50);
 }
 })();</script>
 
-<script>(function() {
+<script>
+// CRITICAL: This script MUST execute immediately and synchronously
+// Add a log at the very top to verify script execution
+console.log('NUSENSE: Script file loaded and executing');
+(function() {
 'use strict';
+// Prevent duplicate initialization
 if (window.NUSENSE_IMAGE_LISTENER_INITIALIZED) {
+console.log('NUSENSE: Script already initialized, skipping');
 return;
 }
 window.NUSENSE_IMAGE_LISTENER_INITIALIZED = true;
+console.log('NUSENSE: Initializing image listener script');
 const CONFIG = {
 debug: {{ debug_mode | default: false }},
 allowedOrigins: ['*'],
@@ -909,15 +916,34 @@ return;
 if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
 console.log('NUSENSE: Handling NUSENSE_REQUEST_IMAGES', {
 hasSource: !!event.source,
-sourceIsWindow: event.source === window
+sourceIsWindow: event.source === window,
+origin: event.origin
 });
 // Verify the request is from an iframe (not from the same window)
 if (event.source && event.source !== window) {
+// If script is not fully initialized yet, queue the request
+if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
+console.log('NUSENSE: Script not ready, queueing image request');
+window.NUSENSE_PENDING_IMAGE_REQUESTS = window.NUSENSE_PENDING_IMAGE_REQUESTS || [];
+window.NUSENSE_PENDING_IMAGE_REQUESTS.push(event);
+// Set up listener immediately
+if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
+window.addEventListener('message', handleMessage);
+window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
+console.log('NUSENSE: Message listener set up from pending request');
+}
+// Process immediately after setup
+setTimeout(function() {
 handleImageRequest(event);
+}, 0);
+} else {
+handleImageRequest(event);
+}
 } else {
 console.warn('NUSENSE: NUSENSE_REQUEST_IMAGES received but event.source is invalid', {
 hasSource: !!event.source,
-sourceIsWindow: event.source === window
+sourceIsWindow: event.source === window,
+origin: event.origin
 });
 }
 return;
@@ -995,15 +1021,46 @@ console.log('NUSENSE: Message listener set up on DOMContentLoaded');
 
 // Log NUSENSE_PRODUCT_DATA availability for debugging
 {% if product %}
+// Check immediately and also after a short delay to catch late-loading data
 if (window.NUSENSE_PRODUCT_DATA) {
-console.log('NUSENSE: NUSENSE_PRODUCT_DATA available', {
+console.log('NUSENSE: NUSENSE_PRODUCT_DATA available immediately', {
 productId: window.NUSENSE_PRODUCT_DATA.id,
 imageCount: window.NUSENSE_PRODUCT_DATA.images ? window.NUSENSE_PRODUCT_DATA.images.length : 0
 });
 } else {
-console.warn('NUSENSE: NUSENSE_PRODUCT_DATA not found on page load');
+console.warn('NUSENSE: NUSENSE_PRODUCT_DATA not found immediately, will check again');
+// Check again after a short delay in case it loads late
+setTimeout(function() {
+if (window.NUSENSE_PRODUCT_DATA) {
+console.log('NUSENSE: NUSENSE_PRODUCT_DATA found after delay', {
+productId: window.NUSENSE_PRODUCT_DATA.id,
+imageCount: window.NUSENSE_PRODUCT_DATA.images ? window.NUSENSE_PRODUCT_DATA.images.length : 0
+});
+} else {
+console.warn('NUSENSE: NUSENSE_PRODUCT_DATA still not found after delay');
 }
+}, 100);
+}
+{% else %}
+console.warn('NUSENSE: Not on a product page - NUSENSE_PRODUCT_DATA will not be available');
 {% endif %}
+
+// Handle case where widget requests images before script is ready
+// Process any pending requests that were queued
+window.NUSENSE_PENDING_IMAGE_REQUESTS = window.NUSENSE_PENDING_IMAGE_REQUESTS || [];
+if (window.NUSENSE_PENDING_IMAGE_REQUESTS.length > 0) {
+console.log('NUSENSE: Processing', window.NUSENSE_PENDING_IMAGE_REQUESTS.length, 'pending image requests');
+window.NUSENSE_PENDING_IMAGE_REQUESTS.forEach(function(pendingEvent) {
+handleImageRequest(pendingEvent);
+});
+window.NUSENSE_PENDING_IMAGE_REQUESTS = [];
+}
+
+console.log('NUSENSE: Script initialization complete', {
+listenerActive: window.NUSENSE_MESSAGE_LISTENER_ACTIVE,
+hasProductData: !!window.NUSENSE_PRODUCT_DATA,
+productId: window.NUSENSE_PRODUCT_DATA ? window.NUSENSE_PRODUCT_DATA.id : null
+});
 })();</script>
 
 
