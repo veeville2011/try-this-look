@@ -1894,7 +1894,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       {/* Main Container */}
       <div className="items-start bg-white">
-        <div className="bg-white w-full max-w-[898px] mx-auto py-4 sm:py-6 px-3 sm:px-4 lg:px-6 rounded-2xl">
+        <div className="bg-white w-full max-w-[898px] mx-auto py-4 sm:py-6 px-4 sm:px-6 rounded-2xl">
           {/* Header */}
           <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center self-stretch py-3 mb-3">
@@ -2014,8 +2014,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Desktop Layout: Side by side */}
               {/* Left Panel: Generated Image */}
-              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-0 max-w-md">
-                <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-[600px] max-w-md">
+                <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                   <div className="flex items-center mb-2 px-0 gap-2 w-full">
                     <h2 className="text-slate-800 text-xl font-semibold">
                       {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
@@ -2044,10 +2044,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-border w-px self-stretch hidden lg:block flex-shrink-0 mx-0"></div>
+              <div className="bg-border w-px h-[600px] hidden lg:block flex-shrink-0 mx-0"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
-              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full max-w-sm gap-4">
+              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full max-w-sm min-h-[600px] gap-4">
                 {isGenerating ? (
                   /* Loading state: Person and clothing images side by side, no headings */
                   <div className="flex items-center gap-4 w-full">
@@ -2126,7 +2126,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="upload-heading" 
-                className={`flex flex-col flex-1 min-h-0 w-full lg:max-w-md ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-md ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
               >
                 {!uploadedImage && (
                   <PhotoUpload
@@ -2202,14 +2202,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-border w-px self-stretch hidden lg:block flex-shrink-0 mx-0"></div>
+              <div className="bg-border w-px h-[600px] hidden lg:block flex-shrink-0 mx-0"></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
@@ -2246,7 +2246,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Action buttons - Inside clothing section, aligned to right, at bottom */}
                 {!isGenerating && !generatedImage && (
-                  <div className={`flex flex-col items-end w-full mt-4 pt-4 border-t border-border/40 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
+                  <div className={`flex flex-col items-end w-full mt-4 pt-4 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
                     <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
                       <Button
                         onClick={handleResetClick}
