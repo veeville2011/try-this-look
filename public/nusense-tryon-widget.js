@@ -18,6 +18,7 @@
 
   // Store original body overflow to restore it properly
   let originalBodyOverflow = null;
+  let currentResizeHandler = null;
 
   // Initialize widget
   function initWidget() {
@@ -78,6 +79,13 @@
         #nusense-widget-container {
           width: 900px !important;
           max-width: 900px !important;
+          min-width: 900px !important;
+        }
+      }
+      @media (max-width: 767px) {
+        #nusense-widget-container {
+          width: 95vw !important;
+          max-width: 95vw !important;
         }
       }
     `;
@@ -86,9 +94,15 @@
     // Create container
     const container = document.createElement('div');
     container.id = 'nusense-widget-container';
+    
+    // Determine width based on screen size
+    const isDesktop = window.innerWidth >= 768;
+    const containerWidth = isDesktop ? '900px' : '95vw';
+    const containerMaxWidth = isDesktop ? '900px' : '1200px';
+    
     container.style.cssText = `
-      width: 95vw;
-      max-width: 1200px;
+      width: ${containerWidth};
+      max-width: ${containerMaxWidth};
       height: 90vh;
       max-height: 900px;
       position: relative;
@@ -119,6 +133,21 @@
     container.appendChild(iframe);
     overlay.appendChild(container);
     document.body.appendChild(overlay);
+
+    // Handle window resize to maintain correct width
+    currentResizeHandler = function() {
+      const isDesktopNow = window.innerWidth >= 768;
+      if (isDesktopNow) {
+        container.style.width = '900px';
+        container.style.maxWidth = '900px';
+        container.style.minWidth = '900px';
+      } else {
+        container.style.width = '95vw';
+        container.style.maxWidth = '1200px';
+        container.style.minWidth = '';
+      }
+    };
+    window.addEventListener('resize', currentResizeHandler);
 
     // Prevent body scroll - store original value to restore later
     originalBodyOverflow = document.body.style.overflow || '';
@@ -151,6 +180,12 @@
   function closeWidget() {
     const overlay = document.getElementById('nusense-widget-overlay');
     if (overlay) {
+      // Remove resize handler
+      if (currentResizeHandler) {
+        window.removeEventListener('resize', currentResizeHandler);
+        currentResizeHandler = null;
+      }
+      
       overlay.style.animation = 'fadeOut 0.2s ease';
       setTimeout(function() {
         if (overlay.parentNode) {
