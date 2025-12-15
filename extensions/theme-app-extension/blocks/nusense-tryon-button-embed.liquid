@@ -339,61 +339,157 @@ parent = parent.parentElement;
 }
 return true;
 }
-function findProductTitleContainer() {
-console.log('[NUSENSE] Finding product title container...');
-const titleSelectors = [
-'h1.product__title',
-'h1.product-title',
-'h1.product-name',
-'h1[data-testid*="product"]',
-'.product__title h1',
-'.product-title h1',
-'.product-name h1',
-'h1.title',
-'[data-product-title]',
-'[data-product-title] h1'
-];
-for (const selector of titleSelectors) {
-try {
-const titleElement = document.querySelector(selector);
-if (titleElement && isElementVisible(titleElement)) {
-console.log('[NUSENSE] Found product title:', titleElement, 'using selector:', selector);
-const titleContainer = titleElement.parentElement;
-if (titleContainer && titleContainer !== document.body) {
-console.log('[NUSENSE] Found title container:', titleContainer);
-return {title: titleElement, container: titleContainer};
-}
-}
-} catch (e) {
-console.log('[NUSENSE] Title selector failed:', selector, e);
-}
-}
-const productInfoSelectors = [
-'.product__info',
-'.product-single__meta',
-'.product-info',
-'[data-product-info]',
-'[data-product-form]',
-'.product-details',
-'.product-main',
-'main.product'
-];
-for (const selector of productInfoSelectors) {
-try {
-const container = document.querySelector(selector);
-if (container && container !== document.body) {
-const titleInContainer = container.querySelector('h1');
-if (titleInContainer && isElementVisible(titleInContainer)) {
-console.log('[NUSENSE] Found product info container with title:', container);
-return {title: titleInContainer, container: container};
-}
-}
-} catch (e) {
-console.log('[NUSENSE] Product info selector failed:', selector, e);
-}
-}
-console.warn('[NUSENSE] Product title container not found');
+function findMainProductContainer() {
+console.log('[NUSENSE] Finding main product container via product form...');
+const productForm = document.querySelector('form[action*="/cart/add"]');
+if (!productForm) {
+console.warn('[NUSENSE] No product form found');
 return null;
+}
+console.log('[NUSENSE] Found product form:', productForm);
+let container = productForm.parentElement;
+let depth = 0;
+const maxDepth = 5;
+while (container && depth < maxDepth) {
+if (container === document.body || container === document.documentElement) {
+break;
+}
+const containerId = String(container.getAttribute('id') || container.id || '').toLowerCase();
+const containerClass = String(container.className || (container.classList ? Array.from(container.classList).join(' ') : '')).toLowerCase();
+const excludePatterns = ['related', 'recommended', 'you-may-also-like', 'similar', 'also-bought', 'complementary', 'upsell', 'cross-sell', 'product-recommendations', 'product-suggestions', 'recently-viewed', 'trending', 'featured-collection', 'collection-grid', 'product-grid', 'product-list', 'product-carousel', 'product-slider'];
+let isExcluded = false;
+for (const pattern of excludePatterns) {
+if (containerId.includes(pattern) || containerClass.includes(pattern)) {
+console.log('[NUSENSE] Container excluded (related/recommended):', container, 'Pattern:', pattern);
+isExcluded = true;
+break;
+}
+}
+if (container.hasAttribute('data-section-type')) {
+const sectionType = String(container.getAttribute('data-section-type') || '').toLowerCase();
+if (sectionType.includes('related') || sectionType.includes('recommendation') || sectionType.includes('complementary')) {
+console.log('[NUSENSE] Container excluded (section type):', container, 'Type:', sectionType);
+isExcluded = true;
+}
+}
+if (!isExcluded) {
+const formInContainer = container.querySelector('form[action*="/cart/add"]');
+if (formInContainer === productForm) {
+console.log('[NUSENSE] Found main product container:', container);
+return container;
+}
+}
+container = container.parentElement;
+depth++;
+}
+if (productForm.parentElement && productForm.parentElement !== document.body) {
+console.log('[NUSENSE] Using form parent as container:', productForm.parentElement);
+return productForm.parentElement;
+}
+console.warn('[NUSENSE] Main product container not found');
+return null;
+}
+function findActionButtons(container) {
+if (!container) return [];
+const buttons = [];
+const productForm = container.querySelector('form[action*="/cart/add"]');
+if (productForm) {
+const formButtons = Array.from(productForm.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]'));
+for (const btn of formButtons) {
+if (isElementVisible(btn)) {
+buttons.push(btn);
+}
+}
+}
+const nearbyButtons = Array.from(container.querySelectorAll('button'));
+for (const btn of nearbyButtons) {
+if (btn.form === productForm || (productForm && productForm.contains(btn))) {
+continue;
+}
+if (!isElementVisible(btn)) continue;
+const btnText = (btn.textContent || '').toLowerCase().trim();
+const btnId = String(btn.getAttribute('id') || btn.id || '').toLowerCase();
+const btnClass = String(btn.className || (btn.classList ? Array.from(btn.classList).join(' ') : '')).toLowerCase();
+const actionKeywords = ['add to cart', 'buy now', 'purchase', 'checkout', 'add', 'cart'];
+const isActionButton = actionKeywords.some(keyword => btnText.includes(keyword) || btnId.includes(keyword) || btnClass.includes(keyword));
+if (isActionButton && !buttons.includes(btn)) {
+buttons.push(btn);
+}
+}
+console.log('[NUSENSE] Found action buttons:', buttons.length, buttons);
+return buttons;
+}
+function detectButtonRow(buttons) {
+if (buttons.length === 0) return null;
+if (buttons.length === 1) return {isRow: false, container: buttons[0].parentElement, buttons: buttons};
+let commonParent = buttons[0].parentElement;
+for (let i = 1; i < buttons.length; i++) {
+const currentParent = buttons[i].parentElement;
+if (currentParent !== commonParent) {
+let foundCommon = false;
+let checkParent = commonParent;
+while (checkParent && checkParent !== document.body) {
+if (checkParent.contains(buttons[i])) {
+commonParent = checkParent;
+foundCommon = true;
+break;
+}
+checkParent = checkParent.parentElement;
+}
+if (!foundCommon) {
+checkParent = currentParent;
+while (checkParent && checkParent !== document.body) {
+if (checkParent.contains(buttons[0])) {
+commonParent = checkParent;
+foundCommon = true;
+break;
+}
+checkParent = checkParent.parentElement;
+}
+}
+if (!foundCommon) {
+return {isRow: false, container: buttons[0].parentElement, buttons: buttons};
+}
+}
+}
+if (!commonParent || commonParent === document.body) {
+return {isRow: false, container: buttons[0].parentElement, buttons: buttons};
+}
+const style = window.getComputedStyle(commonParent);
+const display = style.display;
+const flexDirection = style.flexDirection;
+const isFlexRow = display === 'flex' && (flexDirection === 'row' || flexDirection === 'row-reverse' || !flexDirection);
+const isGrid = display === 'grid';
+const isInlineBlock = display === 'inline-block';
+const children = Array.from(commonParent.children);
+const buttonChildren = children.filter(child => buttons.includes(child));
+const isRowLayout = isFlexRow || isGrid || (isInlineBlock && buttonChildren.length >= 2) || (buttonChildren.length >= 2 && children.indexOf(buttonChildren[0]) < children.indexOf(buttonChildren[buttonChildren.length - 1]));
+if (isRowLayout && buttonChildren.length >= 2) {
+console.log('[NUSENSE] Buttons are in a row:', commonParent, 'Display:', display);
+return {isRow: true, container: commonParent, buttons: buttons};
+}
+console.log('[NUSENSE] Buttons are not in a row, using first button parent:', buttons[0].parentElement);
+return {isRow: false, container: buttons[0].parentElement, buttons: buttons};
+}
+function findActionButtonPosition() {
+console.log('[NUSENSE] Finding action button position...');
+const mainContainer = findMainProductContainer();
+if (!mainContainer) {
+console.warn('[NUSENSE] Main product container not found');
+return null;
+}
+const actionButtons = findActionButtons(mainContainer);
+if (actionButtons.length === 0) {
+console.warn('[NUSENSE] No action buttons found');
+return null;
+}
+const buttonRow = detectButtonRow(actionButtons);
+if (!buttonRow) {
+console.warn('[NUSENSE] Could not detect button row');
+return null;
+}
+console.log('[NUSENSE] Button row detected:', buttonRow);
+return buttonRow;
 }
 function getProductId() {
 if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
@@ -468,12 +564,12 @@ if (button && productId) {
 button.setAttribute('data-product-id', productId);
 }
 container.classList.add('is-product-page');
-const titleResult = findProductTitleContainer();
-if (titleResult && titleResult.container) {
-const titleContainer = titleResult.container;
-const titleElement = titleResult.title;
+const buttonPosition = findActionButtonPosition();
+if (buttonPosition && buttonPosition.container) {
+const targetContainer = buttonPosition.container;
 const currentParent = container.parentElement;
-if (currentParent === titleContainer && container.nextSibling === titleElement.nextSibling) {
+if (buttonPosition.isRow && buttonPosition.buttons.length >= 2) {
+if (currentParent === targetContainer && container.nextSibling === buttonPosition.buttons[0]) {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -482,18 +578,35 @@ lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
 }
-if (titleElement && titleElement.nextSibling) {
-titleContainer.insertBefore(container, titleElement.nextSibling);
-} else {
-titleContainer.appendChild(container);
-}
+targetContainer.insertBefore(container, buttonPosition.buttons[0]);
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
-if (!container.style.marginTop || container.style.marginTop === '') {
-container.style.marginTop = '1rem';
+if (!container.style.marginBottom || container.style.marginBottom === '') {
+container.style.marginBottom = '0.75rem';
 }
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+return;
+} else {
+const firstButton = buttonPosition.buttons[0];
+const buttonParent = firstButton.parentElement;
+if (currentParent === buttonParent && container.nextSibling === firstButton) {
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+return;
+}
+if (buttonParent && buttonParent !== document.body) {
+buttonParent.insertBefore(container, firstButton);
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
 if (!container.style.marginBottom || container.style.marginBottom === '') {
 container.style.marginBottom = '0.75rem';
 }
@@ -501,7 +614,9 @@ lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
 }
-console.warn('[NUSENSE] Product title container not found, using fallback positioning');
+}
+}
+console.warn('[NUSENSE] Action button position not found, using fallback positioning');
 const productForm = document.querySelector('form[action*="/cart/add"]');
 if (productForm && container.parentElement !== productForm.parentElement) {
 const formParent = productForm.parentElement;
@@ -517,26 +632,8 @@ return;
 }
 }
 if (container.parentElement === document.body || !container.parentElement) {
-const productInfo = document.querySelector('.product__info') ||
-document.querySelector('.product-single__meta') ||
-document.querySelector('.product-info') ||
-document.querySelector('[data-product-info]') ||
-document.querySelector('[data-product-form]') ||
-document.querySelector('main.product') ||
-document.querySelector('main');
-if (productInfo && productInfo !== document.body) {
-productInfo.appendChild(container);
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
-container.classList.add('is-positioned');
-lastPositionedUrl = currentUrl;
-isPositioning = false;
-return;
-} else {
 const mainContent = document.querySelector('main') ||
 document.querySelector('#MainContent') ||
-document.querySelector('.main-content') ||
 document.querySelector('[role="main"]');
 if (mainContent && mainContent !== document.body) {
 mainContent.appendChild(container);
@@ -547,7 +644,6 @@ container.classList.add('is-positioned');
 lastPositionedUrl = currentUrl;
 isPositioning = false;
 return;
-}
 }
 }
 container.style.display = 'block';
@@ -610,13 +706,7 @@ shouldReposition = true;
 break;
 }
 }
-if (node.querySelector && (
-node.querySelector('h1.product__title') ||
-node.querySelector('h1.product-title') ||
-node.querySelector('.product__info') ||
-node.querySelector('.product-single__meta') ||
-node.querySelector('[data-product-title]')
-)) {
+if (node.tagName === 'FORM' || (node.querySelector && node.querySelector('form[action*="/cart/add"]'))) {
 shouldReposition = true;
 break;
 }
