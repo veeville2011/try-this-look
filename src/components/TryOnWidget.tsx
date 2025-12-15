@@ -2125,7 +2125,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="upload-heading" 
-                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-sm ${mobileStep === "clothing" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-sm ${mobileStep === "clothing" ? "hidden lg:!flex" : ""}`}
               >
                 {!uploadedImage && (
                   <PhotoUpload
@@ -2208,7 +2208,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
@@ -2245,7 +2245,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Action buttons - Inside clothing section, aligned to right, at bottom */}
                 {!isGenerating && !generatedImage && (
-                  <div className={`flex flex-col items-end w-full mt-4 pt-4 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
+                  <div className={`flex flex-col items-end w-full mt-4 pt-4 ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}>
                     <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
                       <Button
                         onClick={handleResetClick}

@@ -26,12 +26,17 @@ export default function Widget() {
           
           /* Force flex-row layout for elements with lg:flex-row */
           .parent-desktop-mode div[class*="flex-col"][class*="lg:flex-row"],
-          .parent-desktop-mode div[class*="lg:flex-row"] {
+          .parent-desktop-mode div[class*="lg:flex-row"],
+          .parent-desktop-mode section[class*="flex-col"][class*="lg:flex-row"],
+          .parent-desktop-mode section[class*="lg:flex-row"] {
             flex-direction: row !important;
           }
           
-          /* Force flex display for elements with lg:flex (that are hidden on mobile) */
-          .parent-desktop-mode div[class*="hidden"][class*="lg:flex"] {
+          /* Force flex display for elements with lg:flex or lg:!flex (that are hidden on mobile) */
+          .parent-desktop-mode div[class*="hidden"][class*="lg:flex"],
+          .parent-desktop-mode div[class*="hidden"][class*="lg:!flex"],
+          .parent-desktop-mode section[class*="hidden"][class*="lg:flex"],
+          .parent-desktop-mode section[class*="hidden"][class*="lg:!flex"] {
             display: flex !important;
           }
           
