@@ -2252,8 +2252,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Default buttons: Reset and Generate */
             /* Mobile: Hide when in photo step (Continue button shown above), show when in clothing step */
             /* Desktop: Always show */
-            <div className={`flex flex-col items-end self-stretch ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
-              <div className="flex flex-col sm:flex-row items-start self-stretch gap-4 px-4 sm:px-0 sm:mr-8">
+            <div className={`flex flex-col items-end self-stretch lg:items-end lg:justify-end ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}>
+              <div className="flex flex-col sm:flex-row items-end sm:items-center self-stretch gap-4 px-4 sm:px-0 sm:mr-8 lg:ml-auto lg:justify-end">
                 <Button
                   onClick={handleResetClick}
                   variant={"outline" as const}
