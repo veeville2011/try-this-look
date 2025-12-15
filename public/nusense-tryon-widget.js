@@ -130,6 +130,7 @@
     
     // Determine width based on screen size
     const isDesktop = window.innerWidth >= 768;
+    // Use 900px as requested, but we'll use CSS to force desktop layout
     const containerWidth = isDesktop ? '900px' : '95vw';
     const containerMaxWidth = isDesktop ? '900px' : '1200px';
     
