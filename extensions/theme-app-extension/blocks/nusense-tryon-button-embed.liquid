@@ -779,7 +779,17 @@
     const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
                            !!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
     
-    return hasProductForm || hasProductData;
+    // Additional checks: product page indicators
+    const hasProductIndicators = !!(
+      document.querySelector('[data-product-id]') ||
+      document.querySelector('.product') ||
+      document.querySelector('.product-single') ||
+      document.querySelector('.product__info') ||
+      document.querySelector('[data-product]') ||
+      document.querySelector('script[type="application/ld+json"]')
+    );
+    
+    return hasProductForm || hasProductData || hasProductIndicators;
   }
   
   // Main positioning function - repositions EXISTING button
@@ -787,21 +797,27 @@
     // Prevent duplicate positioning operations
     if (isPositioning) return;
     
+    // Get the EXISTING button container (already in DOM from app embed)
+    const container = document.getElementById(containerId);
+    if (!container) {
+      // Container not found - might not be loaded yet, retry later
+      return;
+    }
+    
     const currentUrl = window.location.href;
-    if (lastPositionedUrl === currentUrl && document.getElementById(containerId) && document.getElementById(containerId).parentElement && document.getElementById(containerId).parentElement !== document.body) {
-      // Already positioned for this URL, skip
+    if (lastPositionedUrl === currentUrl && container.parentElement && container.parentElement !== document.body) {
+      // Already positioned for this URL, but verify it's still visible
+      if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
+        // Container was hidden, show it again
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+      }
       return;
     }
     
     isPositioning = true;
     
     try {
-      // Get the EXISTING button container (already in DOM from app embed)
-      const container = document.getElementById(containerId);
-      if (!container) {
-        isPositioning = false;
-        return;
-      }
       
       // Check if we're on a product page
       if (!isProductPage()) {
@@ -819,7 +835,13 @@
       
       // Ensure container is visible first (show on product page even if Add to Cart not found yet)
       container.style.display = 'block';
+      container.style.visibility = 'visible';
       container.classList.add('is-product-page');
+      
+      // Remove inline display:none if it exists
+      if (container.getAttribute('style') && container.getAttribute('style').includes('display: none')) {
+        container.style.display = 'block';
+      }
       
       // Find Add to Cart button using tiered strategy
       const addToCartButton = findAddToCartButton();
@@ -831,20 +853,37 @@
         if (productForm && container.parentElement !== productForm.parentElement) {
           // Try to place near the form
           const formParent = productForm.parentElement;
-          if (formParent) {
+          if (formParent && formParent !== document.body) {
             formParent.insertBefore(container, productForm);
           }
-        } else if (container.parentElement === document.body) {
-          // If still in body, try to find product info area
+        }
+        
+        // If still in body or couldn't place near form, try to find product info area
+        if (container.parentElement === document.body || !container.parentElement) {
           const productInfo = document.querySelector('.product__info') ||
                               document.querySelector('.product-single__meta') ||
                               document.querySelector('.product-info') ||
                               document.querySelector('[data-product-info]') ||
+                              document.querySelector('[data-product-form]') ||
+                              document.querySelector('main.product') ||
                               document.querySelector('main');
-          if (productInfo) {
+          if (productInfo && productInfo !== document.body) {
             productInfo.appendChild(container);
+          } else {
+            // Last resort: find any main content area
+            const mainContent = document.querySelector('main') || 
+                               document.querySelector('#MainContent') ||
+                               document.querySelector('.main-content') ||
+                               document.querySelector('[role="main"]');
+            if (mainContent && mainContent !== document.body) {
+              mainContent.appendChild(container);
+            }
           }
         }
+        
+        // Ensure button is still visible
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
         isPositioning = false;
         return;
       }
@@ -875,6 +914,9 @@
       // Use insertBefore for normal document flow positioning
       if (addToCartParent) {
         addToCartParent.insertBefore(container, addToCartButton);
+        // Ensure button is visible after positioning
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
         lastPositionedUrl = currentUrl;
       }
       
@@ -900,16 +942,27 @@
     }, 150);
   }
   
-  // Initialize positioning
+  // Initialize positioning with multiple retry attempts
   function initPositioning() {
-    // Initial positioning
+    // Try immediately if DOM is ready
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      positionTryOnButton();
+    }
+    
+    // Also try on DOMContentLoaded
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(positionTryOnButton, 200);
+        positionTryOnButton();
       });
-    } else {
-      setTimeout(positionTryOnButton, 200);
     }
+    
+    // Multiple retry attempts with increasing delays to catch late-loading content
+    const retryDelays = [100, 300, 500, 1000, 2000, 3000];
+    retryDelays.forEach(function(delay) {
+      setTimeout(function() {
+        positionTryOnButton();
+      }, delay);
+    });
     
     // MutationObserver for dynamic themes (variant changes, form updates)
     const observer = new MutationObserver(function(mutations) {
@@ -1037,8 +1090,18 @@
     startUrlChecking();
   }
   
-  // Start positioning logic
+  // Start positioning logic immediately
   initPositioning();
+  
+  // Also run immediately (in case DOM is already ready)
+  if (document.body) {
+    positionTryOnButton();
+  }
+  
+  // Run on window load as well (for very slow-loading themes)
+  window.addEventListener('load', function() {
+    setTimeout(positionTryOnButton, 100);
+  });
 })();
 </script>
 
