@@ -1,0 +1,675 @@
+
+
+{% render 'nusense-tryon-script' %}
+
+<style>.nusense-tryon-button{display:inline-flex !important;align-items:center !important;justify-content:center !important;gap:0.5rem;padding:0.75rem 1.5rem !important;text-align:center;text-decoration:none;cursor:pointer !important;border:1px solid transparent;border-radius:4px;transition:all 0.2s cubic-bezier(0.4,0,0.2,1) !important;min-height:44px !important;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;user-select:none;-webkit-user-select:none;touch-action:manipulation;will-change:transform,box-shadow;font-family:inherit;font-size:inherit;font-weight:inherit;line-height:inherit;letter-spacing:inherit;text-transform:inherit;}.nusense-tryon-button.button--primary,.nusense-tryon-button.btn-primary,.nusense-tryon-button.btn--primary,.nusense-tryon-button.button,.nusense-tryon-button.btn{background-color:#000000 !important;color:#ffffff !important;border-color:#000000 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06) !important;}.nusense-tryon-button.button--primary:hover,.nusense-tryon-button.btn-primary:hover,.nusense-tryon-button.btn--primary:hover,.nusense-tryon-button.button:hover,.nusense-tryon-button.btn:hover{background-color:#1a1a1a !important;border-color:#1a1a1a !important;box-shadow:0 4px 6px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1) !important;transform:translateY(-1px);opacity:1 !important;}.nusense-tryon-button.button--primary:focus,.nusense-tryon-button.btn-primary:focus,.nusense-tryon-button.btn--primary:focus,.nusense-tryon-button.button:focus,.nusense-tryon-button.btn:focus{outline:2px solid #ffffff !important;outline-offset:2px !important;box-shadow:0 0 0 3px rgba(0,0,0,0.2),0 4px 6px rgba(0,0,0,0.15) !important;}.nusense-tryon-button.button--primary:active,.nusense-tryon-button.btn-primary:active,.nusense-tryon-button.btn--primary:active,.nusense-tryon-button.button:active,.nusense-tryon-button.btn:active{background-color:#0d0d0d !important;border-color:#0d0d0d !important;box-shadow:0 1px 2px rgba(0,0,0,0.2) !important;transform:translateY(0);}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]){background-color:#000000 !important;color:#ffffff !important;border-color:#000000 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06) !important;position:relative;overflow:hidden;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):hover{background-color:#1a1a1a !important;border-color:#1a1a1a !important;box-shadow:0 4px 6px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1) !important;transform:translateY(-1px);opacity:1 !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus{outline:2px solid #ffffff !important;outline-offset:2px !important;box-shadow:0 0 0 3px rgba(0,0,0,0.2),0 4px 6px rgba(0,0,0,0.15) !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus:not(:focus-visible){outline:none !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):active{background-color:#0d0d0d !important;border-color:#0d0d0d !important;box-shadow:0 1px 2px rgba(0,0,0,0.2) !important;transform:translateY(0);}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[disabled],.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[aria-disabled="true"]{background-color:#666666 !important;border-color:#666666 !important;color:#ffffff !important;cursor:not-allowed !important;opacity:0.6 !important;box-shadow:none !important;transform:none !important;}.nusense-tryon-button.button--secondary,.nusense-tryon-button.btn-secondary,.nusense-tryon-button.btn--secondary{background-color:#f5f5f5 !important;color:#000000 !important;border:1px solid #e0e0e0 !important;box-shadow:0 1px 2px rgba(0,0,0,0.05) !important;}.nusense-tryon-button.button--secondary:hover,.nusense-tryon-button.btn-secondary:hover,.nusense-tryon-button.btn--secondary:hover{background-color:#e8e8e8 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1) !important;}.nusense-tryon-button.button--outline,.nusense-tryon-button.btn-outline,.nusense-tryon-button.btn--outline{background-color:transparent !important;color:#000000 !important;border:2px solid #000000 !important;box-shadow:none !important;}.nusense-tryon-button.button--outline:hover,.nusense-tryon-button.btn-outline:hover,.nusense-tryon-button.btn--outline:hover{background-color:#000000 !important;color:#ffffff !important;box-shadow:0 2px 4px rgba(0,0,0,0.1) !important;}.nusense-tryon-button.button--tertiary,.nusense-tryon-button.btn-link,.nusense-tryon-button.btn--link{background-color:transparent !important;color:#000000 !important;border:1px solid transparent !important;box-shadow:none !important;text-decoration:none !important;}.nusense-tryon-button.button--tertiary:hover,.nusense-tryon-button.btn-link:hover,.nusense-tryon-button.btn--link:hover{background-color:rgba(0,0,0,0.05) !important;text-decoration:underline !important;}.nusense-tryon-button.button--full-width,.nusense-tryon-button.btn-block,.nusense-tryon-button.btn--full-width{width:100% !important;}.nusense-tryon-button .button__text{color:inherit !important;font-family:inherit !important;font-size:inherit !important;font-weight:inherit !important;line-height:inherit !important;letter-spacing:inherit !important;text-transform:inherit !important;}.nusense-tryon-button[style*="display:none"]{display:inline-flex !important;}.nusense-tryon-button[data-loading="true"]{opacity:0.7;pointer-events:none;}.nusense-widget-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;}.nusense-widget-container{position:relative;width:95vw;max-width:1200px;height:90vh;}.nusense-widget-close{position:absolute;top:-40px;right:0;background:white;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:24px;line-height:1;z-index:10000;display:flex;align-items:center;justify-content:center;}.nusense-widget-close:hover{background:#f0f0f0;}.nusense-widget-close:focus{outline:2px solid #007bff;outline-offset:2px;}.nusense-tryon-button-embed-container{position:static;float:none;width:100%;margin-bottom:0.75rem;z-index:auto;opacity:0;visibility:hidden;display:block !important;flex-basis:100% !important;flex-shrink:0 !important;flex-grow:0 !important;grid-column:1/-1 !important;clear:both !important;}.nusense-tryon-button-embed-container.is-positioned{opacity:1;visibility:visible;display:block !important;}</style>
+
+{% schema %}
+{
+  "name": "NUSENSE Try-On Button",
+  "target": "body",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "TryOn"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button Style",
+      "options": [
+        {
+          "value": "primary",
+          "label": "Primary"
+        },
+        {
+          "value": "secondary",
+          "label": "Secondary"
+        },
+        {
+          "value": "outline",
+          "label": "Outline"
+        },
+        {
+          "value": "minimal",
+          "label": "Minimal"
+        }
+      ],
+      "default": "primary"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_icon",
+      "label": "Show Icon",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_icon",
+      "label": "Button Icon (emoji)",
+      "default": "✨"
+    },
+    {
+      "type": "checkbox",
+      "id": "button_width_full",
+      "label": "Full Width Button",
+      "default": true,
+      "info": "Enable to make button full width. Disable to allow flexible width (can be placed next to other buttons)"
+    },
+    {
+      "type": "header",
+      "content": "Positioning & Spacing"
+    },
+    {
+      "type": "paragraph",
+      "content": "The button will automatically appear on all product pages. Use the spacing settings below to adjust margins around the button."
+    },
+    {
+      "type": "select",
+      "id": "button_alignment",
+      "label": "Button Alignment",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Match Theme)"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "auto",
+      "info": "Horizontal alignment of the button. 'Auto' matches the Add to Cart button alignment."
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "label": "Top Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space above the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "label": "Bottom Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space below the button (spacing before Add to Cart button)"
+    },
+    {
+      "type": "range",
+      "id": "margin_left",
+      "label": "Left Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the left of the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_right",
+      "label": "Right Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the right of the button"
+    },
+    {
+      "type": "header",
+      "content": "Advanced Customization"
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Button Background Color",
+      "info": "Override theme colors with a custom background color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "info": "Override theme colors with a custom text color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button Border Color",
+      "info": "Override theme colors with a custom border color. Leave empty to use theme colors."
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "Font Size (px)",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16,
+      "unit": "px",
+      "info": "Customize button font size"
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "label": "Padding (rem)",
+      "min": 0.2,
+      "max": 3,
+      "step": 0.2,
+      "default": 0.8,
+      "unit": "rem",
+      "info": "Customize button padding"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Border Radius (px)",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "default": 4,
+      "unit": "px",
+      "info": "Customize button border radius"
+    },
+    {
+      "type": "text",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "info": "Add custom CSS to further customize the button. Use selector: .nusense-tryon-button",
+      "placeholder": ".nusense-tryon-button { /* your styles */ }"
+    }
+  ]
+}
+{% endschema %}
+
+{% assign button_text = block.settings.button_text | default: 'TryOn' %}
+{% assign button_style = block.settings.button_style | default: 'primary' %}
+{% assign button_icon = block.settings.button_icon | default: '✨' %}
+{% assign button_background_color = block.settings.button_background_color %}
+{% assign button_text_color = block.settings.button_text_color %}
+{% assign button_border_color = block.settings.button_border_color %}
+{% assign button_font_size = block.settings.button_font_size | default: 16 %}
+{% assign button_padding = block.settings.button_padding | default: 0.8 %}
+{% assign button_border_radius = block.settings.button_border_radius | default: 4 %}
+{% assign button_alignment = block.settings.button_alignment | default: 'auto' %}
+{% assign margin_top = block.settings.margin_top | default: 0 %}
+{% assign margin_bottom = block.settings.margin_bottom | default: 0 %}
+{% assign margin_left = block.settings.margin_left | default: 0 %}
+{% assign margin_right = block.settings.margin_right | default: 0 %}
+{% assign custom_css = block.settings.custom_css %}
+
+{% if block.settings.show_icon == true or block.settings.show_icon == 'true' %}
+  {% assign show_icon = true %}
+{% else %}
+  {% assign show_icon = false %}
+{% endif %}
+
+{% if block.settings.button_width_full == true or block.settings.button_width_full == 'true' %}
+  {% assign button_width_full = true %}
+{% else %}
+  {% assign button_width_full = false %}
+{% endif %}
+
+{% assign button_classes = 'button nusense-tryon-button' %}
+{% case button_style %}
+  {% when 'secondary' %}
+    {% assign button_classes = button_classes | append: ' button--secondary' %}
+  {% when 'outline' %}
+    {% assign button_classes = button_classes | append: ' button--outline' %}
+  {% when 'minimal' %}
+    {% assign button_classes = button_classes | append: ' button--tertiary' %}
+  {% else %}
+    {% assign button_classes = button_classes | append: ' button--primary' %}
+{% endcase %}
+{% if button_width_full %}
+  {% assign button_classes = button_classes | append: ' button--full-width' %}
+{% endif %}
+
+<div 
+  id="nusense-tryon-button-embed-{{ block.id }}" 
+  class="nusense-tryon-button-embed-container"
+  data-block-id="{{ block.id }}"
+  data-button-text="{{ button_text }}"
+  data-button-style="{{ button_style }}"
+  data-button-icon="{{ button_icon }}"
+  data-show-icon="{{ show_icon }}"
+  data-button-width-full="{{ button_width_full }}"
+  data-button-classes="{{ button_classes }}"
+  data-button-alignment="{{ button_alignment }}"
+  data-margin-top="{{ margin_top }}"
+  data-margin-bottom="{{ margin_bottom }}"
+  data-margin-left="{{ margin_left }}"
+  data-margin-right="{{ margin_right }}"
+  {% if button_background_color != blank %}data-background-color="{{ button_background_color }}"{% endif %}
+  {% if button_text_color != blank %}data-text-color="{{ button_text_color }}"{% endif %}
+  {% if button_border_color != blank %}data-border-color="{{ button_border_color }}"{% endif %}
+  {% if button_font_size != blank %}data-font-size="{{ button_font_size }}"{% endif %}
+  {% if button_padding != blank %}data-padding="{{ button_padding }}"{% endif %}
+  {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius }}"{% endif %}
+  {% if custom_css != blank %}data-custom-css="{{ custom_css }}"{% endif %}
+  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
+  data-shop-domain="{{ shop.permanent_domain }}"
+>
+  <button 
+    id="nusense-tryon-btn-{{ block.id }}" 
+    class="{{ button_classes }}"
+    aria-label="{{ button_text }}"
+    data-product-id=""
+    data-shop-domain="{{ shop.permanent_domain }}"
+    data-button-style="{{ button_style }}"
+    data-show-icon="{{ show_icon }}"
+    data-button-width-full="{{ button_width_full }}"
+    {% if button_background_color != blank %}data-background-color="{{ button_background_color }}"{% endif %}
+    {% if button_text_color != blank %}data-text-color="{{ button_text_color }}"{% endif %}
+    {% if button_border_color != blank %}data-border-color="{{ button_border_color }}"{% endif %}
+    {% if button_font_size != blank %}data-font-size="{{ button_font_size }}"{% endif %}
+    {% if button_padding != blank %}data-padding="{{ button_padding }}"{% endif %}
+    {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius }}"{% endif %}
+    data-alignment="{{ button_alignment }}"
+    data-margin-top="{{ margin_top }}"
+    data-margin-bottom="{{ margin_bottom }}"
+    data-margin-left="{{ margin_left }}"
+    data-margin-right="{{ margin_right }}"
+    data-button-icon="{{ button_icon }}"
+    {% if custom_css != blank %}data-custom-css="{{ custom_css }}"{% endif %}
+    data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
+    data-loading="true"
+    style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
+  >
+    <span class="button__icon" data-icon="{{ button_icon }}" aria-hidden="true" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon }}</span>
+    <span class="button__text" id="nusense-tryon-desc-{{ block.id }}">{{ button_text }}</span>
+  </button>
+</div>
+
+<script src="{{ 'nusense-tryon-button.js' | asset_url }}" defer></script>
+
+<script>(function() {
+'use strict';
+const blockId = '{{ block.id }}';
+const containerId = 'nusense-tryon-button-embed-' + blockId;
+const buttonId = 'nusense-tryon-btn-' + blockId;
+let isPositioning = false;
+let lastPositionedUrl = null;
+function isElementVisible(element) {
+if (!element) return false;
+const style = window.getComputedStyle(element);
+if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) < 0.1) {
+return false;
+}
+if (element.disabled === true || element.hasAttribute('disabled')) {
+return false;
+}
+if (element.offsetWidth === 0 && element.offsetHeight === 0 && style.position !== 'absolute' && style.position !== 'fixed') {
+return false;
+}
+let parent = element.parentElement;
+while (parent && parent !== document.body) {
+const parentStyle = window.getComputedStyle(parent);
+const parentId = String(parent.getAttribute('id') || parent.id || '');
+const parentClass = String(parent.className || (parent.classList ? Array.from(parent.classList).join(' ') : ''));
+if (parentStyle.display === 'none' ||
+parentStyle.visibility === 'hidden' ||
+(typeof parentId === 'string' && (parentId.includes('drawer') || parentId.includes('modal') || parentId.includes('popup') || parentId.includes('quick-view'))) ||
+(typeof parentClass === 'string' && (parentClass.includes('drawer') || parentClass.includes('modal') || parentClass.includes('popup') || parentClass.includes('quick-view')))) {
+return false;
+}
+parent = parent.parentElement;
+}
+return true;
+}
+function findVisibleButtons(container) {
+if (!container) return [];
+const allButtons = Array.from(container.querySelectorAll('button, input[type="submit"], input[type="button"]'));
+return allButtons.filter(btn => isElementVisible(btn) && !btn.disabled && btn.getAttribute('aria-hidden') !== 'true');
+}
+function isHorizontalLayout(element) {
+if (!element) return false;
+const style = window.getComputedStyle(element);
+const display = style.display;
+const flexDirection = style.flexDirection;
+const gridTemplateColumns = style.gridTemplateColumns;
+return (display === 'flex' || display === 'inline-flex') && (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '') ||
+(display === 'grid' && gridTemplateColumns !== 'none');
+}
+function findPurchaseActionBoundary() {
+const allForms = Array.from(document.querySelectorAll('form[action*="/cart/add"]'));
+let productForm = allForms.find(form => {
+const formClass = String(form.className || '').toLowerCase();
+const formId = String(form.id || '').toLowerCase();
+return !formClass.includes('payment-terms') && !formId.includes('payment-terms') && !formId.includes('installment');
+}) || allForms[0];
+if (!productForm) return null;
+let submitButtons = Array.from(productForm.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])'));
+if (submitButtons.length === 0 && productForm.id) {
+submitButtons = Array.from(document.querySelectorAll('button[form="' + productForm.id + '"], input[form="' + productForm.id + '"]'));
+}
+if (submitButtons.length === 0) {
+const formParent = productForm.parentElement;
+if (formParent && formParent !== document.body && formParent !== document.documentElement) {
+return {isGroup: false, insertTarget: productForm, insertParent: formParent};
+}
+return null;
+}
+const visibleSubmitButtons = submitButtons.filter(btn => isElementVisible(btn) && !btn.disabled && btn.getAttribute('aria-hidden') !== 'true');
+if (visibleSubmitButtons.length === 0) {
+const formParent = productForm.parentElement;
+if (formParent && formParent !== document.body && formParent !== document.documentElement) {
+return {isGroup: false, insertTarget: productForm, insertParent: formParent};
+}
+return null;
+}
+const primarySubmitButton = visibleSubmitButtons[0];
+const buttonParent = primarySubmitButton.parentElement;
+const buttonGrandParent = buttonParent ? buttonParent.parentElement : null;
+const visibleButtonsInParent = findVisibleButtons(buttonParent);
+const visibleButtonsInGrandParent = buttonGrandParent && buttonGrandParent !== document.body && buttonGrandParent !== document.documentElement ? findVisibleButtons(buttonGrandParent) : [];
+if (visibleButtonsInParent.length >= 2 && isHorizontalLayout(buttonParent)) {
+return {isGroup: true, insertTarget: buttonParent, insertParent: buttonParent.parentElement};
+}
+if (buttonGrandParent && visibleButtonsInGrandParent.length >= 2 && visibleButtonsInParent.length < 2 && isHorizontalLayout(buttonGrandParent)) {
+return {isGroup: true, insertTarget: buttonGrandParent, insertParent: buttonGrandParent.parentElement};
+}
+if (visibleButtonsInParent.length >= 2) {
+return {isGroup: true, insertTarget: buttonParent, insertParent: buttonParent.parentElement};
+}
+if (visibleButtonsInGrandParent.length >= 2) {
+return {isGroup: true, insertTarget: buttonGrandParent, insertParent: buttonGrandParent.parentElement};
+}
+return {isGroup: false, insertTarget: primarySubmitButton, insertParent: buttonParent};
+}
+function getProductId() {
+if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
+return window.NUSENSE_PRODUCT_DATA.id;
+}
+if (window.Shopify && window.Shopify.product && window.Shopify.product.id) {
+return window.Shopify.product.id;
+}
+try {
+const jsonScripts = document.querySelectorAll('script[type="application/json"]');
+for (let script of jsonScripts) {
+try {
+const data = JSON.parse(script.textContent);
+if (data.product && data.product.id) {
+return data.product.id;
+}
+} catch (e) {
+}
+}
+} catch (e) {
+}
+return null;
+}
+function isThemeEditor() {
+return !!(window.Shopify && window.Shopify.designMode);
+}
+function inheritTypographyFromButton(button, targetButton) {
+if (!button || !targetButton || button === targetButton || !isElementVisible(targetButton)) {
+return;
+}
+if (button.dataset.fontSize) {
+return;
+}
+const targetStyle = window.getComputedStyle(targetButton);
+const fontFamily = targetStyle.getPropertyValue('font-family');
+const fontSize = targetStyle.getPropertyValue('font-size');
+const fontWeight = targetStyle.getPropertyValue('font-weight');
+const lineHeight = targetStyle.getPropertyValue('line-height');
+const letterSpacing = targetStyle.getPropertyValue('letter-spacing');
+const textTransform = targetStyle.getPropertyValue('text-transform');
+if (fontFamily && fontFamily !== 'initial' && fontFamily !== 'inherit' && fontFamily.trim() !== '') {
+button.style.setProperty('font-family', fontFamily, 'important');
+}
+if (fontSize && fontSize !== 'initial' && fontSize !== 'inherit' && fontSize.trim() !== '' && !button.dataset.fontSize) {
+button.style.setProperty('font-size', fontSize, 'important');
+}
+if (fontWeight && fontWeight !== 'initial' && fontWeight !== 'inherit' && fontWeight.trim() !== '') {
+button.style.setProperty('font-weight', fontWeight, 'important');
+}
+if (lineHeight && lineHeight !== 'initial' && lineHeight !== 'inherit' && lineHeight.trim() !== '') {
+button.style.setProperty('line-height', lineHeight, 'important');
+}
+if (letterSpacing && letterSpacing !== 'initial' && letterSpacing !== 'inherit' && letterSpacing.trim() !== '') {
+button.style.setProperty('letter-spacing', letterSpacing, 'important');
+}
+if (textTransform && textTransform !== 'initial' && textTransform !== 'inherit' && textTransform !== 'none' && textTransform.trim() !== '') {
+button.style.setProperty('text-transform', textTransform, 'important');
+}
+const textSpan = button.querySelector('.button__text');
+if (textSpan) {
+if (fontFamily && fontFamily !== 'initial' && fontFamily !== 'inherit' && fontFamily.trim() !== '') {
+textSpan.style.setProperty('font-family', fontFamily, 'important');
+}
+if (fontSize && fontSize !== 'initial' && fontSize !== 'inherit' && fontSize.trim() !== '' && !button.dataset.fontSize) {
+textSpan.style.setProperty('font-size', fontSize, 'important');
+}
+if (fontWeight && fontWeight !== 'initial' && fontWeight !== 'inherit' && fontWeight.trim() !== '') {
+textSpan.style.setProperty('font-weight', fontWeight, 'important');
+}
+if (lineHeight && lineHeight !== 'initial' && lineHeight !== 'inherit' && lineHeight.trim() !== '') {
+textSpan.style.setProperty('line-height', lineHeight, 'important');
+}
+if (letterSpacing && letterSpacing !== 'initial' && letterSpacing !== 'inherit' && letterSpacing.trim() !== '') {
+textSpan.style.setProperty('letter-spacing', letterSpacing, 'important');
+}
+if (textTransform && textTransform !== 'initial' && textTransform !== 'inherit' && textTransform !== 'none' && textTransform.trim() !== '') {
+textSpan.style.setProperty('text-transform', textTransform, 'important');
+}
+}
+}
+function isProductPage() {
+if (isThemeEditor()) {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+return !!productForm;
+}
+const pathname = window.location.pathname || '';
+const isProductPath = /\/products\//.test(pathname);
+if (isProductPath) {
+return true;
+}
+const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
+const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
+!!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
+return hasProductForm || hasProductData;
+}
+function positionTryOnButton() {
+if (isPositioning) return;
+const container = document.getElementById(containerId);
+if (!container) return;
+const currentUrl = window.location.href;
+if (lastPositionedUrl === currentUrl && container.classList.contains('is-positioned') && container.parentElement && container.parentElement !== document.body) {
+if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+}
+return;
+}
+isPositioning = true;
+try {
+if (!isProductPage()) {
+container.style.display = 'none';
+container.style.visibility = 'hidden';
+container.style.opacity = '0';
+container.classList.remove('is-positioned');
+isPositioning = false;
+return;
+}
+const productId = getProductId();
+const button = document.getElementById(buttonId);
+if (button && productId) {
+button.setAttribute('data-product-id', productId);
+}
+const purchaseBoundary = findPurchaseActionBoundary();
+if (!purchaseBoundary || !purchaseBoundary.insertParent || !purchaseBoundary.insertTarget || purchaseBoundary.insertParent === document.body || purchaseBoundary.insertParent === document.documentElement) {
+container.style.display = 'none';
+container.style.visibility = 'hidden';
+container.style.opacity = '0';
+container.classList.remove('is-positioned');
+isPositioning = false;
+return;
+}
+const insertParent = purchaseBoundary.insertParent;
+const insertTarget = purchaseBoundary.insertTarget;
+const currentParent = container.parentElement;
+if (currentParent === insertParent && container.previousSibling === insertTarget) {
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
+if (button && purchaseBoundary && purchaseBoundary.insertTarget) {
+const targetButton = purchaseBoundary.insertTarget.tagName === 'BUTTON' || purchaseBoundary.insertTarget.tagName === 'INPUT' ? purchaseBoundary.insertTarget : (purchaseBoundary.insertTarget.querySelector ? purchaseBoundary.insertTarget.querySelector('button, input[type="submit"]') : null);
+if (targetButton) {
+setTimeout(function() {
+inheritTypographyFromButton(button, targetButton);
+}, 100);
+}
+}
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+return;
+}
+if (currentParent && currentParent !== document.body) {
+container.remove();
+}
+const insertParentStyle = window.getComputedStyle(insertParent);
+const isInsertParentFlexRow = (insertParentStyle.display === 'flex' || insertParentStyle.display === 'inline-flex') && (insertParentStyle.flexDirection === 'row' || insertParentStyle.flexDirection === 'row-reverse' || insertParentStyle.flexDirection === '');
+const isInsertParentGrid = insertParentStyle.display === 'grid' && insertParentStyle.gridTemplateColumns !== 'none';
+if (purchaseBoundary.isGroup && (isInsertParentFlexRow || isInsertParentGrid)) {
+container.style.width = '100%';
+container.style.flexBasis = '100%';
+container.style.flexShrink = '0';
+container.style.flexGrow = '0';
+container.style.clear = 'both';
+container.style.order = '1';
+if (isInsertParentFlexRow) {
+container.style.minWidth = '100%';
+container.style.maxWidth = '100%';
+}
+if (isInsertParentGrid) {
+container.style.gridColumn = '1 / -1';
+}
+}
+if (insertTarget.nextSibling) {
+insertParent.insertBefore(container, insertTarget.nextSibling);
+} else {
+insertParent.appendChild(container);
+}
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
+if (!container.style.marginTop) {
+container.style.marginTop = '0.75rem';
+}
+if (button && purchaseBoundary && purchaseBoundary.insertTarget) {
+const targetButton = purchaseBoundary.insertTarget.tagName === 'BUTTON' || purchaseBoundary.insertTarget.tagName === 'INPUT' ? purchaseBoundary.insertTarget : (purchaseBoundary.insertTarget.querySelector ? purchaseBoundary.insertTarget.querySelector('button, input[type="submit"]') : null);
+if (targetButton) {
+setTimeout(function() {
+inheritTypographyFromButton(button, targetButton);
+}, 100);
+}
+}
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+} catch (e) {
+console.error('[NUSENSE] Error positioning button:', e);
+if (container) {
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.style.opacity = '1';
+container.classList.add('is-positioned');
+}
+isPositioning = false;
+}
+}
+let positionTimeout = null;
+function debouncedPosition() {
+if (positionTimeout) {
+clearTimeout(positionTimeout);
+}
+positionTimeout = setTimeout(function() {
+positionTryOnButton();
+}, 50);
+}
+function initPositioning() {
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', function() {
+positionTryOnButton();
+requestAnimationFrame(positionTryOnButton);
+});
+} else {
+positionTryOnButton();
+requestAnimationFrame(positionTryOnButton);
+}
+const observer = new MutationObserver(function(mutations) {
+let shouldReposition = false;
+for (const mutation of mutations) {
+if (mutation.type === 'childList') {
+for (const node of mutation.addedNodes) {
+if (node.nodeType === 1 && (node.tagName === 'FORM' || node.tagName === 'BUTTON' || node.tagName === 'INPUT' || (node.querySelector && node.querySelector('form[action*="/cart/add"]')))) {
+shouldReposition = true;
+break;
+}
+}
+}
+if (shouldReposition || (mutation.type === 'attributes' && (mutation.target.tagName === 'FORM' || mutation.target.tagName === 'BUTTON' || mutation.target.tagName === 'INPUT'))) {
+shouldReposition = true;
+break;
+}
+}
+if (shouldReposition) {
+debouncedPosition();
+}
+});
+const setupObserver = function() {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+const target = productForm && productForm.parentElement && productForm.parentElement !== document.body ? productForm.parentElement : document.body;
+observer.observe(target, {childList: true, subtree: true, attributes: true, attributeFilter: ['action', 'type', 'name', 'disabled']});
+};
+if (document.body) {
+setupObserver();
+} else {
+document.addEventListener('DOMContentLoaded', setupObserver);
+}
+document.addEventListener('shopify:section:load', function() {
+requestAnimationFrame(positionTryOnButton);
+});
+document.addEventListener('shopify:section:reorder', function() {
+requestAnimationFrame(positionTryOnButton);
+});
+let lastUrl = window.location.href;
+window.addEventListener('popstate', function() {
+if (window.location.href !== lastUrl) {
+lastUrl = window.location.href;
+lastPositionedUrl = null;
+requestAnimationFrame(positionTryOnButton);
+}
+});
+}
+initPositioning();
+})();</script>
+
+
+
