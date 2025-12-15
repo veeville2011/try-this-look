@@ -25,6 +25,11 @@ export default function PhotoUpload({
   const [showFilePicker, setShowFilePicker] = useState(initialView === "file");
   const [showDemoModel, setShowDemoModel] = useState(initialView === "demo");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
+
+  const resetError = () => setErrorMessage(null);
 
   // Check if a demo photo has been generated before
   const isGenerated = (photoUrl: string): boolean => {
@@ -42,24 +47,43 @@ export default function PhotoUpload({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataURL = reader.result as string;
-        setPreview(dataURL);
-        onPhotoUpload(dataURL, false, undefined);
-        setShowFilePicker(false);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage(
+        t("tryOnWidget.photoUpload.invalidType") ||
+          "Please upload an image file (jpg, jpeg, png, webp)."
+      );
+      return;
     }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setErrorMessage(
+        t("tryOnWidget.photoUpload.fileTooLarge", { maxMB: 8 }) ||
+          "The selected file is too large. Please choose an image under 8MB."
+      );
+      return;
+    }
+
+    resetError();
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataURL = reader.result as string;
+      setPreview(dataURL);
+      onPhotoUpload(dataURL, false, undefined);
+      setShowFilePicker(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFilePickerClick = () => {
     setShowFilePicker(true);
+    resetError();
   };
 
   const handleDemoPhotoSelect = async (url: string) => {
     try {
+      resetError();
       const response = await fetch(url);
       const blob = await response.blob();
       const reader = new FileReader();
@@ -72,6 +96,10 @@ export default function PhotoUpload({
       reader.readAsDataURL(blob);
     } catch (error) {
       // Error loading demo photo
+      setErrorMessage(
+        t("tryOnWidget.photoUpload.failedToLoadDemo") ||
+          "Unable to load this demo photo. Please try another."
+      );
     }
   };
 
@@ -85,6 +113,16 @@ export default function PhotoUpload({
         <div className="sr-only">
           {t("tryOnWidget.photoUpload.srOnlyText") || "Téléchargez votre photo ou utilisez une photo de démonstration"}
         </div>
+
+        {errorMessage && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm"
+          >
+            {errorMessage}
+          </div>
+        )}
 
         {!showFilePicker && !showDemoModel ? (
           <div className="flex flex-col bg-white w-full py-3.5 px-4 gap-4 rounded-2xl">
@@ -113,11 +151,11 @@ export default function PhotoUpload({
 
             {/* Separator OU */}
             <div className="flex items-center self-stretch">
-              <div className="bg-slate-200 w-[164px] h-[1px] mr-2.5"></div>
+              <div className="bg-slate-200 flex-1 h-[1px] mr-2.5"></div>
               <span className="text-slate-800 text-base font-bold mr-[13px]">
                 {t("tryOnWidget.photoUpload.or") || "OU"}
               </span>
-              <div className="bg-slate-200 w-[164px] h-[1px] flex-1"></div>
+              <div className="bg-slate-200 flex-1 h-[1px]"></div>
             </div>
 
             {/* "Choisir un modèle de démonstration" Section - Demo Photo Selection */}
@@ -255,7 +293,7 @@ export default function PhotoUpload({
 
             {/* Demo Photos Grid - 3 rows, 4 columns */}
             <div className="flex-1 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {DEMO_PHOTOS_ARRAY.map((photo) => (
                   <div
                     key={photo.id}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import "@/styles/fonts.css";
 import PhotoUpload from "./PhotoUpload";
 import { DEMO_PHOTO_ID_MAP } from "@/constants/demoPhotos";
 import ClothingSelection from "./ClothingSelection";
@@ -297,6 +298,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Track if we're currently closing to prevent double-close
   const isClosingRef = useRef<boolean>(false);
   console.log({ storeInfo });
+
   // Set initial status message
   useEffect(() => {
     if (!statusMessage) {
@@ -1864,7 +1866,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     <div
       data-nusense-widget="true"
       className="w-full h-full overflow-y-auto bg-white"
-      style={{ minHeight: "100vh" }}
+      style={{ minHeight: "100vh", fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
     >
@@ -1892,10 +1894,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
       {/* Main Container */}
       <div className="items-start bg-white">
-        <div className="bg-white w-full max-w-[898px] mx-auto py-8 rounded-2xl">
+        <div className="bg-white w-full max-w-[898px] mx-auto py-6 sm:py-8 rounded-2xl">
           {/* Header */}
           <header className="sticky top-0 z-10 bg-white border-b border-border/40">
-            <div className="flex justify-between items-center self-stretch p-4 mb-4 mx-4 sm:mx-6 lg:mx-8">
+            <div className="flex justify-between items-center self-stretch px-4 sm:px-6 lg:px-8 py-4 mb-4">
               <div className="flex flex-col items-start gap-1">
                 <img
                   src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
@@ -1944,7 +1946,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {/* Tabs Navigation - Only show for vto-demo store */}
         {isVtoDemoStore && (
           <section
-            className="px-4 sm:px-6 lg:px-8 pt-4"
+            className="px-4 sm:px-6 lg:px-8 pt-4 pb-0"
             aria-label={t("tryOnWidget.tabs.ariaLabel") || "Mode d'essayage"}
           >
             <TabsList className="w-full grid grid-cols-3 bg-muted/50 h-auto p-1 gap-1">
@@ -1978,7 +1980,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8 gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8 gap-6 lg:gap-8">
               {/* Mobile Layout: Full width stacked */}
               <div className="flex flex-col w-full lg:hidden">
                 {/* Header */}
@@ -1996,7 +1998,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Generated Image */}
                 {isGenerating ? (
-                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 px-4 rounded-xl bg-slate-100 flex items-center justify-center">
+                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 px-4 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden">
                     <Skeleton className="w-full h-full min-h-[400px] rounded-xl" />
                   </div>
                 ) : generatedImage ? (
@@ -2013,24 +2015,24 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop Layout: Side by side */}
               {/* Left Panel: Generated Image */}
               <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-0 max-w-md">
-                <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
-                  <div className="flex items-center mb-1 px-4 gap-2">
+                <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                  <div className="flex items-center mb-2 px-0 gap-2 w-full">
                     <h2 className="text-slate-800 text-xl font-semibold">
                       {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
                     </h2>
                   </div>
-                  <div className="flex items-center mb-4 px-4 gap-2">
+                  <div className="flex items-center mb-4 px-0 gap-2 w-full">
                     <p className="text-slate-800 text-sm">
                       {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
                     </p>
                     <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                   </div>
                   {isGenerating ? (
-                    <div className="w-full min-h-[400px] max-h-[500px] mx-4 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <div className="w-full min-h-[400px] max-h-[500px] rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
                       <Skeleton className="w-full h-full min-h-[400px] rounded-lg" />
                     </div>
                   ) : generatedImage ? (
-                    <div className="w-full mx-4 rounded-lg bg-white overflow-hidden">
+                    <div className="w-full rounded-lg bg-white overflow-hidden">
                       <img
                         src={generatedImage}
                         alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
@@ -2042,7 +2044,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-border w-px self-stretch hidden lg:block"></div>
+              <div className="bg-border w-px self-stretch hidden lg:block flex-shrink-0 mx-0"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
               <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full max-w-sm gap-4">
@@ -2050,7 +2052,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   /* Loading state: Person and clothing images side by side, no headings */
                   <div className="flex items-center gap-4 w-full">
                     {uploadedImage && (
-                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden">
+                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden p-2">
                         <img
                           src={uploadedImage}
                           alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
@@ -2059,7 +2061,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     )}
                     {selectedClothing && (
-                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden">
+                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden p-2">
                         <img
                           src={selectedClothing}
                           alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
@@ -2073,19 +2075,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   <>
                     {/* Person Image Section */}
                     {uploadedImage && (
-                      <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
-                        <div className="flex items-center mb-1 px-4 gap-2">
+                      <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                        <div className="flex items-center mb-2 px-0 gap-2 w-full">
                           <h3 className="text-slate-800 text-lg font-semibold">
                             {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
                         </div>
-                        <div className="flex items-center mb-4 px-4 gap-2">
+                        <div className="flex items-center mb-4 px-0 gap-2 w-full">
                           <p className="text-slate-800 text-sm">
                             {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
                           </p>
                           <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                         </div>
-                        <div className="w-full px-4">
+                        <div className="w-full">
                           <img
                             src={uploadedImage}
                             alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
@@ -2097,13 +2099,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                     {/* Clothing Image Section */}
                     {selectedClothing && (
-                      <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
-                        <div className="flex items-center mb-1 px-4 gap-2">
+                      <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                        <div className="flex items-center mb-2 px-0 gap-2 w-full">
                           <h3 className="text-slate-800 text-lg font-semibold">
                             {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
                           </h3>
                         </div>
-                        <div className="w-full px-4 mt-4">
+                        <div className="w-full mt-4">
                           <img
                             src={selectedClothing}
                             alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
@@ -2118,7 +2120,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8 gap-6">
+            <div className="flex flex-col lg:flex-row items-start self-stretch mb-6 mx-4 sm:mx-6 lg:mx-8 gap-6 lg:gap-8">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
@@ -2136,8 +2138,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 )}
 
                 {uploadedImage && (
-                  <div className="flex flex-col items-start bg-white w-full py-4 rounded-xl border border-border">
-                    <div className="flex items-center mb-1 px-4 gap-2">
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full">
                       <button
                         onClick={handleClearUploadedImage}
                         className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
@@ -2149,13 +2151,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
                       </h2>
                     </div>
-                    <div className="flex items-center mb-4 px-4 gap-2">
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full">
                       <p className="text-slate-800 text-sm">
                         {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="w-full px-4">
+                    <div className="w-full">
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
@@ -2168,7 +2170,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Mobile Continue Button - Show after photo selection */}
               {uploadedImage && mobileStep === "photo" && (
-                <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-6 gap-4">
+                <div className="flex flex-col self-stretch px-4 sm:px-6 lg:hidden mb-6 mt-0 gap-4">
                   <Button
                     onClick={handleResetClick}
                     variant={"outline" as const}
@@ -2200,14 +2202,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-border w-px self-stretch hidden lg:block"></div>
+              <div className="bg-border w-px self-stretch hidden lg:block flex-shrink-0 mx-0"></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-4 px-4 lg:px-0 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 px-4 lg:px-0 ${mobileStep === "photo" ? "hidden lg:flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
@@ -2340,7 +2342,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </div>
 
               {/* Desktop Layout: Horizontal buttons */}
-              <div className="hidden lg:flex justify-end items-start self-stretch gap-4 mx-4 sm:mx-6 lg:mx-8">
+              <div className="hidden lg:flex justify-end items-start self-stretch gap-4 mb-6 mx-4 sm:mx-6 lg:mx-8">
                 {/* Reset button on left */}
                 <Button
                   onClick={handleResetClick}
@@ -2495,7 +2497,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         {/* Try Multiple Tab - Cart Mode */}
         <TabsContent value="multiple" className="mt-0 space-y-6">
             {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mx-4 sm:mx-6 lg:mx-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mx-4 sm:mx-6 lg:mx-8">
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-multiple-heading" className="flex flex-col">
                 <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
@@ -2531,8 +2533,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     )}
 
                     {cartMultipleImage && (
-                      <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm flex-1 flex flex-col min-h-0">
-                        <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
+                      <div className="relative rounded-lg bg-card p-3 sm:p-4 border border-border shadow-sm flex-1 flex flex-col min-h-0 gap-3">
+                        <div className="flex items-center justify-between gap-2 flex-shrink-0">
                           <h3 className="font-semibold text-sm sm:text-base">
                             {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
@@ -2553,11 +2555,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                           </Button>
                         </div>
-                        <div className="relative flex-1 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0">
+                        <div className="relative flex-1 rounded-lg overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0 p-2">
                           <img
                             src={cartMultipleImage}
                             alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                            className="h-full w-auto object-contain max-h-full"
+                            className="h-full w-full object-contain max-h-full"
                           />
                         </div>
                       </div>
@@ -2788,7 +2790,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </Card>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-in fade-in-0 duration-300 pb-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 animate-in fade-in-0 duration-300 pb-2">
                           {multipleTabImages.map((imageUrl, index) => {
                             const garment: ProductImage = {
                               url: imageUrl,
@@ -2801,9 +2803,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             return (
                               <Card
                                 key={`${imageUrl}-${index}`}
-                                className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 isolate ${
                                   selected
-                                    ? "ring-4 ring-primary shadow-lg scale-105"
+                                    ? "ring-4 ring-primary shadow-lg scale-105 z-10"
                                     : canSelectMore
                                       ? "hover:ring-2 hover:ring-primary/50"
                                       : "opacity-60 cursor-not-allowed"
@@ -2895,14 +2897,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                     alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
                                     className="w-full h-full object-contain"
                                   />
-                                  <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br">
+                                  <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br z-10">
                                     {index + 1}
                                   </div>
                                   <Button
                                     variant={"destructive" as const}
                                     size="icon"
                                     onClick={() => handleGarmentDeselect(index)}
-                                    className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl"
+                                    className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl z-20"
                                     aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
                                   >
                                     <XCircle className="h-3 w-3" aria-hidden="true" />
@@ -3024,7 +3026,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {/* Try Look Tab - Outfit Mode */}
           <TabsContent value="look" className="mt-0 space-y-6">
             {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mx-4 sm:mx-6 lg:mx-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mx-4 sm:mx-6 lg:mx-8">
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-look-heading" className="flex flex-col">
                 <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
@@ -3060,8 +3062,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     )}
 
                     {cartMultipleImage && (
-                      <div className="relative rounded-lg bg-card p-2 sm:p-3 border border-border shadow-sm flex-1 flex flex-col min-h-0">
-                        <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
+                      <div className="relative rounded-lg bg-card p-3 sm:p-4 border border-border shadow-sm flex-1 flex flex-col min-h-0 gap-3">
+                        <div className="flex items-center justify-between gap-2 flex-shrink-0">
                           <h3 className="font-semibold text-sm sm:text-base">
                             {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
                           </h3>
@@ -3082,11 +3084,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
                           </Button>
                         </div>
-                        <div className="relative flex-1 rounded overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0">
+                        <div className="relative flex-1 rounded-lg overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0 p-2">
                           <img
                             src={cartMultipleImage}
                             alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                            className="h-full w-auto object-contain max-h-full"
+                            className="h-full w-full object-contain max-h-full"
                           />
                         </div>
                       </div>
@@ -3317,7 +3319,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </Card>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 animate-in fade-in-0 duration-300 pb-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 animate-in fade-in-0 duration-300 pb-2">
                           {lookTabImages.map((imageUrl, index) => {
                             const garment: ProductImage = {
                               url: imageUrl,
@@ -3330,9 +3332,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             return (
                               <Card
                                 key={`${imageUrl}-${index}`}
-                                className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 isolate ${
                                   selected
-                                    ? "ring-4 ring-primary shadow-lg scale-105"
+                                    ? "ring-4 ring-primary shadow-lg scale-105 z-10"
                                     : canSelectMore
                                       ? "hover:ring-2 hover:ring-primary/50"
                                       : "opacity-60 cursor-not-allowed"
@@ -3424,14 +3426,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                     alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
                                     className="w-full h-full object-contain"
                                   />
-                                  <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br">
+                                  <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br z-10">
                                     {index + 1}
                                   </div>
                                   <Button
                                     variant={"destructive" as const}
                                     size="icon"
                                     onClick={() => handleGarmentDeselect(index)}
-                                    className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl"
+                                    className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl z-20"
                                     aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
                                   >
                                     <XCircle className="h-3 w-3" aria-hidden="true" />
