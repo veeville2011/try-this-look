@@ -1,1217 +1,926 @@
-{% comment %}
-  NUSENSE TryON Script
-  Loads the widget functionality
-{% endcomment %}
+
 
 {% assign widget_url = shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' %}
 {% assign debug_mode = shop.metafields.nusense.debug_mode | default: false %}
 
-<script>
-  // Initialize widget configuration
-  window.NUSENSE_CONFIG = {
-    widgetUrl: '{{ widget_url }}',
-    debug: {{ debug_mode }},
-    autoDetect: true,
-    shopDomain: '{{ shop.permanent_domain }}'
-  };
-  
-  // Product data for NUSENSE widget
-  // Extract ALL product images from product.media (modern Shopify themes) or product.images (legacy)
-  {% if product %}
-  {% comment %} 
-    Priority 1: Use product.media and filter for images only (Shopify 2.0 themes)
-    Priority 2: Fallback to product.images (legacy themes)
-  {% endcomment %}
-  {% assign product_images_from_media = product.media | where: 'media_type', 'image' %}
-  
-  window.NUSENSE_PRODUCT_DATA = {
-    id: {{ product.id }},
-    title: {{ product.title | json }},
-    price: "{{ product.price | money }}",
-    priceRaw: {{ product.price | money_without_currency }},
-    images: [
-      {% comment %} Extract images from product.media (filtered to images only) {% endcomment %}
-      {% if product_images_from_media.size > 0 %}
-        {% for media_item in product_images_from_media limit: 20 %}
-          {% comment %} Ensure absolute URL by prepending https: if needed {% endcomment %}
-          {% assign image_url_full = media_item | image_url: width: 1200 %}
-          {% unless image_url_full contains '://' %}
-            {% assign image_url_full = 'https:' | append: image_url_full %}
-          {% endunless %}
-          {
-            id: {{ media_item.id }},
-            url: "{{ image_url_full }}"
-          }{% unless forloop.last %},{% endunless %}
-        {% endfor %}
-      {% else %}
-        {% comment %} Fallback: use product.images (legacy themes) {% endcomment %}
-        {% for image in product.images limit: 20 %}
-          {% comment %} Ensure absolute URL by prepending https: if needed {% endcomment %}
-          {% assign image_url_full = image | image_url: width: 1200 %}
-          {% unless image_url_full contains '://' %}
-            {% assign image_url_full = 'https:' | append: image_url_full %}
-          {% endunless %}
-          {
-            id: {{ image.id }},
-            url: "{{ image_url_full }}"
-          }{% unless forloop.last %},{% endunless %}
-        {% endfor %}
-      {% endif %}
-    ],
-    recommendedProductsUrl: "{{ routes.product_recommendations_url }}?product_id={{ product.id }}&limit=10&intent=related",
-    description: {{ product.description | strip_html | truncate: 200 | json }},
-    variants: [
-      {% for variant in product.variants %}
-        {
-          id: {{ variant.id }},
-          title: {{ variant.title | json }},
-          price: "{{ variant.price | money }}",
-          priceRaw: {{ variant.price | money_without_currency }},
-          available: {{ variant.available | json }},
-          {% if variant.option1 %}option1: {{ variant.option1 | json }},{% endif %}
-          {% if variant.option2 %}option2: {{ variant.option2 | json }},{% endif %}
-          {% if variant.option3 %}option3: {{ variant.option3 | json }}{% endif %}
-        }{% unless forloop.last %},{% endunless %}
-      {% endfor %}
-    ],
-    url: "{{ shop.url }}{{ product.url }}",
-    shop: {
-      name: {{ shop.name | json }},
-      domain: "{{ shop.permanent_domain }}"
-    }
-  };
-  {% endif %}
-  
-  // Load widget script
-  (function() {
-    if (!document.querySelector('script[src*="nusense-tryon-widget.js"]')) {
-      const script = document.createElement('script');
-      script.src = '{{ widget_url }}/nusense-tryon-widget.js';
-      script.async = true;
-      script.defer = true;
-      script.onload = function() {
-        // Widget loaded
-      };
-      script.onerror = function() {
-        // Failed to load widget
-      };
-      document.head.appendChild(script);
-    }
-  })();
-</script>
+<script>window.NUSENSE_CONFIG = {
+widgetUrl: '{{ widget_url }}',
+debug: {{ debug_mode }},
+autoDetect: true,
+shopDomain: '{{ shop.permanent_domain }}'
+};
+{% if product %}
+{% assign product_images_from_media = product.media | where: 'media_type', 'image' %}
+window.NUSENSE_PRODUCT_DATA = {
+id: {{ product.id }},
+title: {{ product.title | json }},
+price: "{{ product.price | money }}",
+priceRaw: {{ product.price | money_without_currency }},
+images: [
+{% if product_images_from_media.size > 0 %}
+{% for media_item in product_images_from_media limit: 20 %}
+{% assign image_url_full = media_item | image_url: width: 1200 %}
+{% unless image_url_full contains '://' %}
+{% assign image_url_full = 'https:' | append: image_url_full %}
+{% endunless %}
+{
+id: {{ media_item.id }},
+url: "{{ image_url_full }}"
+}{% unless forloop.last %},{% endunless %}
+{% endfor %}
+{% else %}
+{% for image in product.images limit: 20 %}
+{% assign image_url_full = image | image_url: width: 1200 %}
+{% unless image_url_full contains '://' %}
+{% assign image_url_full = 'https:' | append: image_url_full %}
+{% endunless %}
+{
+id: {{ image.id }},
+url: "{{ image_url_full }}"
+}{% unless forloop.last %},{% endunless %}
+{% endfor %}
+{% endif %}
+],
+recommendedProductsUrl: "{{ routes.product_recommendations_url }}?product_id={{ product.id }}&limit=10&intent=related",
+description: {{ product.description | strip_html | truncate: 200 | json }},
+variants: [
+{% for variant in product.variants %}
+{
+id: {{ variant.id }},
+title: {{ variant.title | json }},
+price: "{{ variant.price | money }}",
+priceRaw: {{ variant.price | money_without_currency }},
+available: {{ variant.available | json }},
+{% if variant.option1 %}option1: {{ variant.option1 | json }},{% endif %}
+{% if variant.option2 %}option2: {{ variant.option2 | json }},{% endif %}
+{% if variant.option3 %}option3: {{ variant.option3 | json }}{% endif %}
+}{% unless forloop.last %},{% endunless %}
+{% endfor %}
+],
+url: "{{ shop.url }}{{ product.url }}",
+shop: {
+name: {{ shop.name | json }},
+domain: "{{ shop.permanent_domain }}"
+}
+};
+{% endif %}
+(function() {
+if (!document.querySelector('script[src*="nusense-tryon-widget.js"]')) {
+const script = document.createElement('script');
+script.src = '{{ widget_url }}/nusense-tryon-widget.js';
+script.async = true;
+script.defer = true;
+script.onload = function() {
+};
+script.onerror = function() {
+};
+document.head.appendChild(script);
+}
+})();</script>
 
-{% comment %}
-  Banner script - runs on all pages but only displays on home page
-  This allows the app embed to be added to theme layout and work correctly
-{% endcomment %}
-<script>
-  (function() {
-    const bannerId = 'nusense-tryon-availability-banner';
-    const bannerStyleId = 'nusense-tryon-availability-banner-styles';
-    const storageKey = 'nusenseTryOnBannerDismissed';
+<script>(function() {
+const bannerId = 'nusense-tryon-availability-banner';
+const bannerStyleId = 'nusense-tryon-availability-banner-styles';
+const storageKey = 'nusenseTryOnBannerDismissed';
+if (typeof window === 'undefined' || document.getElementById(bannerId)) {
+return;
+}
+const isDismissed =
+window.sessionStorage && window.sessionStorage.getItem(storageKey) === 'true';
+if (isDismissed) {
+return;
+}
+const isHomePath = (() => {
+try {
+const currentPath = (window.location.pathname || '/').trim();
+const normalizedPath = currentPath.replace(/\/+$/, '') || '/';
+if (normalizedPath === '/' || normalizedPath === '') {
+return true;
+}
+if (window.Shopify && window.Shopify.routes) {
+const shopifyRoot = (window.Shopify.routes.root || '/').replace(/\/+$/, '') || '/';
+if (normalizedPath === shopifyRoot) {
+return true;
+}
+}
+const homePatterns = ['/index', '/home', '/pages/home'];
+if (homePatterns.some(pattern => normalizedPath === pattern || normalizedPath.startsWith(pattern + '/'))) {
+return true;
+}
+const pathParts = normalizedPath.split('/').filter(Boolean);
+if (pathParts.length === 0) {
+return true;
+}
+return false;
+} catch (e) {
+return (window.location.pathname || '/').trim() === '/';
+}
+})();
+if (!isHomePath) {
+return;
+}
+const ensureStyles = () => {
+if (document.getElementById(bannerStyleId)) {
+return;
+}
+const style = document.createElement('style');
+style.id = bannerStyleId;
+style.textContent = `
+#${bannerId} {
+position: fixed;
+top: 1.25rem;
+right: 1rem;
+z-index: 99999;
+width: calc(100% - 2rem);
+max-width: 20rem;
+display: flex;
+flex-direction: column;
+gap: 0.75rem;
+padding: 1rem 1.25rem 1rem 1rem;
+border-radius: 1rem;
+border: 1px solid rgba(255, 255, 255, 0.18);
+background: linear-gradient(135deg, #101010, #1f1f1f);
+color: #ffffff;
+box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
+opacity: 0;
+transform: translateY(-12px);
+transition: opacity 250ms ease, transform 250ms ease;
+}
+#${bannerId}.is-visible {
+opacity: 1;
+transform: translateY(0);
+}
+#${bannerId}.is-leaving {
+opacity: 0;
+transform: translateY(-10px);
+}
+#${bannerId} .nusense-banner-content {
+display: flex;
+flex-direction: column;
+gap: 0.75rem;
+position: relative;
+}
+#${bannerId} .nusense-banner-header {
+display: flex;
+align-items: flex-start;
+}
+#${bannerId} .nusense-banner-copy {
+flex: 1;
+}
+#${bannerId} .nusense-banner-title {
+font-size: 1rem;
+font-weight: 700;
+margin: 0;
+}
+#${bannerId} .nusense-banner-subtitle {
+margin: 0.35rem 0 0;
+font-size: 0.9rem;
+color: rgba(255, 255, 255, 0.85);
+line-height: 1.4;
+}
+@media (min-width: 640px) {
+#${bannerId} {
+right: 1.75rem;
+width: auto;
+max-width: 22rem;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+#${bannerId} {
+transition: opacity 200ms ease;
+transform: none !important;
+}
+}
+`;
+document.head.appendChild(style);
+};
+const handleDismiss = (bannerElement) => {
+if (!bannerElement) {
+return;
+}
+if (bannerElement._autoCloseTimeout) {
+clearTimeout(bannerElement._autoCloseTimeout);
+bannerElement._autoCloseTimeout = null;
+}
+bannerElement.classList.add('is-leaving');
+window.sessionStorage && window.sessionStorage.setItem(storageKey, 'true');
+window.setTimeout(() => {
+bannerElement.remove();
+}, 220);
+};
+const createBanner = () => {
+if (!document.body) {
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', createBanner, { once: true });
+} else {
+setTimeout(createBanner, 100);
+}
+return;
+}
+if (document.getElementById(bannerId)) {
+return;
+}
+try {
+ensureStyles();
+const banner = document.createElement('div');
+banner.id = bannerId;
+banner.setAttribute('role', 'status');
+banner.setAttribute('aria-live', 'polite');
+banner.setAttribute('tabindex', '0');
+banner.innerHTML = `
+<div class="nusense-banner-content">
+<div class="nusense-banner-header">
+<div class="nusense-banner-copy">
+<p class="nusense-banner-title">Essayage virtuel disponible</p>
+<p class="nusense-banner-subtitle">
+Découvrez notre nouvelle expérience Try-On immersive directement sur la page d'accueil.
+</p>
+</div>
+</div>
+</div>
+`;
+banner.addEventListener('keydown', (event) => {
+if (event.key === 'Escape') {
+handleDismiss(banner);
+}
+});
+try {
+if (document.body) {
+document.body.appendChild(banner);
+requestAnimationFrame(() => {
+requestAnimationFrame(() => {
+if (banner.parentNode) {
+banner.classList.add('is-visible');
+banner._autoCloseTimeout = setTimeout(() => {
+handleDismiss(banner);
+}, 10000);
+}
+});
+});
+} else {
+setTimeout(() => {
+try {
+if (document.body && banner) {
+document.body.appendChild(banner);
+if (banner.parentNode) {
+banner.classList.add('is-visible');
+banner._autoCloseTimeout = setTimeout(() => {
+handleDismiss(banner);
+}, 10000);
+}
+}
+} catch (retryError) {
+}
+}, 100);
+}
+} catch (appendError) {
+}
+} catch (e) {
+console.error('NUSENSE: Failed to create banner', e);
+}
+};
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', createBanner, { once: true });
+} else {
+if (document.body) {
+createBanner();
+} else {
+setTimeout(createBanner, 50);
+}
+}
+})();</script>
 
-    // Early return checks
-    if (typeof window === 'undefined' || document.getElementById(bannerId)) {
-      return;
-    }
-
-    // Check if banner was dismissed
-    const isDismissed =
-      window.sessionStorage && window.sessionStorage.getItem(storageKey) === 'true';
-    if (isDismissed) {
-      return;
-    }
-
-    // Improved home path detection - works regardless of where snippet is included
-    const isHomePath = (() => {
-      try {
-        const currentPath = (window.location.pathname || '/').trim();
-        const normalizedPath = currentPath.replace(/\/+$/, '') || '/';
-        
-        // Check if path is root or index
-        if (normalizedPath === '/' || normalizedPath === '') {
-          return true;
-        }
-        
-        // Check against Shopify routes if available
-        if (window.Shopify && window.Shopify.routes) {
-          const shopifyRoot = (window.Shopify.routes.root || '/').replace(/\/+$/, '') || '/';
-          if (normalizedPath === shopifyRoot) {
-            return true;
-          }
-        }
-        
-        // Check if path matches common home page patterns
-        const homePatterns = ['/index', '/home', '/pages/home'];
-        if (homePatterns.some(pattern => normalizedPath === pattern || normalizedPath.startsWith(pattern + '/'))) {
-          return true;
-        }
-        
-        // Additional check: if pathname is just the root or empty after normalization
-        const pathParts = normalizedPath.split('/').filter(Boolean);
-        if (pathParts.length === 0) {
-          return true;
-        }
-        
-        return false;
-      } catch (e) {
-        // Fallback: if we can't determine, check if pathname is just '/'
-        return (window.location.pathname || '/').trim() === '/';
-      }
-    })();
-
-    if (!isHomePath) {
-      return;
-    }
-
-    const ensureStyles = () => {
-      if (document.getElementById(bannerStyleId)) {
-        return;
-      }
-      const style = document.createElement('style');
-      style.id = bannerStyleId;
-      style.textContent = `
-        #${bannerId} {
-          position: fixed;
-          top: 1.25rem;
-          right: 1rem;
-          z-index: 99999;
-          width: calc(100% - 2rem);
-          max-width: 20rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-          padding: 1rem 1.25rem 1rem 1rem;
-          border-radius: 1rem;
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          background: linear-gradient(135deg, #101010, #1f1f1f);
-          color: #ffffff;
-          box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
-          opacity: 0;
-          transform: translateY(-12px);
-          transition: opacity 250ms ease, transform 250ms ease;
-        }
-        #${bannerId}.is-visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        #${bannerId}.is-leaving {
-          opacity: 0;
-          transform: translateY(-10px);
-        }
-        #${bannerId} .nusense-banner-content {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-          position: relative;
-        }
-        #${bannerId} .nusense-banner-header {
-          display: flex;
-          align-items: flex-start;
-        }
-        #${bannerId} .nusense-banner-copy {
-          flex: 1;
-        }
-        #${bannerId} .nusense-banner-title {
-          font-size: 1rem;
-          font-weight: 700;
-          margin: 0;
-        }
-        #${bannerId} .nusense-banner-subtitle {
-          margin: 0.35rem 0 0;
-          font-size: 0.9rem;
-          color: rgba(255, 255, 255, 0.85);
-          line-height: 1.4;
-        }
-        @media (min-width: 640px) {
-          #${bannerId} {
-            right: 1.75rem;
-            width: auto;
-            max-width: 22rem;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          #${bannerId} {
-            transition: opacity 200ms ease;
-            transform: none !important;
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    };
-
-    const handleDismiss = (bannerElement) => {
-      if (!bannerElement) {
-        return;
-      }
-      
-      // Clear auto-close timeout if it exists
-      if (bannerElement._autoCloseTimeout) {
-        clearTimeout(bannerElement._autoCloseTimeout);
-        bannerElement._autoCloseTimeout = null;
-      }
-      
-      bannerElement.classList.add('is-leaving');
-      window.sessionStorage && window.sessionStorage.setItem(storageKey, 'true');
-      window.setTimeout(() => {
-        bannerElement.remove();
-      }, 220);
-    };
-
-
-    const createBanner = () => {
-      // Ensure document.body exists before creating banner
-      if (!document.body) {
-        // If body doesn't exist yet, wait for it
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', createBanner, { once: true });
-        } else {
-          // Use a small delay to ensure body is available
-          setTimeout(createBanner, 100);
-        }
-        return;
-      }
-      
-      // Double-check banner doesn't already exist
-      if (document.getElementById(bannerId)) {
-        return;
-      }
-      
-      try {
-        ensureStyles();
-        const banner = document.createElement('div');
-        banner.id = bannerId;
-        banner.setAttribute('role', 'status');
-        banner.setAttribute('aria-live', 'polite');
-        banner.setAttribute('tabindex', '0');
-        banner.innerHTML = `
-          <div class="nusense-banner-content">
-            <div class="nusense-banner-header">
-              <div class="nusense-banner-copy">
-                <p class="nusense-banner-title">Essayage virtuel disponible</p>
-                <p class="nusense-banner-subtitle">
-                  Découvrez notre nouvelle expérience Try-On immersive directement sur la page d'accueil.
-                </p>
-              </div>
-            </div>
-          </div>
-        `;
-
-        banner.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape') {
-            handleDismiss(banner);
-          }
-        });
-
-        // Safely append banner to body with error handling
-        try {
-          if (document.body) {
-            document.body.appendChild(banner);
-            
-            // Use requestAnimationFrame to ensure DOM is ready before showing
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                if (banner.parentNode) {
-                  banner.classList.add('is-visible');
-                  
-                  // Auto-close after 10 seconds
-                  banner._autoCloseTimeout = setTimeout(() => {
-                    handleDismiss(banner);
-                  }, 10000); // 10 seconds
-                }
-              });
-            });
-          } else {
-            // Body not ready, wait and retry
-            setTimeout(() => {
-              try {
-                if (document.body && banner) {
-                  document.body.appendChild(banner);
-                  if (banner.parentNode) {
-                    banner.classList.add('is-visible');
-                    banner._autoCloseTimeout = setTimeout(() => {
-                      handleDismiss(banner);
-                    }, 10000);
-                  }
-                }
-              } catch (retryError) {
-                // Silently fail - banner is non-critical
-              }
-            }, 100);
-          }
-        } catch (appendError) {
-          // Silently fail if banner can't be appended
-          // Banner is non-critical and shouldn't break the page
-        }
-      } catch (e) {
-        // Silently fail if banner creation fails
-        console.error('NUSENSE: Failed to create banner', e);
-      }
-    };
-
-    // Initialize banner creation
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', createBanner, { once: true });
-    } else {
-      // DOM is already loaded, but ensure body exists
-      if (document.body) {
-        createBanner();
-      } else {
-        // Wait a bit for body to be available
-        setTimeout(createBanner, 50);
-      }
-    }
-  })();
-</script>
-
-{% comment %}
-  Automatic Image Transmission Listener
-  This script automatically handles image requests from the widget iframe
-  No merchant configuration required - works automatically
-{% endcomment %}
-<script>
-  (function() {
-    'use strict';
-    
-    // Only initialize once
-    if (window.NUSENSE_IMAGE_LISTENER_INITIALIZED) {
-      return;
-    }
-    window.NUSENSE_IMAGE_LISTENER_INITIALIZED = true;
-    
-    // Configuration
-    const CONFIG = {
-      debug: {{ debug_mode | default: false }},
-      allowedOrigins: ['*'], // In production, restrict to widget domain
-      widgetUrl: '{{ widget_url | default: "https://try-this-look.vercel.app" }}'
-    };
-    
-    // Logging helper - removed console logs
-    function log(message, data) {
-      // Logging disabled
-    }
-    
-    // Initializing image extraction listener
-    
-    // Validate origin (optional security measure)
-    function isValidOrigin(origin) {
-      if (CONFIG.allowedOrigins.includes('*')) {
-        return true; // Allow all in development
-      }
-      try {
-        const widgetUrlObj = new URL(CONFIG.widgetUrl);
-        return origin === widgetUrlObj.origin;
-      } catch (e) {
-        return false;
-      }
-    }
-    
-    // Helper function to ensure absolute URL
-    function ensureAbsoluteUrl(url) {
-      if (!url || typeof url !== 'string') return null;
-      // If already absolute, return as is
-      if (url.match(/^https?:\/\//)) {
-        return url;
-      }
-      // If protocol-relative (//example.com), add https:
-      if (url.match(/^\/\//)) {
-        return 'https:' + url;
-      }
-      // If relative, make absolute based on current origin
-      try {
-        return new URL(url, window.location.origin).href;
-      } catch (e) {
-        return url; // Return as-is if URL constructor fails
-      }
-    }
-    
-    // Extract images from Shopify product JSON in script tags
-    function extractFromShopifyJSON() {
-      const images = [];
-      try {
-        // Method 1: Check script tags with type="application/json" (Shopify 2.0 themes)
-        const scripts = document.querySelectorAll('script[type="application/json"]');
-        for (const script of scripts) {
-          try {
-            const data = JSON.parse(script.textContent || '{}');
-            
-            // Check for media array (Shopify 2.0 themes - preferred method)
-            if (data.product && data.product.media) {
-              const media = data.product.media;
-              if (Array.isArray(media)) {
-                media.forEach(function(item) {
-                  // Filter for images only
-                  if (item.media_type === 'image' || !item.media_type) {
-                    let imgUrl = null;
-                    if (item.preview && item.preview.image && item.preview.image.src) {
-                      imgUrl = item.preview.image.src;
-                    } else if (item.src) {
-                      imgUrl = item.src;
-                    } else if (item.url) {
-                      imgUrl = item.url;
-                    }
-                    if (imgUrl) {
-                      imgUrl = ensureAbsoluteUrl(imgUrl);
-                      if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
-                    }
-                  } else if (item.preview_image && item.preview_image.src) {
-                    // For videos/models, use preview image
-                    const imgUrl = ensureAbsoluteUrl(item.preview_image.src);
-                    if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
-                  }
-                });
-                if (images.length > 0) {
-                  log('Extracted images from Shopify media array', images.length);
-                  return images;
-                }
-              }
-            }
-            
-            // Check for images array (legacy themes)
-            if (data.product && data.product.images) {
-              const productImages = data.product.images;
-              if (Array.isArray(productImages)) {
-                productImages.forEach(function(img) {
-                  let imgUrl = null;
-                  if (typeof img === 'string') {
-                    imgUrl = img;
-                  } else if (img.src) {
-                    imgUrl = img.src;
-                  } else if (img.url) {
-                    imgUrl = img.url;
-                  } else if (img.originalSrc) {
-                    imgUrl = img.originalSrc;
-                  }
-                  if (imgUrl) {
-                    imgUrl = ensureAbsoluteUrl(imgUrl);
-                    if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
-                  }
-                });
-                if (images.length > 0) {
-                  log('Extracted images from Shopify JSON images array', images.length);
-                  return images;
-                }
-              }
-            }
-          } catch (e) {
-            // Continue to next script
-          }
-        }
-        
-        // Method 2: Check window.Shopify.product (legacy themes)
-        if (typeof window.Shopify !== 'undefined' && window.Shopify.product) {
-          if (window.Shopify.product.media) {
-            // Prefer media array (Shopify 2.0)
-            window.Shopify.product.media.forEach(function(item) {
-              if (item.media_type === 'image' || !item.media_type) {
-                let imgUrl = null;
-                if (item.src) imgUrl = item.src;
-                else if (item.url) imgUrl = item.url;
-                else if (item.preview_image && item.preview_image.src) imgUrl = item.preview_image.src;
-                if (imgUrl) {
-                  imgUrl = ensureAbsoluteUrl(imgUrl);
-                  if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
-                }
-              }
-            });
-          }
-          if (images.length === 0 && window.Shopify.product.images) {
-            // Fallback to images array
-            window.Shopify.product.images.forEach(function(img) {
-              let imgUrl = null;
-              if (typeof img === 'string') {
-                imgUrl = img;
-              } else if (img.src) {
-                imgUrl = img.src;
-              }
-              if (imgUrl) {
-                imgUrl = ensureAbsoluteUrl(imgUrl);
-                if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
-              }
-            });
-          }
-          if (images.length > 0) {
-            log('Extracted images from window.Shopify.product', images.length);
-            return images;
-          }
-        }
-      } catch (e) {
-        log('Error extracting from Shopify JSON', e);
-      }
-      return images;
-    }
-    
-    // Extract images from DOM (fallback method)
-    function extractFromDOM() {
-      const images = [];
-      const seenUrls = new Set();
-      
-      try {
-        // Priority selectors for product images
-        const selectors = [
-          '.product__media img',
-          '.product-image img',
-          '.product-gallery img',
-          '.product-photos img',
-          '.product__media-wrapper img',
-          '.product-single__media img',
-          '[data-product-image] img',
-          '[data-product-single-media-group] img',
-          '.product-images img',
-          '.product-media img'
-        ];
-        
-        selectors.forEach(function(selector) {
-          const elements = document.querySelectorAll(selector);
-          elements.forEach(function(img) {
-            if (img instanceof HTMLImageElement) {
-              const sources = [
-                img.src,
-                img.dataset.src,
-                img.dataset.lazySrc,
-                img.dataset.originalSrc,
-                img.currentSrc
-              ].filter(Boolean);
-              
-              sources.forEach(function(src) {
-                if (src && !seenUrls.has(src)) {
-                  // Basic validation: must be a valid image URL
-                  if (src.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?|$)/i)) {
-                    // Ensure absolute URL
-                    const absUrl = ensureAbsoluteUrl(src);
-                    if (absUrl) {
-                      images.push(absUrl);
-                      seenUrls.add(absUrl);
-                      seenUrls.add(src); // Also mark original as seen
-                    }
-                  }
-                }
-              });
-            }
-          });
-        });
-        
-        if (images.length > 0) {
-          log('Extracted images from DOM', images.length);
-        }
-      } catch (e) {
-        log('Error extracting from DOM', e);
-      }
-      
-      return images;
-    }
-    
-    // Extract all images from the page that are NOT main product images
-    // This finds any images on the page and filters out the main product images
-    function getRecommendedProductsImages(mainProductImages) {
-      const allImages = [];
-      const seenUrls = new Set();
-      const seenNormalizedUrls = new Set(); // Track normalized URLs (without query params) for better deduplication
-      const mainProductImageSet = new Set();
-      const mainProductImageBasePaths = new Set(); // Track base image paths for better matching
-      
-      // Helper to extract base image path (filename without query params or CDN variations)
-      function getBaseImagePath(url) {
-        try {
-          const urlObj = new URL(url, window.location.origin);
-          urlObj.search = '';
-          urlObj.hash = '';
-          const path = urlObj.pathname;
-          
-          // Extract just the filename or last part of path
-          const pathParts = path.split('/');
-          const filename = pathParts[pathParts.length - 1];
-          
-          // Also get a shorter path (last 2 parts) for better matching
-          if (pathParts.length >= 2) {
-            const shortPath = pathParts.slice(-2).join('/');
-            return shortPath.toLowerCase();
-          }
-          
-          return filename.toLowerCase();
-        } catch (e) {
-          return null;
-        }
-      }
-      
-      // Helper to normalize URL for comparison (remove query params)
-      function normalizeUrlForComparison(url) {
-        try {
-          const urlObj = new URL(url, window.location.origin);
-          urlObj.search = ''; // Remove query params
-          urlObj.hash = ''; // Remove hash
-          return urlObj.href.toLowerCase();
-        } catch (e) {
-          return null;
-        }
-      }
-      
-      // Normalize main product images for comparison - add all variations
-      if (mainProductImages && Array.isArray(mainProductImages)) {
-        mainProductImages.forEach(function(img) {
-          try {
-            const normalized = ensureAbsoluteUrl(img);
-            if (normalized) {
-              // Add the normalized URL
-              mainProductImageSet.add(normalized.toLowerCase());
-              
-              // Add normalized URL (without query params)
-              const normalizedForComparison = normalizeUrlForComparison(normalized);
-              if (normalizedForComparison) {
-                mainProductImageSet.add(normalizedForComparison);
-              }
-              
-              // Add base image path
-              const basePath = getBaseImagePath(normalized);
-              if (basePath) {
-                mainProductImageBasePaths.add(basePath);
-              }
-              
-              // Also add the original URL if different
-              try {
-                const originalNormalized = normalizeUrlForComparison(img);
-                if (originalNormalized && originalNormalized !== normalizedForComparison) {
-                  mainProductImageSet.add(originalNormalized);
-                }
-              } catch (e) {}
-            } else {
-              // Even if ensureAbsoluteUrl fails, try to normalize the original
-              try {
-                const normalizedForComparison = normalizeUrlForComparison(img);
-                if (normalizedForComparison) {
-                  mainProductImageSet.add(normalizedForComparison);
-                }
-                const basePath = getBaseImagePath(img);
-                if (basePath) {
-                  mainProductImageBasePaths.add(basePath);
-                }
-              } catch (e) {}
-            }
-          } catch (e) {
-            // Try to normalize the original URL anyway
-            try {
-              const normalizedForComparison = normalizeUrlForComparison(img);
-              if (normalizedForComparison) {
-                mainProductImageSet.add(normalizedForComparison);
-              }
-              const basePath = getBaseImagePath(img);
-              if (basePath) {
-                mainProductImageBasePaths.add(basePath);
-              }
-            } catch (e) {}
-          }
-        });
-      }
-      
-      // Helper to add image if valid and not duplicate
-      function addImage(url) {
-        if (!url) return;
-        
-        try {
-          const cleanUrl = ensureAbsoluteUrl(url);
-          const urlToCheck = cleanUrl || url;
-          
-          // Normalize URL for comparison (without query params)
-          const normalizedForComparison = normalizeUrlForComparison(urlToCheck);
-          if (!normalizedForComparison) return;
-          
-          // Check if we've already seen this normalized URL (deduplication)
-          if (seenNormalizedUrls.has(normalizedForComparison)) {
-            return; // Already added this image (duplicate)
-          }
-          
-          // Also check the full URL
-          if (seenUrls.has(urlToCheck.toLowerCase())) {
-            return;
-          }
-          
-          // Check if this is a main product image - check multiple variations
-          let isMainProductImage = false;
-          
-          // Check full URL (both cleaned and original)
-          if (mainProductImageSet.has(urlToCheck.toLowerCase()) || 
-              mainProductImageSet.has(normalizedForComparison) ||
-              mainProductImageSet.has(url.toLowerCase())) {
-            isMainProductImage = true;
-          }
-          
-          // Check base image path (filename)
-          if (!isMainProductImage) {
-            const basePath = getBaseImagePath(urlToCheck);
-            if (basePath && mainProductImageBasePaths.has(basePath)) {
-              isMainProductImage = true;
-            }
-          }
-          
-          // Double-check by comparing with all main product images using base path
-          if (!isMainProductImage && mainProductImages && mainProductImages.length > 0) {
-            const currentBasePath = getBaseImagePath(urlToCheck);
-            if (currentBasePath) {
-              for (var i = 0; i < mainProductImages.length; i++) {
-                const mainImg = mainProductImages[i];
-                const mainBasePath = getBaseImagePath(mainImg);
-                if (mainBasePath && mainBasePath === currentBasePath) {
-                  isMainProductImage = true;
-                  break;
-                }
-              }
-            }
-          }
-          
-          // Skip if it's a main product image
-          if (isMainProductImage) {
-            return;
-          }
-          
-          // Basic validation: must be a valid image URL
-          if (urlToCheck.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?|$)/i)) {
-            // Exclude common non-product images
-            const lowerUrl = urlToCheck.toLowerCase();
-            const excludePatterns = [
-              'logo', 'icon', 'badge', 'payment', 'trust', 'review', 'star',
-              'avatar', 'user', 'profile', 'social', 'facebook', 'twitter',
-              'instagram', 'pinterest', 'google', 'analytics', 'tracking',
-              'pixel', 'spacer', 'blank', 'placeholder', '1x1', 'pixel.gif',
-              'transparent', '.svg'
-            ];
-            
-            const shouldExclude = excludePatterns.some(function(pattern) {
-              return lowerUrl.includes(pattern);
-            });
-            if (shouldExclude) return;
-            
-            allImages.push(urlToCheck);
-            seenUrls.add(urlToCheck.toLowerCase());
-            seenUrls.add(url.toLowerCase());
-            seenNormalizedUrls.add(normalizedForComparison);
-          }
-        } catch (e) {
-          // Skip invalid URLs
-        }
-      }
-      
-      try {
-        // Extract ALL images from the page
-        const allImgElements = document.querySelectorAll('img');
-        allImgElements.forEach(function(img) {
-          if (img instanceof HTMLImageElement) {
-            const sources = [
-              img.src,
-              img.dataset.src,
-              img.dataset.lazySrc,
-              img.dataset.originalSrc,
-              img.dataset.productImage,
-              img.currentSrc,
-              img.getAttribute('data-original'),
-              img.getAttribute('data-lazy')
-            ].filter(Boolean);
-            
-            // Extract from srcset
-            if (img.srcset) {
-              const srcsetEntries = img.srcset.split(',');
-              srcsetEntries.forEach(function(entry) {
-                const parts = entry.trim().split(/\s+/);
-                if (parts[0]) {
-                  sources.push(parts[0]);
-                }
-              });
-            }
-            
-            sources.forEach(function(src) {
-              addImage(src);
-            });
-          }
-        });
-        
-        // Also check background images
-        const bgImageElements = document.querySelectorAll('[style*="background-image"]');
-        bgImageElements.forEach(function(el) {
-          const style = window.getComputedStyle(el);
-          const bgImage = style.backgroundImage;
-          if (bgImage && bgImage !== 'none') {
-            const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
-            if (urlMatch && urlMatch[1]) {
-              addImage(urlMatch[1]);
-            }
-          }
-        });
-        
-      } catch (e) {
-        // Error extracting recommended products images
-      }
-      
-      return allImages;
-    }
-    
-    // Get product images with priority order
-    // This function runs on the Shopify product page (parent window) to extract images
-    // and send them to the widget iframe
-    function getProductImages() {
-      let images = [];
-      
-      // Priority 1: Use NUSENSE_PRODUCT_DATA (most reliable - from Liquid)
-      // This is populated by the Liquid template with product.media/product.images
-      // Now supports both string arrays (backward compatible) and object arrays (new format with IDs)
-      {% if product %}
-      if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.images && Array.isArray(window.NUSENSE_PRODUCT_DATA.images)) {
-        // Filter valid images (strings or objects with url property)
-        images = window.NUSENSE_PRODUCT_DATA.images.filter(function(img) {
-          if (typeof img === 'string') {
-            return img && img.trim().length > 0;
-          } else if (img && typeof img === 'object' && img.url) {
-            return img.url && typeof img.url === 'string' && img.url.trim().length > 0;
-          }
-          return false;
-        });
-        if (images.length > 0) {
-          return images;
-        }
-      }
-      {% endif %}
-      
-      // Priority 2: Extract from Shopify product JSON (from theme's script tags)
-      images = extractFromShopifyJSON();
-      if (images.length > 0) {
-        return images;
-      }
-      
-      // Priority 3: Extract from DOM (fallback - less reliable)
-      images = extractFromDOM();
-      if (images.length > 0) {
-        return images;
-      }
-      return [];
-    }
-    
-    // Handle widget action buttons (buy now, add to cart, etc.)
-    function handleWidgetAction(actionType, event) {
-      
-      {% if product %}
-      // Get product form and variant selector
-      const productForm = document.querySelector('form[action*="/cart/add"]');
-      const variantSelector = document.querySelector('[name="id"]') || document.querySelector('input[name="id"]') || document.querySelector('select[name="id"]');
-      
-      // Get the selected variant ID
-      let variantId = null;
-      if (variantSelector) {
-        variantId = variantSelector.value;
-      } else if (window.Shopify && window.Shopify.product) {
-        // Fallback: get first available variant
-        const variants = window.Shopify.product.variants || [];
-        const availableVariant = variants.find(function(v) { return v.available; });
-        if (availableVariant) {
-          variantId = availableVariant.id;
-        } else if (variants.length > 0) {
-          variantId = variants[0].id;
-        }
-      }
-      
-      // If no variant ID found, try to get from form
-      if (!variantId && productForm) {
-        const formVariantId = new FormData(productForm).get('id');
-        if (formVariantId) {
-          variantId = formVariantId;
-        }
-      }
-      
-      // If still no variant ID, use the first variant from NUSENSE_PRODUCT_DATA
-      if (!variantId && window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.variants && window.NUSENSE_PRODUCT_DATA.variants.length > 0) {
-        const availableVariant = window.NUSENSE_PRODUCT_DATA.variants.find(function(v) { return v.available !== false; });
-        if (availableVariant) {
-          variantId = availableVariant.id;
-        } else {
-          variantId = window.NUSENSE_PRODUCT_DATA.variants[0].id;
-        }
-      }
-      
-      if (!variantId) {
-        // No variant ID found
-        // Send error message back to iframe
-        if (event.source && event.source !== window) {
-          event.source.postMessage({
-            type: 'NUSENSE_ACTION_ERROR',
-            action: actionType,
-            error: 'No variant selected. Please select a product variant.'
-          }, '*');
-        }
-        return;
-      }
-      
-      // Use locale-aware URL for cart API
-      const cartAddUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) 
-        ? window.Shopify.routes.root + 'cart/add.js'
-        : '/cart/add.js';
-      
-      // Prepare cart data
-      const quantity = productForm ? (new FormData(productForm).get('quantity') || 1) : 1;
-      const cartData = {
-        items: [{
-          id: parseInt(variantId, 10),
-          quantity: parseInt(quantity, 10) || 1
-        }]
-      };
-      
-      // Add properties if they exist in the form
-      if (productForm) {
-        const formData = new FormData(productForm);
-        const properties = {};
-        for (const [key, value] of formData.entries()) {
-          if (key.startsWith('properties[') && key.endsWith(']')) {
-            const propKey = key.match(/properties\[(.*?)\]/)[1];
-            properties[propKey] = value;
-          }
-        }
-        if (Object.keys(properties).length > 0) {
-          cartData.items[0].properties = properties;
-        }
-      }
-      
-      switch (actionType) {
-        case 'NUSENSE_BUY_NOW':
-          // Trigger buy now (add to cart and redirect to checkout)
-          
-          fetch(cartAddUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(cartData)
-          })
-          .then(function(response) {
-            return response.json().then(function(data) {
-              if (response.ok) {
-                // Redirect to checkout
-                const checkoutUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
-                  ? window.Shopify.routes.root + 'checkout'
-                  : '/checkout';
-                window.location.href = checkoutUrl;
-              } else {
-                // Handle error response
-                const errorMessage = data.description || data.message || 'Failed to add product to cart';
-                
-                // Send error back to iframe
-                if (event.source && event.source !== window) {
-                  event.source.postMessage({
-                    type: 'NUSENSE_ACTION_ERROR',
-                    action: actionType,
-                    error: errorMessage
-                  }, '*');
-                }
-                
-                // Fallback: redirect to cart page
-                const cartUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
-                  ? window.Shopify.routes.root + 'cart'
-                  : '/cart';
-                window.location.href = cartUrl;
-              }
-            });
-          })
-          .catch(function(error) {
-            // Error in buy now
-            
-            // Send error back to iframe
-            if (event.source && event.source !== window) {
-              event.source.postMessage({
-                type: 'NUSENSE_ACTION_ERROR',
-                action: actionType,
-                error: 'Network error. Please try again.'
-              }, '*');
-            }
-            
-            // Fallback: redirect to cart
-            const cartUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
-              ? window.Shopify.routes.root + 'cart'
-              : '/cart';
-            window.location.href = cartUrl;
-          });
-          break;
-          
-        case 'NUSENSE_ADD_TO_CART':
-          // Add product to cart
-          
-          fetch(cartAddUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(cartData)
-          })
-          .then(function(response) {
-            return response.json().then(function(data) {
-              if (response.ok) {
-                
-                // Trigger cart drawer/notification events for theme compatibility
-                if (typeof window.dispatchEvent !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('cart:updated'));
-                  window.dispatchEvent(new CustomEvent('cart:add', { detail: data }));
-                }
-                
-                // Refresh cart count if cart drawer exists
-                if (typeof window.theme !== 'undefined' && typeof window.theme.cart !== 'undefined') {
-                  if (typeof window.theme.cart.getCart === 'function') {
-                    window.theme.cart.getCart();
-                  }
-                }
-                
-                // Send success message back to iframe
-                if (event.source && event.source !== window) {
-                  event.source.postMessage({
-                    type: 'NUSENSE_ACTION_SUCCESS',
-                    action: actionType,
-                    cart: data
-                  }, '*');
-                }
-              } else {
-                // Handle error response
-                const errorMessage = data.description || data.message || 'Failed to add product to cart';
-                
-                // Send error back to iframe
-                if (event.source && event.source !== window) {
-                  event.source.postMessage({
-                    type: 'NUSENSE_ACTION_ERROR',
-                    action: actionType,
-                    error: errorMessage
-                  }, '*');
-                }
-              }
-            });
-          })
-          .catch(function(error) {
-            // Error adding to cart
-            
-            // Send error back to iframe
-            if (event.source && event.source !== window) {
-              event.source.postMessage({
-                type: 'NUSENSE_ACTION_ERROR',
-                action: actionType,
-                error: 'Network error. Please try again.'
-              }, '*');
-            }
-          });
-          break;
-          
-        case 'NUSENSE_TRY_IN_STORE':
-          // Try in store - could redirect to store locator or show message
-          // This would need to be customized based on the store's setup
-          // Send message back to iframe instead of blocking alert
-          if (event.source && event.source !== window) {
-            event.source.postMessage({
-              type: 'NUSENSE_ACTION_INFO',
-              action: actionType,
-              message: 'Try in store functionality - to be configured for your store'
-            }, '*');
-          }
-          break;
-          
-        default:
-          // Unknown action type
-      }
-      {% else %}
-      // Not on a product page - cannot handle action
-      {% endif %}
-    }
-    
-    // Handle incoming messages from iframe
-    // This is a global handler for image requests and widget actions
-    // Button-specific handlers (like close widget) are handled separately in button.js
-    function handleMessage(event) {
-      // Ignore messages from stock alert apps or other unrelated sources
-      // Only process NUSENSE-specific messages to avoid interfering with other apps
-      if (!event.data || !event.data.type || !event.data.type.startsWith('NUSENSE_')) {
-        return; // Let other message handlers process this
-      }
-      
-      // Wrap all handlers in try-catch to prevent errors from breaking other apps
-      try {
-        // Handle store info requests (fallback for button handler)
-        // Button handler takes precedence, but this provides backup
-        if (event.data && event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
-          // Only handle if button handler didn't already handle it
-          // Check if this is from a widget iframe (not button modal)
-          if (event.source && event.source !== window) {
-            const storeInfo = {
-              type: 'NUSENSE_STORE_INFO',
-              domain: window.location.hostname,
-              shopDomain: '{{ shop.permanent_domain }}',
-              origin: window.location.origin,
-              fullUrl: window.location.href
-            };
-            event.source.postMessage(storeInfo, '*');
-          }
-          return;
-        }
-        
-        // Handle image requests (only handled here, not in button handler)
-        if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
-          handleImageRequest(event);
-          return;
-        }
-        
-        // Handle action button clicks from widget (only handled here)
-        if (event.data && event.data.type && (
-          event.data.type === 'NUSENSE_BUY_NOW' ||
-          event.data.type === 'NUSENSE_ADD_TO_CART' ||
-          event.data.type === 'NUSENSE_TRY_IN_STORE'
-        )) {
-          handleWidgetAction(event.data.type, event);
-          return;
-        }
-      } catch (error) {
-        // Silently handle errors to prevent breaking other apps
-        // Log error in debug mode only
-        if (CONFIG && CONFIG.debug) {
-          console.error('NUSENSE: Error in message handler:', error);
-        }
-      }
-    }
-    
-    // Handle image request from iframe
-    function handleImageRequest(event) {
-      
-      // Optional: Validate origin (security)
-      // Uncomment and configure for production
-      /*
-      if (!isValidOrigin(event.origin)) {
-        return;
-      }
-      */
-      
-      // Get main product images
-      const images = getProductImages();
-      
-      // Get all other images from the page that are NOT main product images
-      const recommendedImages = getRecommendedProductsImages(images);
-      
-      // Send images back to iframe - ALWAYS send a response, even if empty
-      if (event.source && event.source !== window) {
-        try {
-          event.source.postMessage({
-            type: 'NUSENSE_PRODUCT_IMAGES',
-            images: images,
-            recommendedImages: recommendedImages
-          }, '*'); // Use '*' for development, restrict in production
-        } catch (e) {
-          // Error sending images to iframe
-        }
-      }
-    }
-    
-    // Initialize message listener ONLY if not already initialized
-    // This prevents multiple listeners from interfering with other apps
-    if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
-      window.addEventListener('message', handleMessage);
-      window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
-    }
-    
-    // Also listen for widget script load completion
-    // This ensures the listener is ready before widget requests images
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() {
-        // DOM ready - listener active
-      });
-    } else {
-      // DOM already ready - listener active
-    }
-  })();
-</script>
+<script>(function() {
+'use strict';
+if (window.NUSENSE_IMAGE_LISTENER_INITIALIZED) {
+return;
+}
+window.NUSENSE_IMAGE_LISTENER_INITIALIZED = true;
+const CONFIG = {
+debug: {{ debug_mode | default: false }},
+allowedOrigins: ['*'],
+widgetUrl: '{{ widget_url | default: "https://try-this-look.vercel.app" }}'
+};
+function log(message, data) {
+}
+function isValidOrigin(origin) {
+if (CONFIG.allowedOrigins.includes('*')) {
+return true;
+}
+try {
+const widgetUrlObj = new URL(CONFIG.widgetUrl);
+return origin === widgetUrlObj.origin;
+} catch (e) {
+return false;
+}
+}
+function ensureAbsoluteUrl(url) {
+if (!url || typeof url !== 'string') return null;
+if (url.match(/^https?:\/\
+return url;
+}
+if (url.match(/^\/\
+return 'https:' + url;
+}
+try {
+return new URL(url, window.location.origin).href;
+} catch (e) {
+return url;
+}
+}
+function extractFromShopifyJSON() {
+const images = [];
+try {
+const scripts = document.querySelectorAll('script[type="application/json"]');
+for (const script of scripts) {
+try {
+const data = JSON.parse(script.textContent || '{}');
+if (data.product && data.product.media) {
+const media = data.product.media;
+if (Array.isArray(media)) {
+media.forEach(function(item) {
+if (item.media_type === 'image' || !item.media_type) {
+let imgUrl = null;
+if (item.preview && item.preview.image && item.preview.image.src) {
+imgUrl = item.preview.image.src;
+} else if (item.src) {
+imgUrl = item.src;
+} else if (item.url) {
+imgUrl = item.url;
+}
+if (imgUrl) {
+imgUrl = ensureAbsoluteUrl(imgUrl);
+if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
+}
+} else if (item.preview_image && item.preview_image.src) {
+const imgUrl = ensureAbsoluteUrl(item.preview_image.src);
+if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
+}
+});
+if (images.length > 0) {
+log('Extracted images from Shopify media array', images.length);
+return images;
+}
+}
+}
+if (data.product && data.product.images) {
+const productImages = data.product.images;
+if (Array.isArray(productImages)) {
+productImages.forEach(function(img) {
+let imgUrl = null;
+if (typeof img === 'string') {
+imgUrl = img;
+} else if (img.src) {
+imgUrl = img.src;
+} else if (img.url) {
+imgUrl = img.url;
+} else if (img.originalSrc) {
+imgUrl = img.originalSrc;
+}
+if (imgUrl) {
+imgUrl = ensureAbsoluteUrl(imgUrl);
+if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
+}
+});
+if (images.length > 0) {
+log('Extracted images from Shopify JSON images array', images.length);
+return images;
+}
+}
+}
+} catch (e) {
+}
+}
+if (typeof window.Shopify !== 'undefined' && window.Shopify.product) {
+if (window.Shopify.product.media) {
+window.Shopify.product.media.forEach(function(item) {
+if (item.media_type === 'image' || !item.media_type) {
+let imgUrl = null;
+if (item.src) imgUrl = item.src;
+else if (item.url) imgUrl = item.url;
+else if (item.preview_image && item.preview_image.src) imgUrl = item.preview_image.src;
+if (imgUrl) {
+imgUrl = ensureAbsoluteUrl(imgUrl);
+if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
+}
+}
+});
+}
+if (images.length === 0 && window.Shopify.product.images) {
+window.Shopify.product.images.forEach(function(img) {
+let imgUrl = null;
+if (typeof img === 'string') {
+imgUrl = img;
+} else if (img.src) {
+imgUrl = img.src;
+}
+if (imgUrl) {
+imgUrl = ensureAbsoluteUrl(imgUrl);
+if (imgUrl && images.indexOf(imgUrl) === -1) images.push(imgUrl);
+}
+});
+}
+if (images.length > 0) {
+log('Extracted images from window.Shopify.product', images.length);
+return images;
+}
+}
+} catch (e) {
+log('Error extracting from Shopify JSON', e);
+}
+return images;
+}
+function extractFromDOM() {
+const images = [];
+const seenUrls = new Set();
+try {
+const selectors = [
+'.product__media img',
+'.product-image img',
+'.product-gallery img',
+'.product-photos img',
+'.product__media-wrapper img',
+'.product-single__media img',
+'[data-product-image] img',
+'[data-product-single-media-group] img',
+'.product-images img',
+'.product-media img'
+];
+selectors.forEach(function(selector) {
+const elements = document.querySelectorAll(selector);
+elements.forEach(function(img) {
+if (img instanceof HTMLImageElement) {
+const sources = [
+img.src,
+img.dataset.src,
+img.dataset.lazySrc,
+img.dataset.originalSrc,
+img.currentSrc
+].filter(Boolean);
+sources.forEach(function(src) {
+if (src && !seenUrls.has(src)) {
+if (src.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?|$)/i)) {
+const absUrl = ensureAbsoluteUrl(src);
+if (absUrl) {
+images.push(absUrl);
+seenUrls.add(absUrl);
+seenUrls.add(src);
+}
+}
+}
+});
+}
+});
+});
+if (images.length > 0) {
+log('Extracted images from DOM', images.length);
+}
+} catch (e) {
+log('Error extracting from DOM', e);
+}
+return images;
+}
+function getRecommendedProductsImages(mainProductImages) {
+const allImages = [];
+const seenUrls = new Set();
+const seenNormalizedUrls = new Set();
+const mainProductImageSet = new Set();
+const mainProductImageBasePaths = new Set();
+function getBaseImagePath(url) {
+try {
+const urlObj = new URL(url, window.location.origin);
+urlObj.search = '';
+urlObj.hash = '';
+const path = urlObj.pathname;
+const pathParts = path.split('/');
+const filename = pathParts[pathParts.length - 1];
+if (pathParts.length >= 2) {
+const shortPath = pathParts.slice(-2).join('/');
+return shortPath.toLowerCase();
+}
+return filename.toLowerCase();
+} catch (e) {
+return null;
+}
+}
+function normalizeUrlForComparison(url) {
+try {
+const urlObj = new URL(url, window.location.origin);
+urlObj.search = '';
+urlObj.hash = '';
+return urlObj.href.toLowerCase();
+} catch (e) {
+return null;
+}
+}
+if (mainProductImages && Array.isArray(mainProductImages)) {
+mainProductImages.forEach(function(img) {
+try {
+const normalized = ensureAbsoluteUrl(img);
+if (normalized) {
+mainProductImageSet.add(normalized.toLowerCase());
+const normalizedForComparison = normalizeUrlForComparison(normalized);
+if (normalizedForComparison) {
+mainProductImageSet.add(normalizedForComparison);
+}
+const basePath = getBaseImagePath(normalized);
+if (basePath) {
+mainProductImageBasePaths.add(basePath);
+}
+try {
+const originalNormalized = normalizeUrlForComparison(img);
+if (originalNormalized && originalNormalized !== normalizedForComparison) {
+mainProductImageSet.add(originalNormalized);
+}
+} catch (e) {}
+} else {
+try {
+const normalizedForComparison = normalizeUrlForComparison(img);
+if (normalizedForComparison) {
+mainProductImageSet.add(normalizedForComparison);
+}
+const basePath = getBaseImagePath(img);
+if (basePath) {
+mainProductImageBasePaths.add(basePath);
+}
+} catch (e) {}
+}
+} catch (e) {
+try {
+const normalizedForComparison = normalizeUrlForComparison(img);
+if (normalizedForComparison) {
+mainProductImageSet.add(normalizedForComparison);
+}
+const basePath = getBaseImagePath(img);
+if (basePath) {
+mainProductImageBasePaths.add(basePath);
+}
+} catch (e) {}
+}
+});
+}
+function addImage(url) {
+if (!url) return;
+try {
+const cleanUrl = ensureAbsoluteUrl(url);
+const urlToCheck = cleanUrl || url;
+const normalizedForComparison = normalizeUrlForComparison(urlToCheck);
+if (!normalizedForComparison) return;
+if (seenNormalizedUrls.has(normalizedForComparison)) {
+return;
+}
+if (seenUrls.has(urlToCheck.toLowerCase())) {
+return;
+}
+let isMainProductImage = false;
+if (mainProductImageSet.has(urlToCheck.toLowerCase()) ||
+mainProductImageSet.has(normalizedForComparison) ||
+mainProductImageSet.has(url.toLowerCase())) {
+isMainProductImage = true;
+}
+if (!isMainProductImage) {
+const basePath = getBaseImagePath(urlToCheck);
+if (basePath && mainProductImageBasePaths.has(basePath)) {
+isMainProductImage = true;
+}
+}
+if (!isMainProductImage && mainProductImages && mainProductImages.length > 0) {
+const currentBasePath = getBaseImagePath(urlToCheck);
+if (currentBasePath) {
+for (var i = 0; i < mainProductImages.length; i++) {
+const mainImg = mainProductImages[i];
+const mainBasePath = getBaseImagePath(mainImg);
+if (mainBasePath && mainBasePath === currentBasePath) {
+isMainProductImage = true;
+break;
+}
+}
+}
+}
+if (isMainProductImage) {
+return;
+}
+if (urlToCheck.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?|$)/i)) {
+const lowerUrl = urlToCheck.toLowerCase();
+const excludePatterns = [
+'logo', 'icon', 'badge', 'payment', 'trust', 'review', 'star',
+'avatar', 'user', 'profile', 'social', 'facebook', 'twitter',
+'instagram', 'pinterest', 'google', 'analytics', 'tracking',
+'pixel', 'spacer', 'blank', 'placeholder', '1x1', 'pixel.gif',
+'transparent', '.svg'
+];
+const shouldExclude = excludePatterns.some(function(pattern) {
+return lowerUrl.includes(pattern);
+});
+if (shouldExclude) return;
+allImages.push(urlToCheck);
+seenUrls.add(urlToCheck.toLowerCase());
+seenUrls.add(url.toLowerCase());
+seenNormalizedUrls.add(normalizedForComparison);
+}
+} catch (e) {
+}
+}
+try {
+const allImgElements = document.querySelectorAll('img');
+allImgElements.forEach(function(img) {
+if (img instanceof HTMLImageElement) {
+const sources = [
+img.src,
+img.dataset.src,
+img.dataset.lazySrc,
+img.dataset.originalSrc,
+img.dataset.productImage,
+img.currentSrc,
+img.getAttribute('data-original'),
+img.getAttribute('data-lazy')
+].filter(Boolean);
+if (img.srcset) {
+const srcsetEntries = img.srcset.split(',');
+srcsetEntries.forEach(function(entry) {
+const parts = entry.trim().split(/\s+/);
+if (parts[0]) {
+sources.push(parts[0]);
+}
+});
+}
+sources.forEach(function(src) {
+addImage(src);
+});
+}
+});
+const bgImageElements = document.querySelectorAll('[style*="background-image"]');
+bgImageElements.forEach(function(el) {
+const style = window.getComputedStyle(el);
+const bgImage = style.backgroundImage;
+if (bgImage && bgImage !== 'none') {
+const urlMatch = bgImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+if (urlMatch && urlMatch[1]) {
+addImage(urlMatch[1]);
+}
+}
+});
+} catch (e) {
+}
+return allImages;
+}
+function getProductImages() {
+let images = [];
+{% if product %}
+if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.images && Array.isArray(window.NUSENSE_PRODUCT_DATA.images)) {
+images = window.NUSENSE_PRODUCT_DATA.images.filter(function(img) {
+if (typeof img === 'string') {
+return img && img.trim().length > 0;
+} else if (img && typeof img === 'object' && img.url) {
+return img.url && typeof img.url === 'string' && img.url.trim().length > 0;
+}
+return false;
+});
+if (images.length > 0) {
+return images;
+}
+}
+{% endif %}
+images = extractFromShopifyJSON();
+if (images.length > 0) {
+return images;
+}
+images = extractFromDOM();
+if (images.length > 0) {
+return images;
+}
+return [];
+}
+function handleWidgetAction(actionType, event) {
+{% if product %}
+const productForm = document.querySelector('form[action*="/cart/add"]');
+const variantSelector = document.querySelector('[name="id"]') || document.querySelector('input[name="id"]') || document.querySelector('select[name="id"]');
+let variantId = null;
+if (variantSelector) {
+variantId = variantSelector.value;
+} else if (window.Shopify && window.Shopify.product) {
+const variants = window.Shopify.product.variants || [];
+const availableVariant = variants.find(function(v) { return v.available; });
+if (availableVariant) {
+variantId = availableVariant.id;
+} else if (variants.length > 0) {
+variantId = variants[0].id;
+}
+}
+if (!variantId && productForm) {
+const formVariantId = new FormData(productForm).get('id');
+if (formVariantId) {
+variantId = formVariantId;
+}
+}
+if (!variantId && window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.variants && window.NUSENSE_PRODUCT_DATA.variants.length > 0) {
+const availableVariant = window.NUSENSE_PRODUCT_DATA.variants.find(function(v) { return v.available !== false; });
+if (availableVariant) {
+variantId = availableVariant.id;
+} else {
+variantId = window.NUSENSE_PRODUCT_DATA.variants[0].id;
+}
+}
+if (!variantId) {
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_ERROR',
+action: actionType,
+error: 'No variant selected. Please select a product variant.'
+}, '*');
+}
+return;
+}
+const cartAddUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
+? window.Shopify.routes.root + 'cart/add.js'
+: '/cart/add.js';
+const quantity = productForm ? (new FormData(productForm).get('quantity') || 1) : 1;
+const cartData = {
+items: [{
+id: parseInt(variantId, 10),
+quantity: parseInt(quantity, 10) || 1
+}]
+};
+if (productForm) {
+const formData = new FormData(productForm);
+const properties = {};
+for (const [key, value] of formData.entries()) {
+if (key.startsWith('properties[') && key.endsWith(']')) {
+const propKey = key.match(/properties\[(.*?)\]/)[1];
+properties[propKey] = value;
+}
+}
+if (Object.keys(properties).length > 0) {
+cartData.items[0].properties = properties;
+}
+}
+switch (actionType) {
+case 'NUSENSE_BUY_NOW':
+fetch(cartAddUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json'
+},
+body: JSON.stringify(cartData)
+})
+.then(function(response) {
+return response.json().then(function(data) {
+if (response.ok) {
+const checkoutUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
+? window.Shopify.routes.root + 'checkout'
+: '/checkout';
+window.location.href = checkoutUrl;
+} else {
+const errorMessage = data.description || data.message || 'Failed to add product to cart';
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_ERROR',
+action: actionType,
+error: errorMessage
+}, '*');
+}
+const cartUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
+? window.Shopify.routes.root + 'cart'
+: '/cart';
+window.location.href = cartUrl;
+}
+});
+})
+.catch(function(error) {
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_ERROR',
+action: actionType,
+error: 'Network error. Please try again.'
+}, '*');
+}
+const cartUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
+? window.Shopify.routes.root + 'cart'
+: '/cart';
+window.location.href = cartUrl;
+});
+break;
+case 'NUSENSE_ADD_TO_CART':
+fetch(cartAddUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json'
+},
+body: JSON.stringify(cartData)
+})
+.then(function(response) {
+return response.json().then(function(data) {
+if (response.ok) {
+if (typeof window.dispatchEvent !== 'undefined') {
+window.dispatchEvent(new CustomEvent('cart:updated'));
+window.dispatchEvent(new CustomEvent('cart:add', { detail: data }));
+}
+if (typeof window.theme !== 'undefined' && typeof window.theme.cart !== 'undefined') {
+if (typeof window.theme.cart.getCart === 'function') {
+window.theme.cart.getCart();
+}
+}
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_SUCCESS',
+action: actionType,
+cart: data
+}, '*');
+}
+} else {
+const errorMessage = data.description || data.message || 'Failed to add product to cart';
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_ERROR',
+action: actionType,
+error: errorMessage
+}, '*');
+}
+}
+});
+})
+.catch(function(error) {
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_ERROR',
+action: actionType,
+error: 'Network error. Please try again.'
+}, '*');
+}
+});
+break;
+case 'NUSENSE_TRY_IN_STORE':
+if (event.source && event.source !== window) {
+event.source.postMessage({
+type: 'NUSENSE_ACTION_INFO',
+action: actionType,
+message: 'Try in store functionality - to be configured for your store'
+}, '*');
+}
+break;
+default:
+}
+{% else %}
+{% endif %}
+}
+function handleMessage(event) {
+if (!event.data || !event.data.type || !event.data.type.startsWith('NUSENSE_')) {
+return;
+}
+try {
+if (event.data && event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
+if (event.source && event.source !== window) {
+const storeInfo = {
+type: 'NUSENSE_STORE_INFO',
+domain: window.location.hostname,
+shopDomain: '{{ shop.permanent_domain }}',
+origin: window.location.origin,
+fullUrl: window.location.href
+};
+event.source.postMessage(storeInfo, '*');
+}
+return;
+}
+if (event.data && event.data.type === 'NUSENSE_REQUEST_IMAGES') {
+handleImageRequest(event);
+return;
+}
+if (event.data && event.data.type && (
+event.data.type === 'NUSENSE_BUY_NOW' ||
+event.data.type === 'NUSENSE_ADD_TO_CART' ||
+event.data.type === 'NUSENSE_TRY_IN_STORE'
+)) {
+handleWidgetAction(event.data.type, event);
+return;
+}
+} catch (error) {
+if (CONFIG && CONFIG.debug) {
+console.error('NUSENSE: Error in message handler:', error);
+}
+}
+}
+function handleImageRequest(event) {
+const images = getProductImages();
+const recommendedImages = getRecommendedProductsImages(images);
+if (event.source && event.source !== window) {
+try {
+event.source.postMessage({
+type: 'NUSENSE_PRODUCT_IMAGES',
+images: images,
+recommendedImages: recommendedImages
+}, '*');
+} catch (e) {
+}
+}
+}
+if (!window.NUSENSE_MESSAGE_LISTENER_ACTIVE) {
+window.addEventListener('message', handleMessage);
+window.NUSENSE_MESSAGE_LISTENER_ACTIVE = true;
+}
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', function() {
+});
+} else {
+}
+})();</script>
 

@@ -1,279 +1,8 @@
-{% comment %}
-  NUSENSE TryON Button App Embed Block
-  This is an app embed block that displays the try-on button on product pages
-  Merchants can add this app embed to their theme layout via the theme customizer
-  The button will automatically appear on all product pages
-  All customization, styling, and positioning options are maintained exactly as the app block version
-{% endcomment %}
 
-{% comment %} Include the snippet that sets up image extraction and communication {% endcomment %}
+
 {% render 'nusense-tryon-script' %}
 
-{% comment %} Fallback styles for button - ensures primary styling is always visible {% endcomment %}
-<style>
-  .nusense-tryon-button {
-    /* Base button styles - ensures button is always visible and clickable */
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem !important;
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    text-align: center;
-    text-decoration: none;
-    cursor: pointer !important;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    min-height: 44px !important;
-    box-sizing: border-box;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
-    will-change: transform, box-shadow;
-  }
-  
-  /* Primary button fallback styling - applied by default */
-  .nusense-tryon-button.button--primary,
-  .nusense-tryon-button.btn-primary,
-  .nusense-tryon-button.btn--primary,
-  .nusense-tryon-button.button,
-  .nusense-tryon-button.btn {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-color: #000000 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.01em;
-  }
-  
-  .nusense-tryon-button.button--primary:hover,
-  .nusense-tryon-button.btn-primary:hover,
-  .nusense-tryon-button.btn--primary:hover,
-  .nusense-tryon-button.button:hover,
-  .nusense-tryon-button.btn:hover {
-    background-color: #1a1a1a !important;
-    border-color: #1a1a1a !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-    transform: translateY(-1px);
-    opacity: 1 !important;
-  }
-  
-  .nusense-tryon-button.button--primary:focus,
-  .nusense-tryon-button.btn-primary:focus,
-  .nusense-tryon-button.btn--primary:focus,
-  .nusense-tryon-button.button:focus,
-  .nusense-tryon-button.btn:focus {
-    outline: 2px solid #ffffff !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15) !important;
-  }
-  
-  .nusense-tryon-button.button--primary:active,
-  .nusense-tryon-button.btn-primary:active,
-  .nusense-tryon-button.btn--primary:active,
-  .nusense-tryon-button.button:active,
-  .nusense-tryon-button.btn:active {
-    background-color: #0d0d0d !important;
-    border-color: #0d0d0d !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
-    transform: translateY(0);
-  }
-  
-  /* If no theme classes detected at all, ensure perfect primary action button styling */
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]) {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-color: #000000 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.01em;
-    text-transform: none;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  /* Hover state - professional action button hover */
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):hover {
-    background-color: #1a1a1a !important;
-    border-color: #1a1a1a !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-    transform: translateY(-1px);
-    opacity: 1 !important;
-  }
-  
-  /* Focus state - accessibility and keyboard navigation */
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus {
-    outline: 2px solid #ffffff !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15) !important;
-  }
-  
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus:not(:focus-visible) {
-    outline: none !important;
-  }
-  
-  /* Active/pressed state - provides tactile feedback */
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):active {
-    background-color: #0d0d0d !important;
-    border-color: #0d0d0d !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
-    transform: translateY(0);
-  }
-  
-  /* Disabled state - when button is loading or disabled */
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[disabled],
-  .nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[aria-disabled="true"] {
-    background-color: #666666 !important;
-    border-color: #666666 !important;
-    color: #ffffff !important;
-    cursor: not-allowed !important;
-    opacity: 0.6 !important;
-    box-shadow: none !important;
-    transform: none !important;
-  }
-  
-  /* Secondary button fallback styling */
-  .nusense-tryon-button.button--secondary,
-  .nusense-tryon-button.btn-secondary,
-  .nusense-tryon-button.btn--secondary {
-    background-color: #f5f5f5 !important;
-    color: #000000 !important;
-    border: 1px solid #e0e0e0 !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-  }
-  
-  .nusense-tryon-button.button--secondary:hover,
-  .nusense-tryon-button.btn-secondary:hover,
-  .nusense-tryon-button.btn--secondary:hover {
-    background-color: #e8e8e8 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-  }
-  
-  /* Outline button fallback styling */
-  .nusense-tryon-button.button--outline,
-  .nusense-tryon-button.btn-outline,
-  .nusense-tryon-button.btn--outline {
-    background-color: transparent !important;
-    color: #000000 !important;
-    border: 2px solid #000000 !important;
-    box-shadow: none !important;
-  }
-  
-  .nusense-tryon-button.button--outline:hover,
-  .nusense-tryon-button.btn-outline:hover,
-  .nusense-tryon-button.btn--outline:hover {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-  }
-  
-  /* Minimal button fallback styling */
-  .nusense-tryon-button.button--tertiary,
-  .nusense-tryon-button.btn-link,
-  .nusense-tryon-button.btn--link {
-    background-color: transparent !important;
-    color: #000000 !important;
-    border: 1px solid transparent !important;
-    box-shadow: none !important;
-    text-decoration: none !important;
-  }
-  
-  .nusense-tryon-button.button--tertiary:hover,
-  .nusense-tryon-button.btn-link:hover,
-  .nusense-tryon-button.btn--link:hover {
-    background-color: rgba(0, 0, 0, 0.05) !important;
-    text-decoration: underline !important;
-  }
-  
-  /* Full width */
-  .nusense-tryon-button.button--full-width,
-  .nusense-tryon-button.btn-block,
-  .nusense-tryon-button.btn--full-width {
-    width: 100% !important;
-  }
-  
-  /* Ensure button text is visible */
-  .nusense-tryon-button .button__text {
-    color: inherit !important;
-  }
-  
-  /* Ensure button is always visible */
-  .nusense-tryon-button[style*="display: none"] {
-    display: inline-flex !important;
-  }
-  
-  /* Loading state */
-  .nusense-tryon-button[data-loading="true"] {
-    opacity: 0.7;
-    pointer-events: none;
-  }
-  
-  /* Widget overlay styles */
-  .nusense-widget-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .nusense-widget-container {
-    position: relative;
-    width: 95vw;
-    max-width: 1200px;
-    height: 90vh;
-  }
-  
-  .nusense-widget-close {
-    position: absolute;
-    top: -40px;
-    right: 0;
-    background: white;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 24px;
-    line-height: 1;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .nusense-widget-close:hover {
-    background: #f0f0f0;
-  }
-  
-  .nusense-widget-close:focus {
-    outline: 2px solid #007bff;
-    outline-offset: 2px;
-  }
-
-  /* Container for embed button - hidden by default, shown only on product pages */
-  .nusense-tryon-button-embed-container {
-    display: none;
-    position: static;
-    float: none;
-    width: 100%;
-    margin-bottom: 0.75rem;
-    z-index: auto;
-  }
-  
-  .nusense-tryon-button-embed-container.is-product-page {
-    display: block;
-  }
-</style>
+<style>.nusense-tryon-button{display:inline-flex !important;align-items:center !important;justify-content:center !important;gap:0.5rem;padding:0.75rem 1.5rem !important;font-size:1rem !important;font-weight:500 !important;text-align:center;text-decoration:none;cursor:pointer !important;border:1px solid transparent;border-radius:4px;transition:all 0.2s cubic-bezier(0.4,0,0.2,1) !important;min-height:44px !important;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;user-select:none;-webkit-user-select:none;touch-action:manipulation;will-change:transform,box-shadow;}.nusense-tryon-button.button--primary,.nusense-tryon-button.btn-primary,.nusense-tryon-button.btn--primary,.nusense-tryon-button.button,.nusense-tryon-button.btn{background-color:#000000 !important;color:#ffffff !important;border-color:#000000 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06) !important;font-weight:600 !important;letter-spacing:0.01em;}.nusense-tryon-button.button--primary:hover,.nusense-tryon-button.btn-primary:hover,.nusense-tryon-button.btn--primary:hover,.nusense-tryon-button.button:hover,.nusense-tryon-button.btn:hover{background-color:#1a1a1a !important;border-color:#1a1a1a !important;box-shadow:0 4px 6px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1) !important;transform:translateY(-1px);opacity:1 !important;}.nusense-tryon-button.button--primary:focus,.nusense-tryon-button.btn-primary:focus,.nusense-tryon-button.btn--primary:focus,.nusense-tryon-button.button:focus,.nusense-tryon-button.btn:focus{outline:2px solid #ffffff !important;outline-offset:2px !important;box-shadow:0 0 0 3px rgba(0,0,0,0.2),0 4px 6px rgba(0,0,0,0.15) !important;}.nusense-tryon-button.button--primary:active,.nusense-tryon-button.btn-primary:active,.nusense-tryon-button.btn--primary:active,.nusense-tryon-button.button:active,.nusense-tryon-button.btn:active{background-color:#0d0d0d !important;border-color:#0d0d0d !important;box-shadow:0 1px 2px rgba(0,0,0,0.2) !important;transform:translateY(0);}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]){background-color:#000000 !important;color:#ffffff !important;border-color:#000000 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06) !important;font-weight:600 !important;letter-spacing:0.01em;text-transform:none;position:relative;overflow:hidden;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):hover{background-color:#1a1a1a !important;border-color:#1a1a1a !important;box-shadow:0 4px 6px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1) !important;transform:translateY(-1px);opacity:1 !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus{outline:2px solid #ffffff !important;outline-offset:2px !important;box-shadow:0 0 0 3px rgba(0,0,0,0.2),0 4px 6px rgba(0,0,0,0.15) !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus:not(:focus-visible){outline:none !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):active{background-color:#0d0d0d !important;border-color:#0d0d0d !important;box-shadow:0 1px 2px rgba(0,0,0,0.2) !important;transform:translateY(0);}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[disabled],.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[aria-disabled="true"]{background-color:#666666 !important;border-color:#666666 !important;color:#ffffff !important;cursor:not-allowed !important;opacity:0.6 !important;box-shadow:none !important;transform:none !important;}.nusense-tryon-button.button--secondary,.nusense-tryon-button.btn-secondary,.nusense-tryon-button.btn--secondary{background-color:#f5f5f5 !important;color:#000000 !important;border:1px solid #e0e0e0 !important;box-shadow:0 1px 2px rgba(0,0,0,0.05) !important;}.nusense-tryon-button.button--secondary:hover,.nusense-tryon-button.btn-secondary:hover,.nusense-tryon-button.btn--secondary:hover{background-color:#e8e8e8 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1) !important;}.nusense-tryon-button.button--outline,.nusense-tryon-button.btn-outline,.nusense-tryon-button.btn--outline{background-color:transparent !important;color:#000000 !important;border:2px solid #000000 !important;box-shadow:none !important;}.nusense-tryon-button.button--outline:hover,.nusense-tryon-button.btn-outline:hover,.nusense-tryon-button.btn--outline:hover{background-color:#000000 !important;color:#ffffff !important;box-shadow:0 2px 4px rgba(0,0,0,0.1) !important;}.nusense-tryon-button.button--tertiary,.nusense-tryon-button.btn-link,.nusense-tryon-button.btn--link{background-color:transparent !important;color:#000000 !important;border:1px solid transparent !important;box-shadow:none !important;text-decoration:none !important;}.nusense-tryon-button.button--tertiary:hover,.nusense-tryon-button.btn-link:hover,.nusense-tryon-button.btn--link:hover{background-color:rgba(0,0,0,0.05) !important;text-decoration:underline !important;}.nusense-tryon-button.button--full-width,.nusense-tryon-button.btn-block,.nusense-tryon-button.btn--full-width{width:100% !important;}.nusense-tryon-button .button__text{color:inherit !important;}.nusense-tryon-button[style*="display:none"]{display:inline-flex !important;}.nusense-tryon-button[data-loading="true"]{opacity:0.7;pointer-events:none;}.nusense-widget-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;}.nusense-widget-container{position:relative;width:95vw;max-width:1200px;height:90vh;}.nusense-widget-close{position:absolute;top:-40px;right:0;background:white;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:24px;line-height:1;z-index:10000;display:flex;align-items:center;justify-content:center;}.nusense-widget-close:hover{background:#f0f0f0;}.nusense-widget-close:focus{outline:2px solid #007bff;outline-offset:2px;}.nusense-tryon-button-embed-container{display:none;position:static;float:none;width:100%;margin-bottom:0.75rem;z-index:auto;}.nusense-tryon-button-embed-container.is-product-page{display:block;}</style>
 
 {% schema %}
 {
@@ -472,10 +201,6 @@
 }
 {% endschema %}
 
-{% comment %}
-  Read all block settings with proper defaults
-  Checkboxes return true/false or nil, so we need to handle them properly
-{% endcomment %}
 {% assign button_text = block.settings.button_text | default: 'Try Now' %}
 {% assign button_style = block.settings.button_style | default: 'primary' %}
 {% assign button_icon = block.settings.button_icon | default: '✨' %}
@@ -492,9 +217,6 @@
 {% assign margin_right = block.settings.margin_right | default: 0 %}
 {% assign custom_css = block.settings.custom_css %}
 
-{% comment %}
-  Handle checkbox values - they can be true, false, or nil
-{% endcomment %}
 {% if block.settings.show_icon == true or block.settings.show_icon == 'true' %}
   {% assign show_icon = true %}
 {% else %}
@@ -507,13 +229,6 @@
   {% assign button_width_full = false %}
 {% endif %}
 
-{% comment %}
-  Build button classes based on style variant
-  Shopify themes use various naming conventions:
-  - Dawn/Debut: button, button--primary, button--secondary, button--outline
-  - Custom themes: btn, btn-primary, btn-secondary, etc.
-  We'll use JavaScript to detect and match the theme's button classes
-{% endcomment %}
 {% assign button_classes = 'button nusense-tryon-button' %}
 {% case button_style %}
   {% when 'secondary' %}
@@ -529,10 +244,6 @@
   {% assign button_classes = button_classes | append: ' button--full-width' %}
 {% endif %}
 
-{% comment %}
-  App Embed Block: Button container that will be dynamically positioned on product pages
-  The button will only be visible on product pages and will be inserted near the Add to Cart button
-{% endcomment %}
 <div 
   id="nusense-tryon-button-embed-{{ block.id }}" 
   class="nusense-tryon-button-embed-container"
@@ -590,518 +301,362 @@
   </button>
 </div>
 
-{% comment %} Load external JavaScript file for button functionality {% endcomment %}
 <script src="{{ 'nusense-tryon-button.js' | asset_url }}" defer></script>
 
-{% comment %}
-  App Embed Block Positioning Script
-  Repositions the EXISTING Try On button to appear immediately above the Add to Cart button.
-  Uses universal, theme-agnostic detection that works across all Shopify themes and languages.
-{% endcomment %}
-<script>
-(function() {
-  'use strict';
-  
-  const blockId = '{{ block.id }}';
-  const containerId = 'nusense-tryon-button-embed-' + blockId;
-  const buttonId = 'nusense-tryon-btn-' + blockId;
-  
-  // Track if positioning is in progress to prevent duplicate operations
-  let isPositioning = false;
-  let lastPositionedUrl = null;
-  
-  // Function to check if element is visible and valid
-  function isElementVisible(element) {
-    if (!element) return false;
-    
-    // Check if element has offsetParent (visible in layout)
-    if (element.offsetParent === null) {
-      // Element might be hidden, but check if it's just not in layout flow
-      const style = window.getComputedStyle(element);
-      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-        return false;
-      }
-    }
-    
-    // Check if element is disabled
-    if (element.disabled === true) {
-      return false;
-    }
-    
-    // Check if element is inside a hidden container (cart drawer, modal, popup)
-    let parent = element.parentElement;
-    while (parent && parent !== document.body) {
-      const parentStyle = window.getComputedStyle(parent);
-      const parentId = parent.id || '';
-      const parentClass = parent.className || '';
-      
-      // Skip if inside hidden containers
-      if (parentStyle.display === 'none' || 
-          parentStyle.visibility === 'hidden' ||
-          parentId.includes('drawer') ||
-          parentId.includes('modal') ||
-          parentId.includes('popup') ||
-          parentId.includes('quick-view') ||
-          parentClass.includes('drawer') ||
-          parentClass.includes('modal') ||
-          parentClass.includes('popup') ||
-          parentClass.includes('quick-view')) {
-        return false;
-      }
-      
-      parent = parent.parentElement;
-    }
-    
-    return true;
-  }
-  
-  // Function to check if element belongs to primary product purchase flow
-  function isPrimaryPurchaseElement(element) {
-    if (!element) return false;
-    
-    // Must be inside a product purchase form
-    const form = element.closest('form[action*="/cart/add"]');
-    if (!form) return false;
-    
-    // Check if form is the main product form (not a quick-add or variant selector)
-    const formId = form.id || '';
-    const formClass = form.className || '';
-    
-    // Exclude quick-add forms, variant selectors, or mini forms
-    if (formId.includes('quick') ||
-        formId.includes('mini') ||
-        formClass.includes('quick') ||
-        formClass.includes('mini') ||
-        formClass.includes('variant-selector')) {
-      return false;
-    }
-    
-    return true;
-  }
-  
-  // Tier 1: Primary detection - Shopify invariant form[action*="/cart/add"]
-  function findAddToCartTier1() {
-    const productForm = document.querySelector('form[action*="/cart/add"]');
-    if (!productForm) return null;
-    
-    // Find submit control within the form
-    const submitButton = productForm.querySelector('button[type="submit"]') ||
-                         productForm.querySelector('input[type="submit"]');
-    
-    if (submitButton && isElementVisible(submitButton) && isPrimaryPurchaseElement(submitButton)) {
-      return submitButton;
-    }
-    
-    return null;
-  }
-  
-  // Tier 2: Fallback detection for edge-case themes
-  function findAddToCartTier2() {
-    const selectors = [
-      'button[name="add"]',
-      'button[data-add-to-cart]',
-      'button[data-cart-submit]'
-    ];
-    
-    for (const selector of selectors) {
-      const elements = document.querySelectorAll(selector);
-      for (const element of elements) {
-        if (isElementVisible(element) && isPrimaryPurchaseElement(element)) {
-          return element;
-        }
-      }
-    }
-    
-    return null;
-  }
-  
-  // Main function to find Add to Cart button using tiered strategy
-  function findAddToCartButton() {
-    // Tier 1: Primary (Shopify invariant)
-    const tier1Result = findAddToCartTier1();
-    if (tier1Result) {
-      return tier1Result;
-    }
-    
-    // Tier 2: Fallback
-    const tier2Result = findAddToCartTier2();
-    if (tier2Result) {
-      return tier2Result;
-    }
-    
-    return null;
-  }
-  
-  // Function to get product ID from page
-  function getProductId() {
-    // Priority 1: From NUSENSE_PRODUCT_DATA (set by snippet)
-    if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
-      return window.NUSENSE_PRODUCT_DATA.id;
-    }
-    
-    // Priority 2: From window.Shopify.product
-    if (window.Shopify && window.Shopify.product && window.Shopify.product.id) {
-      return window.Shopify.product.id;
-    }
-    
-    // Priority 3: From JSON script tags (Shopify 2.0 themes)
-    try {
-      const jsonScripts = document.querySelectorAll('script[type="application/json"]');
-      for (let script of jsonScripts) {
-        try {
-          const data = JSON.parse(script.textContent);
-          if (data.product && data.product.id) {
-            return data.product.id;
-          }
-        } catch (e) {
-          // Continue to next script
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    
-    return null;
-  }
-  
-  // Function to check if we're on a product page
-  function isProductPage() {
-    const pathname = window.location.pathname || '';
-    const isProductPath = /\/products\//.test(pathname);
-    
-    // If URL indicates product page, show button (form might load later)
-    if (isProductPath) {
-      return true;
-    }
-    
-    // Fallback: Check for product form or product data
-    const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
-    const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
-                           !!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
-    
-    // Additional checks: product page indicators
-    const hasProductIndicators = !!(
-      document.querySelector('[data-product-id]') ||
-      document.querySelector('.product') ||
-      document.querySelector('.product-single') ||
-      document.querySelector('.product__info') ||
-      document.querySelector('[data-product]') ||
-      document.querySelector('script[type="application/ld+json"]')
-    );
-    
-    return hasProductForm || hasProductData || hasProductIndicators;
-  }
-  
-  // Main positioning function - repositions EXISTING button
-  function positionTryOnButton() {
-    // Prevent duplicate positioning operations
-    if (isPositioning) return;
-    
-    // Get the EXISTING button container (already in DOM from app embed)
-    const container = document.getElementById(containerId);
-    if (!container) {
-      // Container not found - might not be loaded yet, retry later
-      return;
-    }
-    
-    const currentUrl = window.location.href;
-    if (lastPositionedUrl === currentUrl && container.parentElement && container.parentElement !== document.body) {
-      // Already positioned for this URL, but verify it's still visible
-      if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
-        // Container was hidden, show it again
-        container.style.display = 'block';
-        container.style.visibility = 'visible';
-      }
-      return;
-    }
-    
-    isPositioning = true;
-    
-    try {
-      
-      // Check if we're on a product page
-      if (!isProductPage()) {
-        container.style.display = 'none';
-        isPositioning = false;
-        return;
-      }
-      
-      // Get product ID and update button
-      const productId = getProductId();
-      const button = document.getElementById(buttonId);
-      if (button && productId) {
-        button.setAttribute('data-product-id', productId);
-      }
-      
-      // Ensure container is visible first (show on product page even if Add to Cart not found yet)
-      container.style.display = 'block';
-      container.style.visibility = 'visible';
-      container.classList.add('is-product-page');
-      
-      // Remove inline display:none if it exists
-      if (container.getAttribute('style') && container.getAttribute('style').includes('display: none')) {
-        container.style.display = 'block';
-      }
-      
-      // Find Add to Cart button using tiered strategy
-      const addToCartButton = findAddToCartButton();
-      if (!addToCartButton) {
-        // Add to Cart button not found yet, but keep button visible
-        // The MutationObserver will keep trying to find and position it
-        // Place button in a reasonable location (near product form or product info)
-        const productForm = document.querySelector('form[action*="/cart/add"]');
-        if (productForm && container.parentElement !== productForm.parentElement) {
-          // Try to place near the form
-          const formParent = productForm.parentElement;
-          if (formParent && formParent !== document.body) {
-            formParent.insertBefore(container, productForm);
-          }
-        }
-        
-        // If still in body or couldn't place near form, try to find product info area
-        if (container.parentElement === document.body || !container.parentElement) {
-          const productInfo = document.querySelector('.product__info') ||
-                              document.querySelector('.product-single__meta') ||
-                              document.querySelector('.product-info') ||
-                              document.querySelector('[data-product-info]') ||
-                              document.querySelector('[data-product-form]') ||
-                              document.querySelector('main.product') ||
-                              document.querySelector('main');
-          if (productInfo && productInfo !== document.body) {
-            productInfo.appendChild(container);
-          } else {
-            // Last resort: find any main content area
-            const mainContent = document.querySelector('main') || 
-                               document.querySelector('#MainContent') ||
-                               document.querySelector('.main-content') ||
-                               document.querySelector('[role="main"]');
-            if (mainContent && mainContent !== document.body) {
-              mainContent.appendChild(container);
-            }
-          }
-        }
-        
-        // Ensure button is still visible
-        container.style.display = 'block';
-        container.style.visibility = 'visible';
-        isPositioning = false;
-        return;
-      }
-      
-      // Apply bottom margin to avoid visual crowding (normal document flow)
-      if (!container.style.marginBottom || container.style.marginBottom === '') {
-        container.style.marginBottom = '0.75rem';
-      }
-      
-      // Ensure container uses normal document flow (block-level, full width)
-      container.style.position = '';
-      container.style.float = '';
-      container.style.zIndex = '';
-      
-      // Check if button is already correctly positioned
-      const currentParent = container.parentElement;
-      const addToCartParent = addToCartButton.parentElement;
-      
-      // If already positioned correctly (immediately before Add to Cart), skip
-      if (currentParent === addToCartParent && 
-          container.nextSibling === addToCartButton) {
-        lastPositionedUrl = currentUrl;
-        isPositioning = false;
-        return;
-      }
-      
-      // Move the EXISTING button to be immediately before Add to Cart button
-      // Use insertBefore for normal document flow positioning
-      if (addToCartParent) {
-        addToCartParent.insertBefore(container, addToCartButton);
-        // Ensure button is visible after positioning
-        container.style.display = 'block';
-        container.style.visibility = 'visible';
-        lastPositionedUrl = currentUrl;
-      }
-      
-    } catch (e) {
-      // Error in positioning, hide button to prevent layout issues
-      const container = document.getElementById(containerId);
-      if (container) {
-        container.style.display = 'none';
-      }
-    } finally {
-      isPositioning = false;
-    }
-  }
-  
-  // Debounce function to prevent excessive repositioning
-  let positionTimeout = null;
-  function debouncedPosition() {
-    if (positionTimeout) {
-      clearTimeout(positionTimeout);
-    }
-    positionTimeout = setTimeout(function() {
-      positionTryOnButton();
-    }, 150);
-  }
-  
-  // Initialize positioning with multiple retry attempts
-  function initPositioning() {
-    // Try immediately if DOM is ready
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      positionTryOnButton();
-    }
-    
-    // Also try on DOMContentLoaded
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() {
-        positionTryOnButton();
-      });
-    }
-    
-    // Multiple retry attempts with increasing delays to catch late-loading content
-    const retryDelays = [100, 300, 500, 1000, 2000, 3000];
-    retryDelays.forEach(function(delay) {
-      setTimeout(function() {
-        positionTryOnButton();
-      }, delay);
-    });
-    
-    // MutationObserver for dynamic themes (variant changes, form updates)
-    const observer = new MutationObserver(function(mutations) {
-      let shouldReposition = false;
-      
-      for (const mutation of mutations) {
-        // Check if product form or Add to Cart button was added/modified
-        if (mutation.type === 'childList') {
-          for (const node of mutation.addedNodes) {
-            if (node.nodeType === 1) {
-              // Check if a form or button was added
-              if (node.tagName === 'FORM' && node.action && node.action.includes('/cart/add')) {
-                shouldReposition = true;
-                break;
-              }
-              if (node.tagName === 'BUTTON' || node.tagName === 'INPUT') {
-                const form = node.closest('form[action*="/cart/add"]');
-                if (form) {
-                  shouldReposition = true;
-                  break;
-                }
-              }
-              // Check if Add to Cart button exists in added subtree
-              if (node.querySelector && (
-                  node.querySelector('form[action*="/cart/add"]') ||
-                  node.querySelector('button[type="submit"]') ||
-                  node.querySelector('button[name="add"]')
-                )) {
-                shouldReposition = true;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Check if attributes changed on forms or buttons
-        if (mutation.type === 'attributes') {
-          const target = mutation.target;
-          if (target.tagName === 'FORM' || target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
-            const form = target.closest('form[action*="/cart/add"]');
-            if (form) {
-              shouldReposition = true;
-              break;
-            }
-          }
-        }
-      }
-      
-      if (shouldReposition) {
-        debouncedPosition();
-      }
-    });
-    
-    // Observe document body for changes
-    if (document.body) {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
-      });
-    } else {
-      // Wait for body to be available
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-          if (document.body) {
-            observer.observe(document.body, {
-              childList: true,
-              subtree: true,
-              attributes: true,
-              attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
-            });
-          }
-        });
-      }
-    }
-    
-    // Handle navigation changes (SPA themes, browser back/forward)
-    let lastUrl = window.location.href;
-    let urlCheckIntervalId = null;
-    let urlCheckCount = 0;
-    const INITIAL_CHECK_INTERVAL = 500; // Check every 500ms initially (first 10 seconds)
-    const STABLE_CHECK_INTERVAL = 3000; // Then check every 3 seconds
-    const MAX_CHECKS_BEFORE_STABLE = 20; // Switch to stable interval after 20 checks (~10 seconds)
-    
-    const checkUrlChange = function() {
-      if (window.location.href !== lastUrl) {
-        lastUrl = window.location.href;
-        lastPositionedUrl = null; // Reset to allow repositioning
-        urlCheckCount = 0; // Reset counter on URL change
-        
-        // Restart with initial frequency when URL changes
-        if (urlCheckIntervalId) {
-          clearInterval(urlCheckIntervalId);
-        }
-        startUrlChecking();
-        
-        setTimeout(positionTryOnButton, 300);
-      }
-    };
-    
-    window.addEventListener('popstate', checkUrlChange);
-    
-    // Optimized URL checking for SPA themes
-    // Checks more frequently initially, then reduces frequency after page is stable
-    function startUrlChecking() {
-      urlCheckCount = 0;
-      
-      function performCheck() {
-        checkUrlChange();
-        urlCheckCount++;
-        
-        // Switch to less frequent checking after initial period
-        if (urlCheckCount >= MAX_CHECKS_BEFORE_STABLE && urlCheckIntervalId) {
-          clearInterval(urlCheckIntervalId);
-          urlCheckIntervalId = setInterval(performCheck, STABLE_CHECK_INTERVAL);
-        }
-      }
-      
-      // Start with frequent checks
-      urlCheckIntervalId = setInterval(performCheck, INITIAL_CHECK_INTERVAL);
-    }
-    
-    // Start optimized URL checking
-    startUrlChecking();
-  }
-  
-  // Start positioning logic immediately
-  initPositioning();
-  
-  // Also run immediately (in case DOM is already ready)
-  if (document.body) {
-    positionTryOnButton();
-  }
-  
-  // Run on window load as well (for very slow-loading themes)
-  window.addEventListener('load', function() {
-    setTimeout(positionTryOnButton, 100);
-  });
-})();
-</script>
+<script>(function() {
+'use strict';
+const blockId = '{{ block.id }}';
+const containerId = 'nusense-tryon-button-embed-' + blockId;
+const buttonId = 'nusense-tryon-btn-' + blockId;
+let isPositioning = false;
+let lastPositionedUrl = null;
+function isElementVisible(element) {
+if (!element) return false;
+if (element.offsetParent === null) {
+const style = window.getComputedStyle(element);
+if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+return false;
+}
+}
+if (element.disabled === true) {
+return false;
+}
+let parent = element.parentElement;
+while (parent && parent !== document.body) {
+const parentStyle = window.getComputedStyle(parent);
+const parentId = parent.id || '';
+const parentClass = parent.className || '';
+if (parentStyle.display === 'none' ||
+parentStyle.visibility === 'hidden' ||
+parentId.includes('drawer') ||
+parentId.includes('modal') ||
+parentId.includes('popup') ||
+parentId.includes('quick-view') ||
+parentClass.includes('drawer') ||
+parentClass.includes('modal') ||
+parentClass.includes('popup') ||
+parentClass.includes('quick-view')) {
+return false;
+}
+parent = parent.parentElement;
+}
+return true;
+}
+function isPrimaryPurchaseElement(element) {
+if (!element) return false;
+const form = element.closest('form[action*="/cart/add"]');
+if (!form) return false;
+const formId = form.id || '';
+const formClass = form.className || '';
+if (formId.includes('quick') ||
+formId.includes('mini') ||
+formClass.includes('quick') ||
+formClass.includes('mini') ||
+formClass.includes('variant-selector')) {
+return false;
+}
+return true;
+}
+function findAddToCartTier1() {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+if (!productForm) return null;
+const submitButton = productForm.querySelector('button[type="submit"]') ||
+productForm.querySelector('input[type="submit"]');
+if (submitButton && isElementVisible(submitButton) && isPrimaryPurchaseElement(submitButton)) {
+return submitButton;
+}
+return null;
+}
+function findAddToCartTier2() {
+const selectors = [
+'button[name="add"]',
+'button[data-add-to-cart]',
+'button[data-cart-submit]'
+];
+for (const selector of selectors) {
+const elements = document.querySelectorAll(selector);
+for (const element of elements) {
+if (isElementVisible(element) && isPrimaryPurchaseElement(element)) {
+return element;
+}
+}
+}
+return null;
+}
+function findAddToCartButton() {
+const tier1Result = findAddToCartTier1();
+if (tier1Result) {
+return tier1Result;
+}
+const tier2Result = findAddToCartTier2();
+if (tier2Result) {
+return tier2Result;
+}
+return null;
+}
+function getProductId() {
+if (window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) {
+return window.NUSENSE_PRODUCT_DATA.id;
+}
+if (window.Shopify && window.Shopify.product && window.Shopify.product.id) {
+return window.Shopify.product.id;
+}
+try {
+const jsonScripts = document.querySelectorAll('script[type="application/json"]');
+for (let script of jsonScripts) {
+try {
+const data = JSON.parse(script.textContent);
+if (data.product && data.product.id) {
+return data.product.id;
+}
+} catch (e) {
+}
+}
+} catch (e) {
+}
+return null;
+}
+function isProductPage() {
+const pathname = window.location.pathname || '';
+const isProductPath = /\/products\
+if (isProductPath) {
+return true;
+}
+const hasProductForm = !!document.querySelector('form[action*="/cart/add"]');
+const hasProductData = !!(window.NUSENSE_PRODUCT_DATA && window.NUSENSE_PRODUCT_DATA.id) ||
+!!(window.Shopify && window.Shopify.product && window.Shopify.product.id);
+const hasProductIndicators = !!(
+document.querySelector('[data-product-id]') ||
+document.querySelector('.product') ||
+document.querySelector('.product-single') ||
+document.querySelector('.product__info') ||
+document.querySelector('[data-product]') ||
+document.querySelector('script[type="application/ld+json"]')
+);
+return hasProductForm || hasProductData || hasProductIndicators;
+}
+function positionTryOnButton() {
+if (isPositioning) return;
+const container = document.getElementById(containerId);
+if (!container) {
+return;
+}
+const currentUrl = window.location.href;
+if (lastPositionedUrl === currentUrl && container.parentElement && container.parentElement !== document.body) {
+if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
+container.style.display = 'block';
+container.style.visibility = 'visible';
+}
+return;
+}
+isPositioning = true;
+try {
+if (!isProductPage()) {
+container.style.display = 'none';
+isPositioning = false;
+return;
+}
+const productId = getProductId();
+const button = document.getElementById(buttonId);
+if (button && productId) {
+button.setAttribute('data-product-id', productId);
+}
+container.style.display = 'block';
+container.style.visibility = 'visible';
+container.classList.add('is-product-page');
+if (container.getAttribute('style') && container.getAttribute('style').includes('display: none')) {
+container.style.display = 'block';
+}
+const addToCartButton = findAddToCartButton();
+if (!addToCartButton) {
+const productForm = document.querySelector('form[action*="/cart/add"]');
+if (productForm && container.parentElement !== productForm.parentElement) {
+const formParent = productForm.parentElement;
+if (formParent && formParent !== document.body) {
+formParent.insertBefore(container, productForm);
+}
+}
+if (container.parentElement === document.body || !container.parentElement) {
+const productInfo = document.querySelector('.product__info') ||
+document.querySelector('.product-single__meta') ||
+document.querySelector('.product-info') ||
+document.querySelector('[data-product-info]') ||
+document.querySelector('[data-product-form]') ||
+document.querySelector('main.product') ||
+document.querySelector('main');
+if (productInfo && productInfo !== document.body) {
+productInfo.appendChild(container);
+} else {
+const mainContent = document.querySelector('main') ||
+document.querySelector('#MainContent') ||
+document.querySelector('.main-content') ||
+document.querySelector('[role="main"]');
+if (mainContent && mainContent !== document.body) {
+mainContent.appendChild(container);
+}
+}
+}
+container.style.display = 'block';
+container.style.visibility = 'visible';
+isPositioning = false;
+return;
+}
+if (!container.style.marginBottom || container.style.marginBottom === '') {
+container.style.marginBottom = '0.75rem';
+}
+container.style.position = '';
+container.style.float = '';
+container.style.zIndex = '';
+const currentParent = container.parentElement;
+const addToCartParent = addToCartButton.parentElement;
+if (currentParent === addToCartParent &&
+container.nextSibling === addToCartButton) {
+lastPositionedUrl = currentUrl;
+isPositioning = false;
+return;
+}
+if (addToCartParent) {
+addToCartParent.insertBefore(container, addToCartButton);
+container.style.display = 'block';
+container.style.visibility = 'visible';
+lastPositionedUrl = currentUrl;
+}
+} catch (e) {
+const container = document.getElementById(containerId);
+if (container) {
+container.style.display = 'none';
+}
+} finally {
+isPositioning = false;
+}
+}
+let positionTimeout = null;
+function debouncedPosition() {
+if (positionTimeout) {
+clearTimeout(positionTimeout);
+}
+positionTimeout = setTimeout(function() {
+positionTryOnButton();
+}, 150);
+}
+function initPositioning() {
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+positionTryOnButton();
+}
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', function() {
+positionTryOnButton();
+});
+}
+const retryDelays = [100, 300, 500, 1000, 2000, 3000];
+retryDelays.forEach(function(delay) {
+setTimeout(function() {
+positionTryOnButton();
+}, delay);
+});
+const observer = new MutationObserver(function(mutations) {
+let shouldReposition = false;
+for (const mutation of mutations) {
+if (mutation.type === 'childList') {
+for (const node of mutation.addedNodes) {
+if (node.nodeType === 1) {
+if (node.tagName === 'FORM' && node.action && node.action.includes('/cart/add')) {
+shouldReposition = true;
+break;
+}
+if (node.tagName === 'BUTTON' || node.tagName === 'INPUT') {
+const form = node.closest('form[action*="/cart/add"]');
+if (form) {
+shouldReposition = true;
+break;
+}
+}
+if (node.querySelector && (
+node.querySelector('form[action*="/cart/add"]') ||
+node.querySelector('button[type="submit"]') ||
+node.querySelector('button[name="add"]')
+)) {
+shouldReposition = true;
+break;
+}
+}
+}
+}
+if (mutation.type === 'attributes') {
+const target = mutation.target;
+if (target.tagName === 'FORM' || target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
+const form = target.closest('form[action*="/cart/add"]');
+if (form) {
+shouldReposition = true;
+break;
+}
+}
+}
+}
+if (shouldReposition) {
+debouncedPosition();
+}
+});
+if (document.body) {
+observer.observe(document.body, {
+childList: true,
+subtree: true,
+attributes: true,
+attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
+});
+} else {
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', function() {
+if (document.body) {
+observer.observe(document.body, {
+childList: true,
+subtree: true,
+attributes: true,
+attributeFilter: ['action', 'type', 'name', 'disabled', 'data-add-to-cart']
+});
+}
+});
+}
+}
+let lastUrl = window.location.href;
+let urlCheckIntervalId = null;
+let urlCheckCount = 0;
+const INITIAL_CHECK_INTERVAL = 500;
+const STABLE_CHECK_INTERVAL = 3000;
+const MAX_CHECKS_BEFORE_STABLE = 20;
+const checkUrlChange = function() {
+if (window.location.href !== lastUrl) {
+lastUrl = window.location.href;
+lastPositionedUrl = null;
+urlCheckCount = 0;
+if (urlCheckIntervalId) {
+clearInterval(urlCheckIntervalId);
+}
+startUrlChecking();
+setTimeout(positionTryOnButton, 300);
+}
+};
+window.addEventListener('popstate', checkUrlChange);
+function startUrlChecking() {
+urlCheckCount = 0;
+function performCheck() {
+checkUrlChange();
+urlCheckCount++;
+if (urlCheckCount >= MAX_CHECKS_BEFORE_STABLE && urlCheckIntervalId) {
+clearInterval(urlCheckIntervalId);
+urlCheckIntervalId = setInterval(performCheck, STABLE_CHECK_INTERVAL);
+}
+}
+urlCheckIntervalId = setInterval(performCheck, INITIAL_CHECK_INTERVAL);
+}
+startUrlChecking();
+}
+initPositioning();
+if (document.body) {
+positionTryOnButton();
+}
+window.addEventListener('load', function() {
+setTimeout(positionTryOnButton, 100);
+});
+})();</script>
 
