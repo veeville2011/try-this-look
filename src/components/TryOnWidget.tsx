@@ -2046,7 +2046,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Vertical Divider Between Left and Right Sections (Desktop only) */}
               <div
                 aria-hidden="true"
-                className="lg:bg-slate-400 lg:w-[1px] lg:h-[600px] hidden lg:block flex-shrink-0 mx-4"
+                className="md:bg-slate-400 md:w-[1px] lg:h-[600px] hidden md:block flex-shrink-0 mx-4"
                 style={{ minHeight: 600 }}
               />
 
