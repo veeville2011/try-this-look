@@ -71,7 +71,9 @@ interface TryOnWidgetProps {
 
 export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   type LayoutMode = "compact" | "wide";
-  const WIDE_LAYOUT_MIN_WIDTH_PX = 1024; // Tailwind "lg" default, but measured against widget container width
+  // Popover/container width breakpoint (popover is ~889px in your embed).
+  // Use a container-based threshold so the widget shows the "desktop/wide" layout inside the popover.
+  const WIDE_LAYOUT_MIN_WIDTH_PX = 880;
 
   // i18next translation hook
   const { t } = useTranslation();
