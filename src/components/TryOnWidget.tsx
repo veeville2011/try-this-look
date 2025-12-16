@@ -2018,11 +2018,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
-              <div className="flex flex-row items-start mb-6 gap-4">
+              <div className="flex flex-row items-start mb-6 gap-0">
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
-                  className="flex flex-col flex-1 min-h-[600px] max-w-sm pt-3"
+                  className="flex flex-col flex-1 min-h-[600px] max-w-sm pt-3 pr-6"
                 >
                   <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                     <div className="flex items-center mb-2 px-0 gap-2 w-full">
@@ -2055,17 +2055,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </div>
                 </section>
 
-                {/* Vertical Divider - Wide layout only */}
-                <div
-                  aria-hidden="true"
-                  className="bg-slate-400 w-[1px] h-[600px] flex-shrink-0 mx-4"
-                  style={{ minHeight: 600 }}
-                />
-
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex items-center justify-center w-full min-h-[600px] pt-3 max-w-sm"
+                  className="flex items-center justify-center w-full min-h-[600px] pt-3 max-w-sm border-l border-slate-200 pl-6"
                 >
                   <div className="flex items-center gap-4 w-full">
                     {selectedClothing && (
@@ -2130,8 +2123,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Default Layout: Upload on left, Clothing selection on right */
             <div
               className={cn(
-                "flex items-center justify-between mb-6 gap-4",
-                layoutMode === "wide" ? "flex-row" : "flex-col"
+                "flex justify-between mb-6",
+                layoutMode === "wide" ? "flex-row items-start gap-0" : "flex-col items-center gap-4"
               )}
             >
               {/* Left Panel: Upload / Preview */}
@@ -2142,7 +2135,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 aria-labelledby="upload-heading" 
                 className={cn(
                   "flex flex-col flex-1 min-h-[600px] w-full",
-                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                  layoutMode === "wide" ? "max-w-sm pt-3 pr-6" : ""
                 )}
               >
                 {!uploadedImage && (
@@ -2220,14 +2213,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Wide layout only */}
-              {layoutMode === "wide" && (
-                <div
-                  className="bg-slate-400 w-[1px] h-[600px] flex-shrink-0 mx-4"
-                  aria-hidden="true"
-                  style={{ minHeight: 600 }}
-                />
-              )}
-
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
@@ -2236,7 +2221,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 aria-labelledby="clothing-heading"
                 className={cn(
                   "flex flex-col items-start w-full min-h-[600px]",
-                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                  layoutMode === "wide" ? "max-w-sm pt-3 border-l border-slate-200 pl-6" : ""
                 )}
               >
                 {/* Mobile Back Button */}
