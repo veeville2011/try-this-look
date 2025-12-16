@@ -2119,7 +2119,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-center mb-6 gap-4 lg:gap-4">
+            <div className="flex flex-col lg:flex-row items-center justify-between mb-6 gap-4 lg:gap-4">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
@@ -2201,7 +2201,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-300 w-[1px] h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
+              <div className="bg-slate-300 w-px h-[600px] hidden lg:block flex-shrink-0 mx-4" aria-hidden="true"></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
