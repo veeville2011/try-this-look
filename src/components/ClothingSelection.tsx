@@ -144,16 +144,16 @@ export default function ClothingSelection({
     <div className="flex flex-col h-full min-h-0">
       {showFinalLayout ? (
         /* Final Layout - Show 2+2 grid when both photo and clothing are selected */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           <div className="space-y-4 pb-2">
             {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side with horizontal scroll fallback */}
             {validImages.length > 0 && (
-              <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-1 px-2 lg:px-2 pt-2">
-                <div className="flex flex-col lg:flex-row items-start self-stretch mb-3 lg:mb-3 gap-0 lg:gap-3 min-w-max mx-6 lg:mx-0">
+              <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-1 px-3 lg:px-3 pt-1">
+                <div className="flex flex-col lg:flex-row items-start self-stretch mb-3 lg:mb-3 gap-0 lg:gap-3 min-w-max">
                   {validImages.slice(0, 2).map((image, index) => (
                     <Card
                       key={index}
-                      className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 overflow-hidden ${index === 0 ? 'mb-2 lg:mb-0' : 'mb-4 lg:mb-0'} ${
+                      className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${index === 0 ? 'mb-2 lg:mb-0' : 'mb-4 lg:mb-0'} ${
                         selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
                       }`}
                       onClick={() => onSelect(image)}
@@ -196,15 +196,15 @@ export default function ClothingSelection({
             {/* Recommended Products Section */}
             {filteredRecommendedImages.length > 0 && (
               <>
-                <span className="text-slate-800 text-sm font-bold mb-3 lg:mr-56 block ml-8 lg:ml-0 whitespace-nowrap">
+                <span className="text-slate-800 text-sm font-bold mb-2 lg:mr-56 block ml-8 lg:ml-0 whitespace-nowrap">
                   {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                 </span>
-                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-2 lg:px-2 pt-2">
-                  <div className="flex items-start lg:mr-[91px] gap-3 mx-6 lg:mx-0 min-w-max">
+                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-3 lg:px-3 pt-1">
+                  <div className="flex items-start lg:mr-[91px] gap-3 min-w-max">
                     {filteredRecommendedImages.slice(0, 2).map((image, index) => (
                       <Card
                         key={`recommended-${index}`}
-                        className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 overflow-hidden ${
+                        className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${
                           selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
                         }`}
                         onClick={() => onSelect(image)}
@@ -250,16 +250,16 @@ export default function ClothingSelection({
         /* Original Layout - Horizontal scrollable when not both selected */
         <>
           {/* Always show images - removed !selectedImage condition */}
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-3 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           <div className="space-y-4 pb-2">
               {/* Main Product Images - Horizontal Scroll */}
               {validImages.length > 0 && (
-                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 pt-2 snap-x snap-mandatory">
+                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-3 pt-1 snap-x snap-mandatory">
                   <div className="flex items-start min-w-max gap-3">
                     {validImages.map((image, index) => (
                       <Card
                         key={index}
-                        className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 snap-start overflow-hidden ${
+                        className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 snap-start ${
                           selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
                         }`}
                         onClick={() => onSelect(image)}
@@ -305,7 +305,7 @@ export default function ClothingSelection({
                   <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
                     {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                   </span>
-                  <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 -mx-1 px-1 pt-2 snap-x snap-mandatory">
+                  <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-3 pt-1 snap-x snap-mandatory">
                     <div className="flex items-start min-w-max gap-3">
                       {filteredRecommendedImages.map((image, index) => (
                         <Card

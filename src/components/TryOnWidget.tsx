@@ -2013,7 +2013,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               {/* Desktop Layout: Side by side */}
               {/* Left Panel: Generated Image */}
-              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-[600px] max-w-sm">
+              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-[600px] max-w-sm lg:pt-3">
                 <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                   <div className="flex items-center mb-2 px-0 gap-2 w-full">
                     <h2 className="text-slate-800 text-xl font-semibold">
@@ -2043,10 +2043,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-200 w-px h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
+              <div className="bg-slate-300 w-[1px] h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
-              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full min-h-[600px] gap-4">
+              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full min-h-[600px] gap-4 lg:pt-3">
                 {isGenerating ? (
                   /* Loading state: Person and clothing images side by side, no headings */
                   <div className="flex items-center gap-4 w-full">
@@ -2125,7 +2125,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="upload-heading" 
-                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-sm ${mobileStep === "clothing" ? "hidden lg:!flex" : ""}`}
+                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-sm lg:pt-3 ${mobileStep === "clothing" ? "hidden lg:!flex" : ""}`}
               >
                 {!uploadedImage && (
                   <PhotoUpload
@@ -2201,14 +2201,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-200 w-px h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
+              <div className="bg-slate-300 w-[1px] h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 lg:pt-3 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
@@ -2223,7 +2223,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full">
                   {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
                 </h2>
-                <p className="text-slate-800 text-sm mb-3 w-full">
+                <p className="text-slate-800 text-sm mb-2 w-full">
                   {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
                 </p>
                 <div className="flex-1 flex flex-col min-h-0 w-full">
