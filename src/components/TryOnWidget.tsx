@@ -2119,7 +2119,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-start mb-6 gap-4 lg:gap-4">
+            <div className="flex flex-col lg:flex-row items-center mb-6 gap-4 lg:gap-4">
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
@@ -2245,7 +2245,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Action buttons - Inside clothing section, aligned to right, at bottom */}
                 {!isGenerating && !generatedImage && (
-                  <div className={`flex flex-col items-end w-full pt-4 ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}>
+                  <div className={`flex flex-col items-end w-full ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}>
                     <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
                       <Button
                         onClick={handleResetClick}
