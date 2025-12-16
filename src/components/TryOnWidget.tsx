@@ -2046,7 +2046,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Vertical Divider Between Left and Right Sections (Desktop only) */}
               <div
                 aria-hidden="true"
-                className="lg:bg-slate-300 lg:w-px lg:h-[600px] "
+                className="lg:bg-slate-400 lg:w-[1px] lg:h-[600px] hidden lg:block flex-shrink-0 mx-4"
                 style={{ minHeight: 600 }}
               />
 
@@ -2206,7 +2206,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-300 w-px h-[600px] hidden lg:block flex-shrink-0 mx-4" aria-hidden="true"></div>
+              <div className="bg-slate-400 w-[1px] h-[600px] hidden lg:block flex-shrink-0 mx-4" aria-hidden="true" style={{ minHeight: '600px' }}></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
