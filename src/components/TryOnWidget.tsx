@@ -277,7 +277,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [selectedVersion, setSelectedVersion] = useState<number | null>(1);
   
   // Confirmation dialog states
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [showTabSwitchConfirm, setShowTabSwitchConfirm] = useState(false);
   const [pendingTab, setPendingTab] = useState<"single" | "multiple" | "look" | null>(null);
@@ -1332,7 +1331,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   };
 
   const handleReset = () => {
-    setShowResetConfirm(false);
     setCurrentStep(1);
     setUploadedImage(null);
     setSelectedClothing(null);
@@ -1366,11 +1364,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   };
   
   const handleResetClick = () => {
-    if (hasUnsavedChanges || uploadedImage || selectedClothing || generatedImage) {
-      setShowResetConfirm(true);
-    } else {
-      handleReset();
-    }
+    handleReset();
   };
 
   // Cart/Outfit handlers
@@ -2516,35 +2510,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           )}
           
           {/* Confirmation Dialogs */}
-          <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t("tryOnWidget.confirm.reset.title", {
-                    defaultValue: "Reset the experience?",
-                  })}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("tryOnWidget.confirm.reset.description", {
-                    defaultValue:
-                      "All selections and results will be cleared. This cannot be undone.",
-                  })}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {t("tryOnWidget.confirm.cancel", { defaultValue: "Cancel" })}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleReset}
-                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                >
-                  {t("tryOnWidget.confirm.reset.action", { defaultValue: "Reset" })}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          
           <AlertDialog open={showClearAllConfirm} onOpenChange={setShowClearAllConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
