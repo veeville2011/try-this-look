@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import "@/styles/fonts.css";
+import { cn } from "@/lib/utils";
 import PhotoUpload from "./PhotoUpload";
 import { DEMO_PHOTO_ID_MAP } from "@/constants/demoPhotos";
 import ClothingSelection from "./ClothingSelection";
@@ -69,6 +70,9 @@ interface TryOnWidgetProps {
 }
 
 export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
+  type LayoutMode = "compact" | "wide";
+  const WIDE_LAYOUT_MIN_WIDTH_PX = 1024; // Tailwind "lg" default, but measured against widget container width
+
   // i18next translation hook
   const { t } = useTranslation();
 
@@ -241,6 +245,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const widgetContainerRef = useRef<HTMLDivElement | null>(null);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("compact");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
@@ -305,6 +311,41 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setStatusMessage(t("tryOnWidget.status.initial") || "Téléchargez votre photo puis choisissez un article à essayer");
     }
   }, [t, statusMessage]);
+
+  // Container-width based responsiveness (popover-safe):
+  // Decide "compact" vs "wide" from the widget container width, not the viewport width.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const containerNode = widgetContainerRef.current;
+    if (!containerNode) return;
+
+    const updateLayoutModeFromWidth = (width: number) => {
+      const nextMode: LayoutMode = width >= WIDE_LAYOUT_MIN_WIDTH_PX ? "wide" : "compact";
+      setLayoutMode((prev) => (prev === nextMode ? prev : nextMode));
+    };
+
+    // Initial measurement
+    updateLayoutModeFromWidth(containerNode.getBoundingClientRect().width);
+
+    if (typeof ResizeObserver === "undefined") {
+      // Fallback: best-effort (won't react to popover resize)
+      const handleWindowResize = () => {
+        updateLayoutModeFromWidth(containerNode.getBoundingClientRect().width);
+      };
+      window.addEventListener("resize", handleWindowResize);
+      return () => window.removeEventListener("resize", handleWindowResize);
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateLayoutModeFromWidth(entry.contentRect.width);
+    });
+
+    resizeObserver.observe(containerNode);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Fetch image generations on component load
   useEffect(() => {
@@ -1865,6 +1906,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   return (
     <div
       data-nusense-widget="true"
+      ref={widgetContainerRef}
       className="w-full h-auto overflow-y-auto bg-white"
       style={{ fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
@@ -1978,10 +2020,135 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         <TabsContent value="single" className="mt-0">
           {/* Content */}
           {(isGenerating || generatedImage) ? (
-            /* Result Layout: Mobile - Full width stacked, Desktop - Side by side */
-            <div className="flex flex-col lg:flex-row items-start mb-6 gap-4 lg:gap-4">
-              {/* Mobile Layout: Full width stacked */}
-              <div className="flex flex-col w-full lg:hidden">
+            /* Result Layout: Container-responsive (popover-safe) */
+            layoutMode === "wide" ? (
+              <div className="flex flex-row items-start mb-6 gap-4">
+                {/* Left Panel: Generated Image */}
+                <section
+                  aria-labelledby="result-heading"
+                  className="flex flex-col flex-1 min-h-[600px] max-w-sm pt-3"
+                >
+                  <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full">
+                      <h2 className="text-slate-800 text-xl font-semibold">
+                        {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
+                      </h2>
+                    </div>
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full">
+                      <p className="text-slate-800 text-sm">
+                        {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
+                      </p>
+                      <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                    </div>
+                    {isGenerating ? (
+                      <div className="w-full min-h-[400px] max-h-[500px] rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
+                        <Skeleton className="w-full h-full min-h-[400px] rounded-lg" />
+                      </div>
+                    ) : generatedImage ? (
+                      <div className="w-full rounded-lg bg-white overflow-hidden">
+                        <img
+                          src={generatedImage}
+                          alt={
+                            t("tryOnWidget.resultDisplay.resultAlt") ||
+                            "Résultat de l'essayage virtuel généré par intelligence artificielle"
+                          }
+                          className="w-full h-auto max-h-[500px] object-contain"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+
+                {/* Vertical Divider - Wide layout only */}
+                <div
+                  aria-hidden="true"
+                  className="bg-slate-400 w-[1px] h-[600px] flex-shrink-0 mx-4"
+                  style={{ minHeight: 600 }}
+                />
+
+                {/* Right Panel: Person Image + Clothing Image */}
+                <section
+                  aria-labelledby="inputs-heading"
+                  className="flex flex-col items-start w-full min-h-[600px] gap-4 pt-3 max-w-sm"
+                >
+                  {isGenerating ? (
+                    /* Loading state: Person and clothing images side by side, no headings */
+                    <div className="flex items-center gap-4 w-full">
+                      {uploadedImage && (
+                        <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden p-2">
+                          <img
+                            src={uploadedImage}
+                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                            className="w-full h-auto aspect-square object-contain"
+                          />
+                        </div>
+                      )}
+                      {selectedClothing && (
+                        <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden p-2">
+                          <img
+                            src={selectedClothing}
+                            alt={
+                              t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
+                              "Vêtement actuellement sélectionné pour l'essayage virtuel"
+                            }
+                            className="w-full h-auto aspect-square object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Result state: Person and clothing images with headings */
+                    <>
+                      {/* Person Image Section */}
+                      {uploadedImage && (
+                        <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                          <div className="flex items-center mb-2 px-0 gap-2 w-full">
+                            <h3 className="text-slate-800 text-lg font-semibold">
+                              {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
+                            </h3>
+                          </div>
+                          <div className="flex items-center mb-4 px-0 gap-2 w-full">
+                            <p className="text-slate-800 text-sm">
+                              {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                            </p>
+                            <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                          </div>
+                          <div className="w-full">
+                            <img
+                              src={uploadedImage}
+                              alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                              className="w-full h-auto max-h-[200px] rounded-lg object-contain bg-white"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Clothing Image Section */}
+                      {selectedClothing && (
+                        <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                          <div className="flex items-center mb-2 px-0 gap-2 w-full">
+                            <h3 className="text-slate-800 text-lg font-semibold">
+                              {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
+                            </h3>
+                          </div>
+                          <div className="w-full mt-4">
+                            <img
+                              src={selectedClothing}
+                              alt={
+                                t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
+                                "Vêtement actuellement sélectionné pour l'essayage virtuel"
+                              }
+                              className="w-full h-auto max-h-[200px] rounded-lg object-contain bg-white"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </section>
+              </div>
+            ) : (
+              <div className="flex flex-col w-full mb-6">
                 {/* Header */}
                 <div className="flex justify-between items-start self-stretch mb-4">
                   <div className="flex flex-col shrink-0 items-start gap-1">
@@ -1994,7 +2161,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </div>
                   <Info className="w-5 h-5 sm:w-6 sm:h-6 text-slate-800 flex-shrink-0" aria-hidden="true" />
                 </div>
-                
+
                 {/* Generated Image */}
                 {isGenerating ? (
                   <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden">
@@ -2004,133 +2171,34 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   <div className="self-stretch mb-8 rounded-xl bg-white overflow-hidden">
                     <img
                       src={generatedImage}
-                      alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
+                      alt={
+                        t("tryOnWidget.resultDisplay.resultAlt") ||
+                        "Résultat de l'essayage virtuel généré par intelligence artificielle"
+                      }
                       className="w-full h-auto max-h-[600px] object-contain"
                     />
                   </div>
                 ) : null}
               </div>
-
-              {/* Desktop Layout: Side by side */}
-              {/* Left Panel: Generated Image */}
-              <section aria-labelledby="result-heading" className="hidden lg:flex flex-col flex-1 min-h-[600px] max-w-sm lg:pt-3">
-                <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
-                  <div className="flex items-center mb-2 px-0 gap-2 w-full">
-                    <h2 className="text-slate-800 text-xl font-semibold">
-                      {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
-                    </h2>
-                  </div>
-                  <div className="flex items-center mb-4 px-0 gap-2 w-full">
-                    <p className="text-slate-800 text-sm">
-                      {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
-                    </p>
-                    <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
-                  </div>
-                  {isGenerating ? (
-                    <div className="w-full min-h-[400px] max-h-[500px] rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
-                      <Skeleton className="w-full h-full min-h-[400px] rounded-lg" />
-                    </div>
-                  ) : generatedImage ? (
-                    <div className="w-full rounded-lg bg-white overflow-hidden">
-                      <img
-                        src={generatedImage}
-                        alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
-                        className="w-full h-auto max-h-[500px] object-contain"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-
-              {/* Vertical Divider - Desktop only */}
-              {/* Vertical Divider Between Left and Right Sections (Desktop only) */}
-              <div
-                aria-hidden="true"
-                className="md:bg-slate-400 md:w-[1px] lg:h-[600px] hidden md:block flex-shrink-0 mx-4"
-                style={{ minHeight: 600 }}
-              />
-
-              {/* Right Panel: Person Image + Clothing Image - Desktop only */}
-              <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full min-h-[600px] gap-4 lg:pt-3">
-                {isGenerating ? (
-                  /* Loading state: Person and clothing images side by side, no headings */
-                  <div className="flex items-center gap-4 w-full">
-                    {uploadedImage && (
-                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden p-2">
-                        <img
-                          src={uploadedImage}
-                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                          className="w-full h-auto aspect-square object-contain"
-                        />
-                      </div>
-                    )}
-                    {selectedClothing && (
-                      <div className="flex-1 rounded-lg bg-white border border-border overflow-hidden p-2">
-                        <img
-                          src={selectedClothing}
-                          alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
-                          className="w-full h-auto aspect-square object-contain"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Result state: Person and clothing images with headings */
-                  <>
-                    {/* Person Image Section */}
-                    {uploadedImage && (
-                      <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
-                        <div className="flex items-center mb-2 px-0 gap-2 w-full">
-                          <h3 className="text-slate-800 text-lg font-semibold">
-                            {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
-                          </h3>
-                        </div>
-                        <div className="flex items-center mb-4 px-0 gap-2 w-full">
-                          <p className="text-slate-800 text-sm">
-                            {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
-                          </p>
-                          <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
-                        </div>
-                        <div className="w-full">
-                          <img
-                            src={uploadedImage}
-                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                            className="w-full h-auto max-h-[200px] rounded-lg object-contain bg-white"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Clothing Image Section */}
-                    {selectedClothing && (
-                      <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
-                        <div className="flex items-center mb-2 px-0 gap-2 w-full">
-                          <h3 className="text-slate-800 text-lg font-semibold">
-                            {t("tryOnWidget.clothingSelection.selectedItem") || "Article Sélectionné"}
-                          </h3>
-                        </div>
-                        <div className="w-full mt-4">
-                          <img
-                            src={selectedClothing}
-                            alt={t("tryOnWidget.clothingSelection.selectedClothingAlt") || "Vêtement actuellement sélectionné pour l'essayage virtuel"}
-                            className="w-full h-auto max-h-[200px] rounded-lg object-contain bg-white"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </section>
-            </div>
+            )
           ) : (
             /* Default Layout: Upload on left, Clothing selection on right */
-            <div className="flex flex-col lg:flex-row items-center justify-between mb-6 gap-4 lg:gap-4">
+            <div
+              className={cn(
+                "flex items-center justify-between mb-6 gap-4",
+                layoutMode === "wide" ? "flex-row" : "flex-col"
+              )}
+            >
               {/* Left Panel: Upload / Preview */}
               {/* Mobile: Show only when mobileStep === "photo" */}
               {/* Desktop: Always show */}
-              <section 
+              {(layoutMode === "wide" || mobileStep === "photo") && (
+              <section
                 aria-labelledby="upload-heading" 
-                className={`flex flex-col flex-1 min-h-[600px] w-full lg:max-w-sm lg:pt-3 ${mobileStep === "clothing" ? "hidden lg:!flex" : ""}`}
+                className={cn(
+                  "flex flex-col flex-1 min-h-[600px] w-full",
+                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                )}
               >
                 {!uploadedImage && (
                   <PhotoUpload
@@ -2171,10 +2239,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </div>
                 )}
               </section>
+              )}
 
               {/* Mobile Continue Button - Show after photo selection */}
-              {uploadedImage && mobileStep === "photo" && (
-                <div className="flex flex-col self-stretch lg:hidden mb-6 mt-0 gap-4">
+              {layoutMode !== "wide" && uploadedImage && mobileStep === "photo" && (
+                <div className="flex flex-col self-stretch mb-6 mt-0 gap-4">
                   <Button
                     onClick={handleResetClick}
                     variant={"outline" as const}
@@ -2205,21 +2274,31 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </div>
               )}
 
-              {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-400 w-[1px] h-[600px] hidden lg:block flex-shrink-0 mx-4" aria-hidden="true" style={{ minHeight: '600px' }}></div>
+              {/* Vertical Divider - Wide layout only */}
+              {layoutMode === "wide" && (
+                <div
+                  className="bg-slate-400 w-[1px] h-[600px] flex-shrink-0 mx-4"
+                  aria-hidden="true"
+                  style={{ minHeight: 600 }}
+                />
+              )}
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
-              <section 
-                aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 lg:pt-3 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}
+              {(layoutMode === "wide" || mobileStep === "clothing") && (
+              <section
+                aria-labelledby="clothing-heading"
+                className={cn(
+                  "flex flex-col items-start w-full min-h-[600px]",
+                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                )}
               >
                 {/* Mobile Back Button */}
-                {mobileStep === "clothing" && (
+                {layoutMode !== "wide" && mobileStep === "clothing" && (
                   <button
                     onClick={() => setMobileStep("photo")}
-                    className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors mb-4 lg:hidden"
+                    className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors mb-4"
                     aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
                   >
                     <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
@@ -2250,7 +2329,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Action buttons - Inside clothing section, aligned to right, at bottom */}
                 {!isGenerating && !generatedImage && (
-                  <div className={`flex flex-col items-end w-full ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}>
+                  <div
+                    className={cn(
+                      "flex flex-col items-end w-full",
+                      layoutMode !== "wide" && mobileStep === "photo" ? "hidden" : ""
+                    )}
+                  >
                     <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
                       <Button
                         onClick={handleResetClick}
@@ -2285,128 +2369,127 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </div>
                 )}
               </section>
+              )}
             </div>
           )}
 
           {(isGenerating || generatedImage) && (
             /* Result buttons: Mobile - Stacked vertically, Desktop - Horizontal layout */
             <>
-              {/* Mobile Layout: Stacked buttons */}
-              <div className="flex flex-col self-stretch lg:hidden mb-8 gap-4">
-                <Button
-                  onClick={handleResetClick}
-                  variant={"outline" as const}
-                  disabled={isGenerating}
-                  className="w-full h-11"
-                  aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
-                  aria-busy={isGenerating}
-                >
-                  <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                </Button>
-
-                <Button
-                  onClick={handleBuyNow}
-                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                  variant={"outline" as const}
-                  className="w-full h-11"
-                  aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                  aria-busy={isBuyNowLoading}
-                >
-                  {isBuyNowLoading ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                  )}
-                  {isBuyNowLoading 
-                    ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                    : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
-                  }
-                </Button>
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                  className="w-full h-11 bg-primary hover:bg-primary/90"
-                  aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                  aria-busy={isAddToCartLoading}
-                >
-                  {isAddToCartLoading ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                  )}
-                  {isAddToCartLoading
-                    ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                    : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
-                  }
-                </Button>
-              </div>
-
-              {/* Desktop Layout: Horizontal buttons aligned right */}
-              <div className="hidden lg:flex justify-end items-start mb-6">
-                <div className="flex items-start gap-4">
-                  {!isGenerating && generatedImage && (
-                    <>
-                      <Button
-                        onClick={() => handleDownload(generatedImage)}
-                        variant={"outline" as const}
-                        className="min-w-[140px] h-11"
-                        aria-label={t("tryOnWidget.buttons.download") || "Télécharger"}
-                      >
-                        <Download className="w-5 h-5 mr-2" aria-hidden="true" />
-                        {t("tryOnWidget.buttons.download") || "Télécharger"}
-                      </Button>
-                      <Button
-                        onClick={handleBuyNow}
-                        disabled={isBuyNowLoading || isAddToCartLoading}
-                        variant={"outline" as const}
-                        className="min-w-[200px] h-11"
-                        aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                        aria-busy={isBuyNowLoading}
-                      >
-                        {isBuyNowLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {isBuyNowLoading 
-                          ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                          : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")
-                        }
-                      </Button>
-                      <Button
-                        onClick={handleAddToCart}
-                        disabled={isBuyNowLoading || isAddToCartLoading}
-                        className="min-w-[180px] h-11 bg-primary hover:bg-primary/90"
-                        aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                        aria-busy={isAddToCartLoading}
-                      >
-                        {isAddToCartLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {isAddToCartLoading
-                          ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                          : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")
-                        }
-                      </Button>
-                    </>
-                  )}
-
+              {layoutMode !== "wide" ? (
+                /* Compact Layout: Stacked buttons */
+                <div className="flex flex-col self-stretch mb-8 gap-4">
                   <Button
                     onClick={handleResetClick}
                     variant={"outline" as const}
                     disabled={isGenerating}
-                    className="min-w-[140px] h-11"
+                    className="w-full h-11"
                     aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                     aria-busy={isGenerating}
                   >
                     <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                    {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                  </Button>
+
+                  <Button
+                    onClick={handleBuyNow}
+                    disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                    variant={"outline" as const}
+                    className="w-full h-11"
+                    aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                    aria-busy={isBuyNowLoading}
+                  >
+                    {isBuyNowLoading ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                    )}
+                    {isBuyNowLoading
+                      ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                      : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
+                  </Button>
+                  <Button
+                    onClick={handleAddToCart}
+                    disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                    className="w-full h-11 bg-primary hover:bg-primary/90"
+                    aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                    aria-busy={isAddToCartLoading}
+                  >
+                    {isAddToCartLoading ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                    )}
+                    {isAddToCartLoading
+                      ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                      : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
                   </Button>
                 </div>
-              </div>
+              ) : (
+                /* Wide Layout: Horizontal buttons aligned right */
+                <div className="flex justify-end items-start mb-6">
+                  <div className="flex items-start gap-4">
+                    {!isGenerating && generatedImage && (
+                      <>
+                        <Button
+                          onClick={() => handleDownload(generatedImage)}
+                          variant={"outline" as const}
+                          className="min-w-[140px] h-11"
+                          aria-label={t("tryOnWidget.buttons.download") || "Télécharger"}
+                        >
+                          <Download className="w-5 h-5 mr-2" aria-hidden="true" />
+                          {t("tryOnWidget.buttons.download") || "Télécharger"}
+                        </Button>
+                        <Button
+                          onClick={handleBuyNow}
+                          disabled={isBuyNowLoading || isAddToCartLoading}
+                          variant={"outline" as const}
+                          className="min-w-[200px] h-11"
+                          aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                          aria-busy={isBuyNowLoading}
+                        >
+                          {isBuyNowLoading ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                          )}
+                          {isBuyNowLoading
+                            ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                            : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
+                        </Button>
+                        <Button
+                          onClick={handleAddToCart}
+                          disabled={isBuyNowLoading || isAddToCartLoading}
+                          className="min-w-[180px] h-11 bg-primary hover:bg-primary/90"
+                          aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                          aria-busy={isAddToCartLoading}
+                        >
+                          {isAddToCartLoading ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                          )}
+                          {isAddToCartLoading
+                            ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                            : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+                        </Button>
+                      </>
+                    )}
+
+                    <Button
+                      onClick={handleResetClick}
+                      variant={"outline" as const}
+                      disabled={isGenerating}
+                      className="min-w-[140px] h-11"
+                      aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                      aria-busy={isGenerating}
+                    >
+                      <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                      {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -2505,8 +2588,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
         {/* Try Multiple Tab - Cart Mode */}
         <TabsContent value="multiple" className="mt-0 space-y-6">
-            {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            {/* Selection sections (container-responsive) */}
+            <div
+              className={cn(
+                "grid gap-6",
+                layoutMode === "wide" ? "grid-cols-2 gap-8" : "grid-cols-1"
+              )}
+            >
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-multiple-heading" className="flex flex-col">
                 <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
@@ -2799,7 +2887,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </Card>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 animate-in fade-in-0 duration-300 pb-2">
+                        <div
+                          className={cn(
+                            "grid animate-in fade-in-0 duration-300 pb-2",
+                            layoutMode === "wide" ? "grid-cols-3 gap-4" : "grid-cols-2 gap-3"
+                          )}
+                        >
                           {multipleTabImages.map((imageUrl, index) => {
                             const garment: ProductImage = {
                               url: imageUrl,
@@ -3034,8 +3127,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
           {/* Try Look Tab - Outfit Mode */}
           <TabsContent value="look" className="mt-0 space-y-6">
-            {/* Selection sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            {/* Selection sections (container-responsive) */}
+            <div
+              className={cn(
+                "grid gap-6",
+                layoutMode === "wide" ? "grid-cols-2 gap-8" : "grid-cols-1"
+              )}
+            >
               {/* Left Panel: Upload */}
               <section aria-labelledby="upload-look-heading" className="flex flex-col">
                 <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
@@ -3328,7 +3426,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </Card>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 animate-in fade-in-0 duration-300 pb-2">
+                        <div
+                          className={cn(
+                            "grid animate-in fade-in-0 duration-300 pb-2",
+                            layoutMode === "wide" ? "grid-cols-3 gap-4" : "grid-cols-2 gap-3"
+                          )}
+                        >
                           {lookTabImages.map((imageUrl, index) => {
                             const garment: ProductImage = {
                               url: imageUrl,
