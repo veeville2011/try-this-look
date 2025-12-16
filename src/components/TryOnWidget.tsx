@@ -2223,7 +2223,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full">
                   {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
                 </h2>
-                <p className="text-slate-800 text-sm mb-2 w-full">
+                <p className="text-slate-800 text-sm w-full">
                   {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
                 </p>
                 <div className="flex-1 flex flex-col min-h-0 w-full">
@@ -2245,7 +2245,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 
                 {/* Action buttons - Inside clothing section, aligned to right, at bottom */}
                 {!isGenerating && !generatedImage && (
-                  <div className={`flex flex-col items-end w-full mt-4 pt-4 ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}>
+                  <div className={`flex flex-col items-end w-full pt-4 ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}>
                     <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
                       <Button
                         onClick={handleResetClick}

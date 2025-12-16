@@ -137,7 +137,7 @@
     container.style.cssText = `
       width: ${containerWidth};
       max-width: ${containerMaxWidth};
-      height: 92vh;
+      height: 94vh;
       max-height: 950px;
       position: relative;
       background: white;
