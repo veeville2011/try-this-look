@@ -2043,7 +2043,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-slate-300 w-[1px] h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
+              <div className="bg-slate-300 w-[1px] h-[600px] hidden sm:block md:block lg:block flex-shrink-0 mx-4"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
               <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full min-h-[600px] gap-4 lg:pt-3">
