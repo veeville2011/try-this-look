@@ -137,11 +137,11 @@
     container.style.cssText = `
       width: ${containerWidth};
       max-width: ${containerMaxWidth};
-      height: 90vh;
-      max-height: 900px;
+      height: 92vh;
+      max-height: 950px;
       position: relative;
       background: white;
-      border-radius: 0.25rem;
+      border-radius: 0.75rem;
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     `;

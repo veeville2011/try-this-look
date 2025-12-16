@@ -1894,7 +1894,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     
         {/* Content Container - Fit content */}
-        <div className="bg-white w-full py-3 sm:py-4 px-2 sm:px-3 rounded-2xl">
+        <div className="bg-white w-full py-6 px-6 rounded-xl">
           {/* Header - Aligned with content container */}
           <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center py-3 mb-3">
@@ -2043,7 +2043,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </section>
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-border w-px h-[600px] hidden lg:block flex-shrink-0 mx-0"></div>
+              <div className="bg-slate-200 w-px h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
 
               {/* Right Panel: Person Image + Clothing Image - Desktop only */}
               <section aria-labelledby="inputs-heading" className="hidden lg:flex flex-col items-start w-full min-h-[600px] gap-4">
@@ -2201,7 +2201,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Desktop only */}
-              <div className="bg-border w-px h-[600px] hidden lg:block flex-shrink-0 mx-0"></div>
+              <div className="bg-slate-200 w-px h-[600px] hidden lg:block flex-shrink-0 mx-4"></div>
 
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
