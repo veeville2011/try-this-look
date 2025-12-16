@@ -196,11 +196,11 @@ export default function ClothingSelection({
             {/* Recommended Products Section */}
             {filteredRecommendedImages.length > 0 && (
               <>
-                <span className="text-slate-800 text-sm font-bold mb-2 lg:mr-56 block ml-8 lg:ml-0 whitespace-nowrap">
+                <span className="text-slate-800 text-sm font-bold mb-2 block ml-8 lg:ml-0 whitespace-nowrap">
                   {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                 </span>
                 <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-3 lg:px-3 pt-1">
-                  <div className="flex items-start lg:mr-[91px] gap-3 min-w-max">
+                  <div className="flex items-start gap-3 min-w-max">
                     {filteredRecommendedImages.slice(0, 2).map((image, index) => (
                       <Card
                         key={`recommended-${index}`}

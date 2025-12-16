@@ -2208,7 +2208,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Desktop: Always show */}
               <section 
                 aria-labelledby="clothing-heading" 
-                className={`flex flex-col items-start w-full lg:max-w-sm lg:py-0 lg:pt-3 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}
+                className={`flex flex-col items-start w-full lg:flex-1 lg:py-0 lg:pt-3 min-h-[600px] ${mobileStep === "photo" ? "hidden lg:!flex" : ""}`}
               >
                 {/* Mobile Back Button */}
                 {mobileStep === "clothing" && (
