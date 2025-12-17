@@ -582,7 +582,8 @@ return;
 const insertParent = purchaseBoundary.insertParent;
 const insertTarget = purchaseBoundary.insertTarget;
 const currentParent = container.parentElement;
-if (currentParent === insertParent && container.previousSibling === insertTarget) {
+// If we’re already inserted immediately BEFORE the target, we’re done.
+if (currentParent === insertParent && container.nextSibling === insertTarget) {
 container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
@@ -611,7 +612,8 @@ container.style.flexBasis = '100%';
 container.style.flexShrink = '0';
 container.style.flexGrow = '0';
 container.style.clear = 'both';
-container.style.order = '1';
+// Ensure we appear ABOVE the primary purchase actions in horizontal layouts.
+container.style.order = '-1';
 if (isInsertParentFlexRow) {
 container.style.minWidth = '100%';
 container.style.maxWidth = '100%';
@@ -620,8 +622,9 @@ if (isInsertParentGrid) {
 container.style.gridColumn = '1 / -1';
 }
 }
-if (insertTarget.nextSibling) {
-insertParent.insertBefore(container, insertTarget.nextSibling);
+// Insert above the primary purchase button section (instead of after it).
+if (insertTarget && insertTarget.parentElement === insertParent) {
+insertParent.insertBefore(container, insertTarget);
 } else {
 insertParent.appendChild(container);
 }
@@ -629,8 +632,8 @@ container.style.display = 'block';
 container.style.visibility = 'visible';
 container.style.opacity = '1';
 container.classList.add('is-positioned');
-if (!container.style.marginTop) {
-container.style.marginTop = '0.75rem';
+if (!container.style.marginBottom) {
+container.style.marginBottom = '0.75rem';
 }
 if (button && purchaseBoundary && purchaseBoundary.insertTarget) {
 const targetButton = purchaseBoundary.insertTarget.tagName === 'BUTTON' || purchaseBoundary.insertTarget.tagName === 'INPUT' ? purchaseBoundary.insertTarget : (purchaseBoundary.insertTarget.querySelector ? purchaseBoundary.insertTarget.querySelector('button, input[type="submit"]') : null);
