@@ -420,29 +420,46 @@ const primarySubmitButton = visibleSubmitButtons[0];
 const buttonParent = primarySubmitButton.parentElement;
 const wrapperParent = buttonParent ? buttonParent.parentElement : null;
 if (buttonParent && wrapperParent && wrapperParent !== document.body && wrapperParent !== document.documentElement) {
-  const wrapperParentId = String(wrapperParent.getAttribute('id') || '').toLowerCase();
-  const wrapperParentClass = String(wrapperParent.className || '').toLowerCase();
-  const wrapperLooksLikeBuyButtons =
-    wrapperParentClass.includes('buy') ||
-    wrapperParentClass.includes('button') ||
-    wrapperParentClass.includes('buttons') ||
-    wrapperParentClass.includes('product-form') ||
-    wrapperParentClass.includes('payment') ||
-    wrapperParentId.includes('buy') ||
-    wrapperParentId.includes('button') ||
-    wrapperParentId.includes('buttons') ||
-    wrapperParentId.includes('product-form') ||
-    wrapperParentId.includes('payment');
+  const looksLikePurchaseGroup = function(el) {
+    if (!el) return false;
+    const elId = String(el.getAttribute && el.getAttribute('id') ? el.getAttribute('id') : '').toLowerCase();
+    const elClass = String(el.className || '').toLowerCase();
+    const hasPaymentButton = !!(el.querySelector && el.querySelector('.shopify-payment-button, .shopify-payment-button__button, [data-shopify="payment-button"], [data-testid*="shopify-payment"]'));
+    const visibleButtons = findVisibleButtons(el);
+    const hasMultipleButtons = visibleButtons.length > 1;
+    const keywordMatch =
+      elClass.includes('buy') ||
+      elClass.includes('payment') ||
+      elClass.includes('checkout') ||
+      elClass.includes('product-form') ||
+      elClass.includes('button') ||
+      elClass.includes('buttons') ||
+      elId.includes('buy') ||
+      elId.includes('payment') ||
+      elId.includes('checkout') ||
+      elId.includes('product-form') ||
+      elId.includes('button') ||
+      elId.includes('buttons');
+    return Boolean(hasPaymentButton || hasMultipleButtons || keywordMatch || isHorizontalLayout(el));
+  };
 
-  const wrapperVisibleButtons = findVisibleButtons(wrapperParent);
-  const wrapperHasMultipleButtons = wrapperVisibleButtons.length > 1;
-
-  // If the wrapper is the buy-buttons group, insert ABOVE the entire group (not inside it).
-  if ((wrapperHasMultipleButtons || wrapperLooksLikeBuyButtons || isHorizontalLayout(wrapperParent)) && wrapperParent.parentElement && wrapperParent.parentElement !== document.body && wrapperParent.parentElement !== document.documentElement) {
-    return {isGroup: true, insertTarget: wrapperParent, insertParent: wrapperParent.parentElement};
+  // Climb up to find the OUTER buy-buttons container (themes often nest button wrappers).
+  let cursor = wrapperParent;
+  let bestGroup = null;
+  let depth = 0;
+  while (cursor && cursor !== document.body && cursor !== document.documentElement && cursor !== productForm && depth < 5) {
+    if (looksLikePurchaseGroup(cursor) && cursor.parentElement && cursor.parentElement !== document.body && cursor.parentElement !== document.documentElement) {
+      bestGroup = cursor;
+    }
+    cursor = cursor.parentElement;
+    depth += 1;
   }
 
-  // Fallback: insert relative to the primary button wrapper.
+  if (bestGroup && bestGroup.parentElement) {
+    return {isGroup: true, insertTarget: bestGroup, insertParent: bestGroup.parentElement};
+  }
+
+  // Fallback: insert relative to the primary button wrapper (closest stable target).
   return {isGroup: false, insertTarget: buttonParent, insertParent: wrapperParent};
 }
 return {isGroup: false, insertTarget: primarySubmitButton, insertParent: buttonParent};
