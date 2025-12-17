@@ -12,6 +12,7 @@ interface PhotoUploadProps {
   generatedPersonKeys?: Set<string>;
   matchingPersonKeys?: string[];
   initialView?: "file" | "demo" | null; // Control which view to show initially
+  showDemoPhotoStatusIndicator?: boolean; // Controls the small top-right dot overlay on demo photos
 }
 
 export default function PhotoUpload({
@@ -19,6 +20,7 @@ export default function PhotoUpload({
   generatedPersonKeys = new Set(),
   matchingPersonKeys = [],
   initialView = null,
+  showDemoPhotoStatusIndicator = true,
 }: PhotoUploadProps) {
   const { t } = useTranslation();
   const [preview, setPreview] = useState<string | null>(null);
@@ -321,7 +323,7 @@ export default function PhotoUpload({
                           target.style.display = 'none';
                         }}
                       />
-                      {(isGenerated(photo.url) || isMatching(photo.url)) && (
+                      {showDemoPhotoStatusIndicator && (isGenerated(photo.url) || isMatching(photo.url)) && (
                         <div className="absolute top-2 right-2">
                           <div className="w-5 h-5 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
                             <div className={`w-3 h-3 rounded-full ${

@@ -3,6 +3,38 @@
 
 export const DEMO_PHOTOS_ARRAY = [
   {
+    "url": "/assets/demo_pics/f1.jpg",
+    "id": "demo_person_f1"
+  },
+  {
+    "url": "/assets/demo_pics/f2.jpg",
+    "id": "demo_person_f2"
+  },
+  {
+    "url": "/assets/demo_pics/f3.jpg",
+    "id": "demo_person_f3"
+  },
+  {
+    "url": "/assets/demo_pics/f4.jpg",
+    "id": "demo_person_f4"
+  },
+  {
+    "url": "/assets/demo_pics/m1.jpg",
+    "id": "demo_person_m1"
+  },
+  {
+    "url": "/assets/demo_pics/m2.jpg",
+    "id": "demo_person_m2"
+  },
+  {
+    "url": "/assets/demo_pics/m3.jpg",
+    "id": "demo_person_m3"
+  },
+  {
+    "url": "/assets/demo_pics/m4.jpg",
+    "id": "demo_person_m4"
+  },
+  {
     "url": "/assets/demo_pics/p1.jpg",
     "id": "demo_person_p1"
   },

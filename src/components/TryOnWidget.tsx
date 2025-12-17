@@ -2268,6 +2268,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     generatedPersonKeys={generatedPersonKeys}
                     matchingPersonKeys={personKeys}
                     initialView={photoSelectionMethod}
+                    showDemoPhotoStatusIndicator={false}
                   />
                 )}
 
@@ -2643,6 +2644,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           onPhotoUpload={handleCartMultiplePhotoUpload}
                           generatedPersonKeys={new Set()}
                           matchingPersonKeys={[]}
+                          showDemoPhotoStatusIndicator={false}
                         />
                       </div>
                     )}
@@ -3205,6 +3207,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           onPhotoUpload={handleCartMultiplePhotoUpload}
                           generatedPersonKeys={new Set()}
                           matchingPersonKeys={[]}
+                          showDemoPhotoStatusIndicator={false}
                         />
                       </div>
                     )}
