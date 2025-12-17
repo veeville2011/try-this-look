@@ -611,16 +611,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           console.log("[TryOnWidget] Parent sent empty images array");
         }
 
-        // Recommended rail (iframe): prefer parent-provided recommended images.
-        // If the theme can't provide them, fall back to showing ALL product images from the parent page.
-        const recommendedSource =
-          parentRecommendedImages.length > 0 ? parentRecommendedImages : parentImages;
-
-        if (recommendedSource.length > 0) {
+        // Recommended rail (iframe): ONLY use parent-provided recommended images.
+        // Never fall back to main product images (that causes duplicates and poor UX).
+        if (parentRecommendedImages.length > 0) {
           const recommendedUrls: string[] = [];
           const recommendedIdMap = new Map<string, string | number>();
 
-          recommendedSource.forEach((img: string | ProductImage) => {
+          parentRecommendedImages.forEach((img: string | ProductImage) => {
             if (typeof img === "string") {
               recommendedUrls.push(img);
               return;
@@ -633,11 +630,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             }
           });
 
-          const uniqueUrls = Array.from(new Set(recommendedUrls.filter(Boolean)));
+          const mainSet = new Set(imageUrls.map((u) => u.toLowerCase()));
+          const uniqueUrls = Array.from(
+            new Set(recommendedUrls.filter(Boolean))
+          ).filter((u) => !mainSet.has(u.toLowerCase()));
           setRecommendedImages(uniqueUrls);
           setRecommendedImagesWithIds(recommendedIdMap);
 
           console.log("[TryOnWidget] Recommended images loaded:", uniqueUrls.length);
+        } else {
+          // If none are available, clear the rail so it doesn't repeat main images.
+          setRecommendedImages([]);
+          setRecommendedImagesWithIds(new Map());
         }
       }
 
@@ -2160,11 +2164,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
-              <div className="flex flex-row items-start mb-6 gap-6">
+              <div className="grid items-start justify-center mb-6 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
-                  className="flex flex-col flex-1 min-h-[600px] max-w-sm pt-3"
+                  className="flex flex-col w-full pt-3"
                 >
                   <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                     <div className="flex items-center mb-2 px-0 gap-2 w-full">
@@ -2180,7 +2184,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                     {isGenerating ? (
                       <div
-                        className="relative w-full min-h-[400px] max-h-[500px] rounded-lg overflow-hidden border border-border bg-gradient-to-br from-muted/30 via-muted/10 to-muted/30"
+                        className="relative w-full aspect-square rounded-lg overflow-hidden border border-border bg-white"
                         role="status"
                         aria-live="polite"
                         aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
@@ -2193,14 +2197,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         </span>
                       </div>
                     ) : generatedImage ? (
-                      <div className="w-full rounded-lg bg-white overflow-hidden">
+                      <div className="w-full aspect-square rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center">
                         <img
                           src={generatedImage}
                           alt={
                             t("tryOnWidget.resultDisplay.resultAlt") ||
                             "Résultat de l'essayage virtuel généré par intelligence artificielle"
                           }
-                          className="w-full h-auto max-h-[500px] object-contain"
+                          className="h-full w-full object-contain"
                         />
                       </div>
                     ) : null}
@@ -2208,14 +2212,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </section>
 
                 <div
-                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
+                  className="w-px h-full min-h-[520px] self-stretch bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
 
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex items-center justify-center w-full min-h-[600px] pt-3 max-w-sm"
+                  className="flex items-center justify-center w-full pt-3"
                 >
                   <div className="flex items-center gap-4 w-full">
                     {selectedClothing && (
@@ -2260,7 +2264,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {/* Generated Image */}
                 {isGenerating ? (
                   <div
-                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-gradient-to-br from-muted/30 via-muted/10 to-muted/30"
+                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-white"
                     role="status"
                     aria-live="polite"
                     aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
@@ -2273,7 +2277,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </span>
                   </div>
                 ) : generatedImage ? (
-                  <div className="self-stretch mb-8 rounded-xl bg-white overflow-hidden">
+                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-white overflow-hidden border border-border flex items-center justify-center">
                     <img
                       src={generatedImage}
                       alt={

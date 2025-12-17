@@ -354,19 +354,12 @@
       if (type === 'NUSENSE_REQUEST_IMAGES') {
         const images = getProductImages();
         const mainUrls = images.map((img) => img?.url).filter(Boolean);
-        // Some themes don't render "related/recommended" product cards in the DOM (or hide them behind
-        // client-side hydration), which can yield an empty list. For the widget UX we prefer the rail
-        // to always show something useful, so fall back to ALL product images from the parent page.
-        let recommendedImages = getOtherProductImagesOnPage(mainUrls);
-        if (!Array.isArray(recommendedImages) || recommendedImages.length === 0) {
-          recommendedImages = images;
-        }
+        // "Recommended" rail should be populated ONLY from the parent page DOM:
+        // all other product-card images on the page, excluding the current product images.
+        const recommendedImages = getOtherProductImagesOnPage(mainUrls);
+
         event.source.postMessage(
-          {
-            type: 'NUSENSE_PRODUCT_IMAGES',
-            images,
-            recommendedImages,
-          },
+          { type: 'NUSENSE_PRODUCT_IMAGES', images, recommendedImages },
           event.origin,
         );
         return;

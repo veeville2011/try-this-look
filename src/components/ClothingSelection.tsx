@@ -175,8 +175,11 @@ export default function ClothingSelection({
     );
   }
 
-  // Recommended Products = ALL store product images (no filtering).
-  const filteredRecommendedImages = validRecommendedImages;
+  // Recommended Products: filter out any duplicates of the main product images.
+  const mainSet = new Set(validImages.map((u) => u.toLowerCase()));
+  const filteredRecommendedImages = validRecommendedImages.filter(
+    (u) => !mainSet.has(u.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0">
