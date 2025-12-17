@@ -100,6 +100,31 @@ export default function ClothingSelection({
     }
   }, [recommendedImages]);
 
+  const normalizeUrlForComparison = (url: string): string => {
+    if (!url) return "";
+    try {
+      const u = new URL(url, window.location.origin);
+      u.search = "";
+      u.hash = "";
+      return u.href.toLowerCase();
+    } catch {
+      return String(url).trim().toLowerCase();
+    }
+  };
+
+  const getBaseImagePath = (url: string): string => {
+    if (!url) return "";
+    try {
+      const u = new URL(url, window.location.origin);
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`.toLowerCase();
+      if (parts.length === 1) return parts[0].toLowerCase();
+      return "";
+    } catch {
+      return "";
+    }
+  };
+
   // Touch/swipe handlers for horizontal scrolling
   const handleTouchStart = (e: React.TouchEvent, ref: React.RefObject<HTMLDivElement>) => {
     if (!ref.current) return;
@@ -135,10 +160,19 @@ export default function ClothingSelection({
     );
   }
 
-  // Filter out main products from recommended products
-  const filteredRecommendedImages = validRecommendedImages.filter(
-    (recImage) => !validImages.includes(recImage)
-  );
+  // Filter out main product images from recommended products (robust to CDN query params / size variants).
+  const mainImageNormalizedSet = new Set(validImages.map(normalizeUrlForComparison).filter(Boolean));
+  const mainImageBasePathSet = new Set(validImages.map(getBaseImagePath).filter(Boolean));
+
+  const filteredRecommendedImages = validRecommendedImages.filter((recImage) => {
+    const normalized = normalizeUrlForComparison(recImage);
+    if (normalized && mainImageNormalizedSet.has(normalized)) return false;
+
+    const basePath = getBaseImagePath(recImage);
+    if (basePath && mainImageBasePathSet.has(basePath)) return false;
+
+    return true;
+  });
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -201,7 +235,7 @@ export default function ClothingSelection({
                 </span>
                 <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-4 lg:px-4 pt-1">
                   <div className="flex items-start gap-3 min-w-max">
-                    {filteredRecommendedImages.slice(0, 2).map((image, index) => (
+                    {filteredRecommendedImages.map((image, index) => (
                       <Card
                         key={`recommended-${index}`}
                         className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${
@@ -300,7 +334,7 @@ export default function ClothingSelection({
               )}
 
               {/* Recommended Products Section - Horizontal Scroll */}
-              {filteredRecommendedImages.length > 0 && (
+              {filteredRecommendedImages.length > 0 ? (
                 <div className="mt-4">
                   <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
                     {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
@@ -348,6 +382,15 @@ export default function ClothingSelection({
                       ))}
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="mt-4 px-4" role="status" aria-live="polite">
+                  <Card className="p-3 bg-muted/30 border-muted">
+                    <p className="text-xs text-muted-foreground">
+                      {t("tryOnWidget.clothingSelection.noRecommendedProducts") ||
+                        "No other product images found on this page."}
+                    </p>
+                  </Card>
                 </div>
               )}
             </div>

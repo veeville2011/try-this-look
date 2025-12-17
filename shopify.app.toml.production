@@ -58,9 +58,9 @@ api_version = "2024-01"
 # 
 # Required scopes for TryOnWidget functionality:
 # - read_products: Fetch products for Try Multiple/Try Look tabs via GraphQL Admin API
-# - read_themes: Read theme structure for theme app extension
-# - write_themes: Inject theme app extension snippets into theme
-scopes = "read_products,read_themes,write_themes"
+# - read_themes: Read theme structure for setup checks / theme editor deep links
+# Note: Theme app extensions don't require write access to themes. Merchants enable app embeds/blocks in the theme editor.
+scopes = "read_products,read_themes"
 
 [auth]
 redirect_urls = [

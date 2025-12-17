@@ -482,8 +482,17 @@ function extractRecommendedProductsImages(mainProductImages: string[]): string[]
 export function initializeImageExtractionListener(): void {
   window.addEventListener("message", (event) => {
     if (event.data && event.data.type === "NUSENSE_REQUEST_IMAGES") {
-      let images: string[] = [];
+      type ParentProductImage = string | { id?: string | number; url?: string };
+
+      const toImageUrl = (img: ParentProductImage): string => {
+        if (!img) return "";
+        if (typeof img === "string") return img;
+        return typeof img.url === "string" ? img.url : "";
+      };
+
+      let images: ParentProductImage[] = [];
       let recommendedImages: string[] = [];
+      let mainProductImageUrls: string[] = [];
       
       // Priority 1: Use NUSENSE_PRODUCT_DATA if available (most reliable)
       if (typeof window !== "undefined" && (window as any).NUSENSE_PRODUCT_DATA) {
@@ -495,12 +504,17 @@ export function initializeImageExtractionListener(): void {
       
       // Priority 2: Extract from page if NUSENSE_PRODUCT_DATA not available or empty
       if (images.length === 0) {
-        images = extractProductImages();
+        const extracted = extractProductImages();
+        images = extracted;
       }
+
+      // Normalize main product images to a list of URLs for correct filtering/deduping.
+      // (NUSENSE_PRODUCT_DATA.images can be [{id,url}] objects; extractRecommendedProductsImages expects strings.)
+      mainProductImageUrls = images.map(toImageUrl).filter(Boolean);
 
       // Extract all other images from the page that are NOT main product images
       // This will find any images on the page and filter out the main product images
-      recommendedImages = extractRecommendedProductsImages(images);
+      recommendedImages = extractRecommendedProductsImages(mainProductImageUrls);
       
       // Send images back to the iframe
       if (event.source && event.source !== window) {

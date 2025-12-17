@@ -815,6 +815,7 @@
     },
     "clothingSelection": {
       "recommendedProducts": "Recommended Products",
+      "noRecommendedProducts": "No other product images found on this page.",
       "selectedItem": "Selected Item",
       "clear": "Clear",
       "clearSelectionAriaLabel": "Clear clothing selection",

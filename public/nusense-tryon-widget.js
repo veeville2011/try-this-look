@@ -218,6 +218,29 @@
     // Use a namespaced handler to avoid conflicts with other apps
     const closeMessageHandler = function(e) {
       // Only handle NUSENSE messages to avoid interfering with stock alerts and other apps
+      if (!e || !e.data || e.data.type !== 'NUSENSE_CLOSE_WIDGET') {
+        return;
+      }
+
+      // Only accept messages from our widget iframe to avoid interference with other apps.
+      try {
+        if (!iframe.contentWindow || e.source !== iframe.contentWindow) {
+          return;
+        }
+      } catch (error) {
+        return;
+      }
+
+      // If we can derive the widget origin, enforce it strictly.
+      try {
+        const widgetOrigin = new URL(String(config.widgetUrl)).origin;
+        if (widgetOrigin && e.origin !== widgetOrigin) {
+          return;
+        }
+      } catch (error) {
+        // If widgetUrl isn't a valid URL, skip origin enforcement (but still require source match).
+      }
+
       if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {
         closeWidget();
         window.removeEventListener('message', closeMessageHandler);

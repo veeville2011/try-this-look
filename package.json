@@ -5,6 +5,9 @@
   "type": "module",
   "description": "NUSENSE TryON - AI-Powered Virtual Try-On App for Shopify",
   "scripts": {
+    "generate:demo-photos": "node scripts/generate-demo-photos.mjs",
+    "predev": "npm run generate:demo-photos",
+    "prebuild": "npm run generate:demo-photos",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",

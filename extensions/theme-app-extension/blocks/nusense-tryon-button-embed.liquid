@@ -804,15 +804,51 @@ observerSetupTimer = setTimeout(setupObserver, Math.min(1000, 100 + observerSetu
 return;
 }
 observerSetupAttempts = 0;
-const target = productForm.parentElement && productForm.parentElement !== document.body ? productForm.parentElement : productForm;
-observer = new MutationObserver(function(mutations) {
-for (const mutation of mutations) {
-if (mutation.type !== 'childList') continue;
-schedulePosition();
-break;
+const purchaseBoundary = findPurchaseActionBoundary();
+const target =
+  purchaseBoundary && purchaseBoundary.insertParent
+    ? purchaseBoundary.insertParent
+    : (productForm.parentElement && productForm.parentElement !== document.body ? productForm.parentElement : productForm);
+
+function isRelevantPurchaseMutationNode(node) {
+  if (!node || node.nodeType !== 1) return false;
+  const el = node;
+
+  // If our container is being inserted/removed/moved, re-position.
+  try {
+    if (el.id === containerId) return true;
+    if (el.querySelector && el.querySelector('#' + CSS.escape(containerId))) return true;
+  } catch (e) {}
+
+  // Only react to purchase-related button changes; ignore stock alerts and other UI updates.
+  try {
+    if (el.matches && el.matches('.shopify-payment-button, .shopify-payment-button__button, [data-shopify="payment-button"]')) return true;
+    if (el.matches && el.matches('button[type="submit"], input[type="submit"], button[name="add"], [name="add"]')) return true;
+    if (el.querySelector && el.querySelector('.shopify-payment-button, .shopify-payment-button__button, [data-shopify="payment-button"]')) return true;
+    if (el.querySelector && el.querySelector('button[type="submit"], input[type="submit"], button[name="add"], [name="add"]')) return true;
+  } catch (e) {}
+
+  return false;
 }
+
+observer = new MutationObserver(function(mutations) {
+  for (const mutation of mutations) {
+    if (mutation.type !== 'childList') continue;
+    const nodes = [];
+    try {
+      if (mutation.addedNodes && mutation.addedNodes.length) nodes.push.apply(nodes, mutation.addedNodes);
+      if (mutation.removedNodes && mutation.removedNodes.length) nodes.push.apply(nodes, mutation.removedNodes);
+    } catch (e) {}
+
+    if (nodes.some(isRelevantPurchaseMutationNode)) {
+      schedulePosition();
+      break;
+    }
+  }
 });
+
 // Important: avoid attributes observation (disabled/type changes can be extremely chatty and slow).
+// Also keep scope tight to the purchase group container to avoid reacting to unrelated DOM churn (e.g., stock alerts).
 observer.observe(target, {childList: true, subtree: true});
 };
 if (document.readyState === 'loading') {

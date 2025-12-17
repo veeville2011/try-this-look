@@ -1,7 +1,18 @@
 {% assign banner_enabled = block.settings.enabled | default: true %}
 
 {% if banner_enabled != false %}
-  {% render 'nusense-tryon-script' %}
+  <script>
+    (function () {
+      if (typeof window === 'undefined') return;
+      if (!document || !document.head) return;
+      if (document.querySelector('script[src*="nusense-home-banner.js"]')) return;
+
+      var script = document.createElement('script');
+      script.src = "{{ 'nusense-home-banner.js' | asset_url }}";
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  </script>
 {% endif %}
 
 {% schema %}
