@@ -2218,7 +2218,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </section>
 
                 <div
-                  className="w-px h-full min-h-[520px] self-stretch bg-slate-200 mt-3"
+                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
 
