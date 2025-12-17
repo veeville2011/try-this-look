@@ -82,6 +82,21 @@
       .filter(Boolean);
   };
 
+  const getCanonicalImageKey = (url) => {
+    if (!url || typeof url !== 'string') return '';
+    const abs = ensureAbsoluteUrl(url);
+    if (!abs) return '';
+
+    // Strip query/hash to normalize away cache-busters and width params.
+    const base = abs.split('#')[0].split('?')[0];
+
+    // Normalize Shopify CDN size suffixes (e.g. _600x, _600x600) before file extension.
+    // This helps dedupe the same image served at different sizes.
+    return base
+      .replace(/_(\d+x\d+|\d+x|x\d+)(?=\.[a-z0-9]{2,5}$)/i, '')
+      .toLowerCase();
+  };
+
   const looksLikeShopifyProductImageUrl = (url) => {
     if (!url || typeof url !== 'string') return false;
     const lower = url.toLowerCase();
@@ -94,14 +109,19 @@
   };
 
   const getOtherProductImagesOnPage = (mainProductImageUrls) => {
-    const seen = new Set((Array.isArray(mainProductImageUrls) ? mainProductImageUrls : []).map((u) => String(u).toLowerCase()));
+    const seen = new Set(
+      (Array.isArray(mainProductImageUrls) ? mainProductImageUrls : [])
+        .map((u) => getCanonicalImageKey(u))
+        .filter(Boolean),
+    );
     const out = [];
 
     const addUrl = (candidate) => {
       const abs = ensureAbsoluteUrl(candidate);
       if (!abs) return;
       if (!looksLikeShopifyProductImageUrl(abs)) return;
-      const key = abs.toLowerCase();
+      const key = getCanonicalImageKey(abs);
+      if (!key) return;
       if (seen.has(key)) return;
       seen.add(key);
       out.push({ url: abs });

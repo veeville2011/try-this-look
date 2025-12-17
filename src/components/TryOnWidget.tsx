@@ -2175,7 +2175,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </section>
 
                 <div
-                  className="w-px h-[600px] self-start shrink-0 bg-slate-200 mt-3"
+                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
 
@@ -2339,7 +2339,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Vertical Divider - Wide layout only */}
               {layoutMode === "wide" && (
                 <div
-                  className="w-px h-[600px] self-start shrink-0 bg-slate-200 mt-3"
+                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
               )}
