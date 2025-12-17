@@ -187,11 +187,11 @@ export default function ClothingSelection({
             {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side with horizontal scroll fallback */}
             {validImages.length > 0 && (
               <div className={horizontalScrollbarClassName}>
-                <div className="flex flex-col lg:flex-row items-start self-stretch mb-3 lg:mb-3 gap-0 lg:gap-3 min-w-max py-2">
-                  {validImages.slice(0, 2).map((image, index) => (
+                <div className="flex items-start min-w-max gap-3 py-2">
+                  {validImages.map((image, index) => (
                     <Card
                       key={index}
-                      className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${index === 0 ? "mb-2 lg:mb-0" : "mb-4 lg:mb-0"} ${
+                      className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${
                         selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
                       }`}
                       onClick={() => onSelect(image)}
@@ -207,9 +207,7 @@ export default function ClothingSelection({
                     >
                       <img
                         src={image}
-                        className={`w-full lg:w-[173px] h-[135px] lg:h-[164px] object-contain bg-white rounded-md ${
-                          selectedImage === image ? "" : ""
-                        }`}
+                        className="w-[173px] h-[164px] object-contain bg-white rounded-md"
                         alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
                           index: index + 1,
                           suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
