@@ -85,6 +85,47 @@ const Index = () => {
     refresh: refreshCredits,
   } = useCredits();
 
+  const CreditsBalanceSkeleton = () => (
+    <div
+      className="p-6 sm:p-8 rounded-lg bg-muted/20 border border-border/40 min-h-[200px]"
+      role="status"
+      aria-live="polite"
+      aria-label={t("credits.balanceCard.loading") || "Loading credits"}
+    >
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="bg-muted/40 border-b border-border px-4 py-3 flex items-center justify-between gap-4">
+            <Skeleton className="h-4 w-32" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {[1, 2, 3, 4, 5].map((row) => (
+              <div key={row} className="px-4 py-3 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
 
   // Sync store information to remote backend on first load
   useEffect(() => {
@@ -1369,19 +1410,42 @@ const Index = () => {
                       </h2>
                     </div>
                     {/* Credits Table - Clean tabular UI */}
-                    {credits && !subscription.isFree ? (
-                      <CreditBalance variant="embedded" />
-                    ) : (
+                    {subscription.isFree ? (
                       <div className="p-8 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
                         <div className="text-center space-y-2">
-                          <Coins className="w-8 h-8 text-muted-foreground mx-auto opacity-50" aria-hidden="true" />
+                          <Coins
+                            className="w-8 h-8 text-muted-foreground mx-auto opacity-50"
+                            aria-hidden="true"
+                          />
                           <p className="text-sm text-muted-foreground">
-                            {subscription.isFree 
-                              ? t("index.planCard.creditsAvailableAfterUpgrade") || "Credits available after upgrade"
-                              : t("index.planCard.loadingCredits") || "Loading credits..."}
+                            {t("index.planCard.creditsAvailableAfterUpgrade") ||
+                              "Credits available after upgrade"}
                           </p>
                         </div>
                       </div>
+                    ) : creditsLoading ? (
+                      <CreditsBalanceSkeleton />
+                    ) : creditsError ? (
+                      <div
+                        className="p-8 rounded-lg bg-destructive/5 border border-destructive/20 flex items-center justify-center min-h-[200px]"
+                        role="alert"
+                        aria-label={t("credits.balanceCard.error") || "Credits error"}
+                      >
+                        <div className="text-center space-y-2">
+                          <Coins
+                            className="w-8 h-8 text-destructive mx-auto opacity-80"
+                            aria-hidden="true"
+                          />
+                          <p className="text-sm text-foreground">
+                            {t("credits.balanceCard.errorMessage") ||
+                              "We couldn’t load your credits. Please try again."}
+                          </p>
+                        </div>
+                      </div>
+                    ) : credits ? (
+                      <CreditBalance variant="embedded" />
+                    ) : (
+                      <CreditsBalanceSkeleton />
                     )}
                   </div>
                 </CardContent>
@@ -1820,9 +1884,17 @@ const Index = () => {
 
       {/* Loading Indicator - Non-blocking, shows in top-right corner */}
       {shouldShowLoading && (
-        <div className="fixed top-20 right-4 z-40 bg-card border border-border rounded-lg p-4 shadow-lg">
+        <div
+          className="fixed top-20 right-4 z-40 bg-card border border-border rounded-lg p-4 shadow-lg"
+          role="status"
+          aria-live="polite"
+          aria-label={t("index.loading.loading") || "Loading"}
+        >
           <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            <div
+              className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"
+              aria-hidden="true"
+            />
             {shouldShowPaymentLoading ? (
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">
@@ -1833,9 +1905,13 @@ const Index = () => {
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("index.loading.loading") || "Loading..."}
-              </p>
+              <div className="space-y-2">
+                <span className="sr-only">
+                  {t("index.loading.loading") || "Loading"}
+                </span>
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-16" />
+              </div>
             )}
           </div>
         </div>

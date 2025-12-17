@@ -509,36 +509,15 @@
     container.setAttribute('role', 'document');
     container.style.cssText = [
       'position: relative',
+      // Maintain the original desktop modal width (900px) while staying responsive on mobile.
+      // - Mobile: width is capped by 95vw
+      // - Desktop: max-width keeps the modal at 900px for consistent UI/UX
       'width: 95vw',
-      'max-width: 1200px',
+      'max-width: 900px',
       'height: 90vh',
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',
-    ].join(';');
-
-    const closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'nusense-widget-close';
-    closeButton.setAttribute('aria-label', 'Close try-on widget');
-    closeButton.textContent = '×';
-    closeButton.style.cssText = [
-      'position: absolute',
-      'top: 0.75rem',
-      'right: 0.75rem',
-      'width: 40px',
-      'height: 40px',
-      'border-radius: 9999px',
-      'border: 1px solid rgba(0,0,0,0.15)',
-      'background: rgba(255,255,255,0.95)',
-      'color: #111',
-      'font-size: 26px',
-      'line-height: 1',
-      'display: flex',
-      'align-items: center',
-      'justify-content: center',
-      'cursor: pointer',
-      'z-index: 2',
     ].join(';');
 
     const iframe = document.createElement('iframe');
@@ -556,18 +535,40 @@
     ].join(';');
 
     const loading = document.createElement('div');
-    loading.textContent = 'Loading…';
+    // Avoid rendering visible "Loading..." text; show a simple spinner instead.
+    loading.setAttribute('role', 'status');
+    loading.setAttribute('aria-live', 'polite');
+    loading.setAttribute('aria-label', 'Loading');
     loading.style.cssText = [
       'position: absolute',
       'inset: 0',
       'display: flex',
       'align-items: center',
       'justify-content: center',
-      'color: #444',
-      'font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
       'background: rgba(255,255,255,0.8)',
       'z-index: 1',
     ].join(';');
+
+    // Inject keyframes once for the spinner.
+    const spinnerStyleId = 'nusense-tryon-spinner-style';
+    if (!document.getElementById(spinnerStyleId)) {
+      const spinnerStyle = document.createElement('style');
+      spinnerStyle.id = spinnerStyleId;
+      spinnerStyle.textContent = `@keyframes nusenseSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+      document.head.appendChild(spinnerStyle);
+    }
+
+    const loadingSpinner = document.createElement('div');
+    loadingSpinner.setAttribute('aria-hidden', 'true');
+    loadingSpinner.style.cssText = [
+      'width: 40px',
+      'height: 40px',
+      'border-radius: 9999px',
+      'border: 3px solid rgba(0,0,0,0.15)',
+      'border-top-color: rgba(0,0,0,0.55)',
+      'animation: nusenseSpin 0.8s linear infinite',
+    ].join(';');
+    loading.appendChild(loadingSpinner);
 
     let cleanedUp = false;
     const handleCleanup = () => {
@@ -632,28 +633,17 @@
       }
     };
 
-    closeButton.addEventListener('click', handleCleanup);
-    closeButton.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') handleCleanup();
-    });
-
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) handleCleanup();
     });
 
     iframe.addEventListener('load', () => {
       loading.remove();
-      try {
-        closeButton.focus();
-      } catch {
-        // ignore
-      }
     });
 
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('message', handleMessage);
 
-    container.appendChild(closeButton);
     container.appendChild(iframe);
     container.appendChild(loading);
     overlay.appendChild(title);
@@ -661,12 +651,6 @@
 
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
-
-    try {
-      closeButton.focus();
-    } catch {
-      // ignore
-    }
   };
 
   const initButton = (buttonEl) => {

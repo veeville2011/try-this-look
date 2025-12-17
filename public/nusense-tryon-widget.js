@@ -132,7 +132,7 @@
     const isDesktop = window.innerWidth >= 768;
     // Use 900px as requested, but we'll use CSS to force desktop layout
     const containerWidth = isDesktop ? '900px' : '95vw';
-    const containerMaxWidth = isDesktop ? '900px' : '1200px';
+    const containerMaxWidth = isDesktop ? '900px' : '95vw';
     
     container.style.cssText = `
       width: ${containerWidth};
@@ -195,7 +195,7 @@
         container.style.minWidth = '900px';
       } else {
         container.style.width = '95vw';
-        container.style.maxWidth = '1200px';
+        container.style.maxWidth = '95vw';
         container.style.minWidth = '';
       }
     };

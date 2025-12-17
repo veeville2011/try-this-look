@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadialProgress } from "@/components/ui/radial-progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Table, 
   TableBody, 
@@ -38,29 +39,61 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
   const { credits, loading, error, refresh } = useCredits();
 
   if (loading) {
-    const LoadingWrapper = variant === "embedded" ? "div" : Card;
-    const loadingWrapperProps = variant === "embedded" 
-      ? { className: "space-y-2" }
-      : { className: "border-2 border-border shadow-lg" };
-    
     return (
-      <LoadingWrapper {...loadingWrapperProps}>
+      <div
+        className={cn(
+          "w-full",
+          variant === "standalone" ? "border-2 border-border shadow-lg rounded-lg bg-card" : "space-y-2"
+        )}
+        role="status"
+        aria-live="polite"
+        aria-label={t("credits.balanceCard.loading") || "Loading credits"}
+      >
         {variant === "standalone" && (
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-              <span>{t("credits.balanceCard.loading")}</span>
-            </CardTitle>
-          </CardHeader>
+          <div className="p-6 border-b border-border">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+            <div className="mt-2">
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
         )}
-        {variant === "standalone" ? (
-          <CardContent>
-            <div className="text-sm text-muted-foreground">{t("credits.balanceCard.fetching")}</div>
-          </CardContent>
-        ) : (
-          <div className="text-sm text-muted-foreground">{t("credits.balanceCard.fetching")}</div>
-        )}
-      </LoadingWrapper>
+        <div className={cn(variant === "standalone" ? "p-6" : "")}>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-5 w-44" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="bg-muted/40 border-b border-border px-4 py-3 flex items-center justify-between gap-4">
+                <Skeleton className="h-4 w-32" />
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+              <div className="divide-y divide-border">
+                {[1, 2, 3, 4, 5].map((row) => (
+                  <div key={row} className="px-4 py-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-8 w-8 rounded-md" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
