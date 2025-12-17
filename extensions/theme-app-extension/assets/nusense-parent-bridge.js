@@ -356,7 +356,11 @@
         const mainUrls = images.map((img) => img?.url).filter(Boolean);
         // "Recommended" rail should be populated ONLY from the parent page DOM:
         // all other product-card images on the page, excluding the current product images.
-        const recommendedImages = getOtherProductImagesOnPage(mainUrls);
+        let recommendedImages = getOtherProductImagesOnPage(mainUrls);
+        // Fallback: if no other product images exist on the page, use the main product images.
+        if (!Array.isArray(recommendedImages) || recommendedImages.length === 0) {
+          recommendedImages = images;
+        }
 
         event.source.postMessage(
           { type: 'NUSENSE_PRODUCT_IMAGES', images, recommendedImages },

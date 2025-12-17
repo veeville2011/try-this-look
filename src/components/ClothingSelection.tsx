@@ -175,11 +175,19 @@ export default function ClothingSelection({
     );
   }
 
-  // Recommended Products: filter out any duplicates of the main product images.
   const mainSet = new Set(validImages.map((u) => u.toLowerCase()));
-  const filteredRecommendedImages = validRecommendedImages.filter(
-    (u) => !mainSet.has(u.toLowerCase())
-  );
+  const recommendedSet = new Set(validRecommendedImages.map((u) => u.toLowerCase()));
+
+  // If recommended == main (fallback mode), don't filter them out.
+  const isFallbackToMain =
+    mainSet.size > 0 &&
+    mainSet.size === recommendedSet.size &&
+    Array.from(mainSet).every((u) => recommendedSet.has(u));
+
+  // Otherwise, filter out any duplicates of the main product images.
+  const filteredRecommendedImages = isFallbackToMain
+    ? validRecommendedImages
+    : validRecommendedImages.filter((u) => !mainSet.has(u.toLowerCase()));
 
   return (
     <div className="flex flex-col h-full min-h-0">

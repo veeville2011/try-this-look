@@ -611,13 +611,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           console.log("[TryOnWidget] Parent sent empty images array");
         }
 
-        // Recommended rail (iframe): ONLY use parent-provided recommended images.
-        // Never fall back to main product images (that causes duplicates and poor UX).
-        if (parentRecommendedImages.length > 0) {
+        // Recommended rail (iframe): use parent-provided recommended images.
+        // If parent can't find other product images on the page, fall back to main product images.
+        const recommendedSource =
+          parentRecommendedImages.length > 0 ? parentRecommendedImages : parentImages;
+
+        if (recommendedSource.length > 0) {
           const recommendedUrls: string[] = [];
           const recommendedIdMap = new Map<string, string | number>();
 
-          parentRecommendedImages.forEach((img: string | ProductImage) => {
+          recommendedSource.forEach((img: string | ProductImage) => {
             if (typeof img === "string") {
               recommendedUrls.push(img);
               return;
@@ -630,10 +633,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             }
           });
 
-          const mainSet = new Set(imageUrls.map((u) => u.toLowerCase()));
-          const uniqueUrls = Array.from(
-            new Set(recommendedUrls.filter(Boolean))
-          ).filter((u) => !mainSet.has(u.toLowerCase()));
+          const uniqueUrls = Array.from(new Set(recommendedUrls.filter(Boolean)));
           setRecommendedImages(uniqueUrls);
           setRecommendedImagesWithIds(recommendedIdMap);
 
