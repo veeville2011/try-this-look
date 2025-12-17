@@ -8,7 +8,7 @@
    * We want to avoid double-initializing buttons across theme partial reloads,
    * section rendering, and DOM mutations.
    */
-  const initializedButtonIds = new Set();
+  const INIT_FLAG = 'nusenseInitialized';
 
   const normalizeUrl = (url) => {
     if (!url) return '';
@@ -103,20 +103,61 @@
     const marginBottom = buttonEl.dataset.marginBottom || '0';
     const marginLeft = buttonEl.dataset.marginLeft || '0';
     const marginRight = buttonEl.dataset.marginRight || '0';
+    const widthPercentRaw = buttonEl.dataset.widthPercent || '';
+    const widthPercent = Number.parseInt(String(widthPercentRaw).trim(), 10);
+    const isFullWidth = buttonEl.dataset.buttonWidthFull === 'true' || buttonEl.classList.contains('button--full-width');
 
     if (marginTop !== '0') buttonEl.style.marginTop = `${marginTop}rem`;
     if (marginBottom !== '0') buttonEl.style.marginBottom = `${marginBottom}rem`;
     if (marginLeft !== '0') buttonEl.style.marginLeft = `${marginLeft}rem`;
     if (marginRight !== '0') buttonEl.style.marginRight = `${marginRight}rem`;
 
+    // Button width customization (applies only when Full Width is disabled).
+    if (!isFullWidth && Number.isFinite(widthPercent) && widthPercent > 0 && widthPercent <= 100) {
+      // Avoid forcing 100% unless merchant intentionally sets it.
+      if (widthPercent !== 100) buttonEl.style.width = `${widthPercent}%`;
+    }
+
     if (alignment === 'auto') return;
 
-    const parent = buttonEl.parentElement;
-    if (!parent) return;
+    // Alignment must work even when the wrapper is `display: contents` (no box),
+    // so apply alignment directly on the button (and flex/grid properties when possible).
+    if (isFullWidth) return;
 
-    if (alignment === 'left') parent.style.textAlign = 'left';
-    if (alignment === 'center') parent.style.textAlign = 'center';
-    if (alignment === 'right') parent.style.textAlign = 'right';
+    const parent = buttonEl.parentElement;
+    const parentStyle = parent ? window.getComputedStyle(parent) : null;
+    const isFlexParent = !!parentStyle && (parentStyle.display === 'flex' || parentStyle.display === 'inline-flex');
+    const isGridParent = !!parentStyle && parentStyle.display === 'grid';
+
+    if (isFlexParent) {
+      if (alignment === 'left') buttonEl.style.alignSelf = 'flex-start';
+      if (alignment === 'center') buttonEl.style.alignSelf = 'center';
+      if (alignment === 'right') buttonEl.style.alignSelf = 'flex-end';
+      return;
+    }
+
+    if (isGridParent) {
+      if (alignment === 'left') buttonEl.style.justifySelf = 'start';
+      if (alignment === 'center') buttonEl.style.justifySelf = 'center';
+      if (alignment === 'right') buttonEl.style.justifySelf = 'end';
+      return;
+    }
+
+    // Block formatting fallback.
+    if (!buttonEl.style.width) buttonEl.style.width = 'fit-content';
+    buttonEl.style.display = 'flex';
+    if (alignment === 'left') {
+      buttonEl.style.marginLeft = '0';
+      buttonEl.style.marginRight = 'auto';
+    }
+    if (alignment === 'center') {
+      buttonEl.style.marginLeft = 'auto';
+      buttonEl.style.marginRight = 'auto';
+    }
+    if (alignment === 'right') {
+      buttonEl.style.marginLeft = 'auto';
+      buttonEl.style.marginRight = '0';
+    }
   };
 
   const applyButtonVisualConfig = (buttonEl) => {
@@ -434,9 +475,9 @@
   const initButton = (buttonEl) => {
     if (!(buttonEl instanceof HTMLButtonElement)) return;
     if (!buttonEl.id || !buttonEl.id.startsWith(BUTTON_ID_PREFIX)) return;
-    if (initializedButtonIds.has(buttonEl.id)) return;
+    if (buttonEl.dataset[INIT_FLAG] === 'true') return;
 
-    initializedButtonIds.add(buttonEl.id);
+    buttonEl.dataset[INIT_FLAG] = 'true';
 
     // Defensive: ensure we don't accidentally submit product forms.
     if (!buttonEl.type) buttonEl.type = 'button';
@@ -494,6 +535,7 @@
         'data-button-style',
         'data-show-icon',
         'data-button-width-full',
+        'data-width-percent',
         'data-background-color',
         'data-text-color',
         'data-border-color',

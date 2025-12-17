@@ -86,6 +86,17 @@
       "info": "Enable to make button full width. Disable to allow flexible width (can be placed next to other buttons)"
     },
     {
+      "type": "range",
+      "id": "button_width_percent",
+      "label": "Button width (%) when Full Width is off",
+      "min": 10,
+      "max": 100,
+      "step": 1,
+      "default": 100,
+      "unit": "%",
+      "info": "Applies only when Full Width Button is disabled."
+    },
+    {
       "type": "header",
       "content": "Positioning & Spacing"
     },
@@ -238,6 +249,7 @@
 {% assign button_padding = block.settings.button_padding | default: 0.8 %}
 {% assign button_border_radius = block.settings.button_border_radius | default: 4 %}
 {% assign button_alignment = block.settings.button_alignment | default: 'auto' %}
+{% assign button_width_percent = block.settings.button_width_percent | default: 100 %}
 {% assign margin_top = block.settings.margin_top | default: 0 %}
 {% assign margin_bottom = block.settings.margin_bottom | default: 0 %}
 {% assign margin_left = block.settings.margin_left | default: 0 %}
@@ -280,6 +292,7 @@
   data-button-icon="{{ button_icon | escape }}"
   data-show-icon="{{ show_icon }}"
   data-button-width-full="{{ button_width_full }}"
+  data-width-percent="{{ button_width_percent }}"
   data-button-classes="{{ button_classes | escape }}"
   data-button-alignment="{{ button_alignment | escape }}"
   data-margin-top="{{ margin_top }}"
@@ -306,6 +319,7 @@
     data-button-style="{{ button_style | escape }}"
     data-show-icon="{{ show_icon }}"
     data-button-width-full="{{ button_width_full }}"
+    data-width-percent="{{ button_width_percent }}"
     {% if button_background_color != blank %}data-background-color="{{ button_background_color | escape }}"{% endif %}
     {% if button_text_color != blank %}data-text-color="{{ button_text_color | escape }}"{% endif %}
     {% if button_border_color != blank %}data-border-color="{{ button_border_color | escape }}"{% endif %}
@@ -321,7 +335,7 @@
     {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
     data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' | escape }}"
     data-loading="true"
-    style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
+    style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% else %}{% if button_width_percent != blank and button_width_percent != 100 %} width: {{ button_width_percent }}%;{% endif %}{% endif %}"
   >
     <span class="button__icon" data-icon="{{ button_icon | escape }}" aria-hidden="true" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon | escape }}</span>
     <span class="button__text" id="nusense-tryon-desc-{{ block.id }}">{{ button_text | escape }}</span>
