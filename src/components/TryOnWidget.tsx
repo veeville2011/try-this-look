@@ -598,6 +598,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           setSingleTabImagesWithIds(imageIdMap);
           imagesLoadedRef.current = true;
 
+          // In iframe mode, prefer the parent page as the source of truth for the "recommended" rail too.
+          // Requirement: show all product images from the parent page instead of API-derived store products.
+          // We mirror the parent product images into recommendedImages so the UI stays consistent.
+          setRecommendedImages(imageUrls);
+          setRecommendedImagesWithIds(imageIdMap);
+
           // Debug logging
           console.log(
             "[TryOnWidget] Product images loaded:",
@@ -611,15 +617,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           console.log("[TryOnWidget] Parent sent empty images array");
         }
 
-        // Set recommended images if available (recommended images are still strings for now)
+        // Backward-compat: parent may also send a separate recommendedImages list.
+        // We intentionally ignore it in favor of parent product images (see above) to satisfy the requirement.
         if (parentRecommendedImages.length > 0) {
-          const recommendedUrls = parentRecommendedImages
-            .map((img: string | ProductImage) =>
-              typeof img === "string" ? img : img?.url || ""
-            )
-            .filter(Boolean);
-          setRecommendedImages(recommendedUrls);
-          console.log("[TryOnWidget] Recommended images loaded:", recommendedUrls.length);
+          console.log(
+            "[TryOnWidget] Parent also provided recommendedImages (ignored in favor of product images):",
+            parentRecommendedImages.length
+          );
         }
       }
 
@@ -764,6 +768,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Populate "Recommended products" with ALL store products (Try Single tab)
   useEffect(() => {
     if (activeTab !== "single") return;
+
+    // In iframe mode, the parent page is the source of truth (no API).
+    // If parent images are available, they already populate recommendedImages via postMessage.
+    const isInIframe = typeof window !== "undefined" && window.parent !== window;
+    if (isInIframe) return;
 
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
     if (!shopDomain) return;
@@ -1885,13 +1894,21 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const isSingleTabImagesLoading =
     isInIframe && activeTab === "single" && singleTabImages.length === 0;
 
-  const isSingleTabRecommendedLoading =
-    activeTab === "single" &&
-    !!normalizedShopDomain &&
-    recommendedImages.length === 0 &&
-    (isLoadingCategories ||
+  const isSingleTabRecommendedLoading = (() => {
+    if (activeTab !== "single") return false;
+    if (!normalizedShopDomain) return false;
+
+    // In iframe mode, recommended images come from the parent page (no API).
+    if (isInIframe) return false;
+
+    if (recommendedImages.length > 0) return false;
+
+    return (
+      isLoadingCategories ||
       !store_products ||
-      storeRecommendedLoadedForShopRef.current === normalizedShopDomain);
+      storeRecommendedLoadedForShopRef.current === normalizedShopDomain
+    );
+  })();
 
   const isMultipleLookProductsLoading =
     (activeTab === "multiple" || activeTab === "look") &&
@@ -2148,7 +2165,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 </section>
 
                 <div
-                  className="w-px self-stretch bg-slate-200 mt-3"
+                  className="w-px h-[600px] self-start shrink-0 bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
 
@@ -2312,7 +2329,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Vertical Divider - Wide layout only */}
               {layoutMode === "wide" && (
                 <div
-                  className="w-px self-stretch bg-slate-200 mt-3"
+                  className="w-px h-[600px] self-start shrink-0 bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
               )}
