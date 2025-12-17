@@ -1132,6 +1132,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       return;
     }
 
+    // Show a high-quality loading state immediately (and avoid “stale result” confusion)
     setIsGenerating(true);
     setError(null);
     setProgress(0);
@@ -1142,6 +1143,19 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     );
     try {
       localStorage.setItem(INFLIGHT_KEY, "1");
+    } catch {}
+
+    // Perceived-performance: smooth, non-blocking progress ramp while the API works.
+    // We cap at 92% and finish at 100% on success.
+    let progressTimer: number | null = null;
+    try {
+      progressTimer = window.setInterval(() => {
+        setProgress((current) => {
+          if (current >= 92) return 92;
+          const next = current + Math.max(1, Math.round((92 - current) * 0.08));
+          return Math.min(92, next);
+        });
+      }, 450);
     } catch {}
 
     try {
@@ -1217,6 +1231,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       setStatusVariant("error");
       setStatusMessage(errorMessage);
     } finally {
+      if (progressTimer != null) {
+        try {
+          window.clearInterval(progressTimer);
+        } catch {}
+      }
       setIsGenerating(false);
       try {
         localStorage.removeItem(INFLIGHT_KEY);
@@ -2156,8 +2175,71 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
                     {isGenerating ? (
-                      <div className="w-full min-h-[400px] max-h-[500px] rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
-                        <Skeleton className="w-full h-full min-h-[400px] rounded-lg bg-slate-200/80 dark:bg-slate-800/60 animate-pulse motion-reduce:animate-none" />
+                      <div
+                        className="relative w-full min-h-[400px] max-h-[500px] rounded-lg overflow-hidden border border-border bg-gradient-to-br from-muted/30 via-muted/10 to-muted/30"
+                        role="status"
+                        aria-live="polite"
+                        aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                      >
+                        {/* Keep previous result visible (softly) so the UI feels alive while regenerating */}
+                        {generatedImage && (
+                          <img
+                            src={generatedImage}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-contain opacity-35 blur-[2px] scale-[1.02]"
+                          />
+                        )}
+
+                        <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40" />
+
+                        {/* Subtle focus vignette */}
+                        <div
+                          className="absolute inset-0 pointer-events-none opacity-70"
+                          aria-hidden="true"
+                          style={{
+                            background:
+                              "radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0.08) 100%)",
+                          }}
+                        />
+
+                        {/* Centered feedback */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                          <div className="relative">
+                            <div
+                              className="w-14 h-14 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm"
+                              aria-hidden="true"
+                            >
+                              <Sparkles className="w-7 h-7 text-primary motion-safe:animate-pulse" aria-hidden="true" />
+                            </div>
+                            <div
+                              className="absolute inset-0 w-14 h-14 rounded-full bg-primary/20 motion-safe:animate-ping opacity-60"
+                              aria-hidden="true"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">
+                              {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t("tryOnWidget.status.generatingHint") || "Cela prend généralement 15 à 20 secondes. Gardez cette page ouverte."}
+                            </p>
+                          </div>
+
+                          <div className="w-full max-w-xs pt-1">
+                            <Progress
+                              value={progress}
+                              className="h-2 bg-muted/60"
+                              aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
+                            />
+                            <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
+                              {(t("tryOnWidget.progress.percent") && t("tryOnWidget.progress.percent")!.includes("{value}"))
+                                ? t("tryOnWidget.progress.percent", { value: progress })
+                                : `${progress}%`}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ) : generatedImage ? (
                       <div className="w-full rounded-lg bg-white overflow-hidden">
@@ -2226,8 +2308,67 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                 {/* Generated Image */}
                 {isGenerating ? (
-                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden">
-                    <Skeleton className="w-full h-full min-h-[400px] rounded-xl bg-slate-200/80 dark:bg-slate-800/60 animate-pulse motion-reduce:animate-none" />
+                  <div
+                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-gradient-to-br from-muted/30 via-muted/10 to-muted/30"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                  >
+                    {generatedImage && (
+                      <img
+                        src={generatedImage}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-contain opacity-35 blur-[2px] scale-[1.02]"
+                      />
+                    )}
+                    <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40" />
+
+                    <div
+                      className="absolute inset-0 pointer-events-none opacity-70"
+                      aria-hidden="true"
+                      style={{
+                        background:
+                          "radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0.08) 100%)",
+                      }}
+                    />
+
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                      <div className="relative">
+                        <div
+                          className="w-16 h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm"
+                          aria-hidden="true"
+                        >
+                          <Sparkles className="w-8 h-8 text-primary motion-safe:animate-pulse" aria-hidden="true" />
+                        </div>
+                        <div
+                          className="absolute inset-0 w-16 h-16 rounded-full bg-primary/20 motion-safe:animate-ping opacity-60"
+                          aria-hidden="true"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("tryOnWidget.status.generatingHint") || "Cela prend généralement 15 à 20 secondes. Gardez cette page ouverte."}
+                        </p>
+                      </div>
+
+                      <div className="w-full max-w-xs pt-1">
+                        <Progress
+                          value={progress}
+                          className="h-2 bg-muted/60"
+                          aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
+                        />
+                        <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
+                          {(t("tryOnWidget.progress.percent") && t("tryOnWidget.progress.percent")!.includes("{value}"))
+                            ? t("tryOnWidget.progress.percent", { value: progress })
+                            : `${progress}%`}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ) : generatedImage ? (
                   <div className="self-stretch mb-8 rounded-xl bg-white overflow-hidden">
