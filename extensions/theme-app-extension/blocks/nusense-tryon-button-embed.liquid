@@ -2,7 +2,44 @@
 
 {% render 'nusense-tryon-script' %}
 
-<style>.nusense-tryon-button{display:inline-flex !important;align-items:center !important;justify-content:center !important;gap:0.5rem;padding:0.75rem 1.5rem !important;text-align:center;text-decoration:none;cursor:pointer !important;border:1px solid transparent;border-radius:4px;transition:all 0.2s cubic-bezier(0.4,0,0.2,1) !important;min-height:44px !important;box-sizing:border-box;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;user-select:none;-webkit-user-select:none;touch-action:manipulation;will-change:transform,box-shadow;font-family:inherit;font-size:inherit;font-weight:inherit;line-height:inherit;letter-spacing:inherit;text-transform:inherit;}.nusense-tryon-button.button--primary,.nusense-tryon-button.btn-primary,.nusense-tryon-button.btn--primary,.nusense-tryon-button.button,.nusense-tryon-button.btn{background-color:#000000 !important;color:#ffffff !important;border-color:#000000 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06) !important;}.nusense-tryon-button.button--primary:hover,.nusense-tryon-button.btn-primary:hover,.nusense-tryon-button.btn--primary:hover,.nusense-tryon-button.button:hover,.nusense-tryon-button.btn:hover{background-color:#1a1a1a !important;border-color:#1a1a1a !important;box-shadow:0 4px 6px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1) !important;transform:translateY(-1px);opacity:1 !important;}.nusense-tryon-button.button--primary:focus,.nusense-tryon-button.btn-primary:focus,.nusense-tryon-button.btn--primary:focus,.nusense-tryon-button.button:focus,.nusense-tryon-button.btn:focus{outline:2px solid #ffffff !important;outline-offset:2px !important;box-shadow:0 0 0 3px rgba(0,0,0,0.2),0 4px 6px rgba(0,0,0,0.15) !important;}.nusense-tryon-button.button--primary:active,.nusense-tryon-button.btn-primary:active,.nusense-tryon-button.btn--primary:active,.nusense-tryon-button.button:active,.nusense-tryon-button.btn:active{background-color:#0d0d0d !important;border-color:#0d0d0d !important;box-shadow:0 1px 2px rgba(0,0,0,0.2) !important;transform:translateY(0);}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]){background-color:#000000 !important;color:#ffffff !important;border-color:#000000 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06) !important;position:relative;overflow:hidden;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):hover{background-color:#1a1a1a !important;border-color:#1a1a1a !important;box-shadow:0 4px 6px rgba(0,0,0,0.15),0 2px 4px rgba(0,0,0,0.1) !important;transform:translateY(-1px);opacity:1 !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus{outline:2px solid #ffffff !important;outline-offset:2px !important;box-shadow:0 0 0 3px rgba(0,0,0,0.2),0 4px 6px rgba(0,0,0,0.15) !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):focus:not(:focus-visible){outline:none !important;}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"]):active{background-color:#0d0d0d !important;border-color:#0d0d0d !important;box-shadow:0 1px 2px rgba(0,0,0,0.2) !important;transform:translateY(0);}.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[disabled],.nusense-tryon-button:not([class*="button--secondary"]):not([class*="btn-secondary"]):not([class*="button--outline"]):not([class*="btn-outline"]):not([class*="button--tertiary"]):not([class*="btn-link"])[aria-disabled="true"]{background-color:#666666 !important;border-color:#666666 !important;color:#ffffff !important;cursor:not-allowed !important;opacity:0.6 !important;box-shadow:none !important;transform:none !important;}.nusense-tryon-button.button--secondary,.nusense-tryon-button.btn-secondary,.nusense-tryon-button.btn--secondary{background-color:#f5f5f5 !important;color:#000000 !important;border:1px solid #e0e0e0 !important;box-shadow:0 1px 2px rgba(0,0,0,0.05) !important;}.nusense-tryon-button.button--secondary:hover,.nusense-tryon-button.btn-secondary:hover,.nusense-tryon-button.btn--secondary:hover{background-color:#e8e8e8 !important;box-shadow:0 2px 4px rgba(0,0,0,0.1) !important;}.nusense-tryon-button.button--outline,.nusense-tryon-button.btn-outline,.nusense-tryon-button.btn--outline{background-color:transparent !important;color:#000000 !important;border:2px solid #000000 !important;box-shadow:none !important;}.nusense-tryon-button.button--outline:hover,.nusense-tryon-button.btn-outline:hover,.nusense-tryon-button.btn--outline:hover{background-color:#000000 !important;color:#ffffff !important;box-shadow:0 2px 4px rgba(0,0,0,0.1) !important;}.nusense-tryon-button.button--tertiary,.nusense-tryon-button.btn-link,.nusense-tryon-button.btn--link{background-color:transparent !important;color:#000000 !important;border:1px solid transparent !important;box-shadow:none !important;text-decoration:none !important;}.nusense-tryon-button.button--tertiary:hover,.nusense-tryon-button.btn-link:hover,.nusense-tryon-button.btn--link:hover{background-color:rgba(0,0,0,0.05) !important;text-decoration:underline !important;}.nusense-tryon-button.button--full-width,.nusense-tryon-button.btn-block,.nusense-tryon-button.btn--full-width{width:100% !important;}.nusense-tryon-button .button__text{color:inherit !important;font-family:inherit !important;font-size:inherit !important;font-weight:inherit !important;line-height:inherit !important;letter-spacing:inherit !important;text-transform:inherit !important;}.nusense-tryon-button[style*="display:none"]{display:inline-flex !important;}.nusense-tryon-button[data-loading="true"]{opacity:0.7;pointer-events:none;}.nusense-widget-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;}.nusense-widget-container{position:relative;width:95vw;max-width:1200px;height:90vh;}.nusense-widget-close{position:absolute;top:-40px;right:0;background:white;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:24px;line-height:1;z-index:10000;display:flex;align-items:center;justify-content:center;}.nusense-widget-close:hover{background:#f0f0f0;}.nusense-widget-close:focus{outline:2px solid #007bff;outline-offset:2px;}.nusense-tryon-button-embed-container{position:static;float:none;width:100%;margin-bottom:0.75rem;z-index:auto;opacity:0;visibility:hidden;display:block !important;flex-basis:100% !important;flex-shrink:0 !important;flex-grow:0 !important;grid-column:1/-1 !important;clear:both !important;}.nusense-tryon-button-embed-container.is-positioned{opacity:1;visibility:visible;display:block !important;}</style>
+<style>
+  .nusense-tryon-button-embed-container {
+    position: static;
+    float: none;
+    width: 100%;
+    margin-bottom: 0.75rem;
+    z-index: auto;
+    opacity: 0;
+    visibility: hidden;
+    display: block !important;
+    flex-basis: 100% !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    grid-column: 1 / -1 !important;
+    clear: both !important;
+  }
+
+  .nusense-tryon-button-embed-container.is-positioned {
+    opacity: 1;
+    visibility: visible;
+    display: block !important;
+  }
+
+  .nusense-tryon-button[data-loading="true"] {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  
+  .nusense-tryon-button .button__text {
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+  }
+</style>
 
 {% schema %}
 {
@@ -251,59 +288,71 @@
   id="nusense-tryon-button-embed-{{ block.id }}" 
   class="nusense-tryon-button-embed-container"
   data-block-id="{{ block.id }}"
-  data-button-text="{{ button_text }}"
-  data-button-style="{{ button_style }}"
-  data-button-icon="{{ button_icon }}"
+  data-button-text="{{ button_text | escape }}"
+  data-button-style="{{ button_style | escape }}"
+  data-button-icon="{{ button_icon | escape }}"
   data-show-icon="{{ show_icon }}"
   data-button-width-full="{{ button_width_full }}"
-  data-button-classes="{{ button_classes }}"
-  data-button-alignment="{{ button_alignment }}"
+  data-button-classes="{{ button_classes | escape }}"
+  data-button-alignment="{{ button_alignment | escape }}"
   data-margin-top="{{ margin_top }}"
   data-margin-bottom="{{ margin_bottom }}"
   data-margin-left="{{ margin_left }}"
   data-margin-right="{{ margin_right }}"
-  {% if button_background_color != blank %}data-background-color="{{ button_background_color }}"{% endif %}
-  {% if button_text_color != blank %}data-text-color="{{ button_text_color }}"{% endif %}
-  {% if button_border_color != blank %}data-border-color="{{ button_border_color }}"{% endif %}
-  {% if button_font_size != blank %}data-font-size="{{ button_font_size }}"{% endif %}
-  {% if button_padding != blank %}data-padding="{{ button_padding }}"{% endif %}
-  {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius }}"{% endif %}
-  {% if custom_css != blank %}data-custom-css="{{ custom_css }}"{% endif %}
-  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
-  data-shop-domain="{{ shop.permanent_domain }}"
+  {% if button_background_color != blank %}data-background-color="{{ button_background_color | escape }}"{% endif %}
+  {% if button_text_color != blank %}data-text-color="{{ button_text_color | escape }}"{% endif %}
+  {% if button_border_color != blank %}data-border-color="{{ button_border_color | escape }}"{% endif %}
+  {% if button_font_size != blank %}data-font-size="{{ button_font_size | escape }}"{% endif %}
+  {% if button_padding != blank %}data-padding="{{ button_padding | escape }}"{% endif %}
+  {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius | escape }}"{% endif %}
+  {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
+  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' | escape }}"
+  data-shop-domain="{{ shop.permanent_domain | escape }}"
 >
   <button 
     id="nusense-tryon-btn-{{ block.id }}" 
     class="{{ button_classes }}"
-    aria-label="{{ button_text }}"
+    type="button"
+    aria-label="{{ button_text | escape }}"
     {% if product %}data-product-id="{{ product.id }}"{% else %}data-product-id=""{% endif %}
-    data-shop-domain="{{ shop.permanent_domain }}"
-    data-button-style="{{ button_style }}"
+    data-shop-domain="{{ shop.permanent_domain | escape }}"
+    data-button-style="{{ button_style | escape }}"
     data-show-icon="{{ show_icon }}"
     data-button-width-full="{{ button_width_full }}"
-    {% if button_background_color != blank %}data-background-color="{{ button_background_color }}"{% endif %}
-    {% if button_text_color != blank %}data-text-color="{{ button_text_color }}"{% endif %}
-    {% if button_border_color != blank %}data-border-color="{{ button_border_color }}"{% endif %}
-    {% if button_font_size != blank %}data-font-size="{{ button_font_size }}"{% endif %}
-    {% if button_padding != blank %}data-padding="{{ button_padding }}"{% endif %}
-    {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius }}"{% endif %}
-    data-alignment="{{ button_alignment }}"
+    {% if button_background_color != blank %}data-background-color="{{ button_background_color | escape }}"{% endif %}
+    {% if button_text_color != blank %}data-text-color="{{ button_text_color | escape }}"{% endif %}
+    {% if button_border_color != blank %}data-border-color="{{ button_border_color | escape }}"{% endif %}
+    {% if button_font_size != blank %}data-font-size="{{ button_font_size | escape }}"{% endif %}
+    {% if button_padding != blank %}data-padding="{{ button_padding | escape }}"{% endif %}
+    {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius | escape }}"{% endif %}
+    data-alignment="{{ button_alignment | escape }}"
     data-margin-top="{{ margin_top }}"
     data-margin-bottom="{{ margin_bottom }}"
     data-margin-left="{{ margin_left }}"
     data-margin-right="{{ margin_right }}"
-    data-button-icon="{{ button_icon }}"
-    {% if custom_css != blank %}data-custom-css="{{ custom_css }}"{% endif %}
-    data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' }}"
+    data-button-icon="{{ button_icon | escape }}"
+    {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
+    data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' | escape }}"
     data-loading="true"
     style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% endif %}"
   >
-    <span class="button__icon" data-icon="{{ button_icon }}" aria-hidden="true" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon }}</span>
-    <span class="button__text" id="nusense-tryon-desc-{{ block.id }}">{{ button_text }}</span>
+    <span class="button__icon" data-icon="{{ button_icon | escape }}" aria-hidden="true" style="{% unless show_icon %}display: none;{% endunless %}">{{ button_icon | escape }}</span>
+    <span class="button__text" id="nusense-tryon-desc-{{ block.id }}">{{ button_text | escape }}</span>
   </button>
 </div>
 
-<script src="{{ 'nusense-tryon-button.js' | asset_url }}" defer></script>
+<script>
+  (function () {
+    if (typeof window === 'undefined') return;
+    if (!document || !document.head) return;
+    if (document.querySelector('script[src*="nusense-tryon-button.js"]')) return;
+
+    var script = document.createElement('script');
+    script.src = "{{ 'nusense-tryon-button.js' | asset_url }}";
+    script.defer = true;
+    document.head.appendChild(script);
+  })();
+</script>
 
 <script>(function() {
 'use strict';
@@ -382,20 +431,9 @@ return null;
 }
 const primarySubmitButton = visibleSubmitButtons[0];
 const buttonParent = primarySubmitButton.parentElement;
-const buttonGrandParent = buttonParent ? buttonParent.parentElement : null;
-const visibleButtonsInParent = findVisibleButtons(buttonParent);
-const visibleButtonsInGrandParent = buttonGrandParent && buttonGrandParent !== document.body && buttonGrandParent !== document.documentElement ? findVisibleButtons(buttonGrandParent) : [];
-if (visibleButtonsInParent.length >= 2 && isHorizontalLayout(buttonParent)) {
-return {isGroup: true, insertTarget: buttonParent, insertParent: buttonParent.parentElement};
-}
-if (buttonGrandParent && visibleButtonsInGrandParent.length >= 2 && visibleButtonsInParent.length < 2 && isHorizontalLayout(buttonGrandParent)) {
-return {isGroup: true, insertTarget: buttonGrandParent, insertParent: buttonGrandParent.parentElement};
-}
-if (visibleButtonsInParent.length >= 2) {
-return {isGroup: true, insertTarget: buttonParent, insertParent: buttonParent.parentElement};
-}
-if (visibleButtonsInGrandParent.length >= 2) {
-return {isGroup: true, insertTarget: buttonGrandParent, insertParent: buttonGrandParent.parentElement};
+const wrapperParent = buttonParent ? buttonParent.parentElement : null;
+if (buttonParent && wrapperParent && wrapperParent !== document.body && wrapperParent !== document.documentElement) {
+return {isGroup: false, insertTarget: buttonParent, insertParent: wrapperParent};
 }
 return {isGroup: false, insertTarget: primarySubmitButton, insertParent: buttonParent};
 }

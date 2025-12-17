@@ -3,19 +3,20 @@
 {% assign widget_url = shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' %}
 {% assign debug_mode = shop.metafields.nusense.debug_mode | default: false %}
 
-<script>window.NUSENSE_CONFIG = {
-widgetUrl: '{{ widget_url }}',
-debug: {{ debug_mode }},
-autoDetect: true,
-shopDomain: '{{ shop.permanent_domain }}'
+<script>
+window.NUSENSE_CONFIG = {
+  widgetUrl: {{ widget_url | json }},
+  debug: {{ debug_mode | default: false | json }},
+  autoDetect: true,
+  shopDomain: {{ shop.permanent_domain | json }}
 };
 {% if product %}
 {% assign product_images_from_media = product.media | where: 'media_type', 'image' %}
 window.NUSENSE_PRODUCT_DATA = {
 id: {{ product.id }},
 title: {{ product.title | json }},
-price: "{{ product.price | money }}",
-priceRaw: {{ product.price | money_without_currency }},
+price: {{ product.price | money | json }},
+priceRaw: {{ product.price | money_without_currency | json }},
 images: [
 {% if product_images_from_media.size > 0 %}
 {% for media_item in product_images_from_media limit: 20 %}
@@ -48,8 +49,8 @@ variants: [
 {
 id: {{ variant.id }},
 title: {{ variant.title | json }},
-price: "{{ variant.price | money }}",
-priceRaw: {{ variant.price | money_without_currency }},
+price: {{ variant.price | money | json }},
+priceRaw: {{ variant.price | money_without_currency | json }},
 available: {{ variant.available | json }},
 {% if variant.option1 %}option1: {{ variant.option1 | json }},{% endif %}
 {% if variant.option2 %}option2: {{ variant.option2 | json }},{% endif %}
@@ -60,14 +61,19 @@ available: {{ variant.available | json }},
 url: "{{ shop.url }}{{ product.url }}",
 shop: {
 name: {{ shop.name | json }},
-domain: "{{ shop.permanent_domain }}"
+domain: {{ shop.permanent_domain | json }}
 }
 };
 {% endif %}
 (function() {
 if (!document.querySelector('script[src*="nusense-tryon-widget.js"]')) {
 const script = document.createElement('script');
-script.src = '{{ widget_url }}/nusense-tryon-widget.js';
+try {
+  const baseUrl = (window.NUSENSE_CONFIG && window.NUSENSE_CONFIG.widgetUrl) ? window.NUSENSE_CONFIG.widgetUrl : {{ widget_url | json }};
+  script.src = String(baseUrl).replace(/\/+$/, '') + '/nusense-tryon-widget.js';
+} catch (e) {
+  script.src = {{ widget_url | json }} + '/nusense-tryon-widget.js';
+}
 script.async = true;
 script.defer = true;
 script.onload = function() {
@@ -306,16 +312,21 @@ return;
 window.NUSENSE_IMAGE_LISTENER_INITIALIZED = true;
 console.log('NUSENSE: Initializing image listener script');
 const CONFIG = {
-debug: {{ debug_mode | default: false }},
-allowedOrigins: ['*'],
-widgetUrl: '{{ widget_url | default: "https://try-this-look.vercel.app" }}'
+debug: {{ debug_mode | default: false | json }},
+allowedOrigins: [],
+widgetUrl: (window.NUSENSE_CONFIG && window.NUSENSE_CONFIG.widgetUrl) ? window.NUSENSE_CONFIG.widgetUrl : {{ widget_url | json }}
 };
+try {
+const parsedWidgetUrl = new URL(CONFIG.widgetUrl);
+CONFIG.allowedOrigins = [parsedWidgetUrl.origin];
+} catch (e) {
+CONFIG.allowedOrigins = [];
+}
 function log(message, data) {
 }
 function isValidOrigin(origin) {
-if (CONFIG.allowedOrigins.includes('*')) {
-return true;
-}
+if (!origin || typeof origin !== 'string') return false;
+if (!CONFIG.allowedOrigins || CONFIG.allowedOrigins.length === 0) return false;
 try {
 const widgetUrlObj = new URL(CONFIG.widgetUrl);
 return origin === widgetUrlObj.origin;
@@ -762,7 +773,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_ERROR',
 action: actionType,
 error: 'No variant selected. Please select a product variant.'
-}, '*');
+}, event.origin);
 }
 return;
 }
@@ -816,7 +827,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_ERROR',
 action: actionType,
 error: errorMessage
-}, '*');
+}, event.origin);
 }
 const cartUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
 ? window.Shopify.routes.root + 'cart'
@@ -831,7 +842,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_ERROR',
 action: actionType,
 error: 'Network error. Please try again.'
-}, '*');
+}, event.origin);
 }
 const cartUrl = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root)
 ? window.Shopify.routes.root + 'cart'
@@ -864,7 +875,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_SUCCESS',
 action: actionType,
 cart: data
-}, '*');
+}, event.origin);
 }
 } else {
 const errorMessage = data.description || data.message || 'Failed to add product to cart';
@@ -873,7 +884,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_ERROR',
 action: actionType,
 error: errorMessage
-}, '*');
+}, event.origin);
 }
 }
 });
@@ -884,7 +895,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_ERROR',
 action: actionType,
 error: 'Network error. Please try again.'
-}, '*');
+}, event.origin);
 }
 });
 break;
@@ -894,7 +905,7 @@ event.source.postMessage({
 type: 'NUSENSE_ACTION_INFO',
 action: actionType,
 message: 'Try in store functionality - to be configured for your store'
-}, '*');
+}, event.origin);
 }
 break;
 default:
@@ -904,6 +915,9 @@ default:
 }
 function handleMessage(event) {
 if (!event.data || !event.data.type || !event.data.type.startsWith('NUSENSE_')) {
+return;
+}
+if (!isValidOrigin(event.origin)) {
 return;
 }
 // NUSENSE_CLOSE_WIDGET is handled by the button.js script, not here
@@ -928,7 +942,7 @@ shopDomain: '{{ shop.permanent_domain }}',
 origin: window.location.origin,
 fullUrl: window.location.href
 };
-event.source.postMessage(storeInfo, '*');
+event.source.postMessage(storeInfo, event.origin);
 console.log('NUSENSE: Store info sent');
 }
 return;
@@ -1011,7 +1025,7 @@ imageCount: images.length,
 recommendedCount: recommendedImages.length,
 firstImage: images.length > 0 ? (typeof images[0] === 'string' ? images[0] : images[0].url) : null
 });
-event.source.postMessage(message, '*');
+event.source.postMessage(message, event.origin);
 console.log('NUSENSE: Images sent successfully');
 } catch (e) {
 console.error('NUSENSE: Failed to send images to widget', e);

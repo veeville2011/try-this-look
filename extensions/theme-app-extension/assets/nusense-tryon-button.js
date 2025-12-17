@@ -1,1 +1,544 @@
-!function(){"use strict";const t=function(t,e){try{if(t.startsWith("#")){const o=parseInt(t.slice(1),16),n=Math.min(255,(o>>16&255)+Math.round(255*e)),r=Math.min(255,(o>>8&255)+Math.round(255*e));return`rgb(${n}, ${r}, ${Math.min(255,(255&o)+Math.round(255*e))})`}if(t.startsWith("rgb")){const o=t.match(/\d+/g);if(o&&o.length>=3){const t=Math.min(255,parseInt(o[0])+Math.round(255*e)),n=Math.min(255,parseInt(o[1])+Math.round(255*e));return`rgb(${t}, ${n}, ${Math.min(255,parseInt(o[2])+Math.round(255*e))})`}}}catch(t){}return t},e=function(e,o){const n=document.getElementById(e);if(!n)return null;const r={button:n,iconSpan:null};r.iconSpan=n.querySelector(".button__icon");const a=function(t){if(!t)return!1;if(t===n||t.classList.contains("nusense-tryon-button"))return!1;if("BUTTON"!==t.tagName&&"INPUT"!==t.tagName)return!1;const e=window.getComputedStyle(t);return"none"!==e.display&&"hidden"!==e.visibility&&"0"!==e.opacity},i=function(){const t=function(){const t=['form[action*="/cart/add"] button[name="add"]','form[action*="/cart/add"] input[type="submit"][name="add"]','form[action*="/cart/add"] button[type="submit"]','button[name="add"]','input[type="submit"][name="add"]',"[data-add-to-cart]",".product-form__submit",".product-form__cart-submit","#AddToCart"];for(let e of t)try{const t=document.querySelectorAll(e);for(let e of t){if(!a(e))continue;const t=e.closest('form[action*="/cart/add"]'),o=e.closest('.product-form, .product-single, [class*="product"]');if(t||o)return{element:e,computed:window.getComputedStyle(e),classes:e.className,type:"add-to-cart"}}}catch(t){continue}return null}();if(t)return t;const e=function(){const t=["button[data-buy-now]","button[data-checkout]",".buy-now",".buynow",".checkout-button","#BuyNow",'button[data-shopify="payment-button"]',".shopify-payment-button button"];for(let e of t)try{const t=document.querySelectorAll(e);for(let e of t){if(!a(e))continue;const t=e.closest('form[action*="/cart/add"]'),o=e.closest('.product-form, .product-single, [class*="product"]');if(t||o)return{element:e,computed:window.getComputedStyle(e),classes:e.className,type:"buy-now"}}}catch(t){continue}return null}();if(e)return e;const o=function(){const t=[".button--primary",".btn-primary",".btn--primary","button.button--primary","button.btn-primary",".product-form__submit",'button[type="submit"].button','button[type="submit"].btn'];for(let e of t)try{const t=document.querySelectorAll(e);for(let e of t){if(!a(e))continue;const t=window.getComputedStyle(e),o=t.getPropertyValue("background-color"),n=t.getPropertyValue("color");if(o&&"rgba(0, 0, 0, 0)"!==o&&"transparent"!==o&&n&&"rgba(0, 0, 0, 0)"!==n&&"transparent"!==n)return{element:e,computed:t,classes:e.className,type:"primary"}}}catch(t){continue}return null}();return o||null},s=function(){const t={primaryBg:null,primaryText:null,primaryBorder:null,primaryHoverBg:null,matchingButton:null};try{const e=window.getComputedStyle(document.documentElement),o=["--color-primary","--color-button","--color-button-text","--color-button-hover","--color-accent","--color-accent-text","--button-primary-background","--button-primary-text","--button-primary-hover","--color-base-solid-button-labels","--color-base-text","--color-button-background","--color-button-text-color"];for(let n of o){const o=e.getPropertyValue(n);o&&o.trim()&&!o.includes("initial")&&((n.includes("background")||n.includes("button")||n.includes("primary")||n.includes("accent"))&&(t.primaryBg||(t.primaryBg=o.trim())),(n.includes("text")||n.includes("label"))&&(t.primaryText||(t.primaryText=o.trim())))}const n=i();if(n){t.matchingButton=n;const o=n.computed,r=o.getPropertyValue("background-color"),a=o.getPropertyValue("color"),i=o.getPropertyValue("border-color");r&&"rgba(0, 0, 0, 0)"!==r&&"transparent"!==r&&"initial"!==r&&(t.primaryBg=r.trim()),a&&"rgba(0, 0, 0, 0)"!==a&&"transparent"!==a&&"initial"!==a&&(t.primaryText=a.trim()),i&&"rgba(0, 0, 0, 0)"!==i&&"transparent"!==i&&"initial"!==i&&(t.primaryBorder=i.trim());try{const n=o.getPropertyValue("--button-hover-background")||o.getPropertyValue("--color-button-hover")||e.getPropertyValue("--button-primary-hover");n&&n.trim()&&(t.primaryHoverBg=n.trim())}catch(t){}}if(!t.primaryBg)try{const e=window.getComputedStyle(document.body),o=e.getPropertyValue("--color-link")||e.getPropertyValue("--color-accent");o&&o.trim()&&(t.primaryBg=o.trim())}catch(t){}}catch(t){console.warn("NUSENSE: Error detecting theme colors:",t)}return t},l=function(){if(n)try{const a=n.dataset.buttonStyle||o.buttonStyle||"primary",i="true"===n.dataset.showIcon||!0===n.dataset.showIcon,l="true"===n.dataset.buttonWidthFull||!0===n.dataset.buttonWidthFull,d=function(t,e,r){const a=n.getAttribute("data-"+t);return null!=a&&""!==a.trim()?a.trim():o&&o[e]&&""!==o[e].toString().trim()?o[e].toString().trim():r||""},c=function(t,e){if(!t||""===t.trim())return null;const o=t.trim();return/^\d+(\.\d+)?(px|rem|em|%)$/.test(o)?o:/^\d+(\.\d+)?$/.test(o)?o+e:o},u=d("background-color","buttonBackgroundColor",""),m=d("text-color","buttonTextColor",""),y=d("border-color","buttonBorderColor",""),p=d("font-size","buttonFontSize",""),g=d("padding","buttonPadding",""),b=d("border-radius","buttonBorderRadius",""),f=d("custom-css","customCss","");let h="nusense-tryon-button";if("primary"===a){h+=" button button--primary btn btn-primary";const t=s();let e,o,r;if(t.matchingButton){const a=t.matchingButton,i=a.computed,s=["font-family","font-weight","letter-spacing","text-transform","box-shadow","transition","line-height","min-height","height"];p||s.push("font-size"),g||s.push("padding","padding-top","padding-right","padding-bottom","padding-left"),b||s.push("border-radius"),y||s.push("border","border-color","border-width","border-style"),s.forEach(t=>{const e=i.getPropertyValue(t);e&&"initial"!==e&&"normal"!==e&&"none"!==e&&""!==e.trim()&&n.style.setProperty(t,e)});const l=a.classes.split(" ").filter(t=>t.trim()&&t.length>0&&!t.includes("disabled")&&!t.includes("loading")&&!t.includes("nusense")&&"nusense-tryon-button"!==t);if(l.length>0&&(h+=" "+l.join(" ")),e=u||(t.primaryBg||i.getPropertyValue("background-color")||"#000000"),o=m||(t.primaryText||i.getPropertyValue("color")||"#ffffff"),r=y||(t.primaryBorder||i.getPropertyValue("border-color")||e),u?n.style.setProperty("background-color",u,"important"):n.style.backgroundColor=e,m?n.style.setProperty("color",m,"important"):n.style.color=o,y){n.style.setProperty("border-color",y,"important");const t=i.getPropertyValue("border-width")||"1px",e=i.getPropertyValue("border-style")||"solid";n.style.setProperty("border",`${t} ${e} ${y}`,"important")}else n.style.borderColor=r;if(p){const t=c(p,"px");t&&n.style.setProperty("font-size",t,"important")}if(g){const t=c(g,"rem");t&&n.style.setProperty("padding",`${t} 1.5rem`,"important")}if(b){const t=c(b,"px");t&&n.style.setProperty("border-radius",t,"important")}}else{if(e=u||(t.primaryBg||"#000000"),o=m||(t.primaryText||"#ffffff"),r=y||(t.primaryBorder||e),u?n.style.setProperty("background-color",u,"important"):n.style.backgroundColor=e,m?n.style.setProperty("color",m,"important"):n.style.color=o,y?(n.style.setProperty("border-color",y,"important"),n.style.setProperty("border",`1px solid ${y}`,"important")):n.style.border=`1px solid ${r}`,p?n.style.setProperty("font-size",`${p}px`,"important"):n.style.fontSize="1rem",g){const t=g.includes("px")?g:`${g}rem`;n.style.setProperty("padding",`${t} 1.5rem`,"important")}else n.style.padding="0.75rem 1.5rem";if(b){const t=b.includes("px")||b.includes("rem")?b:`${b}px`;n.style.setProperty("border-radius",t,"important")}else n.style.borderRadius="4px";n.style.fontWeight="600",n.style.minHeight="44px",n.style.transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",n.style.boxShadow="0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",n.style.letterSpacing="0.01em"}n.style.cursor="pointer",n.style.display="inline-flex",n.style.alignItems="center",n.style.justifyContent="center",n.style.userSelect="none",n.style.willChange="transform, box-shadow";const a=u||e,i=y||r,l=m||o;let d=t.primaryHoverBg;const f=u||e;if(!d)try{if(f.startsWith("#")){const t=parseInt(f.slice(1),16),e=Math.max(0,.85*(t>>16&255)),o=Math.max(0,.85*(t>>8&255)),n=Math.max(0,.85*(255&t));d=`rgb(${Math.round(e)}, ${Math.round(o)}, ${Math.round(n)})`}else if(f.startsWith("rgb")){const t=f.match(/\d+/g);if(t&&t.length>=3){const e=Math.max(0,.85*parseInt(t[0])),o=Math.max(0,.85*parseInt(t[1])),n=Math.max(0,.85*parseInt(t[2]));d=`rgb(${Math.round(e)}, ${Math.round(o)}, ${Math.round(n)})`}else d=f}else d=f}catch(t){d=f}n.addEventListener("mouseenter",function(){this.style.backgroundColor=d,this.style.borderColor=d,this.style.boxShadow="0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)",this.style.transform="translateY(-1px)",this.style.opacity="1"}),n.addEventListener("mouseleave",function(){this.style.backgroundColor=a,this.style.borderColor=i,this.style.boxShadow="0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",this.style.transform="translateY(0)",this.style.opacity="1"}),n.addEventListener("focus",function(){this.style.outline="2px solid "+l,this.style.outlineOffset="2px",this.style.boxShadow="0 0 0 3px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15)"}),n.addEventListener("blur",function(){this.style.outline="",this.style.outlineOffset="",this.style.boxShadow="0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)"}),n.addEventListener("mousedown",function(){u?this.style.setProperty("background-color",a,"important"):this.style.backgroundColor=a,this.style.boxShadow="0 1px 2px rgba(0, 0, 0, 0.2)",this.style.transform="translateY(0)"}),n.addEventListener("mouseup",function(){u?this.style.setProperty("background-color",d,"important"):this.style.backgroundColor=d,this.style.boxShadow="0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)",this.style.transform="translateY(-1px)"})}else if("secondary"===a){h+=" button button--secondary btn btn-secondary";const e=s();let o,r,a;if(o=u||(e.primaryBg?t(e.primaryBg,.2):"#f5f5f5"),r=m||(e.primaryBg||"#000000"),a=y||(e.primaryBg||"#e0e0e0"),u?n.style.setProperty("background-color",u,"important"):n.style.backgroundColor=o,m?n.style.setProperty("color",m,"important"):n.style.color=r,y?(n.style.setProperty("border-color",y,"important"),n.style.setProperty("border",`1px solid ${y}`,"important")):n.style.border=`1px solid ${a}`,p){const t=c(p,"px");t&&n.style.setProperty("font-size",t,"important")}else n.style.fontSize="1rem";if(g){const t=c(g,"rem");t&&n.style.setProperty("padding",`${t} 1.5rem`,"important")}else n.style.padding="0.75rem 1.5rem";if(b){const t=c(b,"px");t&&n.style.setProperty("border-radius",t,"important")}else n.style.borderRadius="4px";n.style.fontWeight="600",n.style.minHeight="44px",n.style.transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",n.style.boxShadow="0 1px 2px rgba(0, 0, 0, 0.05)",n.style.cursor="pointer",n.style.display="inline-flex",n.style.alignItems="center",n.style.justifyContent="center",n.style.userSelect="none";const i=o,l=function(t,e){try{if(t.startsWith("#")){const o=parseInt(t.slice(1),16),n=Math.max(0,(o>>16&255)*(1-e)),r=Math.max(0,(o>>8&255)*(1-e)),a=Math.max(0,(255&o)*(1-e));return`rgb(${Math.round(n)}, ${Math.round(r)}, ${Math.round(a)})`}if(t.startsWith("rgb")){const o=t.match(/\d+/g);if(o&&o.length>=3){const t=Math.max(0,parseInt(o[0])*(1-e)),n=Math.max(0,parseInt(o[1])*(1-e)),r=Math.max(0,parseInt(o[2])*(1-e));return`rgb(${Math.round(t)}, ${Math.round(n)}, ${Math.round(r)})`}}}catch(t){}return t}(o,.1);n.addEventListener("mouseenter",function(){this.style.backgroundColor=l,this.style.boxShadow="0 2px 4px rgba(0, 0, 0, 0.1)"}),n.addEventListener("mouseleave",function(){this.style.backgroundColor=i,this.style.boxShadow="0 1px 2px rgba(0, 0, 0, 0.05)"})}else if("outline"===a){h+=" button button--outline btn btn-outline";const t=s();let e,o,r="transparent";if(e=m||(t.primaryBg||"#000000"),o=y||(t.primaryBg||"#000000"),n.style.backgroundColor=r,m?n.style.setProperty("color",m,"important"):n.style.color=e,y?(n.style.setProperty("border-color",y,"important"),n.style.setProperty("border",`2px solid ${y}`,"important")):n.style.border=`2px solid ${o}`,p){const t=c(p,"px");t&&n.style.setProperty("font-size",t,"important")}else n.style.fontSize="1rem";if(g){const t=c(g,"rem");t&&n.style.setProperty("padding",`${t} 1.5rem`,"important")}else n.style.padding="0.75rem 1.5rem";if(b){const t=c(b,"px");t&&n.style.setProperty("border-radius",t,"important")}else n.style.borderRadius="4px";n.style.fontWeight="600",n.style.minHeight="44px",n.style.transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",n.style.boxShadow="none",n.style.cursor="pointer",n.style.display="inline-flex",n.style.alignItems="center",n.style.justifyContent="center",n.style.userSelect="none";const a=o,i=m||"#ffffff";n.addEventListener("mouseenter",function(){this.style.backgroundColor=a,this.style.color=i,this.style.boxShadow="0 2px 4px rgba(0, 0, 0, 0.1)"}),n.addEventListener("mouseleave",function(){this.style.backgroundColor=r,this.style.color=e,this.style.boxShadow="none"})}else if("minimal"===a){h+=" button button--tertiary btn btn-link";const e=s();let o,r="transparent",a="transparent";if(o=m||(e.primaryBg||"#000000"),n.style.backgroundColor=r,m?n.style.setProperty("color",m,"important"):n.style.color=o,n.style.border=`1px solid ${a}`,p?n.style.setProperty("font-size",`${p}px`,"important"):n.style.fontSize="1rem",g){const t=g.includes("px")?g:`${g}rem`;n.style.setProperty("padding",`${t} 1rem`,"important")}else n.style.padding="0.5rem 1rem";if(b){const t=b.includes("px")||b.includes("rem")?b:`${b}px`;n.style.setProperty("border-radius",t,"important")}else n.style.borderRadius="4px";n.style.fontWeight="500",n.style.minHeight="44px",n.style.transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",n.style.boxShadow="none",n.style.textDecoration="none",n.style.cursor="pointer",n.style.display="inline-flex",n.style.alignItems="center",n.style.justifyContent="center",n.style.userSelect="none";const i=u?t(u,.9):"rgba(0, 0, 0, 0.05)";n.addEventListener("mouseenter",function(){this.style.backgroundColor=i,this.style.textDecoration="underline"}),n.addEventListener("mouseleave",function(){this.style.backgroundColor=r,this.style.textDecoration="none"})}if("primary"!==a&&"secondary"!==a&&"outline"!==a&&"minimal"!==a&&(p&&(n.style.fontSize=`${p}px`),g&&(n.style.padding=`${g}rem 1.5rem`),b&&(n.style.borderRadius=`${b}px`)),l?(h+=" button--full-width btn-block",n.style.width="100%"):n.style.width="",n.className=h.trim(),r.iconSpan){r.iconSpan.style.display=i?"inline":"none";const t=r.iconSpan.dataset.icon||o.buttonIcon||"✨";t&&r.iconSpan.textContent!==t&&(r.iconSpan.textContent=t)}if(f){let t=document.getElementById("nusense-custom-css-"+e);t&&t.remove();const o=document.createElement("style");o.id="nusense-custom-css-"+e;let n=f;n=n.includes(".nusense-tryon-button")?n.replace(/\.nusense-tryon-button/g,`#${e}.nusense-tryon-button`):`#${e}.nusense-tryon-button { ${n} }`,o.textContent=n,document.head.appendChild(o)}!function(t,e,o,r,a){if(n&&(e&&"0"!==e?n.style.marginTop=`${e}rem`:"0"===e&&(n.style.marginTop="0"),o&&"0"!==o?n.style.marginBottom=`${o}rem`:"0"===o&&(n.style.marginBottom="0"),r&&"0"!==r?n.style.marginLeft=`${r}rem`:"0"===r&&(n.style.marginLeft="0"),a&&"0"!==a?n.style.marginRight=`${a}rem`:"0"===a&&(n.style.marginRight="0"),t&&"auto"!==t)){const e=n.parentElement;e&&("left"===t?(n.style.marginLeft="0",n.style.marginRight="auto",e.style.textAlign="left"):"center"===t?(n.style.marginLeft="auto",n.style.marginRight="auto",e.style.textAlign="center"):"right"===t&&(n.style.marginLeft="auto",n.style.marginRight="0",e.style.textAlign="right"))}}(n.dataset.alignment||o.buttonAlignment||"auto",n.dataset.marginTop||o.marginTop||"0",n.dataset.marginBottom||o.marginBottom||"0",n.dataset.marginLeft||o.marginLeft||"0",n.dataset.marginRight||o.marginRight||"0"),n.dataset.styled="true",n.dataset.loading="false"}catch(t){console.error("NUSENSE: Error applying button config:",t),n.dataset.loading="false"}},d=function(t,e){let o;return function(...n){clearTimeout(o),o=setTimeout(()=>{clearTimeout(o),t(...n)},e)}}(l,100);let c=!1,u=null;const m=function(){c&&"true"===n.dataset.styled||(l(),c=!0)};"loading"===document.readyState?document.addEventListener("DOMContentLoaded",function(){clearTimeout(u),u=setTimeout(m,100)},{once:!0}):u=setTimeout(m,100);const y=setTimeout(function(){c&&"true"===n.dataset.styled||m()},500);window.addEventListener("beforeunload",function(){u&&clearTimeout(u),y&&clearTimeout(y)},{once:!0});const p=new MutationObserver(function(t){let e=!1;t.forEach(function(t){if("attributes"===t.type){const o=t.attributeName;"data-button-style"!==o&&"data-show-icon"!==o&&"data-button-width-full"!==o&&"data-background-color"!==o&&"data-text-color"!==o&&"data-border-color"!==o&&"data-font-size"!==o&&"data-padding"!==o&&"data-border-radius"!==o&&"data-alignment"!==o&&"data-margin-top"!==o&&"data-margin-bottom"!==o&&"data-margin-left"!==o&&"data-margin-right"!==o&&"class"!==o||(e=!0)}}),e&&d()});p.observe(n,{attributes:!0,attributeFilter:["data-button-style","data-show-icon","data-button-width-full","data-background-color","data-text-color","data-border-color","data-font-size","data-padding","data-border-radius","data-alignment","data-margin-top","data-margin-bottom","data-margin-left","data-margin-right","class"],subtree:!0}),window.addEventListener("beforeunload",function(){p.disconnect()});const g=n.dataset.productId,b=n.dataset.shopDomain||o.shopDomain||"";return n.addEventListener("click",function(t){t.preventDefault(),t.stopPropagation();let r="",a=!1,i=null,s=null,l=null,d=null;try{if(!document.body)throw new Error("Document body is not available. Page may still be loading.");const c=document.body.style.overflow||"",u=window.getComputedStyle(document.body).overflow;r=c,a="hidden"===u;const m=o.widgetUrl||"https://try-this-look.vercel.app";if(!m||"string"!=typeof m)throw new Error("Invalid widget URL configuration");g&&"undefined"!==g&&"null"!==g||console.warn("NUSENSE: Product ID is missing or invalid:",g);const y=new URLSearchParams;g&&"undefined"!==g&&"null"!==g&&y.append("product_id",g),b&&y.append("shop_domain",b);const p=m+"/widget"+(y.toString()?"?"+y.toString():"");console.log("NUSENSE: Opening widget with URL:",p),console.log("NUSENSE: Base widget URL:",m),console.log("NUSENSE: Product ID:",g),console.log("NUSENSE: Shop domain:",b);try{fetch(p,{method:"HEAD",mode:"no-cors"}).then(()=>{console.log("NUSENSE: Widget URL is accessible")}).catch(t=>{console.warn("NUSENSE: Widget URL pre-flight check failed (non-blocking):",t)})}catch(t){console.warn("NUSENSE: Pre-flight check error (non-blocking):",t)}i=document.createElement("div"),i.id="nusense-widget-overlay-"+e,i.setAttribute("role","dialog"),i.setAttribute("aria-modal","true"),i.setAttribute("aria-labelledby","nusense-widget-title-"+e),i.className="nusense-widget-overlay",i.style.cssText="\n          position: fixed;\n          top: 0;\n          left: 0;\n          width: 100%;\n          height: 100%;\n          background: rgba(0, 0, 0, 0.5);\n          z-index: 9999;\n          display: flex;\n          align-items: center;\n          justify-content: center;\n        ";const f=document.createElement("div");f.className="nusense-widget-container",f.setAttribute("role","document"),f.style.cssText="\n          position: relative;\n          width: 95vw;\n          max-width: 1200px;\n          height: 90vh;\n        ";document.body.className;const h=function(){E&&(clearTimeout(E),E=null);try{i&&i.parentNode&&document.body.removeChild(i)}catch(t){}try{a||(r?document.body.style.overflow=r:document.body.style.removeProperty("overflow"))}catch(t){if(!a)try{document.body.style.overflow=r||""}catch(t){try{document.body.style.removeProperty("overflow")}catch(t){}}}try{s&&document.removeEventListener("keydown",s),l&&window.removeEventListener("message",l),d&&window.removeEventListener("beforeunload",d)}catch(t){}try{n&&"function"==typeof n.focus&&n.focus()}catch(t){}},x=document.createElement("iframe");x.id="nusense-widget-iframe-"+e,x.src=p,x.setAttribute("title","NUSENSE Try-On Widget"),x.setAttribute("aria-label","Virtual try-on widget"),x.allow="camera; microphone",x.setAttribute("allowfullscreen","true"),x.style.cssText="\n          width: 100%;\n          height: 100%;\n          border: none;\n          border-radius: 0.25rem;\n          background: white;\n        ";const w=document.createElement("div");w.id="nusense-loading-"+e,w.style.cssText="\n          position: absolute;\n          top: 50%;\n          left: 50%;\n          transform: translate(-50%, -50%);\n          text-align: center;\n          color: #666;\n          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n          z-index: 1;\n        ",w.innerHTML='\n          <div style="margin-bottom: 1rem; font-size: 1.1rem;">Loading widget...</div>\n          <div style="width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>\n          <style>\n            @keyframes spin {\n              0% { transform: rotate(0deg); }\n              100% { transform: rotate(360deg); }\n            }\n          </style>\n        ';let S=!1,E=null;const v=3e4;x.onload=function(){S=!0,E&&(clearTimeout(E),E=null),w.parentNode&&w.remove(),console.log("NUSENSE: Widget iframe loaded successfully")},x.onerror=function(t){console.error("NUSENSE: Widget iframe failed to load:",t),console.error("NUSENSE: Widget URL was:",p),E&&(clearTimeout(E),E=null),h(),alert("Unable to open try-on widget. Please check your internet connection and try again.")},E=setTimeout(function(){S||(console.error("NUSENSE: Widget iframe load timeout after "+v+"ms"),h(),alert("Unable to open try-on widget. The widget took too long to load. Please try again."))},v),f.appendChild(x),f.appendChild(w),i.appendChild(f);try{if(!document.body)throw new Error("Document body not available");if(document.body.appendChild(i),a||(document.body.style.overflow="hidden"),!x.parentNode)throw new Error("Iframe was not added to container");console.log("NUSENSE: Widget overlay created successfully, iframe loading...")}catch(t){console.error("NUSENSE: Error creating widget overlay:",t),console.error("NUSENSE: Error details:",{hasBody:!!document.body,hasOverlay:!!i,hasIframe:!!x,widgetUrl:p});try{i&&i.parentNode&&document.body.removeChild(i)}catch(t){}try{r?document.body.style.overflow=r:document.body.style.removeProperty("overflow")}catch(t){}return void alert("Unable to open try-on widget. Please try again later.")}s=function(t){"Escape"===t.key&&(h(),document.removeEventListener("keydown",s))},document.addEventListener("keydown",s),i.addEventListener("click",function(t){t.target===i&&h()}),l=function(t){if(t.data&&t.data.type&&t.data.type.startsWith("NUSENSE_"))try{if(t.source&&t.source!==window&&x&&x.contentWindow===t.source){if("NUSENSE_CLOSE_WIDGET"===t.data.type)return void h();if("NUSENSE_REQUEST_STORE_INFO"===t.data.type){const t={type:"NUSENSE_STORE_INFO",domain:window.location.hostname,shopDomain:b,origin:window.location.origin,fullUrl:window.location.href};return void x.contentWindow.postMessage(t,"*")}}}catch(t){}},window.addEventListener("message",l),d=function(){h()},window.addEventListener("beforeunload",d),i._nusenseCleanup=h}catch(t){console.error("NUSENSE: Error opening widget:",t);try{void 0!==r&&(r?document.body.style.overflow=r:document.body.style.removeProperty("overflow"))}catch(t){try{document.body.style.overflow=""}catch(t){}}alert("Unable to open try-on widget. Please try again later.")}}),{button:n,applyConfig:l}},o=new Set,n=function(){document.querySelectorAll('[id^="nusense-tryon-btn-"]').forEach(function(t){const n=t.id;if(o.has(n))return;o.add(n);const r={buttonStyle:t.dataset.buttonStyle||"primary",buttonIcon:t.dataset.buttonIcon||"✨",buttonBackgroundColor:t.dataset.backgroundColor||"",buttonTextColor:t.dataset.textColor||"",buttonBorderColor:t.dataset.borderColor||"",buttonFontSize:t.dataset.fontSize||"",buttonPadding:t.dataset.padding||"",buttonBorderRadius:t.dataset.borderRadius||"",buttonAlignment:t.dataset.alignment||"auto",marginTop:t.dataset.marginTop||"0",marginBottom:t.dataset.marginBottom||"0.75",marginLeft:t.dataset.marginLeft||"0",marginRight:t.dataset.marginRight||"0",customCss:t.dataset.customCss||"",widgetUrl:t.dataset.widgetUrl||"",shopDomain:t.dataset.shopDomain||""};e(n,r)})};"loading"===document.readyState?document.addEventListener("DOMContentLoaded",n):n();let r=null;function a(){if(!document.body)return"loading"===document.readyState?void document.addEventListener("DOMContentLoaded",a,{once:!0}):void setTimeout(a,100);r||(r=new MutationObserver(function(t){t.forEach(function(t){t.addedNodes.length>0&&t.addedNodes.forEach(function(t){if(1===t.nodeType){if(t.id&&t.id.startsWith("nusense-tryon-btn-")&&!o.has(t.id)){o.add(t.id);const n={buttonStyle:t.dataset.buttonStyle||"primary",buttonIcon:t.dataset.buttonIcon||"✨",buttonBackgroundColor:t.dataset.backgroundColor||"",buttonTextColor:t.dataset.textColor||"",buttonBorderColor:t.dataset.borderColor||"",buttonFontSize:t.dataset.fontSize||"",buttonPadding:t.dataset.padding||"",buttonBorderRadius:t.dataset.borderRadius||"",buttonAlignment:t.dataset.alignment||"auto",marginTop:t.dataset.marginTop||"0",marginBottom:t.dataset.marginBottom||"0.75",marginLeft:t.dataset.marginLeft||"0",marginRight:t.dataset.marginRight||"0",customCss:"",widgetUrl:t.dataset.widgetUrl||"",shopDomain:t.dataset.shopDomain||""};e(t.id,n)}const n=t.querySelectorAll&&t.querySelectorAll('[id^="nusense-tryon-btn-"]');n&&n.length>0&&n.forEach(function(t){if(o.has(t.id))return;o.add(t.id);const n={buttonStyle:t.dataset.buttonStyle||"primary",buttonIcon:t.dataset.buttonIcon||"✨",buttonBackgroundColor:t.dataset.backgroundColor||"",buttonTextColor:t.dataset.textColor||"",buttonBorderColor:t.dataset.borderColor||"",buttonFontSize:t.dataset.fontSize||"",buttonPadding:t.dataset.padding||"",buttonBorderRadius:t.dataset.borderRadius||"",buttonAlignment:t.dataset.alignment||"auto",marginTop:t.dataset.marginTop||"0",marginBottom:t.dataset.marginBottom||"0.75",marginLeft:t.dataset.marginLeft||"0",marginRight:t.dataset.marginRight||"0",customCss:"",widgetUrl:t.dataset.widgetUrl||"",shopDomain:t.dataset.shopDomain||""};e(t.id,n)})}})})}));const t=document.querySelectorAll('[id^="nusense-tryon-btn-"]');if(0===t.length)return;const n=new Set;t.forEach(function(t){const e=t.parentElement;e&&e!==document.body&&e!==document.documentElement&&n.add(e)}),n.forEach(function(t){try{r.observe(t,{childList:!0,subtree:!1})}catch(t){}})}"loading"===document.readyState?document.addEventListener("DOMContentLoaded",a,{once:!0}):a()}();
+(() => {
+  'use strict';
+
+  const BUTTON_ID_PREFIX = 'nusense-tryon-btn-';
+  const CUSTOM_CSS_STYLE_ID_PREFIX = 'nusense-custom-css-';
+
+  /**
+   * We want to avoid double-initializing buttons across theme partial reloads,
+   * section rendering, and DOM mutations.
+   */
+  const initializedButtonIds = new Set();
+
+  const normalizeUrl = (url) => {
+    if (!url) return '';
+    return String(url).trim().replace(/\/+$/, '');
+  };
+
+  const getWidgetUrl = (buttonEl) => {
+    const fromDataset = buttonEl?.dataset?.widgetUrl;
+    const fromGlobal = window?.NUSENSE_CONFIG?.widgetUrl;
+    const fallback = 'https://try-this-look.vercel.app';
+
+    return normalizeUrl(fromDataset || fromGlobal || fallback);
+  };
+
+  const getWidgetOrigin = (widgetUrl) => {
+    try {
+      return new URL(widgetUrl).origin;
+    } catch {
+      return null;
+    }
+  };
+
+  const getClosestThemePrimaryButton = (buttonEl) => {
+    if (!buttonEl) return null;
+
+    const productForm = buttonEl.closest('form[action*="/cart/add"]') || document.querySelector('form[action*="/cart/add"]');
+    const root = productForm || document;
+
+    const selectors = [
+      'button[type="submit"]',
+      'button[name="add"]',
+      'input[type="submit"]',
+      '.product-form__submit',
+      '.product-form__cart-submit',
+      '#AddToCart',
+    ];
+
+    for (const selector of selectors) {
+      const elements = Array.from(root.querySelectorAll(selector));
+      for (const el of elements) {
+        if (!(el instanceof HTMLElement)) continue;
+        if (el === buttonEl) continue;
+        if (el.id?.startsWith(BUTTON_ID_PREFIX)) continue;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+        if (parseFloat(style.opacity) < 0.1) continue;
+        return el;
+      }
+    }
+
+    return null;
+  };
+
+  const applyScopedCustomCss = (buttonId, customCssRaw) => {
+    if (!buttonId) return;
+
+    const styleId = `${CUSTOM_CSS_STYLE_ID_PREFIX}${buttonId}`;
+    const existing = document.getElementById(styleId);
+    if (existing) existing.remove();
+
+    const raw = (customCssRaw || '').toString().trim();
+    if (!raw) return;
+
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+
+    const scopedSelector = `#${CSS.escape(buttonId)}.nusense-tryon-button`;
+
+    // If the merchant already used the class selector, scope it to this button instance.
+    const scopedCss = raw.includes('.nusense-tryon-button')
+      ? raw.replace(/\.nusense-tryon-button/g, scopedSelector)
+      : `${scopedSelector} { ${raw} }`;
+
+    styleEl.textContent = scopedCss;
+    document.head.appendChild(styleEl);
+  };
+
+  const coerceCssNumber = (value, unit) => {
+    if (value == null) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    if (/^\d+(\.\d+)?(px|rem|em|%)$/.test(raw)) return raw;
+    if (/^\d+(\.\d+)?$/.test(raw)) return `${raw}${unit}`;
+    return null;
+  };
+
+  const applyLayoutConfig = (buttonEl) => {
+    if (!buttonEl) return;
+
+    const alignment = buttonEl.dataset.alignment || 'auto';
+    const marginTop = buttonEl.dataset.marginTop || '0';
+    const marginBottom = buttonEl.dataset.marginBottom || '0';
+    const marginLeft = buttonEl.dataset.marginLeft || '0';
+    const marginRight = buttonEl.dataset.marginRight || '0';
+
+    if (marginTop !== '0') buttonEl.style.marginTop = `${marginTop}rem`;
+    if (marginBottom !== '0') buttonEl.style.marginBottom = `${marginBottom}rem`;
+    if (marginLeft !== '0') buttonEl.style.marginLeft = `${marginLeft}rem`;
+    if (marginRight !== '0') buttonEl.style.marginRight = `${marginRight}rem`;
+
+    if (alignment === 'auto') return;
+
+    const parent = buttonEl.parentElement;
+    if (!parent) return;
+
+    if (alignment === 'left') parent.style.textAlign = 'left';
+    if (alignment === 'center') parent.style.textAlign = 'center';
+    if (alignment === 'right') parent.style.textAlign = 'right';
+  };
+
+  const applyButtonVisualConfig = (buttonEl) => {
+    if (!buttonEl) return;
+
+    const iconSpan = buttonEl.querySelector('.button__icon');
+    const showIcon = buttonEl.dataset.showIcon === 'true' || buttonEl.dataset.showIcon === true;
+    if (iconSpan instanceof HTMLElement) {
+      iconSpan.style.display = showIcon ? 'inline' : 'none';
+      const icon = buttonEl.dataset.buttonIcon || iconSpan.dataset.icon || '✨';
+      iconSpan.textContent = icon;
+    }
+
+    const backgroundColor = buttonEl.dataset.backgroundColor;
+    const textColor = buttonEl.dataset.textColor;
+    const borderColor = buttonEl.dataset.borderColor;
+    const fontSize = coerceCssNumber(buttonEl.dataset.fontSize, 'px');
+    const padding = coerceCssNumber(buttonEl.dataset.padding, 'rem');
+    const borderRadius = coerceCssNumber(buttonEl.dataset.borderRadius, 'px');
+
+    if (backgroundColor) buttonEl.style.setProperty('background-color', backgroundColor, 'important');
+    if (textColor) buttonEl.style.setProperty('color', textColor, 'important');
+    if (borderColor) buttonEl.style.setProperty('border-color', borderColor, 'important');
+    if (fontSize) buttonEl.style.setProperty('font-size', fontSize, 'important');
+    if (padding) buttonEl.style.setProperty('padding', `${padding} 1.5rem`, 'important');
+    if (borderRadius) buttonEl.style.setProperty('border-radius', borderRadius, 'important');
+
+    // Make sure click target is accessible.
+    buttonEl.style.minHeight = buttonEl.style.minHeight || '44px';
+
+    const customCss = buttonEl.dataset.customCss || '';
+    applyScopedCustomCss(buttonEl.id, customCss);
+
+    applyLayoutConfig(buttonEl);
+
+    buttonEl.dataset.loading = 'false';
+    buttonEl.dataset.styled = 'true';
+  };
+
+  const hasExplicitStyleOverrides = (buttonEl) => {
+    if (!buttonEl) return false;
+
+    const backgroundColor = buttonEl.dataset.backgroundColor;
+    const textColor = buttonEl.dataset.textColor;
+    const borderColor = buttonEl.dataset.borderColor;
+    const fontSize = buttonEl.dataset.fontSize;
+    const padding = buttonEl.dataset.padding;
+    const borderRadius = buttonEl.dataset.borderRadius;
+    const customCss = buttonEl.dataset.customCss;
+
+    return Boolean(
+      (backgroundColor && backgroundColor.trim()) ||
+        (textColor && textColor.trim()) ||
+        (borderColor && borderColor.trim()) ||
+        (fontSize && String(fontSize).trim()) ||
+        (padding && String(padding).trim()) ||
+        (borderRadius && String(borderRadius).trim()) ||
+        (customCss && String(customCss).trim()),
+    );
+  };
+
+  const adoptThemePrimaryButtonClasses = (buttonEl, themeButton) => {
+    if (!buttonEl || !themeButton) return;
+
+    const preserved = new Set();
+    preserved.add('nusense-tryon-button');
+
+    // Preserve any width/layout helper classes already present on our button.
+    if (buttonEl.classList.contains('button--full-width')) preserved.add('button--full-width');
+    if (buttonEl.classList.contains('btn-block')) preserved.add('btn-block');
+    if (buttonEl.classList.contains('btn--full-width')) preserved.add('btn--full-width');
+
+    // Copy the theme’s primary purchase button classes verbatim (except our own marker classes).
+    const themeClasses = Array.from(themeButton.classList).filter((cls) => {
+      if (!cls) return false;
+      if (cls.startsWith('nusense-')) return false;
+      if (cls === 'nusense-tryon-button') return false;
+      return true;
+    });
+
+    const nextClasses = Array.from(new Set([...themeClasses, ...Array.from(preserved)]));
+    buttonEl.className = nextClasses.join(' ').trim();
+  };
+
+  const buildWidgetUrl = ({ widgetUrl, productId, shopDomain }) => {
+    const base = normalizeUrl(widgetUrl);
+    if (!base) return null;
+
+    try {
+      const url = new URL(`${base}/widget`);
+      if (productId && productId !== 'undefined' && productId !== 'null') url.searchParams.set('product_id', productId);
+      if (shopDomain) url.searchParams.set('shop_domain', shopDomain);
+      return url.toString();
+    } catch {
+      // Fallback: naive concatenation
+      const params = new URLSearchParams();
+      if (productId && productId !== 'undefined' && productId !== 'null') params.set('product_id', productId);
+      if (shopDomain) params.set('shop_domain', shopDomain);
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      return `${base}/widget${suffix}`;
+    }
+  };
+
+  const openWidgetOverlay = (buttonEl) => {
+    if (!buttonEl || !document.body) return;
+
+    const widgetUrl = getWidgetUrl(buttonEl);
+    const widgetOrigin = getWidgetOrigin(widgetUrl);
+    const targetOrigin = widgetOrigin || '*';
+
+    const productId = buttonEl.dataset.productId || '';
+    const shopDomain = buttonEl.dataset.shopDomain || '';
+    const widgetHref = buildWidgetUrl({ widgetUrl, productId, shopDomain });
+    if (!widgetHref) return;
+
+    const overlayId = `nusense-widget-overlay-${buttonEl.id}`;
+    const titleId = `nusense-widget-title-${buttonEl.id}`;
+    const iframeId = `nusense-widget-iframe-${buttonEl.id}`;
+
+    // Prevent duplicates.
+    const existing = document.getElementById(overlayId);
+    if (existing) existing.remove();
+
+    const previousOverflow = document.body.style.overflow || '';
+    const overlay = document.createElement('div');
+    overlay.id = overlayId;
+    overlay.className = 'nusense-widget-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', titleId);
+    overlay.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 100%',
+      'height: 100%',
+      'background: rgba(0, 0, 0, 0.5)',
+      'z-index: 9999',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'padding: 1rem',
+    ].join(';');
+
+    const title = document.createElement('h2');
+    title.id = titleId;
+    title.textContent = 'NUSENSE Virtual Try-On';
+    title.style.cssText = 'position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;';
+
+    const container = document.createElement('div');
+    container.className = 'nusense-widget-container';
+    container.setAttribute('role', 'document');
+    container.style.cssText = [
+      'position: relative',
+      'width: 95vw',
+      'max-width: 1200px',
+      'height: 90vh',
+      'background: #fff',
+      'border-radius: 0.5rem',
+      'overflow: hidden',
+    ].join(';');
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'nusense-widget-close';
+    closeButton.setAttribute('aria-label', 'Close try-on widget');
+    closeButton.textContent = '×';
+    closeButton.style.cssText = [
+      'position: absolute',
+      'top: 0.75rem',
+      'right: 0.75rem',
+      'width: 40px',
+      'height: 40px',
+      'border-radius: 9999px',
+      'border: 1px solid rgba(0,0,0,0.15)',
+      'background: rgba(255,255,255,0.95)',
+      'color: #111',
+      'font-size: 26px',
+      'line-height: 1',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'cursor: pointer',
+      'z-index: 2',
+    ].join(';');
+
+    const iframe = document.createElement('iframe');
+    iframe.id = iframeId;
+    iframe.src = widgetHref;
+    iframe.setAttribute('title', 'NUSENSE Try-On Widget');
+    iframe.setAttribute('allow', 'camera; microphone');
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.style.cssText = [
+      'width: 100%',
+      'height: 100%',
+      'border: none',
+      'display: block',
+      'background: #fff',
+    ].join(';');
+
+    const loading = document.createElement('div');
+    loading.textContent = 'Loading…';
+    loading.style.cssText = [
+      'position: absolute',
+      'inset: 0',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'color: #444',
+      'font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+      'background: rgba(255,255,255,0.8)',
+      'z-index: 1',
+    ].join(';');
+
+    let cleanedUp = false;
+    const handleCleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+
+      try {
+        window.removeEventListener('message', handleMessage);
+        document.removeEventListener('keydown', handleKeyDown);
+      } catch {
+        // ignore
+      }
+
+      try {
+        overlay.remove();
+      } catch {
+        // ignore
+      }
+
+      try {
+        document.body.style.overflow = previousOverflow;
+      } catch {
+        // ignore
+      }
+
+      try {
+        buttonEl.focus();
+      } catch {
+        // ignore
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') handleCleanup();
+    };
+
+    const handleMessage = (event) => {
+      if (!event?.data?.type || typeof event.data.type !== 'string') return;
+      if (!event.data.type.startsWith('NUSENSE_')) return;
+      if (!iframe.contentWindow || event.source !== iframe.contentWindow) return;
+      if (widgetOrigin && event.origin !== widgetOrigin) return;
+
+      if (event.data.type === 'NUSENSE_CLOSE_WIDGET') {
+        handleCleanup();
+        return;
+      }
+
+      if (event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
+        const payload = {
+          type: 'NUSENSE_STORE_INFO',
+          domain: window.location.hostname,
+          shopDomain,
+          origin: window.location.origin,
+          fullUrl: window.location.href,
+        };
+
+        try {
+          iframe.contentWindow.postMessage(payload, targetOrigin);
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    closeButton.addEventListener('click', handleCleanup);
+    closeButton.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') handleCleanup();
+    });
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) handleCleanup();
+    });
+
+    iframe.addEventListener('load', () => {
+      loading.remove();
+      try {
+        closeButton.focus();
+      } catch {
+        // ignore
+      }
+    });
+
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('message', handleMessage);
+
+    container.appendChild(closeButton);
+    container.appendChild(iframe);
+    container.appendChild(loading);
+    overlay.appendChild(title);
+    overlay.appendChild(container);
+
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    try {
+      closeButton.focus();
+    } catch {
+      // ignore
+    }
+  };
+
+  const initButton = (buttonEl) => {
+    if (!(buttonEl instanceof HTMLButtonElement)) return;
+    if (!buttonEl.id || !buttonEl.id.startsWith(BUTTON_ID_PREFIX)) return;
+    if (initializedButtonIds.has(buttonEl.id)) return;
+
+    initializedButtonIds.add(buttonEl.id);
+
+    // Defensive: ensure we don't accidentally submit product forms.
+    if (!buttonEl.type) buttonEl.type = 'button';
+
+    const handleClick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openWidgetOverlay(buttonEl);
+    };
+
+    // Keep visual config in sync with data attributes.
+    const applyConfig = () => {
+      applyButtonVisualConfig(buttonEl);
+
+      const themeButton = getClosestThemePrimaryButton(buttonEl);
+      const selectedStyle = (buttonEl.dataset.buttonStyle || 'primary').toLowerCase();
+      const shouldUseThemePrimaryDefault = selectedStyle === 'primary' && !hasExplicitStyleOverrides(buttonEl);
+
+      if (themeButton && shouldUseThemePrimaryDefault) {
+        adoptThemePrimaryButtonClasses(buttonEl, themeButton);
+      }
+
+      if (!themeButton) return;
+
+      // Inherit typography if merchant did not override font size.
+      if (!buttonEl.dataset.fontSize) {
+        const themeStyle = window.getComputedStyle(themeButton);
+        const fontFamily = themeStyle.getPropertyValue('font-family');
+        const fontSize = themeStyle.getPropertyValue('font-size');
+        const fontWeight = themeStyle.getPropertyValue('font-weight');
+        const letterSpacing = themeStyle.getPropertyValue('letter-spacing');
+        const textTransform = themeStyle.getPropertyValue('text-transform');
+        const lineHeight = themeStyle.getPropertyValue('line-height');
+
+        if (fontFamily) buttonEl.style.setProperty('font-family', fontFamily, 'important');
+        if (fontSize) buttonEl.style.setProperty('font-size', fontSize, 'important');
+        if (fontWeight) buttonEl.style.setProperty('font-weight', fontWeight, 'important');
+        if (letterSpacing) buttonEl.style.setProperty('letter-spacing', letterSpacing, 'important');
+        if (textTransform) buttonEl.style.setProperty('text-transform', textTransform, 'important');
+        if (lineHeight) buttonEl.style.setProperty('line-height', lineHeight, 'important');
+      }
+    };
+
+    applyConfig();
+
+    buttonEl.addEventListener('click', handleClick);
+
+    const attributeObserver = new MutationObserver(() => {
+      applyConfig();
+    });
+
+    attributeObserver.observe(buttonEl, {
+      attributes: true,
+      attributeFilter: [
+        'data-button-style',
+        'data-show-icon',
+        'data-button-width-full',
+        'data-background-color',
+        'data-text-color',
+        'data-border-color',
+        'data-font-size',
+        'data-padding',
+        'data-border-radius',
+        'data-alignment',
+        'data-margin-top',
+        'data-margin-bottom',
+        'data-margin-left',
+        'data-margin-right',
+        'data-button-icon',
+        'data-custom-css',
+        'class',
+      ],
+    });
+  };
+
+  const scanButtons = () => {
+    const buttons = document.querySelectorAll(`button[id^="${BUTTON_ID_PREFIX}"]`);
+    buttons.forEach((btn) => initButton(btn));
+  };
+
+  // Initial scan.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scanButtons, { once: true });
+  } else {
+    scanButtons();
+  }
+
+  // Keep up with dynamic themes/sections.
+  const domObserver = new MutationObserver(() => scanButtons());
+  domObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      try {
+        domObserver.disconnect();
+      } catch {
+        // ignore
+      }
+    },
+    { once: true },
+  );
+})();
+
+
