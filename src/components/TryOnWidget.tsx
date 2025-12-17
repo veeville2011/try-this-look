@@ -1880,6 +1880,22 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Check if store is vto-demo (only show tabs for vto-demo store)
   const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
   const isVtoDemoStore = shopDomain && shopDomain.includes("vto-demo-store");
+  const normalizedShopDomain = shopDomain ? shopDomain.replace(".myshopify.com", "") : null;
+
+  const isSingleTabImagesLoading =
+    isInIframe && activeTab === "single" && singleTabImages.length === 0;
+
+  const isSingleTabRecommendedLoading =
+    activeTab === "single" &&
+    !!normalizedShopDomain &&
+    recommendedImages.length === 0 &&
+    (isLoadingCategories ||
+      !store_products ||
+      storeRecommendedLoadedForShopRef.current === normalizedShopDomain);
+
+  const isMultipleLookProductsLoading =
+    (activeTab === "multiple" || activeTab === "look") &&
+    (isLoadingCategories || (!!shopDomain && !store_products));
 
   // Force activeTab to "single" for non-vto-demo stores
   useEffect(() => {
@@ -2094,11 +2110,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
-              <div className="flex flex-row items-start mb-6 gap-0">
+              <div className="flex flex-row items-start mb-6 gap-6">
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
-                  className="flex flex-col flex-1 min-h-[600px] max-w-sm pt-3 pr-6"
+                  className="flex flex-col flex-1 min-h-[600px] max-w-sm pt-3"
                 >
                   <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                     <div className="flex items-center mb-2 px-0 gap-2 w-full">
@@ -2131,10 +2147,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </div>
                 </section>
 
+                <div
+                  className="w-px self-stretch bg-slate-200 mt-3"
+                  aria-hidden="true"
+                />
+
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex items-center justify-center w-full min-h-[600px] pt-3 max-w-sm border-l border-slate-200 pl-6"
+                  className="flex items-center justify-center w-full min-h-[600px] pt-3 max-w-sm"
                 >
                   <div className="flex items-center gap-4 w-full">
                     {selectedClothing && (
@@ -2199,8 +2220,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Default Layout: Upload on left, Clothing selection on right */
             <div
               className={cn(
-                "flex justify-between mb-6",
-                layoutMode === "wide" ? "flex-row items-start gap-0" : "flex-col items-center gap-4"
+                "flex mb-6",
+                layoutMode === "wide" ? "flex-row items-start gap-6" : "flex-col items-center gap-4"
               )}
             >
               {/* Left Panel: Upload / Preview */}
@@ -2211,7 +2232,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 aria-labelledby="upload-heading" 
                 className={cn(
                   "flex flex-col flex-1 min-h-[600px] w-full",
-                  layoutMode === "wide" ? "max-w-sm pt-3 pr-6" : ""
+                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
                 )}
               >
                 {!uploadedImage && (
@@ -2289,6 +2310,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               )}
 
               {/* Vertical Divider - Wide layout only */}
+              {layoutMode === "wide" && (
+                <div
+                  className="w-px self-stretch bg-slate-200 mt-3"
+                  aria-hidden="true"
+                />
+              )}
+
               {/* Right Panel: Clothing Selection */}
               {/* Mobile: Show only when mobileStep === "clothing" */}
               {/* Desktop: Always show */}
@@ -2297,7 +2325,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 aria-labelledby="clothing-heading"
                 className={cn(
                   "flex flex-col items-start w-full min-h-[600px]",
-                  layoutMode === "wide" ? "max-w-sm pt-3 border-l border-slate-200 pl-6" : ""
+                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
                 )}
               >
                 {/* Mobile Back Button */}
@@ -2323,13 +2351,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     selectedImage={selectedClothing}
                     onSelect={handleClothingSelect}
                     onRefreshImages={handleRefreshImages}
-                    availableImagesWithIds={singleTabImagesWithIds}
+                    availableImagesWithIds={singleTabAvailableImagesWithIds}
                     generatedClothingKeys={generatedClothingKeys}
                     generatedKeyCombinations={generatedKeyCombinations}
                     selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                     demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
                     matchingClothingKeys={clothingKeys}
                     showFinalLayout={!!uploadedImage && !!selectedClothing}
+                    isLoadingImages={isSingleTabImagesLoading}
+                    isLoadingRecommended={isSingleTabRecommendedLoading}
                   />
                 </div>
                 
@@ -2826,6 +2856,28 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {/* Garment Grid - Scrollable */}
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {multipleTabImages.length === 0 ? (
+                        isMultipleLookProductsLoading ? (
+                          <div
+                            role="status"
+                            aria-live="polite"
+                            aria-busy="true"
+                            className={cn(
+                              "grid animate-in fade-in-0 duration-300 pb-2",
+                              layoutMode === "wide" ? "grid-cols-3 gap-4" : "grid-cols-2 gap-3"
+                            )}
+                          >
+                            {Array.from({ length: layoutMode === "wide" ? 9 : 6 }).map((_, index) => (
+                              <Card
+                                // eslint-disable-next-line react/no-array-index-key
+                                key={`multiple-skeleton-${index}`}
+                                className="overflow-hidden border-border"
+                                aria-hidden="true"
+                              >
+                                <Skeleton className="h-48 sm:h-56 md:h-64 w-full" />
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
                         <div role="alert" aria-live="polite" className="h-full flex items-center justify-center">
                           <Card className="p-8 text-center bg-muted/30 border-border">
                             <div className="flex flex-col items-center gap-4">
@@ -2847,6 +2899,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </div>
                           </Card>
                         </div>
+                        )
                       ) : (
                         <div
                           className={cn(
@@ -3365,6 +3418,28 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     {/* Garment Grid - Scrollable */}
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {lookTabImages.length === 0 ? (
+                        isMultipleLookProductsLoading ? (
+                          <div
+                            role="status"
+                            aria-live="polite"
+                            aria-busy="true"
+                            className={cn(
+                              "grid animate-in fade-in-0 duration-300 pb-2",
+                              layoutMode === "wide" ? "grid-cols-3 gap-4" : "grid-cols-2 gap-3"
+                            )}
+                          >
+                            {Array.from({ length: layoutMode === "wide" ? 9 : 6 }).map((_, index) => (
+                              <Card
+                                // eslint-disable-next-line react/no-array-index-key
+                                key={`look-skeleton-${index}`}
+                                className="overflow-hidden border-border"
+                                aria-hidden="true"
+                              >
+                                <Skeleton className="h-48 sm:h-56 md:h-64 w-full" />
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
                         <div role="alert" aria-live="polite" className="h-full flex items-center justify-center">
                           <Card className="p-8 text-center bg-muted/30 border-border">
                             <div className="flex flex-col items-center gap-4">
@@ -3386,6 +3461,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             </div>
                           </Card>
                         </div>
+                        )
                       ) : (
                         <div
                           className={cn(

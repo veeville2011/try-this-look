@@ -17,6 +17,8 @@ interface ClothingSelectionProps {
   demoPhotoIdMap?: Map<string, string>;
   matchingClothingKeys?: string[];
   showFinalLayout?: boolean; // Show 2+2 layout only when both photo and clothing are selected
+  isLoadingImages?: boolean;
+  isLoadingRecommended?: boolean;
 }
 
 export default function ClothingSelection({
@@ -32,6 +34,8 @@ export default function ClothingSelection({
   demoPhotoIdMap = new Map(),
   matchingClothingKeys = [],
   showFinalLayout = false,
+  isLoadingImages = false,
+  isLoadingRecommended = false,
 }: ClothingSelectionProps) {
   const { t } = useTranslation();
   const [validImages, setValidImages] = useState<string[]>([]);
@@ -40,6 +44,26 @@ export default function ClothingSelection({
   >([]);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const recommendedScrollRef = useRef<HTMLDivElement>(null);
+
+  const horizontalScrollbarClassName =
+    "overflow-x-auto overflow-y-visible smooth-scroll pb-2 px-4 pt-1 scroll-pl-4 scroll-pr-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50";
+
+  const renderHorizontalSkeleton = (itemCount: number, itemClassName: string) => {
+    return (
+      <div className={horizontalScrollbarClassName} aria-busy="true">
+        <div className="flex items-start min-w-max gap-3 py-2">
+          {Array.from({ length: itemCount }).map((_, index) => (
+            <div
+              // eslint-disable-next-line react/no-array-index-key
+              key={`skeleton-${index}`}
+              className={`rounded-lg border border-border bg-muted/10 animate-pulse ${itemClassName}`}
+              aria-hidden="true"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Check if an image has been generated before (image generation)
   const isGenerated = (imageUrl: string): boolean => {
@@ -118,9 +142,25 @@ export default function ClothingSelection({
     ref.current.scrollLeft = scrollLeft - walk;
   };
 
+  // If we are still loading images (iframe / parent message), show skeleton instead of the empty-state.
+  if (isLoadingImages && validImages.length === 0 && images.length === 0) {
+    return (
+      <div role="status" aria-live="polite" aria-busy="true">
+        <Card className="p-4 sm:p-6 md:p-8 bg-muted/30 border-border">
+          <div className="space-y-4">
+            <div className="h-4 w-48 rounded bg-muted/60 animate-pulse" aria-hidden="true" />
+            <div className="h-3 w-64 rounded bg-muted/50 animate-pulse" aria-hidden="true" />
+            {renderHorizontalSkeleton(6, "w-[173px] h-[164px] p-2")}
+            <div className="h-4 w-56 rounded bg-muted/60 animate-pulse" aria-hidden="true" />
+            {renderHorizontalSkeleton(8, "w-[140px] h-[165px] p-2")}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   // Only show "no clothing detected" if we have no images AND no selected image AND images prop is empty (not loading)
-  // This prevents showing the error message while images are being loaded
-  if (validImages.length === 0 && !selectedImage && images.length === 0) {
+  if (!isLoadingImages && validImages.length === 0 && !selectedImage && images.length === 0) {
     return (
       <div role="alert" aria-live="polite">
         <Card className="p-4 sm:p-6 md:p-8 text-center bg-warning/10 border-warning">
@@ -146,12 +186,12 @@ export default function ClothingSelection({
           <div className="space-y-4 pb-2">
             {/* Main Product Images - Mobile: Full-width stacked, Desktop: Side by side with horizontal scroll fallback */}
             {validImages.length > 0 && (
-              <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-1 px-4 lg:px-4 pt-1">
-                <div className="flex flex-col lg:flex-row items-start self-stretch mb-3 lg:mb-3 gap-0 lg:gap-3 min-w-max">
+              <div className={horizontalScrollbarClassName}>
+                <div className="flex flex-col lg:flex-row items-start self-stretch mb-3 lg:mb-3 gap-0 lg:gap-3 min-w-max py-2">
                   {validImages.slice(0, 2).map((image, index) => (
                     <Card
                       key={index}
-                      className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${index === 0 ? 'mb-2 lg:mb-0' : 'mb-4 lg:mb-0'} ${
+                      className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${index === 0 ? "mb-2 lg:mb-0" : "mb-4 lg:mb-0"} ${
                         selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
                       }`}
                       onClick={() => onSelect(image)}
@@ -192,13 +232,13 @@ export default function ClothingSelection({
             )}
 
             {/* Recommended Products Section */}
-            {filteredRecommendedImages.length > 0 && (
+            {filteredRecommendedImages.length > 0 ? (
               <>
                 <span className="text-slate-800 text-sm font-bold mb-2 block ml-8 lg:ml-0 whitespace-nowrap">
                   {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                 </span>
-                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-4 lg:px-4 pt-1">
-                  <div className="flex items-start gap-3 min-w-max">
+                <div className={horizontalScrollbarClassName}>
+                  <div className="flex items-start gap-3 min-w-max py-2">
                     {filteredRecommendedImages.map((image, index) => (
                       <Card
                         key={`recommended-${index}`}
@@ -241,7 +281,14 @@ export default function ClothingSelection({
                   </div>
                 </div>
               </>
-            )}
+            ) : isLoadingRecommended ? (
+              <>
+                <span className="text-slate-800 text-sm font-bold mb-2 block ml-8 lg:ml-0 whitespace-nowrap">
+                  {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
+                </span>
+                {renderHorizontalSkeleton(8, "w-[140px] h-[169px] p-2")}
+              </>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -252,8 +299,8 @@ export default function ClothingSelection({
           <div className="space-y-4 pb-2">
               {/* Main Product Images - Horizontal Scroll */}
               {validImages.length > 0 && (
-                <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-4 pt-1 snap-x snap-mandatory">
-                  <div className="flex items-start min-w-max gap-3">
+                <div className={`${horizontalScrollbarClassName} snap-x snap-mandatory`}>
+                  <div className="flex items-start min-w-max gap-3 py-2">
                     {validImages.map((image, index) => (
                       <Card
                         key={index}
@@ -303,12 +350,12 @@ export default function ClothingSelection({
                   <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
                     {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
                   </span>
-                  <div className="overflow-x-auto scrollbar-hide smooth-scroll pb-2 px-4 pt-1 snap-x snap-mandatory">
-                    <div className="flex items-start min-w-max gap-3">
+                  <div className={`${horizontalScrollbarClassName} snap-x snap-mandatory`}>
+                    <div className="flex items-start min-w-max gap-3 py-2">
                       {filteredRecommendedImages.map((image, index) => (
                         <Card
                           key={`recommended-${index}`}
-                          className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 snap-start overflow-hidden ${
+                          className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 snap-start ${
                             selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
                           }`}
                           onClick={() => onSelect(image)}
@@ -346,6 +393,13 @@ export default function ClothingSelection({
                       ))}
                     </div>
                   </div>
+                </div>
+              ) : isLoadingRecommended ? (
+                <div className="mt-4">
+                  <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
+                    {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
+                  </span>
+                  {renderHorizontalSkeleton(8, "w-[140px] h-[165px] p-2")}
                 </div>
               ) : (
                 <div className="mt-4 px-4" role="status" aria-live="polite">
