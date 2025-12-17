@@ -1255,6 +1255,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     void runImageGeneration();
   };
 
+  const handleRetryGeneration = () => {
+    if (isGenerating) return;
+    if (!selectedClothing || !uploadedImage) return;
+    void runImageGeneration();
+  };
+
   const handleRefreshImages = () => {
     const isInIframe = window.parent !== window;
 
@@ -2491,6 +2497,18 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 /* Compact Layout: Stacked buttons */
                 <div className="flex flex-col self-stretch mb-8 gap-4">
                   <Button
+                    onClick={handleRetryGeneration}
+                    variant={"outline" as const}
+                    disabled={!selectedClothing || !uploadedImage || isGenerating}
+                    className="w-full h-11"
+                    aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                    aria-busy={isGenerating}
+                  >
+                    <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                  </Button>
+
+                  <Button
                     onClick={handleResetClick}
                     variant={"outline" as const}
                     disabled={isGenerating}
@@ -2537,18 +2555,30 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </Button>
                 </div>
               ) : (
-                /* Wide Layout: Horizontal buttons centered (matches desktop screenshots) */
-                <div className="flex justify-center items-start mb-6">
+                /* Wide Layout: Buttons aligned to the right (matches selection-page pattern) */
+                <div className="flex justify-end items-start mb-6">
                   <div className="flex items-start gap-4">
                     <Button
                       onClick={handleResetClick}
                       variant={"outline" as const}
                       disabled={isGenerating}
                       className="min-w-[160px] h-11"
-                      aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                      aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                       aria-busy={isGenerating}
                     >
                       <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                      {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                    </Button>
+
+                    <Button
+                      onClick={handleRetryGeneration}
+                      variant={"outline" as const}
+                      disabled={!selectedClothing || !uploadedImage || isGenerating}
+                      className="min-w-[160px] h-11"
+                      aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                      aria-busy={isGenerating}
+                    >
+                      <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
                       {t("tryOnWidget.buttons.retry") || "Réessayer"}
                     </Button>
 
@@ -2595,7 +2625,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   {error}
                 </p>
                 <Button
-                  onClick={handleResetClick}
+                  onClick={handleRetryGeneration}
                   variant={"outline" as const}
                   className="w-full sm:w-auto"
                   aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
