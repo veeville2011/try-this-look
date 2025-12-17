@@ -420,7 +420,30 @@ const primarySubmitButton = visibleSubmitButtons[0];
 const buttonParent = primarySubmitButton.parentElement;
 const wrapperParent = buttonParent ? buttonParent.parentElement : null;
 if (buttonParent && wrapperParent && wrapperParent !== document.body && wrapperParent !== document.documentElement) {
-return {isGroup: false, insertTarget: buttonParent, insertParent: wrapperParent};
+  const wrapperParentId = String(wrapperParent.getAttribute('id') || '').toLowerCase();
+  const wrapperParentClass = String(wrapperParent.className || '').toLowerCase();
+  const wrapperLooksLikeBuyButtons =
+    wrapperParentClass.includes('buy') ||
+    wrapperParentClass.includes('button') ||
+    wrapperParentClass.includes('buttons') ||
+    wrapperParentClass.includes('product-form') ||
+    wrapperParentClass.includes('payment') ||
+    wrapperParentId.includes('buy') ||
+    wrapperParentId.includes('button') ||
+    wrapperParentId.includes('buttons') ||
+    wrapperParentId.includes('product-form') ||
+    wrapperParentId.includes('payment');
+
+  const wrapperVisibleButtons = findVisibleButtons(wrapperParent);
+  const wrapperHasMultipleButtons = wrapperVisibleButtons.length > 1;
+
+  // If the wrapper is the buy-buttons group, insert ABOVE the entire group (not inside it).
+  if ((wrapperHasMultipleButtons || wrapperLooksLikeBuyButtons || isHorizontalLayout(wrapperParent)) && wrapperParent.parentElement && wrapperParent.parentElement !== document.body && wrapperParent.parentElement !== document.documentElement) {
+    return {isGroup: true, insertTarget: wrapperParent, insertParent: wrapperParent.parentElement};
+  }
+
+  // Fallback: insert relative to the primary button wrapper.
+  return {isGroup: false, insertTarget: buttonParent, insertParent: wrapperParent};
 }
 return {isGroup: false, insertTarget: primarySubmitButton, insertParent: buttonParent};
 }
