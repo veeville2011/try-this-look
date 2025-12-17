@@ -4,25 +4,12 @@
 
 <style>
   .nusense-tryon-button-embed-container {
-    position: static;
-    float: none;
-    width: 100%;
-    margin-bottom: 0.75rem;
-    z-index: auto;
-    opacity: 0;
-    visibility: hidden;
-    display: block !important;
-    flex-basis: 100% !important;
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
-    grid-column: 1 / -1 !important;
-    clear: both !important;
+    /* Layout-transparent wrapper: the button appears "without a wrapper" */
+    display: none;
   }
 
   .nusense-tryon-button-embed-container.is-positioned {
-    opacity: 1;
-    visibility: visible;
-    display: block !important;
+    display: contents;
   }
 
   .nusense-tryon-button[data-loading="true"] {
@@ -538,9 +525,7 @@ if (!container) return;
 const currentUrl = window.location.href;
 if (lastPositionedUrl === currentUrl && container.classList.contains('is-positioned') && container.parentElement && container.parentElement !== document.body) {
 if (container.style.display === 'none' || window.getComputedStyle(container).display === 'none') {
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
+container.style.display = 'contents';
 }
 return;
 }
@@ -548,8 +533,6 @@ isPositioning = true;
 try {
 if (!isProductPage()) {
 container.style.display = 'none';
-container.style.visibility = 'hidden';
-container.style.opacity = '0';
 container.classList.remove('is-positioned');
 isPositioning = false;
 return;
@@ -573,8 +556,6 @@ button.setAttribute('data-product-id', retryProductId);
 const purchaseBoundary = findPurchaseActionBoundary();
 if (!purchaseBoundary || !purchaseBoundary.insertParent || !purchaseBoundary.insertTarget || purchaseBoundary.insertParent === document.body || purchaseBoundary.insertParent === document.documentElement) {
 container.style.display = 'none';
-container.style.visibility = 'hidden';
-container.style.opacity = '0';
 container.classList.remove('is-positioned');
 isPositioning = false;
 return;
@@ -584,9 +565,7 @@ const insertTarget = purchaseBoundary.insertTarget;
 const currentParent = container.parentElement;
 // If we’re already inserted immediately BEFORE the target, we’re done.
 if (currentParent === insertParent && container.nextSibling === insertTarget) {
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
+container.style.display = 'contents';
 container.classList.add('is-positioned');
 if (button && purchaseBoundary && purchaseBoundary.insertTarget) {
 const targetButton = purchaseBoundary.insertTarget.tagName === 'BUTTON' || purchaseBoundary.insertTarget.tagName === 'INPUT' ? purchaseBoundary.insertTarget : (purchaseBoundary.insertTarget.querySelector ? purchaseBoundary.insertTarget.querySelector('button, input[type="submit"]') : null);
@@ -607,19 +586,22 @@ const insertParentStyle = window.getComputedStyle(insertParent);
 const isInsertParentFlexRow = (insertParentStyle.display === 'flex' || insertParentStyle.display === 'inline-flex') && (insertParentStyle.flexDirection === 'row' || insertParentStyle.flexDirection === 'row-reverse' || insertParentStyle.flexDirection === '');
 const isInsertParentGrid = insertParentStyle.display === 'grid' && insertParentStyle.gridTemplateColumns !== 'none';
 if (purchaseBoundary.isGroup && (isInsertParentFlexRow || isInsertParentGrid)) {
-container.style.width = '100%';
-container.style.flexBasis = '100%';
-container.style.flexShrink = '0';
-container.style.flexGrow = '0';
-container.style.clear = 'both';
 // Ensure we appear ABOVE the primary purchase actions in horizontal layouts.
-container.style.order = '-1';
+// Since the wrapper uses `display: contents`, apply layout rules to the button itself.
+if (button) {
+button.style.width = '100%';
+button.style.flexBasis = '100%';
+button.style.flexShrink = '0';
+button.style.flexGrow = '0';
+button.style.clear = 'both';
+button.style.order = '-1';
 if (isInsertParentFlexRow) {
-container.style.minWidth = '100%';
-container.style.maxWidth = '100%';
+button.style.minWidth = '100%';
+button.style.maxWidth = '100%';
 }
 if (isInsertParentGrid) {
-container.style.gridColumn = '1 / -1';
+button.style.gridColumn = '1 / -1';
+}
 }
 }
 // Insert above the primary purchase button section (instead of after it).
@@ -628,13 +610,8 @@ insertParent.insertBefore(container, insertTarget);
 } else {
 insertParent.appendChild(container);
 }
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
+container.style.display = 'contents';
 container.classList.add('is-positioned');
-if (!container.style.marginBottom) {
-container.style.marginBottom = '0.75rem';
-}
 if (button && purchaseBoundary && purchaseBoundary.insertTarget) {
 const targetButton = purchaseBoundary.insertTarget.tagName === 'BUTTON' || purchaseBoundary.insertTarget.tagName === 'INPUT' ? purchaseBoundary.insertTarget : (purchaseBoundary.insertTarget.querySelector ? purchaseBoundary.insertTarget.querySelector('button, input[type="submit"]') : null);
 if (targetButton) {
@@ -648,22 +625,32 @@ isPositioning = false;
 } catch (e) {
 console.error('[NUSENSE] Error positioning button:', e);
 if (container) {
-container.style.display = 'block';
-container.style.visibility = 'visible';
-container.style.opacity = '1';
+container.style.display = 'contents';
 container.classList.add('is-positioned');
 }
 isPositioning = false;
 }
 }
 let positionTimeout = null;
-function debouncedPosition() {
-if (positionTimeout) {
-clearTimeout(positionTimeout);
-}
+let positionScheduled = false;
+let lastPositionRunAt = 0;
+const POSITION_THROTTLE_MS = 250;
+function schedulePosition() {
+if (positionScheduled) return;
+positionScheduled = true;
+const now = Date.now();
+const delay = Math.max(0, POSITION_THROTTLE_MS - (now - lastPositionRunAt));
 positionTimeout = setTimeout(function() {
+positionScheduled = false;
+lastPositionRunAt = Date.now();
+if (typeof window.requestIdleCallback === 'function') {
+window.requestIdleCallback(function() {
 positionTryOnButton();
-}, 50);
+}, { timeout: 500 });
+return;
+}
+requestAnimationFrame(positionTryOnButton);
+}, delay);
 }
 function initPositioning() {
 if (document.readyState === 'loading') {
@@ -675,48 +662,59 @@ requestAnimationFrame(positionTryOnButton);
 positionTryOnButton();
 requestAnimationFrame(positionTryOnButton);
 }
-const observer = new MutationObserver(function(mutations) {
-let shouldReposition = false;
+let observer = null;
+let observerSetupTimer = null;
+let observerSetupAttempts = 0;
+const MAX_OBSERVER_SETUP_ATTEMPTS = 20;
+const setupObserver = function() {
+if (observerSetupTimer) {
+clearTimeout(observerSetupTimer);
+observerSetupTimer = null;
+}
+try {
+if (observer) observer.disconnect();
+} catch (e) {}
+observer = null;
+const productForm = document.querySelector('form[action*="/cart/add"]');
+if (!productForm) {
+observerSetupAttempts += 1;
+if (observerSetupAttempts <= MAX_OBSERVER_SETUP_ATTEMPTS) {
+observerSetupTimer = setTimeout(setupObserver, Math.min(1000, 100 + observerSetupAttempts * 50));
+}
+return;
+}
+observerSetupAttempts = 0;
+const target = productForm.parentElement && productForm.parentElement !== document.body ? productForm.parentElement : productForm;
+observer = new MutationObserver(function(mutations) {
 for (const mutation of mutations) {
-if (mutation.type === 'childList') {
-for (const node of mutation.addedNodes) {
-if (node.nodeType === 1 && (node.tagName === 'FORM' || node.tagName === 'BUTTON' || node.tagName === 'INPUT' || (node.querySelector && node.querySelector('form[action*="/cart/add"]')))) {
-shouldReposition = true;
+if (mutation.type !== 'childList') continue;
+schedulePosition();
 break;
-}
-}
-}
-if (shouldReposition || (mutation.type === 'attributes' && (mutation.target.tagName === 'FORM' || mutation.target.tagName === 'BUTTON' || mutation.target.tagName === 'INPUT'))) {
-shouldReposition = true;
-break;
-}
-}
-if (shouldReposition) {
-debouncedPosition();
 }
 });
-const setupObserver = function() {
-const productForm = document.querySelector('form[action*="/cart/add"]');
-const target = productForm && productForm.parentElement && productForm.parentElement !== document.body ? productForm.parentElement : document.body;
-observer.observe(target, {childList: true, subtree: true, attributes: true, attributeFilter: ['action', 'type', 'name', 'disabled']});
+// Important: avoid attributes observation (disabled/type changes can be extremely chatty and slow).
+observer.observe(target, {childList: true, subtree: true});
 };
-if (document.body) {
-setupObserver();
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', setupObserver, { once: true });
 } else {
-document.addEventListener('DOMContentLoaded', setupObserver);
+setupObserver();
 }
 document.addEventListener('shopify:section:load', function() {
-requestAnimationFrame(positionTryOnButton);
+setupObserver();
+schedulePosition();
 });
 document.addEventListener('shopify:section:reorder', function() {
-requestAnimationFrame(positionTryOnButton);
+setupObserver();
+schedulePosition();
 });
 let lastUrl = window.location.href;
 window.addEventListener('popstate', function() {
 if (window.location.href !== lastUrl) {
 lastUrl = window.location.href;
 lastPositionedUrl = null;
-requestAnimationFrame(positionTryOnButton);
+setupObserver();
+schedulePosition();
 }
 });
 }

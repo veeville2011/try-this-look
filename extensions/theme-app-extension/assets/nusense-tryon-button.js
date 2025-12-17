@@ -517,6 +517,29 @@
     buttons.forEach((btn) => initButton(btn));
   };
 
+  let scanScheduled = false;
+  let lastScanAt = 0;
+  const SCAN_THROTTLE_MS = 250;
+  const scheduleScanButtons = () => {
+    if (scanScheduled) return;
+    scanScheduled = true;
+
+    const now = Date.now();
+    const delay = Math.max(0, SCAN_THROTTLE_MS - (now - lastScanAt));
+
+    setTimeout(() => {
+      scanScheduled = false;
+      lastScanAt = Date.now();
+
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => scanButtons(), { timeout: 500 });
+        return;
+      }
+
+      requestAnimationFrame(() => scanButtons());
+    }, delay);
+  };
+
   // Initial scan.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', scanButtons, { once: true });
@@ -525,7 +548,7 @@
   }
 
   // Keep up with dynamic themes/sections.
-  const domObserver = new MutationObserver(() => scanButtons());
+  const domObserver = new MutationObserver(() => scheduleScanButtons());
   domObserver.observe(document.documentElement, { childList: true, subtree: true });
 
   window.addEventListener(
