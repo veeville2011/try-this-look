@@ -611,12 +611,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           console.log("[TryOnWidget] Parent sent empty images array");
         }
 
-        // Use recommended images from the parent page (e.g., product recommendations/related products on the page).
-        if (parentRecommendedImages.length > 0) {
+        // Recommended rail (iframe): prefer parent-provided recommended images.
+        // If the theme can't provide them, fall back to showing ALL product images from the parent page.
+        const recommendedSource =
+          parentRecommendedImages.length > 0 ? parentRecommendedImages : parentImages;
+
+        if (recommendedSource.length > 0) {
           const recommendedUrls: string[] = [];
           const recommendedIdMap = new Map<string, string | number>();
 
-          parentRecommendedImages.forEach((img: string | ProductImage) => {
+          recommendedSource.forEach((img: string | ProductImage) => {
             if (typeof img === "string") {
               recommendedUrls.push(img);
               return;
@@ -2180,66 +2184,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         role="status"
                         aria-live="polite"
                         aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                        aria-busy="true"
                       >
-                        {/* Keep previous result visible (softly) so the UI feels alive while regenerating */}
-                        {generatedImage && (
-                          <img
-                            src={generatedImage}
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 w-full h-full object-contain opacity-35 blur-[2px] scale-[1.02]"
-                          />
-                        )}
-
-                        <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40" />
-
-                        {/* Subtle focus vignette */}
-                        <div
-                          className="absolute inset-0 pointer-events-none opacity-70"
-                          aria-hidden="true"
-                          style={{
-                            background:
-                              "radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0.08) 100%)",
-                          }}
-                        />
-
-                        {/* Centered feedback */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                          <div className="relative">
-                            <div
-                              className="w-14 h-14 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm"
-                              aria-hidden="true"
-                            >
-                              <Sparkles className="w-7 h-7 text-primary motion-safe:animate-pulse" aria-hidden="true" />
-                            </div>
-                            <div
-                              className="absolute inset-0 w-14 h-14 rounded-full bg-primary/20 motion-safe:animate-ping opacity-60"
-                              aria-hidden="true"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-foreground">
-                              {t("tryOnWidget.status.generating") || "Génération en cours…"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {t("tryOnWidget.status.generatingHint") || "Cela prend généralement 15 à 20 secondes. Gardez cette page ouverte."}
-                            </p>
-                          </div>
-
-                          <div className="w-full max-w-xs pt-1">
-                            <Progress
-                              value={progress}
-                              className="h-2 bg-muted/60"
-                              aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
-                            />
-                            <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
-                              {(t("tryOnWidget.progress.percent") && t("tryOnWidget.progress.percent")!.includes("{value}"))
-                                ? t("tryOnWidget.progress.percent", { value: progress })
-                                : `${progress}%`}
-                            </p>
-                          </div>
-                        </div>
+                        {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
+                        <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                        <span className="sr-only">
+                          {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                        </span>
                       </div>
                     ) : generatedImage ? (
                       <div className="w-full rounded-lg bg-white overflow-hidden">
@@ -2313,62 +2264,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     role="status"
                     aria-live="polite"
                     aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                    aria-busy="true"
                   >
-                    {generatedImage && (
-                      <img
-                        src={generatedImage}
-                        alt=""
-                        aria-hidden="true"
-                        className="absolute inset-0 w-full h-full object-contain opacity-35 blur-[2px] scale-[1.02]"
-                      />
-                    )}
-                    <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40" />
-
-                    <div
-                      className="absolute inset-0 pointer-events-none opacity-70"
-                      aria-hidden="true"
-                      style={{
-                        background:
-                          "radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.04) 55%, rgba(0,0,0,0.08) 100%)",
-                      }}
-                    />
-
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                      <div className="relative">
-                        <div
-                          className="w-16 h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm"
-                          aria-hidden="true"
-                        >
-                          <Sparkles className="w-8 h-8 text-primary motion-safe:animate-pulse" aria-hidden="true" />
-                        </div>
-                        <div
-                          className="absolute inset-0 w-16 h-16 rounded-full bg-primary/20 motion-safe:animate-ping opacity-60"
-                          aria-hidden="true"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">
-                          {t("tryOnWidget.status.generating") || "Génération en cours…"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("tryOnWidget.status.generatingHint") || "Cela prend généralement 15 à 20 secondes. Gardez cette page ouverte."}
-                        </p>
-                      </div>
-
-                      <div className="w-full max-w-xs pt-1">
-                        <Progress
-                          value={progress}
-                          className="h-2 bg-muted/60"
-                          aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
-                        />
-                        <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
-                          {(t("tryOnWidget.progress.percent") && t("tryOnWidget.progress.percent")!.includes("{value}"))
-                            ? t("tryOnWidget.progress.percent", { value: progress })
-                            : `${progress}%`}
-                        </p>
-                      </div>
-                    </div>
+                    {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
+                    <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                    <span className="sr-only">
+                      {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                    </span>
                   </div>
                 ) : generatedImage ? (
                   <div className="self-stretch mb-8 rounded-xl bg-white overflow-hidden">
