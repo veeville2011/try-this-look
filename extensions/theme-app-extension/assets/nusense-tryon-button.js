@@ -4,6 +4,14 @@
   const BUTTON_ID_PREFIX = 'nusense-tryon-btn-';
   const CUSTOM_CSS_STYLE_ID_PREFIX = 'nusense-custom-css-';
 
+  // When merchants don't intentionally change these, we should not override theme styles.
+  // These match the schema defaults in both app block + app embed block.
+  const DEFAULT_VISUAL_SETTINGS = {
+    fontSize: 16,
+    padding: 0.8,
+    borderRadius: 4,
+  };
+
   /**
    * We want to avoid double-initializing buttons across theme partial reloads,
    * section rendering, and DOM mutations.
@@ -95,6 +103,18 @@
     return null;
   };
 
+  const parseNumber = (value) => {
+    if (value == null) return null;
+    const num = Number.parseFloat(String(value).trim());
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const isEffectivelyDefaultNumber = (value, defaultNumber) => {
+    const num = parseNumber(value);
+    if (num == null) return true;
+    return Math.abs(num - defaultNumber) < 0.0001;
+  };
+
   const applyLayoutConfig = (buttonEl) => {
     if (!buttonEl) return;
 
@@ -174,16 +194,41 @@
     const backgroundColor = buttonEl.dataset.backgroundColor;
     const textColor = buttonEl.dataset.textColor;
     const borderColor = buttonEl.dataset.borderColor;
-    const fontSize = coerceCssNumber(buttonEl.dataset.fontSize, 'px');
-    const padding = coerceCssNumber(buttonEl.dataset.padding, 'rem');
-    const borderRadius = coerceCssNumber(buttonEl.dataset.borderRadius, 'px');
+
+    const fontSize =
+      isEffectivelyDefaultNumber(buttonEl.dataset.fontSize, DEFAULT_VISUAL_SETTINGS.fontSize)
+        ? null
+        : coerceCssNumber(buttonEl.dataset.fontSize, 'px');
+
+    const padding =
+      isEffectivelyDefaultNumber(buttonEl.dataset.padding, DEFAULT_VISUAL_SETTINGS.padding)
+        ? null
+        : coerceCssNumber(buttonEl.dataset.padding, 'rem');
+
+    const borderRadius =
+      isEffectivelyDefaultNumber(buttonEl.dataset.borderRadius, DEFAULT_VISUAL_SETTINGS.borderRadius)
+        ? null
+        : coerceCssNumber(buttonEl.dataset.borderRadius, 'px');
 
     if (backgroundColor) buttonEl.style.setProperty('background-color', backgroundColor, 'important');
+    else buttonEl.style.removeProperty('background-color');
+
     if (textColor) buttonEl.style.setProperty('color', textColor, 'important');
+    else buttonEl.style.removeProperty('color');
+
     if (borderColor) buttonEl.style.setProperty('border-color', borderColor, 'important');
+    else buttonEl.style.removeProperty('border-color');
+
     if (fontSize) buttonEl.style.setProperty('font-size', fontSize, 'important');
+    else buttonEl.style.removeProperty('font-size');
+
+    // Only override padding when merchant intentionally changes it.
     if (padding) buttonEl.style.setProperty('padding', `${padding} 1.5rem`, 'important');
+    else buttonEl.style.removeProperty('padding');
+
+    // Only override border radius when merchant intentionally changes it.
     if (borderRadius) buttonEl.style.setProperty('border-radius', borderRadius, 'important');
+    else buttonEl.style.removeProperty('border-radius');
 
     // Make sure click target is accessible.
     buttonEl.style.minHeight = buttonEl.style.minHeight || '44px';
@@ -212,9 +257,9 @@
       (backgroundColor && backgroundColor.trim()) ||
         (textColor && textColor.trim()) ||
         (borderColor && borderColor.trim()) ||
-        (fontSize && String(fontSize).trim()) ||
-        (padding && String(padding).trim()) ||
-        (borderRadius && String(borderRadius).trim()) ||
+        (fontSize && String(fontSize).trim() && !isEffectivelyDefaultNumber(fontSize, DEFAULT_VISUAL_SETTINGS.fontSize)) ||
+        (padding && String(padding).trim() && !isEffectivelyDefaultNumber(padding, DEFAULT_VISUAL_SETTINGS.padding)) ||
+        (borderRadius && String(borderRadius).trim() && !isEffectivelyDefaultNumber(borderRadius, DEFAULT_VISUAL_SETTINGS.borderRadius)) ||
         (customCss && String(customCss).trim()),
     );
   };
@@ -261,6 +306,23 @@
     if (letterSpacing) buttonEl.style.setProperty('letter-spacing', letterSpacing, 'important');
     if (textTransform) buttonEl.style.setProperty('text-transform', textTransform, 'important');
     if (lineHeight) buttonEl.style.setProperty('line-height', lineHeight, 'important');
+  };
+
+  const inheritBorderRadiusFromButton = (buttonEl, themeButton) => {
+    if (!buttonEl || !themeButton) return;
+    if (!(themeButton instanceof HTMLElement)) return;
+
+    // If merchant intentionally overrides border radius, respect it.
+    const hasRadiusOverride =
+      !!buttonEl.dataset.borderRadius && !isEffectivelyDefaultNumber(buttonEl.dataset.borderRadius, DEFAULT_VISUAL_SETTINGS.borderRadius);
+
+    if (hasRadiusOverride) return;
+
+    const themeStyle = window.getComputedStyle(themeButton);
+    const radius = themeStyle.getPropertyValue('border-radius');
+    if (!radius || radius.trim() === '' || radius.trim() === 'initial' || radius.trim() === 'inherit') return;
+
+    buttonEl.style.setProperty('border-radius', radius.trim(), 'important');
   };
 
   const resetVariantInlineStyles = (buttonEl) => {
@@ -657,6 +719,7 @@
 
       if (typographySource) {
         inheritTypographyFromButton(buttonEl, typographySource);
+        inheritBorderRadiusFromButton(buttonEl, typographySource);
       }
     };
 
