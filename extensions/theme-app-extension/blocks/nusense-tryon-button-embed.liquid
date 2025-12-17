@@ -389,6 +389,70 @@ const gridTemplateColumns = style.gridTemplateColumns;
 return (display === 'flex' || display === 'inline-flex') && (flexDirection === 'row' || flexDirection === 'row-reverse' || flexDirection === '') ||
 (display === 'grid' && gridTemplateColumns !== 'none');
 }
+function parseCssPx(value) {
+if (value == null) return null;
+const raw = String(value).trim();
+if (!raw) return null;
+const px = parseFloat(raw);
+if (Number.isNaN(px)) return null;
+return px;
+}
+function getThemeGapPxFromContainer(container) {
+if (!container) return null;
+const style = window.getComputedStyle(container);
+// Prefer explicit gaps for flex/grid containers.
+const gap = parseCssPx(style.gap);
+if (gap != null && gap > 0) return gap;
+const rowGap = parseCssPx(style.rowGap);
+if (rowGap != null && rowGap > 0) return rowGap;
+// Some themes space children by margins; use margin-block-start of the group if present.
+return null;
+}
+function inferVerticalGapPxFromButtons(groupEl) {
+if (!groupEl || !groupEl.querySelector) return null;
+const buttons = findVisibleButtons(groupEl);
+if (buttons.length < 2) return null;
+// Find the first pair that are vertically stacked (same column-ish).
+for (let i = 0; i < buttons.length - 1; i += 1) {
+const a = buttons[i];
+const b = buttons[i + 1];
+const ra = a.getBoundingClientRect();
+const rb = b.getBoundingClientRect();
+if (!ra || !rb) continue;
+const sameColumn = Math.abs(ra.left - rb.left) <= 8;
+const stacked = rb.top > ra.top;
+if (!sameColumn || !stacked) continue;
+const gap = rb.top - ra.bottom;
+if (gap >= 0 && gap <= 80) return gap;
+}
+return null;
+}
+function applyThemeSpacingIfUnset(buttonEl, groupEl, parentEl) {
+if (!buttonEl) return;
+// Respect merchant settings / explicit inline margins.
+const marginTopSetting = String(buttonEl.dataset.marginTop || '0');
+const marginBottomSetting = String(buttonEl.dataset.marginBottom || '0');
+if (marginTopSetting !== '0' || marginBottomSetting !== '0') return;
+if (buttonEl.style.marginTop || buttonEl.style.marginBottom) return;
+
+// If parent uses column gap, the spacing will be handled automatically.
+if (parentEl) {
+const parentStyle = window.getComputedStyle(parentEl);
+const isColumnFlex = (parentStyle.display === 'flex' || parentStyle.display === 'inline-flex') && parentStyle.flexDirection === 'column';
+const parentGap = getThemeGapPxFromContainer(parentEl);
+if (isColumnFlex && parentGap != null && parentGap > 0) return;
+if (parentStyle.display === 'grid') {
+const gridGap = getThemeGapPxFromContainer(parentEl);
+if (gridGap != null && gridGap > 0) return;
+}
+}
+
+// Prefer the group container's gap/row-gap, else measure button spacing inside the group.
+const groupGap = getThemeGapPxFromContainer(groupEl);
+const inferredGap = groupGap != null ? groupGap : inferVerticalGapPxFromButtons(groupEl);
+const finalGap = inferredGap != null && inferredGap > 0 ? inferredGap : 12;
+buttonEl.style.marginBottom = `${finalGap}px`;
+}
 function findPurchaseActionBoundary() {
 const allForms = Array.from(document.querySelectorAll('form[action*="/cart/add"]'));
 let productForm = allForms.find(form => {
@@ -652,6 +716,8 @@ insertParent.appendChild(container);
 }
 container.style.display = 'contents';
 container.classList.add('is-positioned');
+// If merchant hasn't set custom margins, inherit the theme's spacing between purchase buttons.
+applyThemeSpacingIfUnset(button, insertTarget, insertParent);
 if (button && purchaseBoundary && purchaseBoundary.insertTarget) {
 const targetButton = purchaseBoundary.insertTarget.tagName === 'BUTTON' || purchaseBoundary.insertTarget.tagName === 'INPUT' ? purchaseBoundary.insertTarget : (purchaseBoundary.insertTarget.querySelector ? purchaseBoundary.insertTarget.querySelector('button, input[type="submit"]') : null);
 if (targetButton) {
