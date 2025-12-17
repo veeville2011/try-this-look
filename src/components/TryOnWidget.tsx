@@ -2164,11 +2164,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
-              <div className="grid items-start justify-center mb-6 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
+              <div className="grid items-stretch justify-center mb-6 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
-                  className="flex flex-col w-full pt-3"
+                  className="flex flex-col w-full pt-3 self-start"
                 >
                   <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
                     <div className="flex items-center mb-2 px-0 gap-2 w-full">
@@ -2219,7 +2219,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex items-center justify-center w-full pt-3"
+                  className="flex items-center justify-center w-full pt-3 self-stretch"
                 >
                   <div className="flex items-center gap-4 w-full">
                     {selectedClothing && (
