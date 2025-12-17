@@ -63,7 +63,70 @@
       const key = abs.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
+      const maybeId = typeof entry === 'object' && entry ? entry.id : undefined;
+      if (maybeId !== undefined && maybeId !== null && String(maybeId).trim() !== '') {
+        out.push({ url: abs, id: maybeId });
+        continue;
+      }
       out.push({ url: abs });
+    }
+
+    return out;
+  };
+
+  const parseSrcset = (srcset) => {
+    if (!srcset || typeof srcset !== 'string') return [];
+    return srcset
+      .split(',')
+      .map((part) => String(part).trim().split(/\s+/)[0])
+      .filter(Boolean);
+  };
+
+  const looksLikeShopifyProductImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    const lower = url.toLowerCase();
+    return (
+      lower.includes('cdn.shopify.com') ||
+      lower.includes('shopifycdn') ||
+      lower.includes('/cdn/') ||
+      lower.includes('/s/files/')
+    );
+  };
+
+  const getOtherProductImagesOnPage = (mainProductImageUrls) => {
+    const seen = new Set((Array.isArray(mainProductImageUrls) ? mainProductImageUrls : []).map((u) => String(u).toLowerCase()));
+    const out = [];
+
+    const addUrl = (candidate) => {
+      const abs = ensureAbsoluteUrl(candidate);
+      if (!abs) return;
+      if (!looksLikeShopifyProductImageUrl(abs)) return;
+      const key = abs.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ url: abs });
+    };
+
+    try {
+      const productLinkImages = document.querySelectorAll('a[href*="/products/"] img');
+      for (const img of productLinkImages) {
+        const sources = [
+          img.currentSrc,
+          img.src,
+          img.getAttribute && img.getAttribute('src'),
+          img.dataset && img.dataset.src,
+          img.dataset && img.dataset.lazySrc,
+          img.dataset && img.dataset.originalSrc,
+        ].filter(Boolean);
+
+        if (img.srcset) {
+          sources.push(...parseSrcset(img.srcset));
+        }
+
+        for (const src of sources) addUrl(src);
+      }
+    } catch (e) {
+      error('[NUSENSE] Failed extracting other product images from DOM', e);
     }
 
     return out;
@@ -270,11 +333,13 @@
 
       if (type === 'NUSENSE_REQUEST_IMAGES') {
         const images = getProductImages();
+        const mainUrls = images.map((img) => img?.url).filter(Boolean);
+        const recommendedImages = getOtherProductImagesOnPage(mainUrls);
         event.source.postMessage(
           {
             type: 'NUSENSE_PRODUCT_IMAGES',
             images,
-            recommendedImages: [],
+            recommendedImages,
           },
           event.origin,
         );

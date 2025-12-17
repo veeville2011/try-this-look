@@ -598,12 +598,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           setSingleTabImagesWithIds(imageIdMap);
           imagesLoadedRef.current = true;
 
-          // In iframe mode, prefer the parent page as the source of truth for the "recommended" rail too.
-          // Requirement: show all product images from the parent page instead of API-derived store products.
-          // We mirror the parent product images into recommendedImages so the UI stays consistent.
-          setRecommendedImages(imageUrls);
-          setRecommendedImagesWithIds(imageIdMap);
-
           // Debug logging
           console.log(
             "[TryOnWidget] Product images loaded:",
@@ -617,13 +611,29 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           console.log("[TryOnWidget] Parent sent empty images array");
         }
 
-        // Backward-compat: parent may also send a separate recommendedImages list.
-        // We intentionally ignore it in favor of parent product images (see above) to satisfy the requirement.
+        // Use recommended images from the parent page (e.g., product recommendations/related products on the page).
         if (parentRecommendedImages.length > 0) {
-          console.log(
-            "[TryOnWidget] Parent also provided recommendedImages (ignored in favor of product images):",
-            parentRecommendedImages.length
-          );
+          const recommendedUrls: string[] = [];
+          const recommendedIdMap = new Map<string, string | number>();
+
+          parentRecommendedImages.forEach((img: string | ProductImage) => {
+            if (typeof img === "string") {
+              recommendedUrls.push(img);
+              return;
+            }
+            if (img && typeof img === "object" && "url" in img && img.url) {
+              recommendedUrls.push(img.url);
+              if (img.id !== undefined) {
+                recommendedIdMap.set(img.url, img.id);
+              }
+            }
+          });
+
+          const uniqueUrls = Array.from(new Set(recommendedUrls.filter(Boolean)));
+          setRecommendedImages(uniqueUrls);
+          setRecommendedImagesWithIds(recommendedIdMap);
+
+          console.log("[TryOnWidget] Recommended images loaded:", uniqueUrls.length);
         }
       }
 
