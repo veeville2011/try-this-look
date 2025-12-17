@@ -185,6 +185,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     Map<string, string | number>
   >(new Map());
   const [recommendedImages, setRecommendedImages] = useState<string[]>([]);
+  const [recommendedImagesWithIds, setRecommendedImagesWithIds] = useState<
+    Map<string, string | number>
+  >(new Map());
+  
+  const singleTabAvailableImagesWithIds = useMemo(() => {
+    // Ensure selecting a "recommended" product can resolve an ID (used for key mappings/cache).
+    return new Map<string, string | number>([
+      ...singleTabImagesWithIds.entries(),
+      ...recommendedImagesWithIds.entries(),
+    ]);
+  }, [singleTabImagesWithIds, recommendedImagesWithIds]);
   
   // Helper functions to get tab-specific images
   const getCurrentTabImages = (): string[] => {
@@ -203,13 +214,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const getCurrentTabImagesWithIds = (): Map<string, string | number> => {
     switch (activeTab) {
       case "single":
-        return singleTabImagesWithIds;
+        return singleTabAvailableImagesWithIds;
       case "multiple":
         return multipleTabImagesWithIds;
       case "look":
         return lookTabImagesWithIds;
       default:
-        return singleTabImagesWithIds;
+        return singleTabAvailableImagesWithIds;
     }
   };
   
@@ -304,6 +315,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const imagesLoadedRef = useRef<boolean>(false);
   // Track if we're currently closing to prevent double-close
   const isClosingRef = useRef<boolean>(false);
+  const storeRecommendedLoadedForShopRef = useRef<string | null>(null);
   console.log({ storeInfo });
 
   // Set initial status message
@@ -608,9 +620,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             .filter(Boolean);
           setRecommendedImages(recommendedUrls);
           console.log("[TryOnWidget] Recommended images loaded:", recommendedUrls.length);
-        } else {
-          // Clear recommended images if parent sends empty array
-          setRecommendedImages([]);
         }
       }
 
@@ -751,6 +760,73 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         });
     }
   }, [storeInfo, reduxStoreInfo, store_products, reduxLastFetchedShop, fetchCategorizedProductsFromRedux]);
+
+  // Populate "Recommended products" with ALL store products (Try Single tab)
+  useEffect(() => {
+    if (activeTab !== "single") return;
+
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+    if (!shopDomain) return;
+
+    const normalizedShop = shopDomain.replace(".myshopify.com", "");
+
+    const toNumericId = (gid: string): string => {
+      const match = gid.match(/\/(\d+)$/);
+      return match?.[1] || gid;
+    };
+
+    if (store_products) {
+      const productsToShow: CategorizedProduct[] = [];
+      store_products.categories.forEach((category) => {
+        productsToShow.push(...category.products);
+      });
+      if (store_products.uncategorized.products.length > 0) {
+        productsToShow.push(...store_products.uncategorized.products);
+      }
+
+      const imageUrls: string[] = [];
+      const idMap = new Map<string, string | number>();
+
+      productsToShow.forEach((product) => {
+        const firstImage = product.media?.nodes?.[0]?.image;
+        if (!firstImage?.url) return;
+
+        imageUrls.push(firstImage.url);
+        if (product.id) {
+          idMap.set(firstImage.url, toNumericId(product.id));
+        }
+      });
+
+      setRecommendedImages(imageUrls);
+      setRecommendedImagesWithIds(idMap);
+      storeRecommendedLoadedForShopRef.current = normalizedShop;
+      return;
+    }
+
+    // If categorized products aren't available yet, fetch all store products as the source of truth.
+    if (isLoadingCategories) return;
+    if (storeRecommendedLoadedForShopRef.current === normalizedShop) return;
+
+    storeRecommendedLoadedForShopRef.current = normalizedShop;
+    fetchAllStoreProducts(normalizedShop)
+      .then((response) => {
+        if (!response.success || response.products.length === 0) return;
+
+        const imageUrls = response.products.map((p) => p.imageUrl).filter(Boolean);
+        const idMap = new Map<string, string | number>();
+
+        response.products.forEach((p) => {
+          if (!p.imageUrl) return;
+          idMap.set(p.imageUrl, p.imageId || p.productId);
+        });
+
+        setRecommendedImages(imageUrls);
+        setRecommendedImagesWithIds(idMap);
+      })
+      .catch((error) => {
+        console.error("[TryOnWidget] Failed to load store products for recommended rail:", error);
+      });
+  }, [activeTab, storeInfo, reduxStoreInfo, store_products, isLoadingCategories]);
 
   // Update images based on selected category for Try Multiple tab
   useEffect(() => {
@@ -1010,7 +1086,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     // Get the clothing ID if available (clear if imageUrl is empty)
     if (imageUrl) {
-      const clothingId = singleTabImagesWithIds.get(imageUrl) || null;
+      const clothingId = singleTabAvailableImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
 
       // Set clothingKey in Redux for key mappings
@@ -1767,15 +1843,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     if (
       activeTab === "single" &&
       selectedClothing &&
-      singleTabImagesWithIds.size > 0 &&
+      singleTabAvailableImagesWithIds.size > 0 &&
       !selectedClothingKey
     ) {
-      const clothingId = singleTabImagesWithIds.get(selectedClothing);
+      const clothingId = singleTabAvailableImagesWithIds.get(selectedClothing);
       if (clothingId) {
         setSelectedClothingKey(clothingId);
       }
     }
-  }, [activeTab, selectedClothing, singleTabImagesWithIds, selectedClothingKey]);
+  }, [activeTab, selectedClothing, singleTabAvailableImagesWithIds, selectedClothingKey]);
 
   useEffect(() => {
     // Check for inflight generation after state updates are applied

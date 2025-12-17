@@ -100,31 +100,6 @@ export default function ClothingSelection({
     }
   }, [recommendedImages]);
 
-  const normalizeUrlForComparison = (url: string): string => {
-    if (!url) return "";
-    try {
-      const u = new URL(url, window.location.origin);
-      u.search = "";
-      u.hash = "";
-      return u.href.toLowerCase();
-    } catch {
-      return String(url).trim().toLowerCase();
-    }
-  };
-
-  const getBaseImagePath = (url: string): string => {
-    if (!url) return "";
-    try {
-      const u = new URL(url, window.location.origin);
-      const parts = u.pathname.split("/").filter(Boolean);
-      if (parts.length >= 2) return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`.toLowerCase();
-      if (parts.length === 1) return parts[0].toLowerCase();
-      return "";
-    } catch {
-      return "";
-    }
-  };
-
   // Touch/swipe handlers for horizontal scrolling
   const handleTouchStart = (e: React.TouchEvent, ref: React.RefObject<HTMLDivElement>) => {
     if (!ref.current) return;
@@ -160,19 +135,8 @@ export default function ClothingSelection({
     );
   }
 
-  // Filter out main product images from recommended products (robust to CDN query params / size variants).
-  const mainImageNormalizedSet = new Set(validImages.map(normalizeUrlForComparison).filter(Boolean));
-  const mainImageBasePathSet = new Set(validImages.map(getBaseImagePath).filter(Boolean));
-
-  const filteredRecommendedImages = validRecommendedImages.filter((recImage) => {
-    const normalized = normalizeUrlForComparison(recImage);
-    if (normalized && mainImageNormalizedSet.has(normalized)) return false;
-
-    const basePath = getBaseImagePath(recImage);
-    if (basePath && mainImageBasePathSet.has(basePath)) return false;
-
-    return true;
-  });
+  // Recommended Products = ALL store product images (no filtering).
+  const filteredRecommendedImages = validRecommendedImages;
 
   return (
     <div className="flex flex-col h-full min-h-0">
