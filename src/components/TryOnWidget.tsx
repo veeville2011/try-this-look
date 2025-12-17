@@ -2157,7 +2157,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </div>
                     {isGenerating ? (
                       <div className="w-full min-h-[400px] max-h-[500px] rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
-                        <Skeleton className="w-full h-full min-h-[400px] rounded-lg" />
+                        <Skeleton className="w-full h-full min-h-[400px] rounded-lg bg-slate-200/80 dark:bg-slate-800/60 animate-pulse motion-reduce:animate-none" />
                       </div>
                     ) : generatedImage ? (
                       <div className="w-full rounded-lg bg-white overflow-hidden">
@@ -2227,7 +2227,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {/* Generated Image */}
                 {isGenerating ? (
                   <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden">
-                    <Skeleton className="w-full h-full min-h-[400px] rounded-xl" />
+                    <Skeleton className="w-full h-full min-h-[400px] rounded-xl bg-slate-200/80 dark:bg-slate-800/60 animate-pulse motion-reduce:animate-none" />
                   </div>
                 ) : generatedImage ? (
                   <div className="self-stretch mb-8 rounded-xl bg-white overflow-hidden">
