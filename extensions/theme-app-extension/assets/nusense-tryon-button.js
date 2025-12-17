@@ -242,6 +242,141 @@
     buttonEl.className = nextClasses.join(' ').trim();
   };
 
+  const inheritTypographyFromButton = (buttonEl, themeButton) => {
+    if (!buttonEl || !themeButton) return;
+    if (!(themeButton instanceof HTMLElement)) return;
+    if (buttonEl.dataset.fontSize) return;
+
+    const themeStyle = window.getComputedStyle(themeButton);
+    const fontFamily = themeStyle.getPropertyValue('font-family');
+    const fontSize = themeStyle.getPropertyValue('font-size');
+    const fontWeight = themeStyle.getPropertyValue('font-weight');
+    const letterSpacing = themeStyle.getPropertyValue('letter-spacing');
+    const textTransform = themeStyle.getPropertyValue('text-transform');
+    const lineHeight = themeStyle.getPropertyValue('line-height');
+
+    if (fontFamily) buttonEl.style.setProperty('font-family', fontFamily, 'important');
+    if (fontSize) buttonEl.style.setProperty('font-size', fontSize, 'important');
+    if (fontWeight) buttonEl.style.setProperty('font-weight', fontWeight, 'important');
+    if (letterSpacing) buttonEl.style.setProperty('letter-spacing', letterSpacing, 'important');
+    if (textTransform) buttonEl.style.setProperty('text-transform', textTransform, 'important');
+    if (lineHeight) buttonEl.style.setProperty('line-height', lineHeight, 'important');
+  };
+
+  const resetVariantInlineStyles = (buttonEl) => {
+    if (!buttonEl) return;
+    if (buttonEl.dataset.nusenseVariantInline !== 'true') return;
+
+    buttonEl.style.removeProperty('background-color');
+    buttonEl.style.removeProperty('color');
+    buttonEl.style.removeProperty('border-color');
+    buttonEl.style.removeProperty('border-width');
+    buttonEl.style.removeProperty('border-style');
+    buttonEl.style.removeProperty('box-shadow');
+    buttonEl.style.removeProperty('text-decoration');
+    buttonEl.dataset.nusenseVariantInline = 'false';
+  };
+
+  const applyInlineVariantFallback = (buttonEl, variant, themeButton) => {
+    if (!buttonEl) return;
+
+    // If merchant explicitly overrides colors, let that win.
+    if (hasExplicitStyleOverrides(buttonEl)) return;
+
+    const ref = themeButton instanceof HTMLElement ? themeButton : null;
+    const refStyle = ref ? window.getComputedStyle(ref) : null;
+    const refBg = refStyle ? refStyle.getPropertyValue('background-color').trim() : '';
+    const refColor = refStyle ? refStyle.getPropertyValue('color').trim() : '';
+    const refBorder = refStyle ? refStyle.getPropertyValue('border-color').trim() : '';
+
+    const accent = refBg && refBg !== 'transparent' ? refBg : refBorder || refColor;
+    const text = refColor || 'currentColor';
+
+    // Clear any previous inline variant styling first.
+    resetVariantInlineStyles(buttonEl);
+
+    if (variant === 'secondary') {
+      buttonEl.style.setProperty('background-color', 'transparent', 'important');
+      buttonEl.style.setProperty('border-style', 'solid', 'important');
+      buttonEl.style.setProperty('border-width', '1px', 'important');
+      if (accent) buttonEl.style.setProperty('border-color', accent, 'important');
+      if (accent) buttonEl.style.setProperty('color', accent, 'important');
+      buttonEl.dataset.nusenseVariantInline = 'true';
+      return;
+    }
+
+    if (variant === 'outline') {
+      buttonEl.style.setProperty('background-color', 'transparent', 'important');
+      buttonEl.style.setProperty('border-style', 'solid', 'important');
+      buttonEl.style.setProperty('border-width', '1px', 'important');
+      if (accent) buttonEl.style.setProperty('border-color', accent, 'important');
+      if (text) buttonEl.style.setProperty('color', text, 'important');
+      buttonEl.dataset.nusenseVariantInline = 'true';
+      return;
+    }
+
+    if (variant === 'minimal') {
+      buttonEl.style.setProperty('background-color', 'transparent', 'important');
+      buttonEl.style.setProperty('border-width', '0px', 'important');
+      buttonEl.style.setProperty('border-style', 'solid', 'important');
+      if (accent) buttonEl.style.setProperty('color', accent, 'important');
+      buttonEl.style.setProperty('box-shadow', 'none', 'important');
+      buttonEl.dataset.nusenseVariantInline = 'true';
+      return;
+    }
+
+    // primary => no inline fallback here (handled by theme adoption).
+  };
+
+  const getClosestThemeVariantButton = (buttonEl, variant) => {
+    if (!buttonEl) return null;
+
+    const productForm = buttonEl.closest('form[action*="/cart/add"]') || document.querySelector('form[action*="/cart/add"]');
+    const root = productForm || document;
+
+    const candidates = Array.from(root.querySelectorAll('button, input[type="submit"], input[type="button"]')).filter((el) => {
+      if (!(el instanceof HTMLElement)) return false;
+      if (el === buttonEl) return false;
+      if (String(el.id || '').startsWith(BUTTON_ID_PREFIX)) return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      if (parseFloat(style.opacity) < 0.1) return false;
+      return true;
+    });
+
+    const rankForVariant = (el) => {
+      const cls = String(el.className || '').toLowerCase();
+      let score = 0;
+      if (variant === 'secondary') {
+        if (cls.includes('secondary')) score += 5;
+        if (cls.includes('alt') || cls.includes('subtle')) score += 2;
+      }
+      if (variant === 'outline') {
+        if (cls.includes('outline')) score += 5;
+        if (cls.includes('ghost')) score += 3;
+      }
+      if (variant === 'minimal') {
+        if (cls.includes('tertiary')) score += 5;
+        if (cls.includes('link') || cls.includes('text') || cls.includes('plain')) score += 3;
+      }
+      // Prefer buttons near the primary purchase button area.
+      if (el.closest && el.closest('form[action*="/cart/add"]')) score += 1;
+      return score;
+    };
+
+    let best = null;
+    let bestScore = 0;
+    for (const el of candidates) {
+      const score = rankForVariant(el);
+      if (score > bestScore) {
+        best = el;
+        bestScore = score;
+      }
+    }
+
+    return bestScore > 0 ? best : null;
+  };
+
   const buildWidgetUrl = ({ widgetUrl, productId, shopDomain }) => {
     const base = normalizeUrl(widgetUrl);
     if (!base) return null;
@@ -496,28 +631,32 @@
       const selectedStyle = (buttonEl.dataset.buttonStyle || 'primary').toLowerCase();
       const shouldUseThemePrimaryDefault = selectedStyle === 'primary' && !hasExplicitStyleOverrides(buttonEl);
 
-      if (themeButton && shouldUseThemePrimaryDefault) {
-        adoptThemePrimaryButtonClasses(buttonEl, themeButton);
+      // Always restore "base" classes before applying a style variant.
+      const baseClasses = (buttonEl.dataset.baseClasses || '').trim() || buttonEl.className;
+      if (!buttonEl.dataset.baseClasses) buttonEl.dataset.baseClasses = baseClasses;
+      buttonEl.className = baseClasses;
+      resetVariantInlineStyles(buttonEl);
+
+      let typographySource = themeButton;
+
+      if (selectedStyle === 'primary') {
+        if (themeButton && shouldUseThemePrimaryDefault) {
+          adoptThemePrimaryButtonClasses(buttonEl, themeButton);
+        }
+      } else {
+        // Attempt to adopt theme classes for non-primary variants when possible.
+        const variantButton = getClosestThemeVariantButton(buttonEl, selectedStyle);
+        if (variantButton) {
+          adoptThemePrimaryButtonClasses(buttonEl, variantButton);
+          typographySource = variantButton;
+        } else {
+          // Fallback: apply a lightweight inline variant derived from theme primary styles.
+          applyInlineVariantFallback(buttonEl, selectedStyle, themeButton);
+        }
       }
 
-      if (!themeButton) return;
-
-      // Inherit typography if merchant did not override font size.
-      if (!buttonEl.dataset.fontSize) {
-        const themeStyle = window.getComputedStyle(themeButton);
-        const fontFamily = themeStyle.getPropertyValue('font-family');
-        const fontSize = themeStyle.getPropertyValue('font-size');
-        const fontWeight = themeStyle.getPropertyValue('font-weight');
-        const letterSpacing = themeStyle.getPropertyValue('letter-spacing');
-        const textTransform = themeStyle.getPropertyValue('text-transform');
-        const lineHeight = themeStyle.getPropertyValue('line-height');
-
-        if (fontFamily) buttonEl.style.setProperty('font-family', fontFamily, 'important');
-        if (fontSize) buttonEl.style.setProperty('font-size', fontSize, 'important');
-        if (fontWeight) buttonEl.style.setProperty('font-weight', fontWeight, 'important');
-        if (letterSpacing) buttonEl.style.setProperty('letter-spacing', letterSpacing, 'important');
-        if (textTransform) buttonEl.style.setProperty('text-transform', textTransform, 'important');
-        if (lineHeight) buttonEl.style.setProperty('line-height', lineHeight, 'important');
+      if (typographySource) {
+        inheritTypographyFromButton(buttonEl, typographySource);
       }
     };
 
