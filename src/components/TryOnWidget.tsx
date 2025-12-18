@@ -325,8 +325,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   }, [t, statusMessage]);
 
-  // Container-width based responsiveness (popover-safe):
-  // Use useLayoutEffect for initial measurement to prevent flickering
+  // Container-width based responsiveness - useLayoutEffect prevents flickering
   useLayoutEffect(() => {
     const containerNode = widgetContainerRef.current;
     if (!containerNode) return;
@@ -336,16 +335,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setLayoutMode(nextMode);
   }, []);
 
-  // Set up ResizeObserver for subsequent changes
+  // Watch for resize changes
   useEffect(() => {
     const containerNode = widgetContainerRef.current;
     if (!containerNode) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
-      if (width) {
+      if (width !== undefined) {
         const nextMode: LayoutMode = width >= WIDE_LAYOUT_MIN_WIDTH_PX ? "wide" : "compact";
-        setLayoutMode(nextMode);
+        setLayoutMode((prev) => prev !== nextMode ? nextMode : prev);
       }
     });
 
