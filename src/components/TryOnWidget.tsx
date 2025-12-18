@@ -2166,9 +2166,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
-                  className="flex flex-col w-full pt-3 self-start min-h-0"
+                  className="flex flex-col flex-1 w-full min-h-0 max-w-sm pt-3"
                 >
-                  <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
                     <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
                       <h2 className="text-slate-800 text-xl font-semibold">
                         {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
@@ -2180,7 +2180,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+                    <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                       {isGenerating ? (
                         <div
                           className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center"
@@ -2220,33 +2220,41 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex flex-col items-start justify-start w-full pt-3 self-start min-h-0 gap-4"
+                  className="flex flex-col items-start w-full min-h-0 max-w-sm pt-3 flex-1"
                 >
-                  <div className="flex items-center gap-4 w-full">
-                    {selectedClothing && (
-                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center">
-                        <img
-                          src={selectedClothing}
-                          alt={
-                            t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
-                            "Vêtement actuellement sélectionné pour l'essayage virtuel"
-                          }
-                          className="max-w-full w-auto h-auto object-contain"
-                        />
-                      </div>
-                    )}
-                    {uploadedImage && (
-                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center">
-                        <img
-                          src={uploadedImage}
-                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                          className="max-w-full w-auto h-auto object-contain"
-                        />
-                      </div>
-                    )}
+                  <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                    {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
+                  </h2>
+                  <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
+                    {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
+                  </p>
+                  <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+                    <div className="flex items-stretch gap-4 w-full flex-1 min-h-0">
+                      {selectedClothing && (
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0">
+                          <img
+                            src={selectedClothing}
+                            alt={
+                              t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
+                              "Vêtement actuellement sélectionné pour l'essayage virtuel"
+                            }
+                            className="max-h-full max-w-full w-auto h-auto object-contain"
+                          />
+                        </div>
+                      )}
+                      {uploadedImage && (
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0">
+                          <img
+                            src={uploadedImage}
+                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                            className="max-h-full max-w-full w-auto h-auto object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  {/* Action buttons - Positioned below images in right section */}
+                  {/* Action buttons - Positioned at bottom, consistent with first step */}
                   <div className="flex flex-col items-end w-full flex-shrink-0 gap-3 mt-4">
                     <div className="flex items-start gap-4 w-full justify-end flex-wrap">
                       <Button

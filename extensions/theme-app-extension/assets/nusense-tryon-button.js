@@ -139,13 +139,21 @@
     if (marginLeft !== '0') buttonEl.style.marginLeft = `${marginLeft}rem`;
     if (marginRight !== '0') buttonEl.style.marginRight = `${marginRight}rem`;
 
-    // Button width customization (applies only when Full Width is disabled).
-    // Width percentage is relative to the full container width
-    if (!isFullWidth && Number.isFinite(widthPercent) && widthPercent > 0 && widthPercent <= 100) {
+    // Button width customization
+    if (isFullWidth) {
+      // Force full width when enabled
+      buttonEl.style.display = 'flex';
+      buttonEl.style.width = '100%';
+      buttonEl.style.maxWidth = '100%';
+      buttonEl.style.flex = '1 1 100%';
+      if (container) {
+        container.style.alignItems = 'stretch';
+        container.style.width = '100%';
+      }
+    } else if (Number.isFinite(widthPercent) && widthPercent > 0 && widthPercent <= 100) {
+      // Width percentage is relative to the full container width
       buttonEl.style.width = `${widthPercent}%`;
       buttonEl.style.maxWidth = '100%';
-    } else if (isFullWidth) {
-      buttonEl.style.width = '100%';
     }
 
     // Handle alignment - apply to container for proper flex behavior
