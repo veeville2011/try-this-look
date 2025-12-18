@@ -2231,7 +2231,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
                     <div className="flex items-stretch gap-4 w-full flex-1 min-h-0">
                       {selectedClothing && (
-                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0">
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[532px]">
                           <img
                             src={selectedClothing}
                             alt={
@@ -2243,7 +2243,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         </div>
                       )}
                       {uploadedImage && (
-                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0">
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[532px]">
                           <img
                             src={uploadedImage}
                             alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
@@ -2408,7 +2408,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="w-full flex-1 min-h-0 flex items-center justify-center">
+                    <div className="w-full flex-1 min-h-0 max-h-[500px] flex items-center justify-center">
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}

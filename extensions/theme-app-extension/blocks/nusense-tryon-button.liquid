@@ -31,7 +31,7 @@
 
 <style>
   .nusense-tryon-button-app-block {
-    width: 100% !important;
+    width: 100%;
     display: flex;
     {% if button_width_full %}
       align-items: stretch;
@@ -65,20 +65,6 @@
     letter-spacing: inherit;
     text-transform: inherit;
   }
-
-  {% if button_width_full %}
-    .nusense-tryon-button-app-block .nusense-tryon-button {
-      width: 100% !important;
-      flex: 1 1 100%;
-    }
-  {% else %}
-    {% if button_width_percent != blank %}
-      .nusense-tryon-button-app-block .nusense-tryon-button {
-        width: {{ button_width_percent }}%;
-        max-width: 100%;
-      }
-    {% endif %}
-  {% endif %}
 </style>
 
 {% assign button_classes = 'button nusense-tryon-button' %}
@@ -100,6 +86,7 @@
   class="nusense-tryon-button-app-block"
   data-block-id="{{ block.id }}"
   {{ block.shopify_attributes }}
+  style="width: 100%; display: flex;{% if button_width_full %} align-items: stretch;{% endif %}{% if button_alignment == 'left' %} justify-content: flex-start;{% elsif button_alignment == 'center' %} justify-content: center;{% elsif button_alignment == 'right' %} justify-content: flex-end;{% else %}{% if button_width_full %} justify-content: stretch;{% else %} justify-content: flex-start;{% endif %}{% endif %}"
 >
   <button
     id="nusense-tryon-btn-{{ block.id }}"
@@ -127,7 +114,7 @@
     {% if button_padding != blank %}data-padding="{{ button_padding | escape }}"{% endif %}
     {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius | escape }}"{% endif %}
     {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
-    style="display: {% if button_width_full %}flex{% else %}inline-flex{% endif %}; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100% !important;{% endif %}"
+    style="display: {% if button_width_full %}flex{% else %}inline-flex{% endif %}; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% else %}{% if button_width_percent != blank and button_width_percent != 100 %} width: {{ button_width_percent }}%;{% endif %}{% endif %}"
   >
     <span
       class="button__icon"
