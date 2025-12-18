@@ -190,7 +190,7 @@ export default function ClothingSelection({
     : validRecommendedImages.filter((u) => !mainSet.has(u.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 w-full">
       {showFinalLayout ? (
         /* Final Layout - Show 2+2 grid when both photo and clothing are selected */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
@@ -301,128 +301,51 @@ export default function ClothingSelection({
           </div>
         </div>
       ) : (
-        /* Original Layout - Horizontal scrollable when not both selected */
-        <>
-          {/* Always show images - removed !selectedImage condition */}
+        /* Original Layout - 2x2 Grid Layout with Vertical Scroll */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          <div className="space-y-4 pb-2">
-              {/* Main Product Images - Horizontal Scroll */}
-              {validImages.length > 0 && (
-                <div className={`${horizontalScrollbarClassName} snap-x snap-mandatory`}>
-                  <div className="flex items-start min-w-max gap-3 py-2">
-                    {validImages.map((image, index) => (
-                      <Card
-                        key={index}
-                        className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 snap-start ${
-                          selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
-                        }`}
-                        onClick={() => onSelect(image)}
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={selectedImage === image}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            onSelect(image);
-                          }
-                        }}
-                      >
-                        <img
-                          src={image}
-                          className={`w-[173px] h-[164px] object-contain bg-white rounded-md ${
-                            selectedImage === image ? "" : ""
-                          }`}
-                          alt={t("tryOnWidget.clothingSelection.clothingImageAlt", {
-                            index: index + 1,
-                            suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                          }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                          aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", {
-                            index: index + 1,
-                            suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
-                          }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
-                          loading="lazy"
-                          onError={() => {
-                            setValidImages((prev) =>
-                              prev.filter((u) => u !== image)
-                            );
-                          }}
-                        />
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recommended Products Section - Horizontal Scroll */}
-              {filteredRecommendedImages.length > 0 ? (
-                <div className="mt-4">
-                  <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
-                    {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
-                  </span>
-                  <div className={`${horizontalScrollbarClassName} snap-x snap-mandatory`}>
-                    <div className="flex items-start min-w-max gap-3 py-2">
-                      {filteredRecommendedImages.map((image, index) => (
-                        <Card
-                          key={`recommended-${index}`}
-                          className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 snap-start ${
-                            selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
-                          }`}
-                          onClick={() => onSelect(image)}
-                          role="button"
-                          tabIndex={0}
-                          aria-pressed={selectedImage === image}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              onSelect(image);
-                            }
-                          }}
-                        >
-                          <img
-                            src={image}
-                            className={`w-[140px] h-[165px] object-contain bg-white rounded-md ${
-                              selectedImage === image ? "" : ""
-                            }`}
-                            alt={t("tryOnWidget.clothingSelection.recommendedProductAlt", {
-                              index: index + 1,
-                              suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                            }) || `Produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                            aria-label={t("tryOnWidget.clothingSelection.selectRecommendedProductAriaLabel", {
-                              index: index + 1,
-                              suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
-                            }) || `Sélectionner le produit recommandé ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
-                            loading="lazy"
-                            onError={() => {
-                              setValidRecommendedImages((prev) =>
-                                prev.filter((u) => u !== image)
-                              );
-                            }}
-                          />
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : isLoadingRecommended ? (
-                <div className="mt-4">
-                  <span className="text-slate-800 text-sm font-bold mb-3 mr-56 block whitespace-nowrap">
-                    {t("tryOnWidget.clothingSelection.recommendedProducts") || "Produits recommandés"}
-                  </span>
-                  {renderHorizontalSkeleton(8, "w-[140px] h-[165px] p-2")}
-                </div>
-              ) : (
-                <div className="mt-4 px-4" role="status" aria-live="polite">
-                  <Card className="p-3 bg-muted/30 border-muted">
-                    <p className="text-xs text-muted-foreground">
-                      {t("tryOnWidget.clothingSelection.noRecommendedProducts") ||
-                        "No other product images found on this page."}
-                    </p>
-                  </Card>
-                </div>
-              )}
+          {/* Main Product Images - 2x2 Grid */}
+          {validImages.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 pb-2">
+              {validImages.map((image, index) => (
+                <Card
+                  key={index}
+                  className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${
+                    selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
+                  }`}
+                  onClick={() => onSelect(image)}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedImage === image}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelect(image);
+                    }
+                  }}
+                >
+                  <img
+                    src={image}
+                    className="w-full h-auto aspect-square object-contain bg-white rounded-md"
+                    alt={t("tryOnWidget.clothingSelection.clothingImageAlt", {
+                      index: index + 1,
+                      suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                    }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                    aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", {
+                      index: index + 1,
+                      suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                    }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                    loading="lazy"
+                    onError={() => {
+                      setValidImages((prev) =>
+                        prev.filter((u) => u !== image)
+                      );
+                    }}
+                  />
+                </Card>
+              ))}
             </div>
-          </div>
-        </>
+          )}
+        </div>
       )}
     </div>
   );
