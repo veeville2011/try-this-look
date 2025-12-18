@@ -2356,7 +2356,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             <div
               className={cn(
                 "flex mb-6",
-                layoutMode === "wide" ? "flex-row items-start gap-6 max-h-[calc(100vh-280px)]" : "flex-col items-center gap-4"
+                layoutMode === "wide" ? "flex-row items-start gap-6" : "flex-col items-center gap-4"
               )}
             >
               {/* Left Panel: Upload / Preview */}
@@ -2366,7 +2366,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="upload-heading" 
                 className={cn(
-                  "flex flex-col flex-1 w-full min-h-0",
+                  "flex flex-col flex-1 min-h-[600px] w-full",
                   layoutMode === "wide" ? "max-w-sm pt-3" : ""
                 )}
               >
@@ -2381,8 +2381,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 )}
 
                 {uploadedImage && (
-                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
-                    <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full">
                       <button
                         onClick={handleClearUploadedImage}
                         className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
@@ -2394,17 +2394,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
                       </h2>
                     </div>
-                    <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full">
                       <p className="text-slate-800 text-sm">
                         {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="w-full flex-1 min-h-0 flex items-center justify-center">
+                    <div className="w-full">
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                        className="max-h-full max-w-full w-auto h-auto rounded-lg object-contain bg-white"
+                        className="w-full h-auto max-h-[400px] rounded-lg object-contain bg-white"
                       />
                     </div>
                   </div>
@@ -2448,7 +2448,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Vertical Divider - Wide layout only */}
               {layoutMode === "wide" && (
                 <div
-                  className="w-px self-stretch flex-none bg-slate-200 mt-3"
+                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
               )}
@@ -2460,8 +2460,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="clothing-heading"
                 className={cn(
-                  "flex flex-col items-start w-full min-h-0",
-                  layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : ""
+                  "flex flex-col items-start w-full min-h-[600px]",
+                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
                 )}
               >
                 {/* Mobile Back Button */}
@@ -2474,13 +2474,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
                   </button>
                 )}
-                <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full">
                   {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
                 </h2>
-                <p className="text-slate-800 text-sm w-full flex-shrink-0">
+                <p className="text-slate-800 text-sm w-full">
                   {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
                 </p>
-                <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+                <div className="flex-1 flex flex-col min-h-0 w-full">
                   <ClothingSelection
                     images={singleTabImages}
                     recommendedImages={recommendedImages}
@@ -2503,7 +2503,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {!isGenerating && !generatedImage && (
                   <div
                     className={cn(
-                      "flex flex-col items-end w-full flex-shrink-0",
+                      "flex flex-col items-end w-full",
                       layoutMode !== "wide" && mobileStep === "photo" ? "hidden" : ""
                     )}
                   >
