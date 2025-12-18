@@ -2483,7 +2483,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
                   <ClothingSelection
                     images={singleTabImages}
-                    recommendedImages={!!uploadedImage && !!selectedClothing ? recommendedImages : []}
+                    recommendedImages={[]}
                     selectedImage={selectedClothing}
                     onSelect={handleClothingSelect}
                     onRefreshImages={handleRefreshImages}

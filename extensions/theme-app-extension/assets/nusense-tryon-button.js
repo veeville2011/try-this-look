@@ -118,6 +118,13 @@
   const applyLayoutConfig = (buttonEl) => {
     if (!buttonEl) return;
 
+    // Ensure container takes full width
+    const container = buttonEl.closest('.nusense-tryon-button-app-block');
+    if (container) {
+      container.style.width = '100%';
+      container.style.display = 'flex';
+    }
+
     const alignment = buttonEl.dataset.alignment || 'auto';
     const marginTop = buttonEl.dataset.marginTop || '0';
     const marginBottom = buttonEl.dataset.marginBottom || '0';
@@ -133,50 +140,63 @@
     if (marginRight !== '0') buttonEl.style.marginRight = `${marginRight}rem`;
 
     // Button width customization (applies only when Full Width is disabled).
+    // Width percentage is relative to the full container width
     if (!isFullWidth && Number.isFinite(widthPercent) && widthPercent > 0 && widthPercent <= 100) {
-      // Avoid forcing 100% unless merchant intentionally sets it.
-      if (widthPercent !== 100) buttonEl.style.width = `${widthPercent}%`;
+      buttonEl.style.width = `${widthPercent}%`;
+      buttonEl.style.maxWidth = '100%';
+    } else if (isFullWidth) {
+      buttonEl.style.width = '100%';
+    }
+
+    // Handle alignment - apply to container for proper flex behavior
+    if (container && alignment !== 'auto') {
+      if (alignment === 'left') {
+        container.style.justifyContent = 'flex-start';
+      } else if (alignment === 'center') {
+        container.style.justifyContent = 'center';
+      } else if (alignment === 'right') {
+        container.style.justifyContent = 'flex-end';
+      }
     }
 
     if (alignment === 'auto') return;
 
-    // Alignment must work even when the wrapper is `display: contents` (no box),
-    // so apply alignment directly on the button (and flex/grid properties when possible).
-    if (isFullWidth) return;
+    // For non-full-width buttons, also handle alignment on button itself
+    if (!isFullWidth) {
+      const parent = buttonEl.parentElement;
+      const parentStyle = parent ? window.getComputedStyle(parent) : null;
+      const isFlexParent = !!parentStyle && (parentStyle.display === 'flex' || parentStyle.display === 'inline-flex');
+      const isGridParent = !!parentStyle && parentStyle.display === 'grid';
 
-    const parent = buttonEl.parentElement;
-    const parentStyle = parent ? window.getComputedStyle(parent) : null;
-    const isFlexParent = !!parentStyle && (parentStyle.display === 'flex' || parentStyle.display === 'inline-flex');
-    const isGridParent = !!parentStyle && parentStyle.display === 'grid';
+      if (isFlexParent) {
+        if (alignment === 'left') buttonEl.style.alignSelf = 'flex-start';
+        if (alignment === 'center') buttonEl.style.alignSelf = 'center';
+        if (alignment === 'right') buttonEl.style.alignSelf = 'flex-end';
+        return;
+      }
 
-    if (isFlexParent) {
-      if (alignment === 'left') buttonEl.style.alignSelf = 'flex-start';
-      if (alignment === 'center') buttonEl.style.alignSelf = 'center';
-      if (alignment === 'right') buttonEl.style.alignSelf = 'flex-end';
-      return;
-    }
+      if (isGridParent) {
+        if (alignment === 'left') buttonEl.style.justifySelf = 'start';
+        if (alignment === 'center') buttonEl.style.justifySelf = 'center';
+        if (alignment === 'right') buttonEl.style.justifySelf = 'end';
+        return;
+      }
 
-    if (isGridParent) {
-      if (alignment === 'left') buttonEl.style.justifySelf = 'start';
-      if (alignment === 'center') buttonEl.style.justifySelf = 'center';
-      if (alignment === 'right') buttonEl.style.justifySelf = 'end';
-      return;
-    }
-
-    // Block formatting fallback.
-    if (!buttonEl.style.width) buttonEl.style.width = 'fit-content';
-    buttonEl.style.display = 'flex';
-    if (alignment === 'left') {
-      buttonEl.style.marginLeft = '0';
-      buttonEl.style.marginRight = 'auto';
-    }
-    if (alignment === 'center') {
-      buttonEl.style.marginLeft = 'auto';
-      buttonEl.style.marginRight = 'auto';
-    }
-    if (alignment === 'right') {
-      buttonEl.style.marginLeft = 'auto';
-      buttonEl.style.marginRight = '0';
+      // Block formatting fallback.
+      if (!buttonEl.style.width) buttonEl.style.width = 'fit-content';
+      buttonEl.style.display = 'flex';
+      if (alignment === 'left') {
+        buttonEl.style.marginLeft = '0';
+        buttonEl.style.marginRight = 'auto';
+      }
+      if (alignment === 'center') {
+        buttonEl.style.marginLeft = 'auto';
+        buttonEl.style.marginRight = 'auto';
+      }
+      if (alignment === 'right') {
+        buttonEl.style.marginLeft = 'auto';
+        buttonEl.style.marginRight = '0';
+      }
     }
   };
 
