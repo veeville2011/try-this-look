@@ -2048,7 +2048,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     <div
       data-nusense-widget="true"
       ref={widgetContainerRef}
-      className="w-full h-full flex flex-col bg-white"
+      className="w-full h-full flex flex-col bg-white max-w-full overflow-x-hidden"
       style={{ fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
@@ -2077,7 +2077,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     
         {/* Content Container - Fit content */}
-        <div className="bg-white w-full py-6 px-6 rounded-xl">
+        <div className="bg-white w-full max-w-full py-6 px-6 rounded-xl overflow-x-hidden">
           {/* Header - Aligned with content container */}
           <header className="sticky top-0 z-10 bg-white">
             <div className="flex justify-between items-center py-3 mb-3">
@@ -2364,7 +2364,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Default Layout: Upload on left, Clothing selection on right */
             <div
               className={cn(
-                "flex flex-1 min-h-0",
+                "flex flex-1 min-h-0 max-w-full",
                 layoutMode === "wide" ? "flex-row items-stretch gap-6" : "flex-col items-center gap-4"
               )}
             >
@@ -2375,7 +2375,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="upload-heading" 
                 className={cn(
-                  "flex flex-col flex-1 w-full min-h-0",
+                  "flex flex-col flex-1 w-full min-h-0 max-w-full",
                   layoutMode === "wide" ? "max-w-sm pt-3" : ""
                 )}
               >
@@ -2470,7 +2470,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="clothing-heading"
                 className={cn(
-                  "flex flex-col items-start w-full min-h-0",
+                  "flex flex-col items-start w-full min-h-0 max-w-full",
                   layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
                 )}
               >

@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Camera, Info, User, ArrowLeft } from "lucide-react";
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
+import { cn } from "@/lib/utils";
 
 interface PhotoUploadProps {
   onPhotoUpload: (
@@ -112,7 +113,7 @@ export default function PhotoUpload({
 
   return (
     <>
-      <div className="flex flex-col bg-white w-full h-full min-h-[456px] rounded-2xl">
+      <div className="flex flex-col bg-white w-full h-full min-h-[456px] rounded-2xl max-w-full overflow-x-hidden">
         <div className="sr-only">
           {t("tryOnWidget.photoUpload.srOnlyText") || "Téléchargez votre photo ou utilisez une photo de démonstration"}
         </div>
@@ -295,7 +296,13 @@ export default function PhotoUpload({
             </div>
 
             {/* Demo Photos Grid - Mobile: 3 columns (3x4), Desktop: 4 columns */}
-            <div className={`flex-1 ${isMobile ? 'overflow-hidden' : 'overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50'}`}>
+            {/* Mobile: Fixed height for 3.5 rows (3 full + 1 half) with scrollbar */}
+            {/* Desktop: Flexible height with scrollbar (unchanged) */}
+            <div className={cn(
+              isMobile 
+                ? "flex-shrink-0 h-[456px] overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+                : "flex-1 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+            )}>
               <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2'} sm:grid-cols-3 md:grid-cols-4 gap-3`}>
                 {DEMO_PHOTOS_ARRAY.map((photo) => (
                   <div

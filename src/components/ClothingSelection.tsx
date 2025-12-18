@@ -190,7 +190,7 @@ export default function ClothingSelection({
     : validRecommendedImages.filter((u) => !mainSet.has(u.toLowerCase()));
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full h-full">
+    <div className="flex flex-col flex-1 min-h-0 w-full h-full max-w-full overflow-x-hidden">
       {showFinalLayout ? (
         /* Final Layout - 2x2 Grid Layout (consistent with before selection) */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
