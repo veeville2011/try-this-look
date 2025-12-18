@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -326,34 +326,27 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   }, [t, statusMessage]);
 
   // Container-width based responsiveness (popover-safe):
-  // Decide "compact" vs "wide" from the widget container width, not the viewport width.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
+  // Use useLayoutEffect for initial measurement to prevent flickering
+  useLayoutEffect(() => {
     const containerNode = widgetContainerRef.current;
     if (!containerNode) return;
 
-    const updateLayoutModeFromWidth = (width: number) => {
-      const nextMode: LayoutMode = width >= WIDE_LAYOUT_MIN_WIDTH_PX ? "wide" : "compact";
-      setLayoutMode((prev) => (prev === nextMode ? prev : nextMode));
-    };
+    const width = containerNode.getBoundingClientRect().width;
+    const nextMode: LayoutMode = width >= WIDE_LAYOUT_MIN_WIDTH_PX ? "wide" : "compact";
+    setLayoutMode(nextMode);
+  }, []);
 
-    // Initial measurement
-    updateLayoutModeFromWidth(containerNode.getBoundingClientRect().width);
-
-    if (typeof ResizeObserver === "undefined") {
-      // Fallback: best-effort (won't react to popover resize)
-      const handleWindowResize = () => {
-        updateLayoutModeFromWidth(containerNode.getBoundingClientRect().width);
-      };
-      window.addEventListener("resize", handleWindowResize);
-      return () => window.removeEventListener("resize", handleWindowResize);
-    }
+  // Set up ResizeObserver for subsequent changes
+  useEffect(() => {
+    const containerNode = widgetContainerRef.current;
+    if (!containerNode) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      updateLayoutModeFromWidth(entry.contentRect.width);
+      const width = entries[0]?.contentRect.width;
+      if (width) {
+        const nextMode: LayoutMode = width >= WIDE_LAYOUT_MIN_WIDTH_PX ? "wide" : "compact";
+        setLayoutMode(nextMode);
+      }
     });
 
     resizeObserver.observe(containerNode);
@@ -2228,30 +2221,90 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex items-center justify-center w-full pt-3 self-stretch min-h-0"
+                  className="flex flex-col items-start justify-start w-full pt-3 self-start min-h-0 gap-4"
                 >
-                  <div className="flex items-center gap-4 w-full h-full min-h-0">
+                  <div className="flex items-center gap-4 w-full">
                     {selectedClothing && (
-                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 h-full">
+                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center">
                         <img
                           src={selectedClothing}
                           alt={
                             t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
                             "Vêtement actuellement sélectionné pour l'essayage virtuel"
                           }
-                          className="max-h-full max-w-full w-auto h-auto object-contain"
+                          className="max-w-full w-auto h-auto object-contain"
                         />
                       </div>
                     )}
                     {uploadedImage && (
-                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 h-full">
+                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center">
                         <img
                           src={uploadedImage}
                           alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                          className="max-h-full max-w-full w-auto h-auto object-contain"
+                          className="max-w-full w-auto h-auto object-contain"
                         />
                       </div>
                     )}
+                  </div>
+                  
+                  {/* Action buttons - Positioned below images in right section */}
+                  <div className="flex flex-col items-end w-full flex-shrink-0 gap-3 mt-2">
+                    <div className="flex items-start gap-4 w-full justify-end flex-wrap">
+                      <Button
+                        onClick={handleResetClick}
+                        variant={"outline" as const}
+                        disabled={isGenerating}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                        aria-busy={isGenerating}
+                      >
+                        <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                      </Button>
+
+                      <Button
+                        onClick={handleRetryGeneration}
+                        variant={"outline" as const}
+                        disabled={!selectedClothing || !uploadedImage || isGenerating}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                        aria-busy={isGenerating}
+                      >
+                        <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                      </Button>
+
+                      <Button
+                        onClick={handleBuyNow}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                        variant={"outline" as const}
+                        className="min-w-[220px] h-11"
+                        aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                        aria-busy={isBuyNowLoading}
+                      >
+                        {isBuyNowLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
+                      </Button>
+
+                      <Button
+                        onClick={handleAddToCart}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                        className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
+                        aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                        aria-busy={isAddToCartLoading}
+                      >
+                        {isAddToCartLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
+                      </Button>
+                    </div>
                   </div>
                 </section>
               </div>
@@ -2493,132 +2546,67 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           )}
 
-          {(isGenerating || generatedImage) && (
-            /* Result buttons: Mobile - Stacked vertically, Desktop - Horizontal layout */
-            <>
-              {layoutMode !== "wide" ? (
-                /* Compact Layout: Stacked buttons */
-                <div className="flex flex-col self-stretch mb-8 gap-4">
-                  <Button
-                    onClick={handleRetryGeneration}
-                    variant={"outline" as const}
-                    disabled={!selectedClothing || !uploadedImage || isGenerating}
-                    className="w-full h-11"
-                    aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
-                    aria-busy={isGenerating}
-                  >
-                    <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                  </Button>
+          {(isGenerating || generatedImage) && layoutMode !== "wide" && (
+            /* Result buttons: Mobile - Stacked vertically */
+            <div className="flex flex-col self-stretch mb-8 gap-4">
+              <Button
+                onClick={handleRetryGeneration}
+                variant={"outline" as const}
+                disabled={!selectedClothing || !uploadedImage || isGenerating}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                aria-busy={isGenerating}
+              >
+                <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                {t("tryOnWidget.buttons.retry") || "Réessayer"}
+              </Button>
 
-                  <Button
-                    onClick={handleResetClick}
-                    variant={"outline" as const}
-                    disabled={isGenerating}
-                    className="w-full h-11"
-                    aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
-                    aria-busy={isGenerating}
-                  >
-                    <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                  </Button>
+              <Button
+                onClick={handleResetClick}
+                variant={"outline" as const}
+                disabled={isGenerating}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                aria-busy={isGenerating}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+              </Button>
 
-                  <Button
-                    onClick={handleBuyNow}
-                    disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                    variant={"outline" as const}
-                    className="w-full h-11"
-                    aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                    aria-busy={isBuyNowLoading}
-                  >
-                    {isBuyNowLoading ? (
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                    )}
-                    {isBuyNowLoading
-                      ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                      : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
-                  </Button>
-                  <Button
-                    onClick={handleAddToCart}
-                    disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                    className="w-full h-11 bg-primary hover:bg-primary/90"
-                    aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                    aria-busy={isAddToCartLoading}
-                  >
-                    {isAddToCartLoading ? (
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                    )}
-                    {isAddToCartLoading
-                      ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                      : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
-                  </Button>
-                </div>
-              ) : (
-                /* Wide Layout: Buttons aligned to the right (matches selection-page pattern) */
-                <div className="flex justify-end items-start mb-6">
-                  <div className="flex items-start gap-4">
-                    <Button
-                      onClick={handleResetClick}
-                      variant={"outline" as const}
-                      disabled={isGenerating}
-                      className="min-w-[160px] h-11"
-                      aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
-                      aria-busy={isGenerating}
-                    >
-                      <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
-                      {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
-                    </Button>
-
-                    <Button
-                      onClick={handleRetryGeneration}
-                      variant={"outline" as const}
-                      disabled={!selectedClothing || !uploadedImage || isGenerating}
-                      className="min-w-[160px] h-11"
-                      aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
-                      aria-busy={isGenerating}
-                    >
-                      <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                      {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                    </Button>
-
-                    <Button
-                      onClick={handleBuyNow}
-                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                      variant={"outline" as const}
-                      className="min-w-[220px] h-11"
-                      aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                      aria-busy={isBuyNowLoading}
-                    >
-                      {isBuyNowLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                      )}
-                      {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
-                    </Button>
-
-                    <Button
-                      onClick={handleAddToCart}
-                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
-                      className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
-                      aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                      aria-busy={isAddToCartLoading}
-                    >
-                      {isAddToCartLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                      )}
-                      {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+              <Button
+                onClick={handleBuyNow}
+                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                variant={"outline" as const}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                aria-busy={isBuyNowLoading}
+              >
+                {isBuyNowLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                ) : (
+                  <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                )}
+                {isBuyNowLoading
+                  ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                  : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
+              </Button>
+              <Button
+                onClick={handleAddToCart}
+                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                className="w-full h-11 bg-primary hover:bg-primary/90"
+                aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                aria-busy={isAddToCartLoading}
+              >
+                {isAddToCartLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                )}
+                {isAddToCartLoading
+                  ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                  : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+              </Button>
+            </div>
           )}
 
           {error && (
