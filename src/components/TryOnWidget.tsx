@@ -2408,11 +2408,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="w-full flex-1 min-h-0 max-h-[500px] flex items-center justify-center">
+                    <div className="w-full flex-1 max-h-[24rem] min-h-[24rem] flex items-center justify-center">
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                        className="max-h-full max-w-full w-auto h-auto rounded-lg object-contain bg-white"
+                        className="max-h-[24rem] min-h-[24rem] max-w-full w-auto h-auto rounded-lg object-contain bg-white"
                       />
                     </div>
                   </div>
