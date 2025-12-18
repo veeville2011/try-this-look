@@ -2474,23 +2474,41 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
                 )}
               >
-                {/* Mobile Back Button */}
-                {layoutMode !== "wide" && mobileStep === "clothing" && (
-                  <button
-                    onClick={() => setMobileStep("photo")}
-                    className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors mb-4 flex-shrink-0"
-                    aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
-                  >
-                    <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
-                  </button>
+                {/* Header with back button and title side-by-side */}
+                {layoutMode !== "wide" && mobileStep === "clothing" ? (
+                  <div className="flex items-start gap-3 mb-3 w-full flex-shrink-0">
+                    <button
+                      onClick={() => setMobileStep("photo")}
+                      className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0 mt-0.5"
+                      aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                    >
+                      <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-slate-800 text-xl font-semibold mb-1 line-clamp-2">
+                        {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
+                      </h2>
+                      <p className="text-slate-800 text-sm line-clamp-2">
+                        {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                      {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
+                    </h2>
+                    <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
+                      {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
+                    </p>
+                  </>
                 )}
-                <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
-                  {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
-                </h2>
-                <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
-                  {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
-                </p>
-                <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+                
+                {/* Clothing Selection Container - Minimum height for 2x2 grid, scrollable */}
+                <div className={cn(
+                  "flex flex-col min-h-0 w-full",
+                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
+                )}>
                   <ClothingSelection
                     images={singleTabImages}
                     recommendedImages={[]}
@@ -2509,11 +2527,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   />
                 </div>
                 
-                {/* Action buttons - Positioned at bottom, consistent with result page */}
+                {/* Action buttons - Positioned at bottom with minimal gap */}
                 {!isGenerating && !generatedImage && (
                   <div
                     className={cn(
-                      "flex flex-col items-end w-full flex-shrink-0 gap-3 mt-4",
+                      "flex flex-col items-end w-full flex-shrink-0 gap-3",
+                      layoutMode !== "wide" ? "mt-auto pb-0" : "mt-4",
                       layoutMode !== "wide" && mobileStep === "photo" ? "hidden" : ""
                     )}
                   >

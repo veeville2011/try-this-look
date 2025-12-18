@@ -190,7 +190,7 @@ export default function ClothingSelection({
     : validRecommendedImages.filter((u) => !mainSet.has(u.toLowerCase()));
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full">
+    <div className="flex flex-col flex-1 min-h-0 w-full h-full">
       {showFinalLayout ? (
         /* Final Layout - 2x2 Grid Layout (consistent with before selection) */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
@@ -238,11 +238,11 @@ export default function ClothingSelection({
           )}
         </div>
       ) : (
-        /* Original Layout - 2x2 Grid Layout */
+        /* Original Layout - 2x2 Grid Layout - Minimum height for 4 items (2x2) */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           {/* Main Product Images - 2x2 Grid */}
           {validImages.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 pb-2 auto-rows-fr">
+            <div className="grid grid-cols-2 gap-3 pb-2">
               {validImages.map((image, index) => (
                 <Card
                   key={index}
