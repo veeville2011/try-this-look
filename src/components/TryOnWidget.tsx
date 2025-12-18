@@ -2471,7 +2471,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 aria-labelledby="clothing-heading"
                 className={cn(
                   "flex flex-col items-start w-full min-h-0",
-                  layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : ""
+                  layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
                 )}
               >
                 {/* Mobile Back Button */}
