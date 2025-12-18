@@ -2170,82 +2170,85 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
-              <div className="grid items-stretch justify-center mb-6 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
+              <div className="grid items-stretch justify-center mb-6 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)] max-h-[calc(100vh-280px)]">
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
-                  className="flex flex-col w-full pt-3 self-start"
+                  className="flex flex-col w-full pt-3 self-start min-h-0"
                 >
-                  <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border">
-                    <div className="flex items-center mb-2 px-0 gap-2 w-full">
+                  <div className="flex flex-col items-start bg-white w-full h-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
                       <h2 className="text-slate-800 text-xl font-semibold">
                         {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
                       </h2>
                     </div>
-                    <div className="flex items-center mb-4 px-0 gap-2 w-full">
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
                       <p className="text-slate-800 text-sm">
                         {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    {isGenerating ? (
-                      <div
-                        className="relative w-full aspect-square rounded-lg overflow-hidden border border-border bg-white"
-                        role="status"
-                        aria-live="polite"
-                        aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
-                        aria-busy="true"
-                      >
-                        {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
-                        <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
-                        <span className="sr-only">
-                          {t("tryOnWidget.status.generating") || "Génération en cours…"}
-                        </span>
-                      </div>
-                    ) : generatedImage ? (
-                      <div className="w-full aspect-square rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center">
-                        <img
-                          src={generatedImage}
-                          alt={
-                            t("tryOnWidget.resultDisplay.resultAlt") ||
-                            "Résultat de l'essayage virtuel généré par intelligence artificielle"
-                          }
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                    ) : null}
+                    <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+                      {isGenerating ? (
+                        <div
+                          className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center"
+                          role="status"
+                          aria-live="polite"
+                          aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                          aria-busy="true"
+                          style={{ aspectRatio: "1 / 1" }}
+                        >
+                          {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
+                          <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                          <span className="sr-only">
+                            {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                          </span>
+                        </div>
+                      ) : generatedImage ? (
+                        <div className="w-full max-w-full max-h-full rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center" style={{ aspectRatio: "1 / 1" }}>
+                          <img
+                            src={generatedImage}
+                            alt={
+                              t("tryOnWidget.resultDisplay.resultAlt") ||
+                              "Résultat de l'essayage virtuel généré par intelligence artificielle"
+                            }
+                            className="max-h-full max-w-full w-auto h-auto object-contain"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </section>
 
                 <div
-                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
+                  className="w-px self-stretch flex-none bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
 
                 {/* Right Panel: Person Image + Clothing Image (side-by-side, matches desktop screenshots) */}
                 <section
                   aria-labelledby="inputs-heading"
-                  className="flex items-center justify-center w-full pt-3 self-stretch"
+                  className="flex items-center justify-center w-full pt-3 self-stretch min-h-0"
                 >
-                  <div className="flex items-center gap-4 w-full">
+                  <div className="flex items-center gap-4 w-full h-full min-h-0">
                     {selectedClothing && (
-                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4">
+                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 h-full">
                         <img
                           src={selectedClothing}
                           alt={
                             t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
                             "Vêtement actuellement sélectionné pour l'essayage virtuel"
                           }
-                          className="w-full h-auto aspect-square object-contain"
+                          className="max-h-full max-w-full w-auto h-auto object-contain"
                         />
                       </div>
                     )}
                     {uploadedImage && (
-                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4">
+                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 h-full">
                         <img
                           src={uploadedImage}
                           alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                          className="w-full h-auto aspect-square object-contain"
+                          className="max-h-full max-w-full w-auto h-auto object-contain"
                         />
                       </div>
                     )}
@@ -2301,7 +2304,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             <div
               className={cn(
                 "flex mb-6",
-                layoutMode === "wide" ? "flex-row items-start gap-6" : "flex-col items-center gap-4"
+                layoutMode === "wide" ? "flex-row items-start gap-6 max-h-[calc(100vh-280px)]" : "flex-col items-center gap-4"
               )}
             >
               {/* Left Panel: Upload / Preview */}
@@ -2311,7 +2314,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="upload-heading" 
                 className={cn(
-                  "flex flex-col flex-1 min-h-[600px] w-full",
+                  "flex flex-col flex-1 w-full min-h-0",
                   layoutMode === "wide" ? "max-w-sm pt-3" : ""
                 )}
               >
@@ -2326,8 +2329,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 )}
 
                 {uploadedImage && (
-                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border">
-                    <div className="flex items-center mb-2 px-0 gap-2 w-full">
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
                       <button
                         onClick={handleClearUploadedImage}
                         className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
@@ -2339,17 +2342,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
                       </h2>
                     </div>
-                    <div className="flex items-center mb-4 px-0 gap-2 w-full">
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
                       <p className="text-slate-800 text-sm">
                         {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
                       </p>
                       <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="w-full">
+                    <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                       <img
                         src={uploadedImage}
                         alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                        className="w-full h-auto max-h-[400px] rounded-lg object-contain bg-white"
+                        className="max-h-full max-w-full w-auto h-auto rounded-lg object-contain bg-white"
                       />
                     </div>
                   </div>
@@ -2393,7 +2396,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               {/* Vertical Divider - Wide layout only */}
               {layoutMode === "wide" && (
                 <div
-                  className="w-px h-[500px] self-start flex-none bg-slate-200 mt-3"
+                  className="w-px self-stretch flex-none bg-slate-200 mt-3"
                   aria-hidden="true"
                 />
               )}
@@ -2405,8 +2408,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="clothing-heading"
                 className={cn(
-                  "flex flex-col items-start w-full min-h-[600px]",
-                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                  "flex flex-col items-start w-full min-h-0",
+                  layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : ""
                 )}
               >
                 {/* Mobile Back Button */}
@@ -2419,13 +2422,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
                   </button>
                 )}
-                <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full">
+                <h2 className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
                   {t("tryOnWidget.sections.selectClothing.title") || "Sélectionner un article"}
                 </h2>
-                <p className="text-slate-800 text-sm w-full">
+                <p className="text-slate-800 text-sm w-full flex-shrink-0">
                   {t("tryOnWidget.sections.selectClothing.description") || "Sélectionnez un article de vêtement sur cette page"}
                 </p>
-                <div className="flex-1 flex flex-col min-h-0 w-full">
+                <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
                   <ClothingSelection
                     images={singleTabImages}
                     recommendedImages={recommendedImages}
@@ -2448,7 +2451,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {!isGenerating && !generatedImage && (
                   <div
                     className={cn(
-                      "flex flex-col items-end w-full",
+                      "flex flex-col items-end w-full flex-shrink-0",
                       layoutMode !== "wide" && mobileStep === "photo" ? "hidden" : ""
                     )}
                   >
