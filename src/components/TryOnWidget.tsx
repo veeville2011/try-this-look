@@ -2047,7 +2047,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     <div
       data-nusense-widget="true"
       ref={widgetContainerRef}
-      className="w-full h-auto overflow-y-auto bg-white"
+      className="w-full h-full flex flex-col bg-white"
       style={{ fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
@@ -2157,12 +2157,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         )}
 
         {/* Try Single Tab - Current UI */}
-        <TabsContent value="single" className="mt-0">
+        <TabsContent value="single" className="mt-0 flex-1 flex flex-col min-h-0">
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
-              <div className="grid items-stretch justify-center mb-6 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)] max-h-[calc(100vh-280px)]">
+              <div className="grid items-stretch justify-center flex-1 min-h-0 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
                 {/* Left Panel: Generated Image */}
                 <section
                   aria-labelledby="result-heading"
@@ -2355,8 +2355,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             /* Default Layout: Upload on left, Clothing selection on right */
             <div
               className={cn(
-                "flex mb-6",
-                layoutMode === "wide" ? "flex-row items-stretch gap-6 max-h-[calc(100vh-280px)]" : "flex-col items-center gap-4"
+                "flex flex-1 min-h-0",
+                layoutMode === "wide" ? "flex-row items-stretch gap-6" : "flex-col items-center gap-4"
               )}
             >
               {/* Left Panel: Upload / Preview */}

@@ -301,11 +301,11 @@ export default function ClothingSelection({
           </div>
         </div>
       ) : (
-        /* Original Layout - 2x2 Grid Layout with Vertical Scroll */
+        /* Original Layout - 2x2 Grid Layout */
         <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
           {/* Main Product Images - 2x2 Grid */}
           {validImages.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 pb-2">
+            <div className="grid grid-cols-2 gap-3 pb-2 auto-rows-fr">
               {validImages.map((image, index) => (
                 <Card
                   key={index}
