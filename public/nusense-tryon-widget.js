@@ -138,7 +138,7 @@
       width: ${containerWidth};
       max-width: ${containerMaxWidth};
       height: 94vh;
-      max-height: 950px;
+      max-height: 650px;
       position: relative;
       background: white;
       border-radius: 0.75rem;
@@ -186,7 +186,7 @@
     isOpeningWidget = false;
     window.NUSENSE_IS_OPENING = false;
 
-    // Handle window resize to maintain correct width
+    // Handle window resize to maintain correct width and height
     currentResizeHandler = function() {
       const isDesktopNow = window.innerWidth >= 768;
       if (isDesktopNow) {
@@ -198,6 +198,9 @@
         container.style.maxWidth = '95vw';
         container.style.minWidth = '';
       }
+      // Update height to respect max-height on resize
+      container.style.height = '94vh';
+      container.style.maxHeight = '650px';
     };
     window.addEventListener('resize', currentResizeHandler);
 
