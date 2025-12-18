@@ -1094,8 +1094,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     setStatusVariant("info");
     setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
-    // Move to clothing selection step on mobile
-    setMobileStep("clothing");
+    // Don't auto-advance to clothing step - let the continue button handle it
+    // On desktop, layout is side-by-side so no step change needed
+    // On mobile, the continue button in TryOnWidget will advance to clothing step
   };
 
   const handleClothingSelect = (imageUrl: string) => {
@@ -2385,6 +2386,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     matchingPersonKeys={personKeys}
                     initialView={photoSelectionMethod}
                     showDemoPhotoStatusIndicator={false}
+                    isMobile={layoutMode !== "wide"}
                   />
                 )}
 
@@ -2720,6 +2722,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           generatedPersonKeys={new Set()}
                           matchingPersonKeys={[]}
                           showDemoPhotoStatusIndicator={false}
+                          isMobile={layoutMode !== "wide"}
                         />
                       </div>
                     )}
@@ -3283,6 +3286,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           generatedPersonKeys={new Set()}
                           matchingPersonKeys={[]}
                           showDemoPhotoStatusIndicator={false}
+                          isMobile={layoutMode !== "wide"}
                         />
                       </div>
                     )}

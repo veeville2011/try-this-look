@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Camera, Info, User, ArrowLeft } from "lucide-react";
+import { X, Camera, Info, User, ArrowLeft, Check } from "lucide-react";
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
+import { Button } from "@/components/ui/button";
 
 interface PhotoUploadProps {
   onPhotoUpload: (
@@ -13,6 +14,7 @@ interface PhotoUploadProps {
   matchingPersonKeys?: string[];
   initialView?: "file" | "demo" | null; // Control which view to show initially
   showDemoPhotoStatusIndicator?: boolean; // Controls the small top-right dot overlay on demo photos
+  isMobile?: boolean; // If true, shows preview first and requires continue button
 }
 
 export default function PhotoUpload({
@@ -21,11 +23,17 @@ export default function PhotoUpload({
   matchingPersonKeys = [],
   initialView = null,
   showDemoPhotoStatusIndicator = true,
+  isMobile = false,
 }: PhotoUploadProps) {
   const { t } = useTranslation();
   const [preview, setPreview] = useState<string | null>(null);
   const [showFilePicker, setShowFilePicker] = useState(initialView === "file");
   const [showDemoModel, setShowDemoModel] = useState(initialView === "demo");
+  const [selectedPhotoData, setSelectedPhotoData] = useState<{
+    dataURL: string;
+    isDemoPhoto: boolean;
+    demoPhotoUrl?: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -72,8 +80,16 @@ export default function PhotoUpload({
     reader.onloadend = () => {
       const dataURL = reader.result as string;
       setPreview(dataURL);
-      onPhotoUpload(dataURL, false, undefined);
-      setShowFilePicker(false);
+      setSelectedPhotoData({ dataURL, isDemoPhoto: false });
+      
+      if (isMobile) {
+        // On mobile, show preview - don't auto-close or call onPhotoUpload
+        // User will click continue button
+      } else {
+        // On desktop, auto-upload and close
+        onPhotoUpload(dataURL, false, undefined);
+        setShowFilePicker(false);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -92,8 +108,16 @@ export default function PhotoUpload({
       reader.onloadend = () => {
         const dataURL = reader.result as string;
         setPreview(dataURL);
-        onPhotoUpload(dataURL, true, url);
-        setShowDemoModel(false);
+        setSelectedPhotoData({ dataURL, isDemoPhoto: true, demoPhotoUrl: url });
+        
+        if (isMobile) {
+          // On mobile, show preview - don't auto-close or call onPhotoUpload
+          // User will click continue button
+        } else {
+          // On desktop, auto-upload and close
+          onPhotoUpload(dataURL, true, url);
+          setShowDemoModel(false);
+        }
       };
       reader.readAsDataURL(blob);
     } catch (error) {
@@ -102,6 +126,31 @@ export default function PhotoUpload({
         t("tryOnWidget.photoUpload.failedToLoadDemo") ||
           "Unable to load this demo photo. Please try another."
       );
+    }
+  };
+
+  const handleContinue = () => {
+    if (selectedPhotoData) {
+      onPhotoUpload(
+        selectedPhotoData.dataURL,
+        selectedPhotoData.isDemoPhoto,
+        selectedPhotoData.demoPhotoUrl
+      );
+      setShowFilePicker(false);
+      setShowDemoModel(false);
+      setSelectedPhotoData(null);
+      setPreview(null);
+    }
+  };
+
+  const handleBackFromPreview = () => {
+    setPreview(null);
+    setSelectedPhotoData(null);
+    // Return to the selection view (file picker or demo model)
+    if (showFilePicker) {
+      // Stay in file picker
+    } else if (showDemoModel) {
+      // Stay in demo model
     }
   };
 
@@ -220,82 +269,168 @@ export default function PhotoUpload({
           </div>
         ) : showFilePicker ? (
           /* Expanded File Picker View */
-          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl">
-            {/* Header with back button and title */}
-            <div className="flex items-center gap-3 mb-3">
-              <button
-                onClick={() => setShowFilePicker(false)}
-                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
-                aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
-              >
-                <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
-              </button>
-              <h2 className="text-lg font-semibold text-slate-800">
-                {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
-              </h2>
-            </div>
+          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl overflow-hidden">
+            {preview && isMobile ? (
+              /* Mobile Preview View */
+              <>
+                {/* Header with back button and title */}
+                <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+                  <button
+                    onClick={handleBackFromPreview}
+                    className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                    aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                  >
+                    <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                  </button>
+                  <h2 className="text-lg font-semibold text-slate-800 truncate flex-1">
+                    {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
+                  </h2>
+                </div>
 
-            {/* Subtitle */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-slate-600">
-                {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
-              </span>
-              <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-            </div>
+                {/* Subtitle */}
+                <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+                  <span className="text-sm text-slate-600 truncate">
+                    {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                  </span>
+                  <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+                </div>
 
-            {/* Upload Area - Takes full remaining space */}
-            <div
-              className="flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-colors min-h-[400px] py-8 px-4"
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              aria-label={t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  fileInputRef.current?.click();
-                }
-              }}
-            >
-              <Camera className="w-16 h-16 text-blue-600 mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-slate-700 text-base font-medium text-center">
-                  {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
-                </span>
-                <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-                aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
-              />
-            </div>
+                {/* Preview Image */}
+                <div className="flex-1 flex items-center justify-center mb-4 min-h-0 overflow-hidden">
+                  <img
+                    src={preview}
+                    alt={t("tryOnWidget.photoUpload.previewAlt") || "Aperçu de la photo sélectionnée"}
+                    className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
+                  />
+                </div>
+
+                {/* Continue Button */}
+                <Button
+                  onClick={handleContinue}
+                  className="w-full h-11 bg-primary hover:bg-primary/90 flex-shrink-0"
+                  aria-label={t("tryOnWidget.buttons.continue") || "Continuer"}
+                >
+                  <Check className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.continue") || "Continuer"}
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Header with back button and title */}
+                <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+                  <button
+                    onClick={() => setShowFilePicker(false)}
+                    className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                    aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                  >
+                    <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                  </button>
+                  <h2 className={`text-lg font-semibold text-slate-800 ${isMobile ? 'truncate flex-1' : ''}`}>
+                    {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
+                  </h2>
+                </div>
+
+                {/* Subtitle */}
+                <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+                  <span className={`text-sm text-slate-600 ${isMobile ? 'truncate' : ''}`}>
+                    {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                  </span>
+                  <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+                </div>
+
+                {/* Upload Area - Takes full remaining space */}
+                <div
+                  className={`flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-colors min-h-[400px] py-8 px-4 ${isMobile ? 'overflow-hidden' : ''}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                >
+                  <Camera className="w-16 h-16 text-blue-600 mb-4" strokeWidth={1.5} aria-hidden="true" />
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-slate-700 text-base font-medium text-center">
+                      {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
+                    </span>
+                    <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
+                  />
+                </div>
+              </>
+            )}
           </div>
         ) : showDemoModel ? (
           /* Expanded Demo Model Selection View */
-          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl">
-            {/* Header with back button and title */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowDemoModel(false)}
-                  className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
-                  aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
-                >
-                  <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
-                </button>
-                <h2 className="text-lg font-semibold text-slate-800">
-                  {t("tryOnWidget.photoUpload.selectDemoModel") || "Sélectionner un modèle de démonstration"}
-                </h2>
-              </div>
-            </div>
+          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl overflow-hidden">
+            {preview && isMobile ? (
+              /* Mobile Preview View */
+              <>
+                {/* Header with back button and title */}
+                <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+                  <button
+                    onClick={handleBackFromPreview}
+                    className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                    aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                  >
+                    <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                  </button>
+                  <h2 className="text-lg font-semibold text-slate-800 truncate flex-1">
+                    {t("tryOnWidget.photoUpload.selectDemoModel") || "Sélectionner un modèle de démonstration"}
+                  </h2>
+                </div>
 
-            {/* Demo Photos Grid - 3 rows, 4 columns */}
-            <div className="flex-1 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {/* Preview Image */}
+                <div className="flex-1 flex items-center justify-center mb-4 min-h-0 overflow-hidden">
+                  <img
+                    src={preview}
+                    alt={t("tryOnWidget.photoUpload.previewAlt") || "Aperçu de la photo sélectionnée"}
+                    className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
+                  />
+                </div>
+
+                {/* Continue Button */}
+                <Button
+                  onClick={handleContinue}
+                  className="w-full h-11 bg-primary hover:bg-primary/90 flex-shrink-0"
+                  aria-label={t("tryOnWidget.buttons.continue") || "Continuer"}
+                >
+                  <Check className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.continue") || "Continuer"}
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Header with back button and title */}
+                <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <button
+                      onClick={() => setShowDemoModel(false)}
+                      className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                      aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                    >
+                      <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                    </button>
+                    <h2 className={`text-lg font-semibold text-slate-800 ${isMobile ? 'truncate flex-1' : ''}`}>
+                      {t("tryOnWidget.photoUpload.selectDemoModel") || "Sélectionner un modèle de démonstration"}
+                    </h2>
+                  </div>
+                </div>
+
+                {/* Demo Photos Grid - Mobile: 3 columns (3x4), Desktop: 4 columns */}
+                <div className={`flex-1 ${isMobile ? 'overflow-hidden' : 'overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50'}`}>
+                  <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2'} sm:grid-cols-3 md:grid-cols-4 gap-3`}>
                 {DEMO_PHOTOS_ARRAY.map((photo) => (
                   <div
                     key={photo.id}
@@ -335,8 +470,10 @@ export default function PhotoUpload({
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         ) : null}
       </div>
