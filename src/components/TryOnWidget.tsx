@@ -1745,13 +1745,33 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
   };
 
-  const handleInstagramShare = async () => {
+  const handleInstagramShare = async (event?: React.MouseEvent | React.KeyboardEvent) => {
     const imageUrl = generatedImage;
     if (isInstagramShareLoading || !imageUrl) return;
+
+    // Prevent default to maintain user gesture context
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
 
     setIsInstagramShareLoading(true);
 
     try {
+      // Check if Web Share API is available BEFORE async operations
+      if (!navigator.share) {
+        setIsInstagramShareLoading(false);
+        const isSecureContext = window.isSecureContext || location.protocol === "https:";
+        const errorMessage = isSecureContext
+          ? "Web Share API is not supported in this browser. Please use Chrome/Edge on desktop or any modern mobile browser."
+          : "Web Share API requires HTTPS. Please access this page over HTTPS.";
+        
+        toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+          description: errorMessage,
+        });
+        return;
+      }
+
       // Prepare store info for watermark
       const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
       const storeWatermarkInfo = storeName ? {
@@ -1760,7 +1780,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         logoUrl: null,
       } : null;
       
-      // Add watermark to the image
+      // Add watermark to the image (async operation - necessary)
       const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
 
       // Build comprehensive caption with product info, store name, hashtags, and purchase link
@@ -1780,100 +1800,98 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         `#VirtualTryOn #AIFashion #FashionTech #VirtualStyling #TryBeforeYouBuy #FashionAI #DigitalFashion #VirtualReality #FashionTech #Shopify #Ecommerce #Fashion #Style #Outfit #Clothing #Fashionista #InstaFashion #FashionBlogger #StyleInspo #OOTD #FashionLover #FashionAddict #FashionStyle #FashionDesign #FashionWeek #FashionTrends #FashionForward #Fashionable #FashionableStyle #FashionableLife`,
       ].join("\n");
 
-      // Use Web Share API to share image file directly
-      if (navigator.share) {
+      // Create file immediately after blob is ready
+      const file = new File([blob], `virtual-tryon-${Date.now()}.png`, { type: "image/png" });
+      
+      // Try to share with file (best option - includes image)
+      // Check if file sharing is supported
+      let canShareFile = false;
+      if (navigator.canShare) {
         try {
-          const file = new File([blob], `virtual-tryon-${Date.now()}.png`, { type: "image/png" });
+          canShareFile = navigator.canShare({ files: [file] });
+        } catch (canShareError) {
+          // canShare might throw if file sharing is not supported
+          canShareFile = false;
+        }
+      }
+      
+      try {
+        if (canShareFile) {
+          // Share with file (image + caption) - call immediately
+          await navigator.share({
+            files: [file],
+            title: productTitle,
+            text: caption,
+          });
           
-          // Try to share with file (best option - includes image)
-          // Check if file sharing is supported
-          let canShareFile = false;
-          if (navigator.canShare) {
-            try {
-              canShareFile = navigator.canShare({ files: [file] });
-            } catch (canShareError) {
-              // canShare might throw if file sharing is not supported
-              canShareFile = false;
-            }
-          }
+          setIsInstagramShareLoading(false);
+          toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
+            description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+          });
+          return; // Success - exit early
+        } else {
+          // File sharing not supported, try sharing text/URL only
+          const imageDataUrl = URL.createObjectURL(blob);
           
-          if (canShareFile) {
-            // Share with file (image + caption)
+          try {
+            // Share with text and URL - call immediately
             await navigator.share({
-              files: [file],
               title: productTitle,
-              text: caption,
+              text: `${caption}\n\nImage: ${imageDataUrl}`,
+              url: productUrl,
             });
             
             setIsInstagramShareLoading(false);
             toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
-              description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+              description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image link and caption are ready!",
             });
-            return; // Success - exit early
-          } else {
-            // File sharing not supported, try sharing text/URL only
-            // Create a data URL for the image that can be shared via text
-            const imageDataUrl = URL.createObjectURL(blob);
             
-            // Try sharing with text and URL (some browsers support this)
-            try {
-              await navigator.share({
-                title: productTitle,
-                text: `${caption}\n\nImage: ${imageDataUrl}`,
-                url: productUrl,
-              });
-              
-              setIsInstagramShareLoading(false);
-              toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
-                description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image link and caption are ready!",
-              });
-              
-              // Clean up the object URL after a delay
-              setTimeout(() => {
-                URL.revokeObjectURL(imageDataUrl);
-              }, 1000);
-              
-              return; // Success - exit early
-            } catch (textShareError: any) {
-              // Text sharing also failed
+            // Clean up the object URL after a delay
+            setTimeout(() => {
               URL.revokeObjectURL(imageDataUrl);
-              
-              if (textShareError.name === "AbortError") {
-                setIsInstagramShareLoading(false);
-                return; // User cancelled
-              }
-              throw textShareError; // Re-throw to show error below
+            }, 1000);
+            
+            return; // Success - exit early
+          } catch (textShareError: any) {
+            // Text sharing also failed
+            URL.revokeObjectURL(imageDataUrl);
+            
+            if (textShareError.name === "AbortError") {
+              setIsInstagramShareLoading(false);
+              return; // User cancelled
             }
+            throw textShareError; // Re-throw to show error below
           }
-        } catch (shareError: any) {
-          // User cancelled
-          if (shareError.name === "AbortError") {
-            setIsInstagramShareLoading(false);
-            return;
-          }
-          
-          // Share failed - show error with more details
+        }
+      } catch (shareError: any) {
+        // Handle specific error types
+        if (shareError.name === "AbortError") {
+          // User cancelled - this is not an error
           setIsInstagramShareLoading(false);
-          console.error("Web Share API error:", shareError);
-          toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
-            description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || `Sharing failed: ${shareError.message || "Unknown error"}. Please ensure you're using HTTPS and a supported browser.`,
+          return;
+        }
+        
+        if (shareError.name === "NotAllowedError") {
+          // Permission denied - usually means not called from user gesture
+          setIsInstagramShareLoading(false);
+          console.error("Web Share API NotAllowedError:", shareError);
+          toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Permission denied", {
+            description: "Please click the share button again. The share must be triggered directly by your click.",
           });
           return;
         }
+        
+        // Other share errors
+        setIsInstagramShareLoading(false);
+        console.error("Web Share API error:", shareError);
+        toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+          description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || `Sharing failed: ${shareError.message || "Unknown error"}. Please ensure you're using HTTPS and a supported browser.`,
+        });
+        return;
       }
-
-      // Web Share API not available - show helpful error message
+    } catch (error: any) {
       setIsInstagramShareLoading(false);
-      const isSecureContext = window.isSecureContext || location.protocol === "https:";
-      const errorMessage = isSecureContext
-        ? "Web Share API is not supported in this browser. Please use Chrome/Edge on desktop or any modern mobile browser."
-        : "Web Share API requires HTTPS. Please access this page over HTTPS.";
-      
-      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
-        description: errorMessage,
-      });
-    } catch (error) {
-      setIsInstagramShareLoading(false);
+      console.error("Error in handleInstagramShare:", error);
       toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
         description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Unable to share to Instagram. Please try again.",
       });
@@ -2328,7 +2346,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               )}
                             </Button>
                             <Button
-                              onClick={handleInstagramShare}
+                              onClick={(e) => handleInstagramShare(e)}
                               disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
                               size="icon"
                               className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
@@ -2509,7 +2527,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         )}
                       </Button>
                       <Button
-                        onClick={handleInstagramShare}
+                        onClick={(e) => handleInstagramShare(e)}
                         disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
                         size="icon"
                         className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
