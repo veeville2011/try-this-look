@@ -91,6 +91,9 @@ export async function generateCartTryOn(
         formData.append("garmentKeys", garmentKeys.join(","));
       }
 
+      // Request Instagram-compatible square (1:1) aspect ratio
+      formData.append("aspectRatio", "1:1");
+
       // Version parameter removed - not sent to fashion-photo API
 
       console.log("[FRONTEND] [CART] FormData prepared", {
@@ -301,6 +304,9 @@ export async function generateOutfitLook(
       if (garmentKeys && garmentKeys.length > 0) {
         formData.append("garmentKeys", garmentKeys.join(","));
       }
+
+      // Request Instagram-compatible square (1:1) aspect ratio
+      formData.append("aspectRatio", "1:1");
 
       // Version parameter removed - not sent to fashion-photo API
 

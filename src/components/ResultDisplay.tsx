@@ -340,186 +340,73 @@ export default function ResultDisplay({
     setIsInstagramShareLoading(true);
 
     try {
-      // Generate caption
-      const caption = t("tryOnWidget.resultDisplay.instagramCaption") || 
-        "AI generated photoshoot ✨ #ai #fashion #photoshoot #virtualtryon";
+      // Prepare store info for watermark
+      const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      const storeWatermarkInfo = storeName ? {
+        name: storeName,
+        domain: storeName,
+        logoUrl: null,
+      } : null;
+      
+      // Add watermark to the image
+      const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
 
-      // Step 1: Download image silently with watermark (so it's saved to gallery)
-      let imageDownloaded = false;
-      try {
-        // Prepare store info for watermark
-        const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-        const storeWatermarkInfo = storeName ? {
-          name: storeName,
-          domain: storeName,
-          logoUrl: null, // TODO: Add store logo URL if available
-        } : null;
-        
-        // Add watermark (footer with copyright) to the image
-        const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
+      // Build comprehensive caption with product info, store name, hashtags, and purchase link
+      const productData = getProductData();
+      const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+      const productTitle = productData?.title || "Product";
+      const productUrl = productData?.url || window.location.href;
+      
+      // Generate caption with product info, store name, hashtags, and purchase link
+      const caption = [
+        `✨ Virtual Try-On by NUSENSE`,
+        ``,
+        `Check out this ${productTitle} from ${storeDisplayName}!`,
+        ``,
+        `🔗 Shop now: ${productUrl}`,
+        ``,
+        `#VirtualTryOn #AIFashion #FashionTech #VirtualStyling #TryBeforeYouBuy #FashionAI #DigitalFashion #VirtualReality #FashionTech #Shopify #Ecommerce #Fashion #Style #Outfit #Clothing #Fashionista #InstaFashion #FashionBlogger #StyleInspo #OOTD #FashionLover #FashionAddict #FashionStyle #FashionDesign #FashionWeek #FashionTrends #FashionForward #Fashionable #FashionableStyle #FashionableLife`,
+      ].join("\n");
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `essayage-virtuel-${Date.now()}.png`;
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }, 100);
-        imageDownloaded = true;
-      } catch (downloadError) {
-        console.warn("Failed to download image:", downloadError);
-      }
-
-      // Step 2: Copy caption to clipboard
-      let captionCopied = false;
-      try {
-        await navigator.clipboard.writeText(caption);
-        captionCopied = true;
-      } catch (clipboardError) {
-        console.warn("Failed to copy caption:", clipboardError);
-      }
-
-      // Step 3: Navigate to Instagram (app or website)
-      if (isMobile) {
-        // Try to open Instagram app first
-        let appOpened = false;
-        
-        const handleBlur = () => {
-          appOpened = true;
-          setIsInstagramShareLoading(false);
-          const message = captionCopied
-            ? t("tryOnWidget.resultDisplay.instagramOpenedDescription") || "Select the image from your gallery and paste the caption."
-            : t("tryOnWidget.resultDisplay.instagramOpenedDescriptionNoCaption") || "Select the image from your gallery.";
-          toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Instagram opened!", {
-            description: message,
-          });
-        };
-
+      // Step 1: Try Web Share API first (directly shares image file - best option)
+      if (navigator.share && navigator.canShare) {
         try {
-          // Try multiple Instagram deep link schemes to get to post creation page
-          // Priority: camera (opens camera/library picker - closest to post creation) > library > app
-          const deepLinks = [
-            "instagram://camera",  // Opens camera/library picker - best path to post creation
-            "instagram://library", // Opens gallery/library directly
-            "instagram://app",     // Opens Instagram app (fallback)
-          ];
-
-          let currentLinkIndex = 0;
-          const activeTimeouts: NodeJS.Timeout[] = [];
+          const file = new File([blob], `virtual-tryon-${Date.now()}.png`, { type: "image/png" });
           
-          const clearAllTimeouts = () => {
-            activeTimeouts.forEach(t => clearTimeout(t));
-            activeTimeouts.length = 0;
-          };
-
-          const tryNextDeepLink = () => {
-            if (currentLinkIndex >= deepLinks.length) {
-              // All deep links failed, navigate to Instagram create page on website
-              window.removeEventListener("blur", handleBlur);
-              clearAllTimeouts();
-              setIsInstagramShareLoading(false);
-              window.open("https://www.instagram.com/create/", "_blank");
-              const message = captionCopied
-                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram create page opened! Image is saved to your gallery. Paste the caption when posting."
-                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram create page opened! Image is saved to your gallery.";
-              toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
-                description: message,
-              });
-              return;
-            }
-
-            const deepLink = deepLinks[currentLinkIndex];
+          // Check if we can share files
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: productTitle,
+              text: caption,
+            });
             
-            // Try iframe method
-            const iframe = document.createElement("iframe");
-            iframe.style.display = "none";
-            iframe.src = deepLink;
-            document.body.appendChild(iframe);
-
-            // Also try direct location change
-            setTimeout(() => {
-              try {
-                window.location.href = deepLink;
-              } catch (e) {
-                // Ignore
-              }
-            }, 50);
-
-            // Check if app opened after 800ms, then try next link
-            const linkTimeout = setTimeout(() => {
-              try {
-                if (iframe.parentNode) {
-                  document.body.removeChild(iframe);
-                }
-              } catch (cleanupError) {
-                // Ignore
-              }
-
-              if (!appOpened) {
-                currentLinkIndex++;
-                tryNextDeepLink();
-              }
-            }, 800);
-            
-            activeTimeouts.push(linkTimeout);
-          };
-
-          // Start trying deep links
-          tryNextDeepLink();
-
-          // Overall timeout - if app didn't open after 2.5 seconds, fallback to website create page
-          const overallTimeout = setTimeout(() => {
-            if (!appOpened) {
-              window.removeEventListener("blur", handleBlur);
-              clearAllTimeouts();
-              setIsInstagramShareLoading(false);
-              window.open("https://www.instagram.com/create/", "_blank");
-              const message = captionCopied
-                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram create page opened! Image is saved to your gallery. Paste the caption when posting."
-                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram create page opened! Image is saved to your gallery.";
-              toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
-                description: message,
-              });
-            }
-          }, 2500);
-          
-          activeTimeouts.push(overallTimeout);
-          
-          // Update handleBlur to clear all timeouts
-          const originalHandleBlur = handleBlur;
-          const enhancedHandleBlur = () => {
-            clearAllTimeouts();
-            originalHandleBlur();
-          };
-          window.removeEventListener("blur", handleBlur);
-          window.addEventListener("blur", enhancedHandleBlur);
-        } catch (deepLinkError) {
-          window.removeEventListener("blur", handleBlur);
-          // Navigate to Instagram create page on website as fallback
+            setIsInstagramShareLoading(false);
+            toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
+              description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+            });
+            return; // Success - exit early
+          }
+        } catch (shareError: any) {
+          // User cancelled or share failed - continue to fallback methods
+          if (shareError.name === "AbortError") {
+            setIsInstagramShareLoading(false);
+            return; // User cancelled
+          }
+          // Share failed - show error
           setIsInstagramShareLoading(false);
-          window.open("https://www.instagram.com/create/", "_blank");
-          const message = captionCopied
-            ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram create page opened! Image is saved to your gallery. Paste the caption when posting."
-            : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram create page opened! Image is saved to your gallery.";
-          toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
-            description: message,
+          toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+            description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Web Share API is not available. Please use a mobile device or browser that supports sharing.",
           });
+          return;
         }
-      } else {
-        // Desktop: Navigate to Instagram create page
-        setIsInstagramShareLoading(false);
-        window.open("https://www.instagram.com/create/", "_blank");
-        const message = captionCopied
-          ? t("tryOnWidget.resultDisplay.instagramWebsiteOpenedDesktop") || "Instagram create page opened! Image is saved. Paste the caption when posting."
-          : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedDesktopNoCaption") || "Instagram create page opened! Image is saved.";
-        toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
-          description: message,
-        });
       }
+
+      // Web Share API not available - show error
+      setIsInstagramShareLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+        description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Web Share API is not available. Please use a mobile device or browser that supports sharing.",
+      });
     } catch (error) {
       setIsInstagramShareLoading(false);
       toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {

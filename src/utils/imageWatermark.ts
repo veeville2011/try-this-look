@@ -1,7 +1,10 @@
 /**
  * Adds footer (copyright text) to an image
  * The final image maintains Instagram's post aspect ratio (1:1 square) for optimal sharing
- * The image fills the entire canvas without white bars (cover mode)
+ * 
+ * If the image is already square (1:1), it's used as-is without cropping, stretching, or white bars.
+ * If the image is not square (shouldn't happen if API generates square images), it's fitted within
+ * the square canvas without cropping/stretching (may have white bars).
  */
 
 export interface StoreWatermarkInfo {
@@ -48,10 +51,26 @@ export async function addWatermarkToImage(
         
         const footerHeight = footerTextHeight + (footerPadding * 2);
         
+        // Check if image is already square (Instagram format)
+        // Allow small tolerance for floating point precision (within 1%)
+        const isSquare = Math.abs(originalAspectRatio - INSTAGRAM_ASPECT_RATIO) < 0.01;
+        
         // Calculate canvas dimensions (Instagram 1:1 square)
-        // Use original width as base, but ensure it's square
-        const canvasWidth = Math.max(originalWidth, 1080); // Minimum 1080px for Instagram
-        const canvasHeight = canvasWidth * INSTAGRAM_ASPECT_RATIO; // Square: height = width
+        // If image is already square, use its dimensions; otherwise use minimum Instagram size
+        let canvasWidth: number;
+        let canvasHeight: number;
+        
+        if (isSquare) {
+          // Image is already square - use its dimensions directly (no cropping/stretching needed)
+          // Ensure minimum Instagram size (1080x1080)
+          canvasWidth = Math.max(originalWidth, 1080); // Minimum 1080px for Instagram
+          canvasHeight = canvasWidth; // Maintain square (1:1)
+        } else {
+          // Image is not square - use minimum Instagram size
+          // Note: This should not happen if API generates square images, but handle gracefully
+          canvasWidth = Math.max(originalWidth, 1080); // Minimum 1080px for Instagram
+          canvasHeight = canvasWidth * INSTAGRAM_ASPECT_RATIO; // Square: height = width
+        }
         
         // Create canvas
         const canvas = document.createElement("canvas");
@@ -64,32 +83,41 @@ export async function addWatermarkToImage(
           return;
         }
         
-        // Fill white background (will be covered by image)
+        // Fill white background
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         
-        // Calculate image dimensions to fill the entire canvas (cover mode)
-        // This will crop the image if needed to fill the square without white bars
-        let imageDisplayWidth = canvasWidth;
-        let imageDisplayHeight = canvasHeight;
-        let imageX = 0;
-        let imageY = 0;
+        let imageDisplayWidth: number;
+        let imageDisplayHeight: number;
+        let imageX: number;
+        let imageY: number;
         
-        if (originalAspectRatio > INSTAGRAM_ASPECT_RATIO) {
-          // Image is wider than square - fit to height, crop sides
-          imageDisplayWidth = canvasHeight * originalAspectRatio;
-          imageDisplayHeight = canvasHeight;
-          imageX = (canvasWidth - imageDisplayWidth) / 2; // Center horizontally
+        if (isSquare) {
+          // Image is already square - scale to fit canvas while maintaining square aspect ratio
+          // No cropping, no stretching, no white bars
+          // Since both image and canvas are square, scale proportionally
+          const scale = canvasWidth / originalWidth;
+          imageDisplayWidth = originalWidth * scale;
+          imageDisplayHeight = originalHeight * scale; // Same as width since it's square
+          imageX = 0;
           imageY = 0;
         } else {
-          // Image is taller than square - fit to width, crop top/bottom
-          imageDisplayWidth = canvasWidth;
-          imageDisplayHeight = canvasWidth / originalAspectRatio;
-          imageX = 0;
-          imageY = (canvasHeight - imageDisplayHeight) / 2; // Center vertically
+          // Image is not square - this shouldn't happen if API generates square images
+          // But handle gracefully: fit image within square without cropping/stretching
+          // This will result in white bars, but preserves the entire image
+          const scaleX = canvasWidth / originalWidth;
+          const scaleY = canvasHeight / originalHeight;
+          const scale = Math.min(scaleX, scaleY); // Use smaller scale to ensure image fits
+          
+          imageDisplayWidth = originalWidth * scale;
+          imageDisplayHeight = originalHeight * scale;
+          
+          // Center the image in the canvas
+          imageX = (canvasWidth - imageDisplayWidth) / 2;
+          imageY = (canvasHeight - imageDisplayHeight) / 2;
         }
         
-        // Draw original image (filling the entire canvas, cropped if needed)
+        // Draw original image (no cropping, no stretching)
         ctx.drawImage(img, imageX, imageY, imageDisplayWidth, imageDisplayHeight);
         
         // Draw footer text overlay (centered, at the bottom, with semi-transparent background)

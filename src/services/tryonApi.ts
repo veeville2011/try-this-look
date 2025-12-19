@@ -59,6 +59,9 @@ export async function generateTryOn(
         formData.append("personKey", personKey);
       }
 
+      // Request Instagram-compatible square (1:1) aspect ratio
+      formData.append("aspectRatio", "1:1");
+      
       // Version parameter removed - not sent to fashion-photo API
       
       console.log("[FRONTEND] [TRYON] FormData prepared", {
