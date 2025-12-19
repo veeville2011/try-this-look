@@ -221,6 +221,34 @@ function drawSparkle(ctx: CanvasRenderingContext2D, x: number, y: number, size: 
   ctx.restore();
 }
 
+/**
+ * Draw footer decorations (small sparkles and snowflakes)
+ */
+function drawFooterDecorations(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  footerY: number,
+  footerHeight: number
+): void {
+  const spacing = 60;
+  const decorationSize = 12;
+  
+  // Draw small decorations along the footer
+  for (let posX = spacing; posX < width - spacing; posX += spacing) {
+    const centerX = posX + (Math.random() * 15 - 7.5);
+    const centerY = footerY + footerHeight / 2;
+    
+    const decorationType = Math.random();
+    if (decorationType < 0.5) {
+      // Small sparkle
+      drawSparkle(ctx, centerX, centerY, decorationSize);
+    } else {
+      // Small snowflake
+      drawSnowflake(ctx, centerX, centerY, decorationSize * 1.2);
+    }
+  }
+}
+
 export interface StoreWatermarkInfo {
   name?: string | null;
   logoUrl?: string | null;
@@ -343,20 +371,41 @@ export async function addWatermarkToImage(
           drawChristmasDecorations(ctx, canvasWidth, canvasHeight, imageX, imageY, imageDisplayWidth, imageDisplayHeight);
         }
         
-        // Draw footer text overlay (centered, at the bottom, with semi-transparent background)
+        // Draw footer text overlay (centered, at the bottom, with Christmas-themed background)
         const footerY = canvasHeight - footerHeight;
         
-        // Draw semi-transparent background for footer text (for better readability)
-        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        // Draw footer decorations (small sparkles/snowflakes) - draw before background so they show through
+        drawFooterDecorations(ctx, canvasWidth, footerY, footerHeight);
+        
+        // Draw semi-transparent Christmas-themed gradient background for footer text (for better readability)
+        // Use colors that match the Christmas theme but with transparency
+        const footerGradient = ctx.createLinearGradient(0, footerY, 0, canvasHeight);
+        footerGradient.addColorStop(0, "rgba(255, 255, 255, 0.6)"); // More transparent to show decorations
+        footerGradient.addColorStop(0.5, "rgba(255, 249, 196, 0.7)"); // Light gold tint
+        footerGradient.addColorStop(1, "rgba(255, 255, 255, 0.75)");
+        ctx.fillStyle = footerGradient;
         ctx.fillRect(0, footerY, canvasWidth, footerHeight);
         
-        // Draw footer text
+        // Draw footer decorations again on top of the background (for better visibility)
+        drawFooterDecorations(ctx, canvasWidth, footerY, footerHeight);
+        
+        // Draw footer text with shadow for better visibility
+        ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
         ctx.fillStyle = "#564646";
         ctx.font = "16px Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
         const footerTextY = footerY + footerPadding + footerTextHeight;
         ctx.fillText(footerText, canvasWidth / 2, footerTextY);
+        
+        // Reset shadow
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         
         // Convert to blob
         canvas.toBlob((blob) => {
