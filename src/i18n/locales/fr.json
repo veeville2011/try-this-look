@@ -862,7 +862,26 @@
       "openingInNewTab": "Ouverture dans un nouvel onglet",
       "openingInNewTabDescription": "L'image s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer depuis là.",
       "downloadError": "Erreur de téléchargement",
-      "downloadErrorDescription": "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran."
+      "downloadErrorDescription": "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
+      "shareToInstagram": "Partager sur Instagram",
+      "shareToInstagramAriaLabel": "Partager sur Instagram",
+      "sharing": "Partage...",
+      "instagramCaption": "Photoshoot généré par IA ✨ #ia #mode #photoshoot #essayagevirtuel",
+      "shareTitle": "Photoshoot Généré par IA",
+      "shareSheetOpened": "Menu de partage ouvert !",
+      "shareSheetOpenedDescription": "Sélectionnez Instagram dans les options de partage. L'image et la légende sont prêtes !",
+      "captionCopied": "Légende copiée !",
+      "captionCopiedDescription": "Collez-la dans Instagram",
+      "imageSaved": "Image enregistrée !",
+      "imageSavedDescriptionMobile": "Ouvrez Instagram et sélectionnez cette image depuis votre galerie. La légende est copiée dans le presse-papiers !",
+      "imageSavedDescriptionMobileNoCaption": "Ouvrez Instagram et sélectionnez cette image depuis votre galerie.",
+      "imageSavedDescriptionDesktop": "Ouvrez Instagram sur votre téléphone et publiez cette image. La légende est copiée dans le presse-papiers !",
+      "imageSavedDescriptionDesktopNoCaption": "Ouvrez Instagram sur votre téléphone et publiez cette image.",
+      "instagramOpened": "Instagram ouvert !",
+      "instagramOpenedDescription": "Sélectionnez l'image depuis votre galerie et collez la légende.",
+      "instagramOpenedDescriptionNoCaption": "Sélectionnez l'image depuis votre galerie. La copie de la légende a échoué, veuillez la taper manuellement.",
+      "instagramShareError": "Erreur de partage sur Instagram",
+      "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez d'abord télécharger l'image."
     }
   }
 }

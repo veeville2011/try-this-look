@@ -862,7 +862,26 @@
       "openingInNewTab": "Opening in new tab",
       "openingInNewTabDescription": "The image opens in a new tab. You can save it from there.",
       "downloadError": "Download error",
-      "downloadErrorDescription": "Unable to download the image. Please try again or take a screenshot."
+      "downloadErrorDescription": "Unable to download the image. Please try again or take a screenshot.",
+      "shareToInstagram": "Share to Instagram",
+      "shareToInstagramAriaLabel": "Share to Instagram",
+      "sharing": "Sharing...",
+      "instagramCaption": "AI generated photoshoot ✨ #ai #fashion #photoshoot #virtualtryon",
+      "shareTitle": "AI Generated Photoshoot",
+      "shareSheetOpened": "Share sheet opened!",
+      "shareSheetOpenedDescription": "Select Instagram from the share options. Image and caption are ready!",
+      "captionCopied": "Caption copied!",
+      "captionCopiedDescription": "Paste it in Instagram",
+      "imageSaved": "Image saved!",
+      "imageSavedDescriptionMobile": "Open Instagram and select this image from your gallery. Caption is copied to clipboard!",
+      "imageSavedDescriptionMobileNoCaption": "Open Instagram and select this image from your gallery.",
+      "imageSavedDescriptionDesktop": "Open Instagram on your phone and post this image. Caption is copied to clipboard!",
+      "imageSavedDescriptionDesktopNoCaption": "Open Instagram on your phone and post this image.",
+      "instagramOpened": "Instagram opened!",
+      "instagramOpenedDescription": "Select the image from your gallery and paste the caption.",
+      "instagramOpenedDescriptionNoCaption": "Select the image from your gallery. Caption copy failed, please type manually.",
+      "instagramShareError": "Error sharing to Instagram",
+      "instagramShareErrorDescription": "Unable to share to Instagram. Please try downloading the image first."
     }
   }
 }

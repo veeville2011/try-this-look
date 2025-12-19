@@ -10,8 +10,10 @@ import {
   Download,
   Loader2,
   Image as ImageIcon,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ResultDisplayProps {
   generatedImage?: string | null;
@@ -33,9 +35,11 @@ export default function ResultDisplay({
   isGenerating = false,
 }: ResultDisplayProps) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [isDownloadLoading, setIsDownloadLoading] = useState(false);
+  const [isInstagramShareLoading, setIsInstagramShareLoading] = useState(false);
   const buyNowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const addToCartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -355,6 +359,353 @@ export default function ResultDisplay({
     }
   };
 
+  const handleInstagramShare = async () => {
+    const imageUrl = generatedImage;
+    if (isInstagramShareLoading || !imageUrl) return;
+
+    setIsInstagramShareLoading(true);
+
+    // Track if caption was successfully copied
+    let captionCopied = false;
+    // Track if Web Share API was successfully used (to avoid duplicate toasts)
+    let webShareUsed = false;
+
+    try {
+      // Generate caption
+      const caption = t("tryOnWidget.resultDisplay.instagramCaption") || 
+        "AI generated photoshoot ✨ #ai #fashion #photoshoot #virtualtryon";
+
+      // Convert image to blob for sharing
+      let imageBlob: Blob | null = null;
+      try {
+        if (imageUrl.startsWith("data:")) {
+          const response = await fetch(imageUrl);
+          imageBlob = await response.blob();
+        } else if (imageUrl.startsWith("blob:")) {
+          const response = await fetch(imageUrl);
+          imageBlob = await response.blob();
+        } else {
+          try {
+            const response = await fetch(imageUrl, {
+              mode: "cors",
+              credentials: "omit",
+            });
+            if (response.ok) {
+              imageBlob = await response.blob();
+            }
+          } catch (fetchError) {
+            // Fallback to canvas approach
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            imageBlob = await new Promise<Blob>((resolve, reject) => {
+              img.onload = () => {
+                try {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = img.naturalWidth;
+                  canvas.height = img.naturalHeight;
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) {
+                    reject(new Error("Could not get canvas context"));
+                    return;
+                  }
+                  ctx.drawImage(img, 0, 0);
+                  canvas.toBlob((blobResult) => {
+                    if (blobResult) {
+                      resolve(blobResult);
+                    } else {
+                      reject(new Error("Failed to convert canvas to blob"));
+                    }
+                  }, "image/png");
+                } catch (error) {
+                  reject(error);
+                }
+              };
+              img.onerror = () => reject(new Error("Failed to load image"));
+              img.src = imageUrl;
+            });
+          }
+        }
+      } catch (blobError) {
+        console.warn("Failed to create image blob:", blobError);
+      }
+
+      // Primary: Try Web Share API (mobile) - allows sharing image + text together
+      // This is the best method as it can prefill both image and caption
+      if (isMobile && imageBlob && "share" in navigator) {
+        try {
+          // Create File object for sharing
+          const imageFile = new File([imageBlob], `essayage-virtuel-${Date.now()}.png`, {
+            type: "image/png",
+          });
+
+          // Check if we can share this file (if canShare is available)
+          let canShareFiles: boolean | undefined = undefined;
+          try {
+            if ("canShare" in navigator && typeof navigator.canShare === "function") {
+              canShareFiles = navigator.canShare({ files: [imageFile], text: caption });
+            }
+          } catch (canShareError) {
+            // canShare might throw if not supported, treat as undefined (will try anyway)
+            console.warn("canShare check failed:", canShareError);
+            canShareFiles = undefined;
+          }
+
+          // If canShare is not available (undefined) or returns true, try to share
+          if (canShareFiles !== false) {
+            await navigator.share({
+              files: [imageFile],
+              text: caption,
+              title: t("tryOnWidget.resultDisplay.shareTitle") || "AI Generated Photoshoot",
+            });
+
+            webShareUsed = true;
+            setIsInstagramShareLoading(false);
+            toast.success(t("tryOnWidget.resultDisplay.shareSheetOpened") || "Share sheet opened!", {
+              description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+            });
+            return;
+          }
+        } catch (shareError: any) {
+          // User cancelled or share failed, continue to fallback
+          if (shareError.name === "AbortError") {
+            setIsInstagramShareLoading(false);
+            return; // User cancelled, don't show error
+          }
+          console.warn("Web Share API failed:", shareError);
+          // Continue to fallback methods
+        }
+      }
+
+      // Copy caption to clipboard (always do this as backup, but only show toast if Web Share wasn't used)
+      try {
+        await navigator.clipboard.writeText(caption);
+        captionCopied = true;
+        // Only show toast if Web Share API wasn't successfully used (which already shows a toast)
+        if (!webShareUsed) {
+          toast.success(t("tryOnWidget.resultDisplay.captionCopied") || "Caption copied!", {
+            description: t("tryOnWidget.resultDisplay.captionCopiedDescription") || "Paste it in Instagram",
+          });
+        }
+      } catch (clipboardError) {
+        // Clipboard API might not be available, continue anyway
+        console.warn("Failed to copy caption to clipboard:", clipboardError);
+        captionCopied = false;
+      }
+
+      // Secondary: Try to open Instagram app (mobile only) - if Web Share didn't work
+      if (isMobile) {
+        // Track if page loses focus (indicating Instagram opened)
+        let pageLostFocus = false;
+        let timeoutId: NodeJS.Timeout | null = null;
+        let locationTimeoutId: NodeJS.Timeout | null = null;
+        
+        const handleBlur = () => {
+          pageLostFocus = true;
+          window.removeEventListener("blur", handleBlur);
+          // Clear timeouts if Instagram opened
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          if (locationTimeoutId) {
+            clearTimeout(locationTimeoutId);
+            locationTimeoutId = null;
+          }
+        };
+        window.addEventListener("blur", handleBlur);
+
+        try {
+          // Try Instagram deep link using hidden iframe approach for better reliability
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.src = "instagram://app";
+          document.body.appendChild(iframe);
+
+          // Set timeout to detect if app didn't open (fallback to download)
+          timeoutId = setTimeout(() => {
+            // Clean up iframe safely
+            try {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            } catch (cleanupError) {
+              // Iframe might already be removed, ignore
+              console.warn("Failed to remove iframe:", cleanupError);
+            }
+
+            window.removeEventListener("blur", handleBlur);
+
+            // If page lost focus, Instagram likely opened successfully - don't download
+            if (pageLostFocus) {
+              setIsInstagramShareLoading(false);
+              const captionMessage = captionCopied 
+                ? t("tryOnWidget.resultDisplay.instagramOpenedDescription") || "Select the image from your gallery and paste the caption."
+                : t("tryOnWidget.resultDisplay.instagramOpenedDescriptionNoCaption") || "Select the image from your gallery. Caption copy failed, please type manually.";
+              toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Instagram opened!", {
+                description: captionMessage,
+              });
+              return;
+            }
+
+            // If we're still here after 1 second and page didn't lose focus, Instagram app likely didn't open
+            // Fallback to download
+            handleDownloadForInstagram(captionCopied);
+          }, 1000);
+
+          // Also try direct location change as backup (after a short delay)
+          locationTimeoutId = setTimeout(() => {
+            try {
+              window.location.href = "instagram://app";
+            } catch (e) {
+              // If that fails, clear timeout and fallback immediately
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+              }
+              window.removeEventListener("blur", handleBlur);
+              try {
+                if (iframe.parentNode) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (cleanupError) {
+                // Ignore cleanup errors
+              }
+              handleDownloadForInstagram(captionCopied);
+            }
+          }, 100);
+
+          return;
+        } catch (deepLinkError) {
+          // If deep link fails, fallback to download
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          if (locationTimeoutId) {
+            clearTimeout(locationTimeoutId);
+          }
+          window.removeEventListener("blur", handleBlur);
+          console.warn("Failed to open Instagram app:", deepLinkError);
+          handleDownloadForInstagram(captionCopied);
+          return;
+        }
+      }
+
+      // Desktop or fallback: Download image (with caption already copied)
+      handleDownloadForInstagram(captionCopied);
+    } catch (error) {
+      setIsInstagramShareLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+        description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Unable to share to Instagram. Please try downloading the image first.",
+      });
+    }
+  };
+
+  const handleDownloadForInstagram = async (captionWasCopied: boolean = false) => {
+    const downloadUrl = generatedImage;
+    if (!downloadUrl) {
+      setIsInstagramShareLoading(false);
+      return;
+    }
+
+    try {
+      // Convert data URL or blob URL to blob for proper download
+      let blob: Blob | null = null;
+
+      if (downloadUrl.startsWith("data:")) {
+        const response = await fetch(downloadUrl);
+        blob = await response.blob();
+      } else if (downloadUrl.startsWith("blob:")) {
+        const response = await fetch(downloadUrl);
+        blob = await response.blob();
+      } else {
+        try {
+          const response = await fetch(downloadUrl, {
+            mode: "cors",
+            credentials: "omit",
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          blob = await response.blob();
+        } catch (fetchError) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+
+          blob = await new Promise<Blob>((resolve, reject) => {
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                  reject(new Error("Could not get canvas context"));
+                  return;
+                }
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blobResult) => {
+                  if (blobResult) {
+                    resolve(blobResult);
+                  } else {
+                    reject(new Error("Failed to convert canvas to blob"));
+                  }
+                }, "image/png");
+              } catch (error) {
+                reject(error);
+              }
+            };
+            img.onerror = () => reject(new Error("Failed to load image"));
+            img.src = downloadUrl;
+          });
+        }
+      }
+
+      if (!blob) {
+        throw new Error("Failed to create blob");
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const extension = "png";
+      const filename = `essayage-virtuel-${Date.now()}.${extension}`;
+      link.download = filename;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      setIsInstagramShareLoading(false);
+      
+      // Show appropriate message based on device and caption copy status
+      if (isMobile) {
+        const description = captionWasCopied
+          ? t("tryOnWidget.resultDisplay.imageSavedDescriptionMobile") || "Open Instagram and select this image from your gallery. Caption is copied to clipboard!"
+          : t("tryOnWidget.resultDisplay.imageSavedDescriptionMobileNoCaption") || "Open Instagram and select this image from your gallery.";
+        toast.success(t("tryOnWidget.resultDisplay.imageSaved") || "Image saved!", {
+          description,
+        });
+      } else {
+        const description = captionWasCopied
+          ? t("tryOnWidget.resultDisplay.imageSavedDescriptionDesktop") || "Open Instagram on your phone and post this image. Caption is copied to clipboard!"
+          : t("tryOnWidget.resultDisplay.imageSavedDescriptionDesktopNoCaption") || "Open Instagram on your phone and post this image.";
+        toast.success(t("tryOnWidget.resultDisplay.imageSaved") || "Image saved!", {
+          description,
+        });
+      }
+    } catch (error) {
+      setIsInstagramShareLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+        description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Unable to share to Instagram. Please try downloading the image first.",
+      });
+    }
+  };
+
   const handleKeyDown = (event: React.KeyboardEvent, handler: () => void) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -437,6 +788,7 @@ export default function ResultDisplay({
                 isBuyNowLoading ||
                 isAddToCartLoading ||
                 isDownloadLoading ||
+                isInstagramShareLoading ||
                 isGenerating ||
                 !generatedImage
               }
@@ -469,6 +821,7 @@ export default function ResultDisplay({
                 isBuyNowLoading ||
                 isAddToCartLoading ||
                 isDownloadLoading ||
+                isInstagramShareLoading ||
                 isGenerating ||
                 !generatedImage
               }
@@ -501,6 +854,7 @@ export default function ResultDisplay({
                 isBuyNowLoading ||
                 isAddToCartLoading ||
                 isDownloadLoading ||
+                isInstagramShareLoading ||
                 isGenerating ||
                 !generatedImage
               }
@@ -523,6 +877,39 @@ export default function ResultDisplay({
               )}
               <span className="leading-tight whitespace-nowrap">
                 {isDownloadLoading ? t("tryOnWidget.resultDisplay.downloading") || "Téléchargement..." : t("tryOnWidget.resultDisplay.download") || "Télécharger"}
+              </span>
+            </Button>
+
+            <Button
+              onClick={handleInstagramShare}
+              onKeyDown={(e) => handleKeyDown(e, handleInstagramShare)}
+              disabled={
+                isBuyNowLoading ||
+                isAddToCartLoading ||
+                isDownloadLoading ||
+                isInstagramShareLoading ||
+                isGenerating ||
+                !generatedImage
+              }
+              variant="outline"
+              size="sm"
+              className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-purple-500/80 bg-white hover:bg-purple-50 hover:border-purple-600 text-purple-600 hover:text-purple-700 active:bg-purple-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-purple-500/10 focus-visible:ring-2 focus-visible:ring-purple-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+              aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
+              aria-busy={isInstagramShareLoading}
+            >
+              {isInstagramShareLoading ? (
+                <Loader2
+                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Share2
+                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                  aria-hidden="true"
+                />
+              )}
+              <span className="leading-tight whitespace-nowrap">
+                {isInstagramShareLoading ? t("tryOnWidget.resultDisplay.sharing") || "Sharing..." : t("tryOnWidget.resultDisplay.shareToInstagram") || "Share to Instagram"}
               </span>
             </Button>
           </div>
