@@ -15,6 +15,11 @@ import {
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { addWatermarkToImage } from "@/utils/imageWatermark";
+import { useStoreInfo } from "@/hooks/useStoreInfo";
+import {
+  detectStoreOrigin,
+  type StoreInfo,
+} from "@/utils/shopifyIntegration";
 
 interface ResultDisplayProps {
   generatedImage?: string | null;
@@ -43,6 +48,23 @@ export default function ResultDisplay({
   const [isInstagramShareLoading, setIsInstagramShareLoading] = useState(false);
   const buyNowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const addToCartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get store info for watermark
+  const { storeInfo: reduxStoreInfo } = useStoreInfo();
+  const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+  
+  // Detect store origin on mount
+  useEffect(() => {
+    const detectedStore = detectStoreOrigin();
+    if (detectedStore) {
+      setStoreInfo(detectedStore);
+    }
+    
+    // Also check window.NUSENSE_STORE_INFO if available
+    if (typeof window !== "undefined" && (window as any).NUSENSE_STORE_INFO) {
+      setStoreInfo((window as any).NUSENSE_STORE_INFO);
+    }
+  }, []);
 
   // Get product data if available (from Shopify parent window)
   const getProductData = (): ProductData | null => {
@@ -259,8 +281,16 @@ export default function ResultDisplay({
     setIsDownloadLoading(true);
 
     try {
+      // Prepare store info for watermark
+      const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      const storeWatermarkInfo = storeName ? {
+        name: storeName,
+        domain: storeName,
+        logoUrl: null, // TODO: Add store logo URL if available
+      } : null;
+      
       // Add watermark (header + footer) to the image
-      const blob = await addWatermarkToImage(downloadUrl);
+      const blob = await addWatermarkToImage(downloadUrl, storeWatermarkInfo);
 
       // Create download link
       const url = URL.createObjectURL(blob);
@@ -317,8 +347,16 @@ export default function ResultDisplay({
       // Step 1: Download image silently with watermark (so it's saved to gallery)
       let imageDownloaded = false;
       try {
+        // Prepare store info for watermark
+        const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+        const storeWatermarkInfo = storeName ? {
+          name: storeName,
+          domain: storeName,
+          logoUrl: null, // TODO: Add store logo URL if available
+        } : null;
+        
         // Add watermark (header + footer) to the image
-        const blob = await addWatermarkToImage(imageUrl);
+        const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -349,15 +387,9 @@ export default function ResultDisplay({
       if (isMobile) {
         // Try to open Instagram app first
         let appOpened = false;
-        let timeoutId: NodeJS.Timeout | null = null;
         
         const handleBlur = () => {
           appOpened = true;
-          window.removeEventListener("blur", handleBlur);
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
           setIsInstagramShareLoading(false);
           const message = captionCopied
             ? t("tryOnWidget.resultDisplay.instagramOpenedDescription") || "Select the image from your gallery and paste the caption."
@@ -366,43 +398,84 @@ export default function ResultDisplay({
             description: message,
           });
         };
-        window.addEventListener("blur", handleBlur);
 
         try {
-          // Try multiple Instagram deep link schemes
+          // Try multiple Instagram deep link schemes to get to post creation page
+          // Priority: library (gallery) > camera (camera/library picker) > app (general)
           const deepLinks = [
-            "instagram://camera", // Opens camera/library picker
-            "instagram://app",    // Opens Instagram app
+            "instagram://library", // Opens gallery/library directly - fastest path to post creation
+            "instagram://camera",  // Opens camera/library picker
+            "instagram://app",     // Opens Instagram app (fallback)
           ];
 
-          // Try first deep link
-          const iframe = document.createElement("iframe");
-          iframe.style.display = "none";
-          iframe.src = deepLinks[0];
-          document.body.appendChild(iframe);
+          let currentLinkIndex = 0;
+          const activeTimeouts: NodeJS.Timeout[] = [];
+          
+          const clearAllTimeouts = () => {
+            activeTimeouts.forEach(t => clearTimeout(t));
+            activeTimeouts.length = 0;
+          };
 
-          // Also try direct location change
-          setTimeout(() => {
-            try {
-              window.location.href = deepLinks[0];
-            } catch (e) {
-              // Ignore
+          const tryNextDeepLink = () => {
+            if (currentLinkIndex >= deepLinks.length) {
+              // All deep links failed, navigate to Instagram website
+              window.removeEventListener("blur", handleBlur);
+              clearAllTimeouts();
+              setIsInstagramShareLoading(false);
+              window.open("https://www.instagram.com", "_blank");
+              const message = captionCopied
+                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram website opened! Image is saved to your gallery. Paste the caption when posting."
+                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram website opened! Image is saved to your gallery.";
+              toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
+                description: message,
+              });
+              return;
             }
-          }, 50);
 
-          // Check if app opened after 1 second
-          timeoutId = setTimeout(() => {
-            window.removeEventListener("blur", handleBlur);
-            try {
-              if (iframe.parentNode) {
-                document.body.removeChild(iframe);
+            const deepLink = deepLinks[currentLinkIndex];
+            
+            // Try iframe method
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = deepLink;
+            document.body.appendChild(iframe);
+
+            // Also try direct location change
+            setTimeout(() => {
+              try {
+                window.location.href = deepLink;
+              } catch (e) {
+                // Ignore
               }
-            } catch (cleanupError) {
-              // Ignore
-            }
+            }, 50);
 
-            // If app didn't open, navigate to Instagram website
+            // Check if app opened after 800ms, then try next link
+            const linkTimeout = setTimeout(() => {
+              try {
+                if (iframe.parentNode) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (cleanupError) {
+                // Ignore
+              }
+
+              if (!appOpened) {
+                currentLinkIndex++;
+                tryNextDeepLink();
+              }
+            }, 800);
+            
+            activeTimeouts.push(linkTimeout);
+          };
+
+          // Start trying deep links
+          tryNextDeepLink();
+
+          // Overall timeout - if app didn't open after 2.5 seconds, fallback to website
+          const overallTimeout = setTimeout(() => {
             if (!appOpened) {
+              window.removeEventListener("blur", handleBlur);
+              clearAllTimeouts();
               setIsInstagramShareLoading(false);
               window.open("https://www.instagram.com", "_blank");
               const message = captionCopied
@@ -412,12 +485,20 @@ export default function ResultDisplay({
                 description: message,
               });
             }
-          }, 1000);
+          }, 2500);
+          
+          activeTimeouts.push(overallTimeout);
+          
+          // Update handleBlur to clear all timeouts
+          const originalHandleBlur = handleBlur;
+          const enhancedHandleBlur = () => {
+            clearAllTimeouts();
+            originalHandleBlur();
+          };
+          window.removeEventListener("blur", handleBlur);
+          window.addEventListener("blur", enhancedHandleBlur);
         } catch (deepLinkError) {
           window.removeEventListener("blur", handleBlur);
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
           // Navigate to Instagram website as fallback
           setIsInstagramShareLoading(false);
           window.open("https://www.instagram.com", "_blank");

@@ -1699,8 +1699,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     setIsDownloadLoading(true);
     
     try {
+      // Prepare store info for watermark
+      const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      const storeWatermarkInfo = storeName ? {
+        name: storeName,
+        domain: storeName,
+        logoUrl: null, // TODO: Add store logo URL if available
+      } : null;
+      
       // Add watermark (header + footer) to the image
-      const blob = await addWatermarkToImage(imageUrl);
+      const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -1751,8 +1759,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // Step 1: Download image silently with watermark (so it's saved to gallery)
       let imageDownloaded = false;
       try {
+        // Prepare store info for watermark
+        const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+        const storeWatermarkInfo = storeName ? {
+          name: storeName,
+          domain: storeName,
+          logoUrl: null, // TODO: Add store logo URL if available
+        } : null;
+        
         // Add watermark (header + footer) to the image
-        const blob = await addWatermarkToImage(imageUrl);
+        const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -1783,15 +1799,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       if (isMobile) {
         // Try to open Instagram app first
         let appOpened = false;
-        let timeoutId: NodeJS.Timeout | null = null;
         
         const handleBlur = () => {
           appOpened = true;
-          window.removeEventListener("blur", handleBlur);
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
           setIsInstagramShareLoading(false);
           const message = captionCopied
             ? t("tryOnWidget.resultDisplay.instagramOpenedDescription") || "Select the image from your gallery and paste the caption."
@@ -1800,43 +1810,84 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             description: message,
           });
         };
-        window.addEventListener("blur", handleBlur);
 
         try {
-          // Try multiple Instagram deep link schemes
+          // Try multiple Instagram deep link schemes to get to post creation page
+          // Priority: library (gallery) > camera (camera/library picker) > app (general)
           const deepLinks = [
-            "instagram://camera", // Opens camera/library picker
-            "instagram://app",    // Opens Instagram app
+            "instagram://library", // Opens gallery/library directly - fastest path to post creation
+            "instagram://camera",  // Opens camera/library picker
+            "instagram://app",     // Opens Instagram app (fallback)
           ];
 
-          // Try first deep link
-          const iframe = document.createElement("iframe");
-          iframe.style.display = "none";
-          iframe.src = deepLinks[0];
-          document.body.appendChild(iframe);
+          let currentLinkIndex = 0;
+          const activeTimeouts: NodeJS.Timeout[] = [];
+          
+          const clearAllTimeouts = () => {
+            activeTimeouts.forEach(t => clearTimeout(t));
+            activeTimeouts.length = 0;
+          };
 
-          // Also try direct location change
-          setTimeout(() => {
-            try {
-              window.location.href = deepLinks[0];
-            } catch (e) {
-              // Ignore
+          const tryNextDeepLink = () => {
+            if (currentLinkIndex >= deepLinks.length) {
+              // All deep links failed, navigate to Instagram website
+              window.removeEventListener("blur", handleBlur);
+              clearAllTimeouts();
+              setIsInstagramShareLoading(false);
+              window.open("https://www.instagram.com", "_blank");
+              const message = captionCopied
+                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram website opened! Image is saved to your gallery. Paste the caption when posting."
+                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram website opened! Image is saved to your gallery.";
+              toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
+                description: message,
+              });
+              return;
             }
-          }, 50);
 
-          // Check if app opened after 1 second
-          timeoutId = setTimeout(() => {
-            window.removeEventListener("blur", handleBlur);
-            try {
-              if (iframe.parentNode) {
-                document.body.removeChild(iframe);
+            const deepLink = deepLinks[currentLinkIndex];
+            
+            // Try iframe method
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = deepLink;
+            document.body.appendChild(iframe);
+
+            // Also try direct location change
+            setTimeout(() => {
+              try {
+                window.location.href = deepLink;
+              } catch (e) {
+                // Ignore
               }
-            } catch (cleanupError) {
-              // Ignore
-            }
+            }, 50);
 
-            // If app didn't open, navigate to Instagram website
+            // Check if app opened after 800ms, then try next link
+            const linkTimeout = setTimeout(() => {
+              try {
+                if (iframe.parentNode) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (cleanupError) {
+                // Ignore
+              }
+
+              if (!appOpened) {
+                currentLinkIndex++;
+                tryNextDeepLink();
+              }
+            }, 800);
+            
+            activeTimeouts.push(linkTimeout);
+          };
+
+          // Start trying deep links
+          tryNextDeepLink();
+
+          // Overall timeout - if app didn't open after 2.5 seconds, fallback to website
+          const overallTimeout = setTimeout(() => {
             if (!appOpened) {
+              window.removeEventListener("blur", handleBlur);
+              clearAllTimeouts();
               setIsInstagramShareLoading(false);
               window.open("https://www.instagram.com", "_blank");
               const message = captionCopied
@@ -1846,12 +1897,20 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 description: message,
               });
             }
-          }, 1000);
+          }, 2500);
+          
+          activeTimeouts.push(overallTimeout);
+          
+          // Update handleBlur to clear all timeouts
+          const originalHandleBlur = handleBlur;
+          const enhancedHandleBlur = () => {
+            clearAllTimeouts();
+            originalHandleBlur();
+          };
+          window.removeEventListener("blur", handleBlur);
+          window.addEventListener("blur", enhancedHandleBlur);
         } catch (deepLinkError) {
           window.removeEventListener("blur", handleBlur);
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
           // Navigate to Instagram website as fallback
           setIsInstagramShareLoading(false);
           window.open("https://www.instagram.com", "_blank");
@@ -2303,7 +2362,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           </span>
                         </div>
                       ) : generatedImage ? (
-                        <div className="w-full max-w-full max-h-full rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center" style={{ aspectRatio: "1 / 1" }}>
+                        <div className="relative w-full max-w-full max-h-full rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center" style={{ aspectRatio: "1 / 1" }}>
                           <img
                             src={generatedImage}
                             alt={
@@ -2312,6 +2371,37 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             }
                             className="max-h-full max-w-full w-auto h-auto object-contain"
                           />
+                          {/* Floating action buttons */}
+                          <div className="absolute top-3 right-3 flex gap-2 z-10">
+                            <Button
+                              onClick={() => handleDownload(generatedImage)}
+                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                              size="icon"
+                              className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                              aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                              aria-busy={isDownloadLoading}
+                            >
+                              {isDownloadLoading ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                              ) : (
+                                <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                              )}
+                            </Button>
+                            <Button
+                              onClick={handleInstagramShare}
+                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                              size="icon"
+                              className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                              aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
+                              aria-busy={isInstagramShareLoading}
+                            >
+                              {isInstagramShareLoading ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                              ) : (
+                                <Share2 className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -2418,37 +2508,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
                       </Button>
 
-                      <Button
-                        onClick={() => generatedImage && handleDownload(generatedImage)}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
-                        variant={"outline" as const}
-                        className="min-w-[160px] h-11"
-                        aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
-                        aria-busy={isDownloadLoading}
-                      >
-                        {isDownloadLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <Download className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {isDownloadLoading ? t("tryOnWidget.resultDisplay.downloading") || "Téléchargement..." : t("tryOnWidget.resultDisplay.download") || "Télécharger"}
-                      </Button>
-
-                      <Button
-                        onClick={handleInstagramShare}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
-                        variant={"outline" as const}
-                        className="min-w-[160px] h-11"
-                        aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
-                        aria-busy={isInstagramShareLoading}
-                      >
-                        {isInstagramShareLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <Share2 className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {isInstagramShareLoading ? t("tryOnWidget.resultDisplay.sharing") || "Sharing..." : t("tryOnWidget.resultDisplay.shareToInstagram") || "Share to Instagram"}
-                      </Button>
                     </div>
                   </div>
                 </section>
@@ -2484,7 +2543,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     </span>
                   </div>
                 ) : generatedImage ? (
-                  <div className="self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-white overflow-hidden border border-border flex items-center justify-center">
+                  <div className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-white overflow-hidden border border-border flex items-center justify-center">
                     <img
                       src={generatedImage}
                       alt={
@@ -2493,6 +2552,37 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       }
                       className="w-full h-auto max-h-[600px] object-contain"
                     />
+                    {/* Floating action buttons */}
+                    <div className="absolute top-3 right-3 flex gap-2 z-10">
+                      <Button
+                        onClick={() => handleDownload(generatedImage)}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                        size="icon"
+                        className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                        aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                        aria-busy={isDownloadLoading}
+                      >
+                        {isDownloadLoading ? (
+                          <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                        ) : (
+                          <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleInstagramShare}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                        size="icon"
+                        className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                        aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
+                        aria-busy={isInstagramShareLoading}
+                      >
+                        {isInstagramShareLoading ? (
+                          <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                        ) : (
+                          <Share2 className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -2772,37 +2862,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
               </Button>
 
-              <Button
-                onClick={() => generatedImage && handleDownload(generatedImage)}
-                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
-                variant={"outline" as const}
-                className="w-full h-11"
-                aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
-                aria-busy={isDownloadLoading}
-              >
-                {isDownloadLoading ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Download className="w-5 h-5 mr-2" aria-hidden="true" />
-                )}
-                {isDownloadLoading ? t("tryOnWidget.resultDisplay.downloading") || "Téléchargement..." : t("tryOnWidget.resultDisplay.download") || "Télécharger"}
-              </Button>
-
-              <Button
-                onClick={handleInstagramShare}
-                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
-                variant={"outline" as const}
-                className="w-full h-11"
-                aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
-                aria-busy={isInstagramShareLoading}
-              >
-                {isInstagramShareLoading ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Share2 className="w-5 h-5 mr-2" aria-hidden="true" />
-                )}
-                {isInstagramShareLoading ? t("tryOnWidget.resultDisplay.sharing") || "Sharing..." : t("tryOnWidget.resultDisplay.shareToInstagram") || "Share to Instagram"}
-              </Button>
             </div>
           )}
 
