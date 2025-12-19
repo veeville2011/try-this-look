@@ -880,8 +880,12 @@
       "instagramOpened": "Instagram opened!",
       "instagramOpenedDescription": "Select the image from your gallery and paste the caption.",
       "instagramOpenedDescriptionNoCaption": "Select the image from your gallery. Caption copy failed, please type manually.",
+      "instagramWebsiteOpened": "Instagram website opened! Image is saved to your gallery. Paste the caption when posting.",
+      "instagramWebsiteOpenedNoCaption": "Instagram website opened! Image is saved to your gallery.",
+      "instagramWebsiteOpenedDesktop": "Instagram website opened! Image is saved. Paste the caption when posting.",
+      "instagramWebsiteOpenedDesktopNoCaption": "Instagram website opened! Image is saved.",
       "instagramShareError": "Error sharing to Instagram",
-      "instagramShareErrorDescription": "Unable to share to Instagram. Please try downloading the image first."
+      "instagramShareErrorDescription": "Unable to share to Instagram. Please try again."
     }
   }
 }

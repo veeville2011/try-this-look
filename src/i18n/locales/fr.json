@@ -880,8 +880,12 @@
       "instagramOpened": "Instagram ouvert !",
       "instagramOpenedDescription": "Sélectionnez l'image depuis votre galerie et collez la légende.",
       "instagramOpenedDescriptionNoCaption": "Sélectionnez l'image depuis votre galerie. La copie de la légende a échoué, veuillez la taper manuellement.",
+      "instagramWebsiteOpened": "Site Instagram ouvert ! L'image est enregistrée dans votre galerie. Collez la légende lors de la publication.",
+      "instagramWebsiteOpenedNoCaption": "Site Instagram ouvert ! L'image est enregistrée dans votre galerie.",
+      "instagramWebsiteOpenedDesktop": "Site Instagram ouvert ! L'image est enregistrée. Collez la légende lors de la publication.",
+      "instagramWebsiteOpenedDesktopNoCaption": "Site Instagram ouvert ! L'image est enregistrée.",
       "instagramShareError": "Erreur de partage sur Instagram",
-      "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez d'abord télécharger l'image."
+      "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez réessayer."
     }
   }
 }
