@@ -2,10 +2,224 @@
  * Adds footer (copyright text) to an image
  * The final image maintains Instagram's post aspect ratio (1:1 square) for optimal sharing
  * 
- * If the image is already square (1:1), it's used as-is without cropping, stretching, or white bars.
- * If the image is not square (shouldn't happen if API generates square images), it's fitted within
- * the square canvas without cropping/stretching (may have white bars).
+ * If the image is already square (1:1), it's used as-is without cropping, stretching, or decorations.
+ * If the image is not square, it's fitted within the square canvas without cropping/stretching,
+ * and Christmas-themed decorations fill the empty space areas instead of white bars.
  */
+
+/**
+ * Draw Christmas decorations in empty space areas
+ */
+function drawChristmasDecorations(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  imageX: number,
+  imageY: number,
+  imageWidth: number,
+  imageHeight: number
+): void {
+  // Calculate empty space areas
+  const leftSpace = imageX;
+  const rightSpace = canvasWidth - (imageX + imageWidth);
+  const topSpace = imageY;
+  const bottomSpace = canvasHeight - (imageY + imageHeight);
+  
+  // Draw decorations in side spaces (left and right)
+  if (leftSpace > 0) {
+    drawSideDecorations(ctx, 0, 0, leftSpace, canvasHeight);
+  }
+  if (rightSpace > 0) {
+    drawSideDecorations(ctx, canvasWidth - rightSpace, 0, rightSpace, canvasHeight);
+  }
+  
+  // Draw decorations in top/bottom spaces
+  if (topSpace > 0) {
+    drawTopBottomDecorations(ctx, imageX, 0, imageWidth, topSpace);
+  }
+  if (bottomSpace > 0) {
+    drawTopBottomDecorations(ctx, imageX, canvasHeight - bottomSpace, imageWidth, bottomSpace);
+  }
+}
+
+/**
+ * Draw Christmas decorations for side spaces (left/right)
+ */
+function drawSideDecorations(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  const spacing = 80; // Space between decorations
+  const decorationSize = Math.min(width * 0.6, 40);
+  
+  for (let posY = spacing; posY < height - spacing; posY += spacing) {
+    const centerX = x + width / 2;
+    const centerY = posY + (Math.random() * 20 - 10); // Slight random offset
+    
+    // Randomly choose decoration type
+    const decorationType = Math.random();
+    if (decorationType < 0.3) {
+      drawSnowflake(ctx, centerX, centerY, decorationSize);
+    } else if (decorationType < 0.6) {
+      drawChristmasOrnament(ctx, centerX, centerY, decorationSize);
+    } else {
+      drawStar(ctx, centerX, centerY, decorationSize);
+    }
+  }
+}
+
+/**
+ * Draw Christmas decorations for top/bottom spaces
+ */
+function drawTopBottomDecorations(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  const spacing = 100;
+  const decorationSize = Math.min(height * 0.7, 35);
+  
+  for (let posX = spacing; posX < width - spacing; posX += spacing) {
+    const centerX = x + posX + (Math.random() * 20 - 10);
+    const centerY = y + height / 2;
+    
+    const decorationType = Math.random();
+    if (decorationType < 0.4) {
+      drawSnowflake(ctx, centerX, centerY, decorationSize);
+    } else if (decorationType < 0.7) {
+      drawStar(ctx, centerX, centerY, decorationSize);
+    } else {
+      drawSparkle(ctx, centerX, centerY, decorationSize * 0.8);
+    }
+  }
+}
+
+/**
+ * Draw a snowflake
+ */
+function drawSnowflake(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = "#E3F2FD"; // Light blue
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  
+  const branches = 6;
+  for (let i = 0; i < branches; i++) {
+    ctx.rotate((Math.PI * 2) / branches);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(size / 2, 0);
+    ctx.moveTo(size / 3, 0);
+    ctx.lineTo(size / 3, -size / 6);
+    ctx.lineTo(size / 3, size / 6);
+  }
+  
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Draw a Christmas ornament/ball
+ */
+function drawChristmasOrnament(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  
+  // Ornament colors (randomly choose)
+  const colors = ["#E53935", "#1976D2", "#FDD835", "#43A047", "#FB8C00"];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  
+  // Draw ornament body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(0, size / 4, size / 2, size / 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw highlight
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.beginPath();
+  ctx.ellipse(-size / 6, -size / 8, size / 6, size / 8, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw top hook
+  ctx.fillStyle = "#FFD700"; // Gold
+  ctx.fillRect(-size / 12, -size / 2, size / 6, size / 4);
+  
+  ctx.restore();
+}
+
+/**
+ * Draw a star
+ */
+function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#FFD700"; // Gold
+  ctx.strokeStyle = "#FFA000"; // Darker gold
+  ctx.lineWidth = 1;
+  
+  const spikes = 5;
+  const outerRadius = size / 2;
+  const innerRadius = size / 4;
+  
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const angle = (i * Math.PI) / spikes - Math.PI / 2;
+    const px = Math.cos(angle) * radius;
+    const py = Math.sin(angle) * radius;
+    if (i === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  
+  ctx.restore();
+}
+
+/**
+ * Draw a sparkle/glitter
+ */
+function drawSparkle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#FFF9C4"; // Light yellow
+  ctx.strokeStyle = "#FFD700"; // Gold
+  
+  // Draw cross shape
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-size / 2, 0);
+  ctx.lineTo(size / 2, 0);
+  ctx.moveTo(0, -size / 2);
+  ctx.lineTo(0, size / 2);
+  ctx.stroke();
+  
+  // Draw small circles at ends
+  ctx.beginPath();
+  ctx.arc(-size / 2, 0, size / 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size / 2, 0, size / 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, -size / 2, size / 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, size / 2, size / 8, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.restore();
+}
 
 export interface StoreWatermarkInfo {
   name?: string | null;
@@ -83,10 +297,7 @@ export async function addWatermarkToImage(
           return;
         }
         
-        // Fill white background
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
+        // Calculate image dimensions first
         let imageDisplayWidth: number;
         let imageDisplayHeight: number;
         let imageX: number;
@@ -94,7 +305,7 @@ export async function addWatermarkToImage(
         
         if (isSquare) {
           // Image is already square - scale to fit canvas while maintaining square aspect ratio
-          // No cropping, no stretching, no white bars
+          // No cropping, no stretching, no decorations needed
           // Since both image and canvas are square, scale proportionally
           const scale = canvasWidth / originalWidth;
           imageDisplayWidth = originalWidth * scale;
@@ -102,9 +313,8 @@ export async function addWatermarkToImage(
           imageX = 0;
           imageY = 0;
         } else {
-          // Image is not square - this shouldn't happen if API generates square images
-          // But handle gracefully: fit image within square without cropping/stretching
-          // This will result in white bars, but preserves the entire image
+          // Image is not square - fit image within square without cropping/stretching
+          // This will result in empty space that we'll fill with Christmas decorations
           const scaleX = canvasWidth / originalWidth;
           const scaleY = canvasHeight / originalHeight;
           const scale = Math.min(scaleX, scaleY); // Use smaller scale to ensure image fits
@@ -117,8 +327,21 @@ export async function addWatermarkToImage(
           imageY = (canvasHeight - imageDisplayHeight) / 2;
         }
         
-        // Draw original image (no cropping, no stretching)
+        // Fill background with festive Christmas gradient
+        const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+        gradient.addColorStop(0, "#E8F5E9"); // Light green
+        gradient.addColorStop(0.5, "#FFF9C4"); // Light yellow/gold
+        gradient.addColorStop(1, "#FFEBEE"); // Light pink/red
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        // Draw original image first (no cropping, no stretching)
         ctx.drawImage(img, imageX, imageY, imageDisplayWidth, imageDisplayHeight);
+        
+        // Draw Christmas decorations in empty space areas (after image so they're visible)
+        if (!isSquare) {
+          drawChristmasDecorations(ctx, canvasWidth, canvasHeight, imageX, imageY, imageDisplayWidth, imageDisplayHeight);
+        }
         
         // Draw footer text overlay (centered, at the bottom, with semi-transparent background)
         const footerY = canvasHeight - footerHeight;
