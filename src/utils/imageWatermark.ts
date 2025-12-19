@@ -58,7 +58,7 @@ export async function addWatermarkToImage(
         // Calculate canvas dimensions (Instagram 1:1 square)
         // Ensure minimum Instagram size (1080x1080)
         const canvasWidth = Math.max(originalWidth, 1080);
-        const canvasHeight = canvasWidth; // Square: height = width
+        const canvasHeight = canvasWidth; // Square: height = width (Instagram 1:1 aspect ratio)
         
         // Create canvas
         const canvas = document.createElement("canvas");
@@ -75,27 +75,42 @@ export async function addWatermarkToImage(
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         
-        // Calculate image dimensions to fit within canvas without cropping/stretching
-        // Reserve space at bottom for footer
-        const contentAreaHeight = canvasHeight - footerHeight;
-        const scaleX = canvasWidth / originalWidth;
-        const scaleY = contentAreaHeight / originalHeight;
-        const scale = Math.min(scaleX, scaleY); // Use smaller scale to ensure image fits
+        let imageDisplayWidth: number;
+        let imageDisplayHeight: number;
+        let imageX: number;
+        let imageY: number;
         
-        const imageDisplayWidth = originalWidth * scale;
-        const imageDisplayHeight = originalHeight * scale;
-        
-        // Center the image horizontally and vertically in the content area
-        const imageX = (canvasWidth - imageDisplayWidth) / 2;
-        const imageY = (contentAreaHeight - imageDisplayHeight) / 2;
+        if (isSquare) {
+          // Image is already square (1:1) - fill entire canvas, no white strips
+          // Scale to fit canvas exactly
+          const scale = canvasWidth / originalWidth;
+          imageDisplayWidth = originalWidth * scale;
+          imageDisplayHeight = originalHeight * scale; // Same as width since it's square
+          imageX = 0;
+          imageY = 0;
+        } else {
+          // Image is not square - fit proportionally within square canvas
+          // This will create white strips, but image won't be cut or stretched
+          const scaleX = canvasWidth / originalWidth;
+          const scaleY = canvasHeight / originalHeight;
+          const scale = Math.min(scaleX, scaleY); // Use smaller scale to ensure image fits
+          
+          imageDisplayWidth = originalWidth * scale;
+          imageDisplayHeight = originalHeight * scale;
+          
+          // Center the image horizontally and vertically
+          imageX = (canvasWidth - imageDisplayWidth) / 2;
+          imageY = (canvasHeight - imageDisplayHeight) / 2;
+        }
         
         // Draw original image (no cropping, no stretching)
         ctx.drawImage(img, imageX, imageY, imageDisplayWidth, imageDisplayHeight);
         
-        // Draw footer text overlay (centered, at the bottom, with semi-transparent background)
+        // Draw footer text overlay (centered, at the bottom, as overlay on top of image)
         const footerY = canvasHeight - footerHeight;
         
-        // Draw semi-transparent white background for footer text (for better readability)
+        // Draw semi-transparent white background for footer text (overlay on image)
+        // This ensures copyright text is visible even if image has dark colors at bottom
         ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
         ctx.fillRect(0, footerY, canvasWidth, footerHeight);
         
