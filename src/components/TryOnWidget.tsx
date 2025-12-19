@@ -1707,7 +1707,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         logoUrl: null, // TODO: Add store logo URL if available
       } : null;
       
-      // Add watermark (header + footer) to the image
+      // Add watermark (footer with copyright) to the image
       const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
 
       const url = URL.createObjectURL(blob);
@@ -1813,10 +1813,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
         try {
           // Try multiple Instagram deep link schemes to get to post creation page
-          // Priority: library (gallery) > camera (camera/library picker) > app (general)
+          // Priority: camera (opens camera/library picker - closest to post creation) > library > app
           const deepLinks = [
-            "instagram://library", // Opens gallery/library directly - fastest path to post creation
-            "instagram://camera",  // Opens camera/library picker
+            "instagram://camera",  // Opens camera/library picker - best path to post creation
+            "instagram://library", // Opens gallery/library directly
             "instagram://app",     // Opens Instagram app (fallback)
           ];
 
@@ -1830,14 +1830,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
           const tryNextDeepLink = () => {
             if (currentLinkIndex >= deepLinks.length) {
-              // All deep links failed, navigate to Instagram website
+              // All deep links failed, navigate to Instagram create page on website
               window.removeEventListener("blur", handleBlur);
               clearAllTimeouts();
               setIsInstagramShareLoading(false);
-              window.open("https://www.instagram.com", "_blank");
+              window.open("https://www.instagram.com/create/", "_blank");
               const message = captionCopied
-                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram website opened! Image is saved to your gallery. Paste the caption when posting."
-                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram website opened! Image is saved to your gallery.";
+                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram create page opened! Image is saved to your gallery. Paste the caption when posting."
+                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram create page opened! Image is saved to your gallery.";
               toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
                 description: message,
               });
@@ -1883,16 +1883,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           // Start trying deep links
           tryNextDeepLink();
 
-          // Overall timeout - if app didn't open after 2.5 seconds, fallback to website
+          // Overall timeout - if app didn't open after 2.5 seconds, fallback to website create page
           const overallTimeout = setTimeout(() => {
             if (!appOpened) {
               window.removeEventListener("blur", handleBlur);
               clearAllTimeouts();
               setIsInstagramShareLoading(false);
-              window.open("https://www.instagram.com", "_blank");
+              window.open("https://www.instagram.com/create/", "_blank");
               const message = captionCopied
-                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram website opened! Image is saved to your gallery. Paste the caption when posting."
-                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram website opened! Image is saved to your gallery.";
+                ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram create page opened! Image is saved to your gallery. Paste the caption when posting."
+                : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram create page opened! Image is saved to your gallery.";
               toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
                 description: message,
               });
@@ -1911,23 +1911,23 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           window.addEventListener("blur", enhancedHandleBlur);
         } catch (deepLinkError) {
           window.removeEventListener("blur", handleBlur);
-          // Navigate to Instagram website as fallback
+          // Navigate to Instagram create page on website as fallback
           setIsInstagramShareLoading(false);
-          window.open("https://www.instagram.com", "_blank");
+          window.open("https://www.instagram.com/create/", "_blank");
           const message = captionCopied
-            ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram website opened! Image is saved to your gallery. Paste the caption when posting."
-            : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram website opened! Image is saved to your gallery.";
+            ? t("tryOnWidget.resultDisplay.instagramWebsiteOpened") || "Instagram create page opened! Image is saved to your gallery. Paste the caption when posting."
+            : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedNoCaption") || "Instagram create page opened! Image is saved to your gallery.";
           toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
             description: message,
           });
         }
       } else {
-        // Desktop: Navigate to Instagram website
+        // Desktop: Navigate to Instagram create page
         setIsInstagramShareLoading(false);
-        window.open("https://www.instagram.com", "_blank");
+        window.open("https://www.instagram.com/create/", "_blank");
         const message = captionCopied
-          ? t("tryOnWidget.resultDisplay.instagramWebsiteOpenedDesktop") || "Instagram website opened! Image is saved. Paste the caption when posting."
-          : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedDesktopNoCaption") || "Instagram website opened! Image is saved.";
+          ? t("tryOnWidget.resultDisplay.instagramWebsiteOpenedDesktop") || "Instagram create page opened! Image is saved. Paste the caption when posting."
+          : t("tryOnWidget.resultDisplay.instagramWebsiteOpenedDesktopNoCaption") || "Instagram create page opened! Image is saved.";
         toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Opening Instagram...", {
           description: message,
         });
