@@ -31,6 +31,14 @@ export async function addWatermarkToImage(
         const originalHeight = img.naturalHeight;
         const originalAspectRatio = originalWidth / originalHeight;
         
+        // Debug logging
+        console.log("[Watermark] Image dimensions:", {
+          width: originalWidth,
+          height: originalHeight,
+          aspectRatio: originalAspectRatio,
+          isSquare: Math.abs(originalAspectRatio - 1) < 0.01
+        });
+        
         // Footer height: text height + padding
         const footerText = "© 2025 NUSENSE. Tous droits réservés.";
         const footerPadding = 20;
@@ -52,8 +60,13 @@ export async function addWatermarkToImage(
         const footerHeight = footerTextHeight + (footerPadding * 2);
         
         // Check if image is already square (Instagram format)
-        // Allow small tolerance for floating point precision (within 1%)
-        const isSquare = Math.abs(originalAspectRatio - INSTAGRAM_ASPECT_RATIO) < 0.01;
+        // Increased tolerance to 2% to account for slight variations from Gemini
+        const isSquare = Math.abs(originalAspectRatio - INSTAGRAM_ASPECT_RATIO) < 0.02;
+        
+        console.log("[Watermark] Square detection:", {
+          isSquare,
+          aspectRatioDiff: Math.abs(originalAspectRatio - INSTAGRAM_ASPECT_RATIO)
+        });
         
         // Calculate canvas dimensions (Instagram 1:1 square)
         // Ensure minimum Instagram size (1080x1080)
@@ -82,12 +95,22 @@ export async function addWatermarkToImage(
         
         if (isSquare) {
           // Image is already square (1:1) - fill entire canvas, no white strips
-          // Scale to fit canvas exactly
-          const scale = canvasWidth / originalWidth;
-          imageDisplayWidth = originalWidth * scale;
-          imageDisplayHeight = originalHeight * scale; // Same as width since it's square
+          // Since both image and canvas are square, scale proportionally to fill canvas
+          const scale = canvasWidth / originalWidth; // Both are square, so width/height ratio is same
+          imageDisplayWidth = canvasWidth; // Fill entire canvas width
+          imageDisplayHeight = canvasHeight; // Fill entire canvas height
           imageX = 0;
           imageY = 0;
+          
+          console.log("[Watermark] Square image - filling canvas:", {
+            scale,
+            imageDisplayWidth,
+            imageDisplayHeight,
+            canvasWidth,
+            canvasHeight,
+            originalWidth,
+            originalHeight
+          });
         } else {
           // Image is not square - fit proportionally within square canvas
           // This will create white strips, but image won't be cut or stretched
@@ -101,6 +124,16 @@ export async function addWatermarkToImage(
           // Center the image horizontally and vertically
           imageX = (canvasWidth - imageDisplayWidth) / 2;
           imageY = (canvasHeight - imageDisplayHeight) / 2;
+          
+          console.log("[Watermark] Non-square image - fitting with strips:", {
+            scale,
+            imageDisplayWidth,
+            imageDisplayHeight,
+            imageX,
+            imageY,
+            canvasWidth,
+            canvasHeight
+          });
         }
         
         // Draw original image (no cropping, no stretching)
