@@ -36,7 +36,7 @@ import {
 } from "@/services/cartOutfitApi";
 import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, ArrowLeft, Info } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, ArrowLeft, Info, Share2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +52,7 @@ import { useImageGenerations } from "@/hooks/useImageGenerations";
 import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
 import { useCategorizedProducts } from "@/hooks/useCategorizedProducts";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import {
   AlertDialog,
@@ -77,6 +78,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   // i18next translation hook
   const { t } = useTranslation();
+  
+  // Mobile detection
+  const isMobile = useIsMobile();
 
   // Redux state for image generations
   const { fetchGenerations, records } = useImageGenerations();
@@ -255,6 +259,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
+  const [isDownloadLoading, setIsDownloadLoading] = useState(false);
+  const [isInstagramShareLoading, setIsInstagramShareLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1688,6 +1694,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   };
 
   const handleDownload = async (imageUrl: string) => {
+    if (isDownloadLoading) return;
+    setIsDownloadLoading(true);
+    
     try {
       let blob: Blob | null = null;
 
@@ -1760,10 +1769,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         URL.revokeObjectURL(url);
       }, 100);
 
+      setIsDownloadLoading(false);
       toast.success(t("tryOnWidget.download.success") || "Téléchargement réussi", {
         description: t("tryOnWidget.download.successDescription") || "L'image a été téléchargée avec succès.",
       });
     } catch (error) {
+      setIsDownloadLoading(false);
       try {
         window.open(imageUrl, "_blank");
         toast.info(t("tryOnWidget.download.openingInNewTab") || "Ouverture dans un nouvel onglet", {
@@ -1774,6 +1785,329 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           description: t("tryOnWidget.download.errorDescription") || "Impossible de télécharger l'image. Veuillez réessayer ou prendre une capture d'écran.",
         });
       }
+    }
+  };
+
+  const handleInstagramShare = async () => {
+    const imageUrl = generatedImage;
+    if (isInstagramShareLoading || !imageUrl) return;
+
+    setIsInstagramShareLoading(true);
+
+    // Track if caption was successfully copied
+    let captionCopied = false;
+    // Track if Web Share API was successfully used (to avoid duplicate toasts)
+    let webShareUsed = false;
+
+    try {
+      // Generate caption
+      const caption = t("tryOnWidget.resultDisplay.instagramCaption") || 
+        "AI generated photoshoot ✨ #ai #fashion #photoshoot #virtualtryon";
+
+      // Convert image to blob for sharing
+      let imageBlob: Blob | null = null;
+      try {
+        if (imageUrl.startsWith("data:")) {
+          const response = await fetch(imageUrl);
+          imageBlob = await response.blob();
+        } else if (imageUrl.startsWith("blob:")) {
+          const response = await fetch(imageUrl);
+          imageBlob = await response.blob();
+        } else {
+          try {
+            const response = await fetch(imageUrl, {
+              mode: "cors",
+              credentials: "omit",
+            });
+            if (response.ok) {
+              imageBlob = await response.blob();
+            }
+          } catch (fetchError) {
+            // Fallback to canvas approach
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            imageBlob = await new Promise<Blob>((resolve, reject) => {
+              img.onload = () => {
+                try {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = img.naturalWidth;
+                  canvas.height = img.naturalHeight;
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) {
+                    reject(new Error("Could not get canvas context"));
+                    return;
+                  }
+                  ctx.drawImage(img, 0, 0);
+                  canvas.toBlob((blobResult) => {
+                    if (blobResult) {
+                      resolve(blobResult);
+                    } else {
+                      reject(new Error("Failed to convert canvas to blob"));
+                    }
+                  }, "image/png");
+                } catch (error) {
+                  reject(error);
+                }
+              };
+              img.onerror = () => reject(new Error("Failed to load image"));
+              img.src = imageUrl;
+            });
+          }
+        }
+      } catch (blobError) {
+        console.warn("Failed to create image blob:", blobError);
+      }
+
+      // Primary: Try Web Share API (mobile) - allows sharing image + text together
+      if (isMobile && imageBlob && "share" in navigator) {
+        try {
+          const imageFile = new File([imageBlob], `essayage-virtuel-${Date.now()}.png`, {
+            type: "image/png",
+          });
+
+          let canShareFiles: boolean | undefined = undefined;
+          try {
+            if ("canShare" in navigator && typeof navigator.canShare === "function") {
+              canShareFiles = navigator.canShare({ files: [imageFile], text: caption });
+            }
+          } catch (canShareError) {
+            console.warn("canShare check failed:", canShareError);
+            canShareFiles = undefined;
+          }
+
+          if (canShareFiles !== false) {
+            await navigator.share({
+              files: [imageFile],
+              text: caption,
+              title: t("tryOnWidget.resultDisplay.shareTitle") || "AI Generated Photoshoot",
+            });
+
+            webShareUsed = true;
+            setIsInstagramShareLoading(false);
+            toast.success(t("tryOnWidget.resultDisplay.shareSheetOpened") || "Share sheet opened!", {
+              description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+            });
+            return;
+          }
+        } catch (shareError: any) {
+          if (shareError.name === "AbortError") {
+            setIsInstagramShareLoading(false);
+            return;
+          }
+          console.warn("Web Share API failed:", shareError);
+        }
+      }
+
+      // Copy caption to clipboard
+      try {
+        await navigator.clipboard.writeText(caption);
+        captionCopied = true;
+        if (!webShareUsed) {
+          toast.success(t("tryOnWidget.resultDisplay.captionCopied") || "Caption copied!", {
+            description: t("tryOnWidget.resultDisplay.captionCopiedDescription") || "Paste it in Instagram",
+          });
+        }
+      } catch (clipboardError) {
+        console.warn("Failed to copy caption to clipboard:", clipboardError);
+        captionCopied = false;
+      }
+
+      // Secondary: Try to open Instagram app (mobile only)
+      if (isMobile) {
+        let pageLostFocus = false;
+        let timeoutId: NodeJS.Timeout | null = null;
+        let locationTimeoutId: NodeJS.Timeout | null = null;
+        
+        const handleBlur = () => {
+          pageLostFocus = true;
+          window.removeEventListener("blur", handleBlur);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          if (locationTimeoutId) {
+            clearTimeout(locationTimeoutId);
+            locationTimeoutId = null;
+          }
+        };
+        window.addEventListener("blur", handleBlur);
+
+        try {
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.src = "instagram://app";
+          document.body.appendChild(iframe);
+
+          timeoutId = setTimeout(() => {
+            try {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            } catch (cleanupError) {
+              console.warn("Failed to remove iframe:", cleanupError);
+            }
+
+            window.removeEventListener("blur", handleBlur);
+
+            if (pageLostFocus) {
+              setIsInstagramShareLoading(false);
+              const captionMessage = captionCopied 
+                ? t("tryOnWidget.resultDisplay.instagramOpenedDescription") || "Select the image from your gallery and paste the caption."
+                : t("tryOnWidget.resultDisplay.instagramOpenedDescriptionNoCaption") || "Select the image from your gallery. Caption copy failed, please type manually.";
+              toast.info(t("tryOnWidget.resultDisplay.instagramOpened") || "Instagram opened!", {
+                description: captionMessage,
+              });
+              return;
+            }
+
+            handleDownloadForInstagram(captionCopied);
+          }, 1000);
+
+          locationTimeoutId = setTimeout(() => {
+            try {
+              window.location.href = "instagram://app";
+            } catch (e) {
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+              }
+              window.removeEventListener("blur", handleBlur);
+              try {
+                if (iframe.parentNode) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (cleanupError) {
+                // Ignore cleanup errors
+              }
+              handleDownloadForInstagram(captionCopied);
+            }
+          }, 100);
+
+          return;
+        } catch (deepLinkError) {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          if (locationTimeoutId) {
+            clearTimeout(locationTimeoutId);
+          }
+          window.removeEventListener("blur", handleBlur);
+          console.warn("Failed to open Instagram app:", deepLinkError);
+          handleDownloadForInstagram(captionCopied);
+          return;
+        }
+      }
+
+      // Desktop or fallback: Download image
+      handleDownloadForInstagram(captionCopied);
+    } catch (error) {
+      setIsInstagramShareLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+        description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Unable to share to Instagram. Please try downloading the image first.",
+      });
+    }
+  };
+
+  const handleDownloadForInstagram = async (captionWasCopied: boolean = false) => {
+    const downloadUrl = generatedImage;
+    if (!downloadUrl) {
+      setIsInstagramShareLoading(false);
+      return;
+    }
+
+    try {
+      let blob: Blob | null = null;
+
+      if (downloadUrl.startsWith("data:")) {
+        const response = await fetch(downloadUrl);
+        blob = await response.blob();
+      } else if (downloadUrl.startsWith("blob:")) {
+        const response = await fetch(downloadUrl);
+        blob = await response.blob();
+      } else {
+        try {
+          const response = await fetch(downloadUrl, {
+            mode: "cors",
+            credentials: "omit",
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          blob = await response.blob();
+        } catch (fetchError) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+
+          blob = await new Promise<Blob>((resolve, reject) => {
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                  reject(new Error("Could not get canvas context"));
+                  return;
+                }
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blobResult) => {
+                  if (blobResult) {
+                    resolve(blobResult);
+                  } else {
+                    reject(new Error("Failed to convert canvas to blob"));
+                  }
+                }, "image/png");
+              } catch (error) {
+                reject(error);
+              }
+            };
+            img.onerror = () => reject(new Error("Failed to load image"));
+            img.src = downloadUrl;
+          });
+        }
+      }
+
+      if (!blob) {
+        throw new Error("Failed to create blob");
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const extension = "png";
+      const filename = `essayage-virtuel-${Date.now()}.${extension}`;
+      link.download = filename;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      setIsInstagramShareLoading(false);
+      
+      if (isMobile) {
+        const description = captionWasCopied
+          ? t("tryOnWidget.resultDisplay.imageSavedDescriptionMobile") || "Open Instagram and select this image from your gallery. Caption is copied to clipboard!"
+          : t("tryOnWidget.resultDisplay.imageSavedDescriptionMobileNoCaption") || "Open Instagram and select this image from your gallery.";
+        toast.success(t("tryOnWidget.resultDisplay.imageSaved") || "Image saved!", {
+          description,
+        });
+      } else {
+        const description = captionWasCopied
+          ? t("tryOnWidget.resultDisplay.imageSavedDescriptionDesktop") || "Open Instagram on your phone and post this image. Caption is copied to clipboard!"
+          : t("tryOnWidget.resultDisplay.imageSavedDescriptionDesktopNoCaption") || "Open Instagram on your phone and post this image.";
+        toast.success(t("tryOnWidget.resultDisplay.imageSaved") || "Image saved!", {
+          description,
+        });
+      }
+    } catch (error) {
+      setIsInstagramShareLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+        description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Unable to share to Instagram. Please try downloading the image first.",
+      });
     }
   };
 
@@ -2284,7 +2618,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                       <Button
                         onClick={handleBuyNow}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
                         variant={"outline" as const}
                         className="min-w-[220px] h-11"
                         aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
@@ -2300,7 +2634,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                       <Button
                         onClick={handleAddToCart}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
                         className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
                         aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
                         aria-busy={isAddToCartLoading}
@@ -2311,6 +2645,38 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                           <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
                         )}
                         {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
+                      </Button>
+
+                      <Button
+                        onClick={() => generatedImage && handleDownload(generatedImage)}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                        variant={"outline" as const}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                        aria-busy={isDownloadLoading}
+                      >
+                        {isDownloadLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Download className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {isDownloadLoading ? t("tryOnWidget.resultDisplay.downloading") || "Téléchargement..." : t("tryOnWidget.resultDisplay.download") || "Télécharger"}
+                      </Button>
+
+                      <Button
+                        onClick={handleInstagramShare}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                        variant={"outline" as const}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
+                        aria-busy={isInstagramShareLoading}
+                      >
+                        {isInstagramShareLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Share2 className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {isInstagramShareLoading ? t("tryOnWidget.resultDisplay.sharing") || "Sharing..." : t("tryOnWidget.resultDisplay.shareToInstagram") || "Share to Instagram"}
                       </Button>
                     </div>
                   </div>
@@ -2603,7 +2969,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
               <Button
                 onClick={handleBuyNow}
-                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
                 variant={"outline" as const}
                 className="w-full h-11"
                 aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
@@ -2620,7 +2986,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               </Button>
               <Button
                 onClick={handleAddToCart}
-                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading}
+                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
                 className="w-full h-11 bg-primary hover:bg-primary/90"
                 aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
                 aria-busy={isAddToCartLoading}
@@ -2633,6 +2999,38 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 {isAddToCartLoading
                   ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
                   : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+              </Button>
+
+              <Button
+                onClick={() => generatedImage && handleDownload(generatedImage)}
+                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                variant={"outline" as const}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                aria-busy={isDownloadLoading}
+              >
+                {isDownloadLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Download className="w-5 h-5 mr-2" aria-hidden="true" />
+                )}
+                {isDownloadLoading ? t("tryOnWidget.resultDisplay.downloading") || "Téléchargement..." : t("tryOnWidget.resultDisplay.download") || "Télécharger"}
+              </Button>
+
+              <Button
+                onClick={handleInstagramShare}
+                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
+                variant={"outline" as const}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.resultDisplay.shareToInstagramAriaLabel") || "Share to Instagram"}
+                aria-busy={isInstagramShareLoading}
+              >
+                {isInstagramShareLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Share2 className="w-5 h-5 mr-2" aria-hidden="true" />
+                )}
+                {isInstagramShareLoading ? t("tryOnWidget.resultDisplay.sharing") || "Sharing..." : t("tryOnWidget.resultDisplay.shareToInstagram") || "Share to Instagram"}
               </Button>
             </div>
           )}
