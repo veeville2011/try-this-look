@@ -48,6 +48,9 @@ export default function ResultDisplay({
   const [isInstagramShareLoading, setIsInstagramShareLoading] = useState(false);
   const buyNowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const addToCartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Cache for watermarked blob to avoid re-processing on every share click
+  const watermarkedBlobCacheRef = useRef<{ imageUrl: string; blob: Blob; timestamp: number } | null>(null);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   
   // Get store info for watermark
   const { storeInfo: reduxStoreInfo } = useStoreInfo();
@@ -65,6 +68,45 @@ export default function ResultDisplay({
       setStoreInfo((window as any).NUSENSE_STORE_INFO);
     }
   }, []);
+
+  // Pre-process image with watermark when generatedImage changes
+  // This ensures the blob is ready synchronously when user clicks share
+  useEffect(() => {
+    if (!generatedImage) {
+      watermarkedBlobCacheRef.current = null;
+      return;
+    }
+
+    // Prepare store info for watermark
+    const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const storeWatermarkInfo = storeName ? {
+      name: storeName,
+      domain: storeName,
+      logoUrl: null,
+    } : null;
+
+    const cacheKey = `${generatedImage}_${storeName || 'default'}`;
+    
+    // Check if we already have a cached blob for this image
+    const cached = watermarkedBlobCacheRef.current;
+    if (cached && cached.imageUrl === cacheKey && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      return; // Already cached, no need to reprocess
+    }
+
+    // Pre-process the image in the background
+    addWatermarkToImage(generatedImage, storeWatermarkInfo)
+      .then((blob) => {
+        watermarkedBlobCacheRef.current = {
+          imageUrl: cacheKey,
+          blob: blob,
+          timestamp: Date.now(),
+        };
+      })
+      .catch((error) => {
+        console.warn("Failed to pre-process image for sharing:", error);
+        // Don't set cache on error - will retry on share click
+      });
+  }, [generatedImage, storeInfo, reduxStoreInfo]);
 
   // Get product data if available (from Shopify parent window)
   const getProductData = (): ProductData | null => {
@@ -368,8 +410,34 @@ export default function ResultDisplay({
         logoUrl: null,
       } : null;
       
-      // Add watermark to the image (async operation - necessary)
-      const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
+      // Check cache first - if blob is ready, use it synchronously (maintains user gesture)
+      let blob: Blob;
+      const cacheKey = `${imageUrl}_${storeName || 'default'}`;
+      const cached = watermarkedBlobCacheRef.current;
+      
+      if (cached && cached.imageUrl === cacheKey && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+        // Use cached blob - this is synchronous! User gesture is maintained
+        blob = cached.blob;
+      } else {
+        // Blob not ready yet - process it now (this will break user gesture, but we'll handle it)
+        // Show a message that processing is needed
+        toast.info("Preparing image for sharing...", {
+          description: "Please wait a moment, then try again.",
+        });
+        blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
+        // Cache the blob for future use
+        watermarkedBlobCacheRef.current = {
+          imageUrl: cacheKey,
+          blob: blob,
+          timestamp: Date.now(),
+        };
+        // After processing, show message to click again
+        setIsInstagramShareLoading(false);
+        toast.success("Image ready!", {
+          description: "Please click the share button again to share.",
+        });
+        return; // Exit - user needs to click again
+      }
 
       // Build comprehensive caption with product info, store name, hashtags, and purchase link
       const productData = getProductData();
