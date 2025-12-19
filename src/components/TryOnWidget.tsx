@@ -267,8 +267,17 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
-  // Cache for watermarked blob to avoid re-processing on every share click
-  const watermarkedBlobCacheRef = useRef<{ imageUrl: string; blob: Blob; timestamp: number } | null>(null);
+  // Cache for watermarked blob and share data to avoid re-processing on every share click
+  const watermarkedBlobCacheRef = useRef<{ 
+    imageUrl: string; 
+    blob: Blob; 
+    timestamp: number;
+    shareData?: {
+      title: string;
+      text: string;
+      url: string;
+    };
+  } | null>(null);
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("compact");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -435,14 +444,35 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       return; // Already cached, no need to reprocess
     }
 
-    // Pre-process the image in the background
+    // Pre-process the image in the background and prepare share data
     setIsWatermarkReady(false); // Reset ready state
     addWatermarkToImage(generatedImage, storeWatermarkInfo)
       .then((blob) => {
+        // Pre-compute share data to minimize work on click
+        const productData = getProductData();
+        const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+        const productTitle = productData?.title || "Product";
+        const productUrl = productData?.url || window.location.href;
+        
+        const caption = [
+          `✨ Virtual Try-On by NUSENSE`,
+          ``,
+          `Check out this ${productTitle} from ${storeDisplayName}!`,
+          ``,
+          `🔗 Shop now: ${productUrl}`,
+          ``,
+          `#VirtualTryOn #AIFashion #FashionTech #VirtualStyling #TryBeforeYouBuy #FashionAI #DigitalFashion #VirtualReality #FashionTech #Shopify #Ecommerce #Fashion #Style #Outfit #Clothing #Fashionista #InstaFashion #FashionBlogger #StyleInspo #OOTD #FashionLover #FashionAddict #FashionStyle #FashionDesign #FashionWeek #FashionTrends #FashionForward #Fashionable #FashionableStyle #FashionableLife`,
+        ].join("\n");
+
         watermarkedBlobCacheRef.current = {
           imageUrl: cacheKey,
           blob: blob,
           timestamp: Date.now(),
+          shareData: {
+            title: productTitle,
+            text: caption,
+            url: productUrl,
+          },
         };
         setIsWatermarkReady(true); // Mark as ready
       })
@@ -1835,10 +1865,31 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       
       try {
         const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
+        // Pre-compute share data
+        const productData = getProductData();
+        const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+        const productTitle = productData?.title || "Product";
+        const productUrl = productData?.url || window.location.href;
+        
+        const caption = [
+          `✨ Virtual Try-On by NUSENSE`,
+          ``,
+          `Check out this ${productTitle} from ${storeDisplayName}!`,
+          ``,
+          `🔗 Shop now: ${productUrl}`,
+          ``,
+          `#VirtualTryOn #AIFashion #FashionTech #VirtualStyling #TryBeforeYouBuy #FashionAI #DigitalFashion #VirtualReality #FashionTech #Shopify #Ecommerce #Fashion #Style #Outfit #Clothing #Fashionista #InstaFashion #FashionBlogger #StyleInspo #OOTD #FashionLover #FashionAddict #FashionStyle #FashionDesign #FashionWeek #FashionTrends #FashionForward #Fashionable #FashionableStyle #FashionableLife`,
+        ].join("\n");
+
         watermarkedBlobCacheRef.current = {
           imageUrl: cacheKey,
           blob: blob,
           timestamp: Date.now(),
+          shareData: {
+            title: productTitle,
+            text: caption,
+            url: productUrl,
+          },
         };
         setIsWatermarkReady(true);
         setIsInstagramShareLoading(false);
@@ -1855,99 +1906,86 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Blob is ready - proceed with share IMMEDIATELY (synchronously)
-    setIsInstagramShareLoading(true);
-    const blob = cached.blob; // Use cached blob synchronously
+    // Use pre-computed share data to minimize work on click
+    const blob = cached.blob;
+    const shareData = cached.shareData || {
+      title: "Product",
+      text: "✨ Virtual Try-On by NUSENSE",
+      url: window.location.href,
+    };
 
-    try {
-      // Build caption (synchronously - no async operations)
-      const productData = getProductData();
-      const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
-      const productTitle = productData?.title || "Product";
-      const productUrl = productData?.url || window.location.href;
-      
-      const caption = [
-        `✨ Virtual Try-On by NUSENSE`,
-        ``,
-        `Check out this ${productTitle} from ${storeDisplayName}!`,
-        ``,
-        `🔗 Shop now: ${productUrl}`,
-        ``,
-        `#VirtualTryOn #AIFashion #FashionTech #VirtualStyling #TryBeforeYouBuy #FashionAI #DigitalFashion #VirtualReality #FashionTech #Shopify #Ecommerce #Fashion #Style #Outfit #Clothing #Fashionista #InstaFashion #FashionBlogger #StyleInspo #OOTD #FashionLover #FashionAddict #FashionStyle #FashionDesign #FashionWeek #FashionTrends #FashionForward #Fashionable #FashionableStyle #FashionableLife`,
-      ].join("\n");
-
-      // Create file IMMEDIATELY (synchronously)
-      const file = new File([blob], `virtual-tryon-${Date.now()}.png`, { type: "image/png" });
-      
-      // Check if file sharing is supported (synchronously)
-      let canShareFile = false;
-      if (navigator.canShare) {
-        try {
-          canShareFile = navigator.canShare({ files: [file] });
-        } catch (canShareError) {
-          canShareFile = false;
+    // Create file IMMEDIATELY (synchronously) - minimal work before share call
+    const file = new File([blob], `virtual-tryon-${Date.now()}.png`, { type: "image/png" });
+    
+    // Check if file sharing is supported (synchronously)
+    let canShareFile = false;
+    if (navigator.canShare) {
+      try {
+        canShareFile = navigator.canShare({ files: [file] });
+      } catch (canShareError) {
+        canShareFile = false;
+      }
+    }
+    
+    // Call navigator.share IMMEDIATELY (within user gesture context)
+    // BEFORE any state updates to maintain gesture context
+    // No await - use .then() to maintain gesture context
+    if (canShareFile) {
+      // Share with file - call immediately
+      setIsInstagramShareLoading(true);
+      navigator.share({
+        files: [file],
+        title: shareData.title,
+        text: shareData.text,
+      }).then(() => {
+        setIsInstagramShareLoading(false);
+        toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
+          description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+        });
+      }).catch((shareError: any) => {
+        setIsInstagramShareLoading(false);
+        if (shareError.name === "AbortError") {
+          return; // User cancelled
         }
-      }
-      
-      // Call navigator.share IMMEDIATELY (within user gesture context)
-      if (canShareFile) {
-        // Share with file - call immediately without await delay
-        navigator.share({
-          files: [file],
-          title: productTitle,
-          text: caption,
-        }).then(() => {
-          setIsInstagramShareLoading(false);
-          toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
-            description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
+        if (shareError.name === "NotAllowedError") {
+          toast.error("Permission denied", {
+            description: "The share must be triggered directly by your click. Please try clicking the share button again.",
           });
-        }).catch((shareError: any) => {
-          setIsInstagramShareLoading(false);
-          if (shareError.name === "AbortError") {
-            return; // User cancelled
-          }
-          if (shareError.name === "NotAllowedError") {
-            toast.error("Permission denied", {
-              description: "The share must be triggered directly by your click. Please try clicking the share button again.",
-            });
-            return;
-          }
-          throw shareError;
+          return;
+        }
+        toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+          description: `Sharing failed: ${shareError.message || "Unknown error"}.`,
         });
-      } else {
-        // File sharing not supported - try text/URL only
-        const imageDataUrl = URL.createObjectURL(blob);
-        navigator.share({
-          title: productTitle,
-          text: `${caption}\n\nImage: ${imageDataUrl}`,
-          url: productUrl,
-        }).then(() => {
-          setIsInstagramShareLoading(false);
-          toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
-            description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image link and caption are ready!",
-          });
-          setTimeout(() => URL.revokeObjectURL(imageDataUrl), 1000);
-        }).catch((shareError: any) => {
-          setIsInstagramShareLoading(false);
-          URL.revokeObjectURL(imageDataUrl);
-          if (shareError.name === "AbortError") {
-            return; // User cancelled
-          }
-          if (shareError.name === "NotAllowedError") {
-            toast.error("Permission denied", {
-              description: "The share must be triggered directly by your click. Please try clicking the share button again.",
-            });
-            return;
-          }
-          toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
-            description: `Sharing failed: ${shareError.message || "Unknown error"}.`,
-          });
+      });
+    } else {
+      // File sharing not supported - try text/URL only
+      const imageDataUrl = URL.createObjectURL(blob);
+      setIsInstagramShareLoading(true);
+      navigator.share({
+        title: shareData.title,
+        text: `${shareData.text}\n\nImage: ${imageDataUrl}`,
+        url: shareData.url,
+      }).then(() => {
+        setIsInstagramShareLoading(false);
+        toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
+          description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image link and caption are ready!",
         });
-      }
-    } catch (error: any) {
-      setIsInstagramShareLoading(false);
-      console.error("Error in handleInstagramShare:", error);
-      toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
-        description: t("tryOnWidget.resultDisplay.instagramShareErrorDescription") || "Unable to share to Instagram. Please try again.",
+        setTimeout(() => URL.revokeObjectURL(imageDataUrl), 1000);
+      }).catch((shareError: any) => {
+        setIsInstagramShareLoading(false);
+        URL.revokeObjectURL(imageDataUrl);
+        if (shareError.name === "AbortError") {
+          return; // User cancelled
+        }
+        if (shareError.name === "NotAllowedError") {
+          toast.error("Permission denied", {
+            description: "The share must be triggered directly by your click. Please try clicking the share button again.",
+          });
+          return;
+        }
+        toast.error(t("tryOnWidget.resultDisplay.instagramShareError") || "Error sharing to Instagram", {
+          description: `Sharing failed: ${shareError.message || "Unknown error"}.`,
+        });
       });
     }
   };
