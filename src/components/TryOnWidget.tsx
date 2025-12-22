@@ -462,12 +462,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     // Prepare store info for watermark
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-    // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
+    // getShopName is the business name (for display), shopDomain is the actual domain (for API/domain field)
     const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
     console.log({ storeName, shopDomain });
     const storeWatermarkInfo = storeName ? {
       name: storeName,
-      domain: shopDomain || storeName,
+      domain: shopDomain || null, // Use shopDomain only, don't fallback to storeName (business name)
       logoUrl: null,
     } : null;
 
@@ -1283,9 +1283,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const clothingResponse = await fetch(selectedClothing);
       const clothingBlob = await clothingResponse.blob();
 
-      // Get store name (with fallbacks)
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-      const storeName = getShopName || shopDomain;
+      // Get shop domain (prioritize domain over business name for API calls)
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      // Use shopDomain for API calls, not storeName (business name)
+      const storeDomainForApi = shopDomain || null;
 
       // Get clothingKey from selected clothing ID (non-mandatory field)
       const clothingKey = selectedClothingKey
@@ -1304,7 +1305,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
-        storeName,
+        storeDomainForApi,
         clothingKey, // Non-mandatory: sent when product image has ID
         personKey, // Non-mandatory: sent when demo picture is used
         selectedVersion // Non-mandatory: sent when version is selected
@@ -1675,10 +1676,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     try {
       const personBlob = await cartDataURLToBlob(cartMultipleImage);
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || "";
-      const storeName = getShopName || shopDomain;
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || "";
+      // Use shopDomain for API calls, not storeName (business name)
+      const storeDomainForApi = shopDomain || null;
 
-      if (!storeName && !shopDomain) {
+      if (!storeDomainForApi) {
         throw new Error(t("tryOnWidget.errors.storeInfoUnavailable") || "Informations de magasin non disponibles");
       }
 
@@ -1724,7 +1726,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         const result = await generateCartTryOn(
           personBlob as File | Blob,
           garmentFiles as File[],
-          storeName,
+          storeDomainForApi,
           garmentKeys.length > 0 ? garmentKeys : undefined,
           personKey,
           selectedVersion
@@ -1761,7 +1763,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           personBlob as File | Blob,
           garmentFiles as File[],
           garmentTypes,
-          storeName,
+          storeDomainForApi,
           garmentKeys.length > 0 ? garmentKeys : undefined,
           personKey,
           selectedVersion
@@ -1815,11 +1817,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     try {
       // Prepare store info for watermark
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-      // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
+      // getShopName is the business name (for display), shopDomain is the actual domain (for API/domain field)
       const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
       const storeWatermarkInfo = storeName ? {
         name: storeName,
-        domain: shopDomain || storeName,
+        domain: shopDomain || null, // Use shopDomain only, don't fallback to storeName (business name)
         logoUrl: null, // TODO: Add store logo URL if available
       } : null;
       
@@ -1886,7 +1888,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     // Prepare store info for watermark (synchronously)
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-    // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
+    // getShopName is the business name (for display), shopDomain is the actual domain (for API/domain field)
     const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
     const cacheKey = `${imageUrl}_${storeName || 'default'}`;
     const cached = watermarkedBlobCacheRef.current;
@@ -1901,7 +1903,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       
       const storeWatermarkInfo = storeName ? {
         name: storeName,
-        domain: shopDomain || storeName,
+        domain: shopDomain || null, // Use shopDomain only, don't fallback to storeName (business name)
         logoUrl: null,
       } : null;
       

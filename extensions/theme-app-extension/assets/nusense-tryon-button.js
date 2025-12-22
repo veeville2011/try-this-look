@@ -646,15 +646,11 @@
       }
 
       if (event.data.type === 'NUSENSE_REQUEST_STORE_INFO') {
-        // Prioritize shopDomain from button dataset (actual Shopify domain)
-        // Use shopDomain as the primary domain, fallback to hostname only if shopDomain is not available
-        const domain = shopDomain || window.location.hostname;
-        
         const payload = {
           type: 'NUSENSE_STORE_INFO',
-          domain: domain,
-          shopDomain: shopDomain,
-          origin: shopDomain ? `https://${shopDomain}` : window.location.origin,
+          domain: window.location.hostname,
+          shopDomain,
+          origin: window.location.origin,
           fullUrl: window.location.href,
         };
 
