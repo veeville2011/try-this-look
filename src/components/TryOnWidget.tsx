@@ -339,8 +339,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const storeRecommendedLoadedForShopRef = useRef<string | null>(null);
   console.log({ storeInfo });
 
-  // Helper function to get shop name (business name, NOT domain) with fallbacks
-  // Priority: Actual store name > Page extraction > Domain (last resort only)
+  // Helper function to get shop name with fallbacks
   const getShopName = useMemo(() => {
     // 1. Try from Redux store info (from API) - This is the actual business name from Shopify
     if (reduxStoreInfo?.shopName) {
@@ -459,13 +458,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark
-    // getShopName returns the actual business name (e.g., "My Fashion Store"), NOT the domain
-    // Only falls back to cleaned domain if business name is unavailable
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-    const storeName = getShopName; // This is the business name, not the domain
+    // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
+    const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
     const storeWatermarkInfo = storeName ? {
-      name: storeName, // Business name to display on image
-      domain: shopDomain || null, // Domain for reference (not displayed)
+      name: storeName,
+      domain: shopDomain || storeName,
       logoUrl: null,
     } : null;
 
@@ -1812,12 +1810,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     
     try {
       // Prepare store info for watermark
-      // getShopName returns the actual business name (e.g., "My Fashion Store"), NOT the domain
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-      const storeName = getShopName; // This is the business name, not the domain
+      // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
+      const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
       const storeWatermarkInfo = storeName ? {
-        name: storeName, // Business name to display on image
-        domain: shopDomain || null, // Domain for reference (not displayed)
+        name: storeName,
+        domain: shopDomain || storeName,
         logoUrl: null, // TODO: Add store logo URL if available
       } : null;
       
@@ -1883,9 +1881,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark (synchronously)
-    // getShopName returns the actual business name (e.g., "My Fashion Store"), NOT the domain
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-    const storeName = getShopName; // This is the business name, not the domain
+    // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
+    const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
     const cacheKey = `${imageUrl}_${storeName || 'default'}`;
     const cached = watermarkedBlobCacheRef.current;
     
@@ -1898,8 +1896,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       });
       
       const storeWatermarkInfo = storeName ? {
-        name: storeName, // Business name to display on image
-        domain: shopDomain || null, // Domain for reference (not displayed)
+        name: storeName,
+        domain: shopDomain || storeName,
         logoUrl: null,
       } : null;
       
