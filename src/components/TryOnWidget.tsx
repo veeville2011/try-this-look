@@ -461,6 +461,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
     // getShopName already handles all fallbacks and domain cleanup, but ensure fallback is also clean
     const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
+    console.log({ storeName, shopDomain });
     const storeWatermarkInfo = storeName ? {
       name: storeName,
       domain: shopDomain || storeName,
