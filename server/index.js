@@ -5654,12 +5654,15 @@ app.post("/api/stores/sync", async (req, res) => {
       });
     }
 
+    console.log({ shopData });
+
     // Prepare payload for remote backend
     // Note: Field names must match API_STORES_INSTALL.md specification
     // CRITICAL: We're sending an OFFLINE access token (shpat_xxxxx), NOT a JWT session token
     // Offline tokens are safe for database storage and server-side use
     const payload = {
       shop: shopDomain, // Required: shop domain (normalized)
+      name: shopData.name,
       accessToken: accessToken, // Required: Shopify OAuth OFFLINE access token (shpat_xxxxx)
       scope: session.scope, // Optional: OAuth scopes
       isOnline: false, // Required: MUST be false for offline tokens (validated above)
