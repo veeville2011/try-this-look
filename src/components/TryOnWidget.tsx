@@ -353,8 +353,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     // 3. Try to extract business name from page (JSON-LD, meta tags, etc.)
     const extractedName = extractShopName();
     if (extractedName) {
-      // Validate it's not a domain (contains .myshopify.com or looks like a domain)
-      if (!extractedName.includes('.myshopify.com') && !extractedName.includes('.')) {
+      // Validate it's not a domain - check for .myshopify.com specifically
+      // Allow dots in business names (e.g., "Dr. Martens", "A.B.C. Store")
+      if (!extractedName.toLowerCase().includes('.myshopify.com')) {
         return extractedName;
       }
     }
