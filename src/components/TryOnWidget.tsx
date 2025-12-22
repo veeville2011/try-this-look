@@ -343,7 +343,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const getShopName = useMemo(() => {
     // 1. Try from Redux store info (from API) - This is the actual business name from Shopify
 
-    console.log({ reduxStoreInfo, storeInfo: storeInfo });
+    
+     
+    if (reduxStoreInfo?.name) {
+      return reduxStoreInfo.name;
+    }
+
     if (reduxStoreInfo?.shopName) {
       return reduxStoreInfo.shopName;
     }

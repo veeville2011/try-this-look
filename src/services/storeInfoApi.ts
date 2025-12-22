@@ -6,6 +6,7 @@ export interface StoreInfoParams {
 
 export interface StoreInfoData {
   shop: string;
+  name?: string | null; // Shopify store name (business name)
   shopName?: string | null; // Shopify store name (business name)
   accessToken: string | null;
   scope: string;
