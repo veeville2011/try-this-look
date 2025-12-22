@@ -342,6 +342,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   // Helper function to get shop name with fallbacks
   const getShopName = useMemo(() => {
     // 1. Try from Redux store info (from API) - This is the actual business name from Shopify
+
+    console.log({ reduxStoreInfo, storeInfo: storeInfo });
     if (reduxStoreInfo?.shopName) {
       return reduxStoreInfo.shopName;
     }
@@ -351,6 +353,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     // 3. Try to extract business name from page (JSON-LD, meta tags, etc.)
     const extractedName = extractShopName();
+    console.log({ extractedName });
     if (extractedName) {
       // Validate it's not a domain - check for .myshopify.com specifically
       // Allow dots in business names (e.g., "Dr. Martens", "A.B.C. Store")
