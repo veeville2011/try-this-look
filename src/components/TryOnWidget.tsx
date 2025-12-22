@@ -13,6 +13,7 @@ import {
   detectStoreOrigin,
   requestStoreInfoFromParent,
   getStoreOriginFromPostMessage,
+  extractShopName,
   type StoreInfo,
 } from "@/utils/shopifyIntegration";
 import { storage } from "@/utils/storage";
@@ -338,6 +339,29 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const storeRecommendedLoadedForShopRef = useRef<string | null>(null);
   console.log({ storeInfo });
 
+  // Helper function to get shop name with fallbacks
+  const getShopName = useMemo(() => {
+    // 1. Try from Redux store info (from API)
+    if (reduxStoreInfo?.shopName) {
+      return reduxStoreInfo.shopName;
+    }
+    // 2. Try from storeInfo state (from page extraction)
+    if (storeInfo?.shopName) {
+      return storeInfo.shopName;
+    }
+    // 3. Try to extract from page
+    const extractedName = extractShopName();
+    if (extractedName) {
+      return extractedName;
+    }
+    // 4. Fall back to domain (remove .myshopify.com for display)
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+    if (shopDomain) {
+      return shopDomain.replace(".myshopify.com", "");
+    }
+    return null;
+  }, [storeInfo, reduxStoreInfo]);
+
   // Set initial status message
   useEffect(() => {
     if (!statusMessage) {
@@ -429,10 +453,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark
-    const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const storeName = getShopName || shopDomain;
     const storeWatermarkInfo = storeName ? {
       name: storeName,
-      domain: storeName,
+      domain: shopDomain || storeName,
       logoUrl: null,
     } : null;
 
@@ -450,7 +475,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       .then((blob) => {
         // Pre-compute share data to minimize work on click
         const productData = getProductData();
-        const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+        // getShopName already handles all fallbacks including domain cleanup
+        const storeDisplayName = getShopName || "Store";
         const productTitle = productData?.title || "Product";
         const productUrl = productData?.url || window.location.href;
         
@@ -481,7 +507,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setIsWatermarkReady(false);
         // Don't set cache on error - will retry on share click
       });
-  }, [generatedImage, storeInfo, reduxStoreInfo]);
+  }, [generatedImage, storeInfo, reduxStoreInfo, getShopName]);
 
 
   useEffect(() => {
@@ -1247,8 +1273,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const clothingResponse = await fetch(selectedClothing);
       const clothingBlob = await clothingResponse.blob();
 
-      // Get store name from storeInfo
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
+      // Get store name (with fallbacks)
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
+      const storeName = getShopName || shopDomain;
 
       // Get clothingKey from selected clothing ID (non-mandatory field)
       const clothingKey = selectedClothingKey
@@ -1638,9 +1665,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     try {
       const personBlob = await cartDataURLToBlob(cartMultipleImage);
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || "";
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || "";
+      const storeName = getShopName || shopDomain;
 
-      if (!storeName) {
+      if (!storeName && !shopDomain) {
         throw new Error(t("tryOnWidget.errors.storeInfoUnavailable") || "Informations de magasin non disponibles");
       }
 
@@ -1776,10 +1804,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     
     try {
       // Prepare store info for watermark
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      const storeName = getShopName || shopDomain;
       const storeWatermarkInfo = storeName ? {
         name: storeName,
-        domain: storeName,
+        domain: shopDomain || storeName,
         logoUrl: null, // TODO: Add store logo URL if available
       } : null;
       
@@ -1845,7 +1874,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark (synchronously)
-    const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const storeName = getShopName || shopDomain;
     const cacheKey = `${imageUrl}_${storeName || 'default'}`;
     const cached = watermarkedBlobCacheRef.current;
     
@@ -1859,7 +1889,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       
       const storeWatermarkInfo = storeName ? {
         name: storeName,
-        domain: storeName,
+        domain: shopDomain || storeName,
         logoUrl: null,
       } : null;
       
@@ -1867,7 +1897,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
         // Pre-compute share data
         const productData = getProductData();
-        const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+        // getShopName already handles all fallbacks including domain cleanup
+        const storeDisplayName = getShopName || "Store";
         const productTitle = productData?.title || "Product";
         const productUrl = productData?.url || window.location.href;
         
