@@ -338,12 +338,17 @@
       if (!event.source || event.source === window) return;
 
       if (type === 'NUSENSE_REQUEST_STORE_INFO') {
+        // Prioritize shopDomain from config (actual Shopify domain)
+        const shopDomain = window?.NUSENSE_CONFIG?.shopDomain || '';
+        // Use shopDomain as the primary domain, fallback to hostname only if shopDomain is not available
+        const domain = shopDomain || window.location.hostname;
+        
         event.source.postMessage(
           {
             type: 'NUSENSE_STORE_INFO',
-            domain: window.location.hostname,
-            shopDomain: window?.NUSENSE_CONFIG?.shopDomain || '',
-            origin: window.location.origin,
+            domain: domain,
+            shopDomain: shopDomain,
+            origin: shopDomain ? `https://${shopDomain}` : window.location.origin,
             fullUrl: window.location.href,
           },
           event.origin,
