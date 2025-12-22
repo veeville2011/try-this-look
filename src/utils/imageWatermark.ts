@@ -39,25 +39,51 @@ export async function addWatermarkToImage(
           isSquare: Math.abs(originalAspectRatio - 1) < 0.01
         });
         
-        // Footer height: text height + padding
-        const footerText = "© 2025 NUSENSE. Tous droits réservés.";
-        const footerPadding = 20;
+        // Footer configuration
+        // storeInfo.name should be the actual business name (e.g., "My Fashion Store")
+        // NOT the domain (e.g., "myfashionstore.myshopify.com")
+        const storeName = storeInfo?.name || null;
+        const copyrightText = "© 2025 NUSENSE. Tous droits réservés.";
+        
+        // Font sizes and spacing
+        const storeNameFontSize = Math.max(20, canvasWidth / 54); // Responsive: ~20px at 1080px width
+        const copyrightFontSize = Math.max(14, canvasWidth / 77); // Responsive: ~14px at 1080px width
+        const storeNameFont = `600 ${storeNameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+        const copyrightFont = `${copyrightFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+        
+        const verticalPadding = Math.max(16, canvasWidth / 67.5); // Responsive padding
+        const lineSpacing = Math.max(8, canvasWidth / 135); // Space between store name and copyright
         
         // Measure text accurately using a temporary canvas
         const tempCanvas = document.createElement("canvas");
         const tempCtx = tempCanvas.getContext("2d");
-        let footerTextHeight = 20; // Default fallback
+        let storeNameHeight = 0;
+        let copyrightHeight = 20; // Default fallback
         
         if (tempCtx) {
-          tempCtx.font = "16px Arial, sans-serif";
-          const textMetrics = tempCtx.measureText(footerText);
-          footerTextHeight = Math.ceil(
-            (textMetrics.actualBoundingBoxAscent || 12) + 
-            (textMetrics.actualBoundingBoxDescent || 4)
-          ) || 20;
+          // Measure store name
+          if (storeName) {
+            tempCtx.font = storeNameFont;
+            const storeNameMetrics = tempCtx.measureText(storeName);
+            storeNameHeight = Math.ceil(
+              (storeNameMetrics.actualBoundingBoxAscent || 16) + 
+              (storeNameMetrics.actualBoundingBoxDescent || 4)
+            ) || 24;
+          }
+          
+          // Measure copyright
+          tempCtx.font = copyrightFont;
+          const copyrightMetrics = tempCtx.measureText(copyrightText);
+          copyrightHeight = Math.ceil(
+            (copyrightMetrics.actualBoundingBoxAscent || 12) + 
+            (copyrightMetrics.actualBoundingBoxDescent || 4)
+          ) || 18;
         }
         
-        const footerHeight = footerTextHeight + (footerPadding * 2);
+        // Calculate total footer height
+        const footerHeight = verticalPadding * 2 + 
+          (storeName ? storeNameHeight + lineSpacing : 0) + 
+          copyrightHeight;
         
         // Check if image is already square (Instagram format)
         // Increased tolerance to 2% to account for slight variations from Gemini
@@ -139,25 +165,53 @@ export async function addWatermarkToImage(
         // Draw original image (no cropping, no stretching)
         ctx.drawImage(img, imageX, imageY, imageDisplayWidth, imageDisplayHeight);
         
-        // Draw footer text overlay (centered, at the bottom, as overlay on top of image)
+        // Draw footer overlay (centered, at the bottom, as overlay on top of image)
         const footerY = canvasHeight - footerHeight;
         
-        // Draw semi-transparent white background for footer text (overlay on image)
-        // This ensures copyright text is visible even if image has dark colors at bottom
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        // Draw gradient background for maximum contrast and visibility
+        // Creates a smooth fade from transparent to semi-opaque at the bottom
+        const gradient = ctx.createLinearGradient(0, footerY, 0, canvasHeight);
+        gradient.addColorStop(0, "rgba(0, 0, 0, 0)"); // Fully transparent at top
+        gradient.addColorStop(0.3, "rgba(0, 0, 0, 0.4)"); // Start fading
+        gradient.addColorStop(0.7, "rgba(0, 0, 0, 0.75)"); // More opaque
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0.85)"); // Most opaque at bottom
+        
+        ctx.fillStyle = gradient;
         ctx.fillRect(0, footerY, canvasWidth, footerHeight);
         
-        // Draw footer text with shadow for better visibility
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 1;
-        ctx.fillStyle = "#564646";
-        ctx.font = "16px Arial, sans-serif";
+        // Additional solid background for text area for extra contrast
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        const textAreaHeight = storeName ? storeNameHeight + copyrightHeight + lineSpacing + (verticalPadding * 2) : copyrightHeight + (verticalPadding * 2);
+        ctx.fillRect(0, canvasHeight - textAreaHeight, canvasWidth, textAreaHeight);
+        
+        // Configure text rendering
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
-        const footerTextY = footerY + footerPadding + footerTextHeight;
-        ctx.fillText(footerText, canvasWidth / 2, footerTextY);
+        
+        // Draw store name (if available) - larger, bolder, more prominent
+        if (storeName) {
+          // White text with strong shadow for maximum contrast
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 2;
+          ctx.fillStyle = "#FFFFFF"; // Pure white for maximum contrast
+          ctx.font = storeNameFont;
+          
+          const storeNameY = canvasHeight - copyrightHeight - lineSpacing - verticalPadding;
+          ctx.fillText(storeName, canvasWidth / 2, storeNameY);
+        }
+        
+        // Draw copyright text - smaller, below store name
+        ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.95)"; // Slightly transparent white
+        ctx.font = copyrightFont;
+        
+        const copyrightY = canvasHeight - verticalPadding;
+        ctx.fillText(copyrightText, canvasWidth / 2, copyrightY);
         
         // Reset shadow
         ctx.shadowColor = "transparent";

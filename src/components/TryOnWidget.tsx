@@ -339,22 +339,27 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const storeRecommendedLoadedForShopRef = useRef<string | null>(null);
   console.log({ storeInfo });
 
-  // Helper function to get shop name with fallbacks
+  // Helper function to get shop name (business name, NOT domain) with fallbacks
+  // Priority: Actual store name > Page extraction > Domain (last resort only)
   const getShopName = useMemo(() => {
-    // 1. Try from Redux store info (from API)
+    // 1. Try from Redux store info (from API) - This is the actual business name from Shopify
     if (reduxStoreInfo?.shopName) {
       return reduxStoreInfo.shopName;
     }
-    // 2. Try from storeInfo state (from page extraction)
+    // 2. Try from storeInfo state (from page extraction) - Business name extracted from page
     if (storeInfo?.shopName) {
       return storeInfo.shopName;
     }
-    // 3. Try to extract from page
+    // 3. Try to extract business name from page (JSON-LD, meta tags, etc.)
     const extractedName = extractShopName();
     if (extractedName) {
-      return extractedName;
+      // Validate it's not a domain (contains .myshopify.com or looks like a domain)
+      if (!extractedName.includes('.myshopify.com') && !extractedName.includes('.')) {
+        return extractedName;
+      }
     }
-    // 4. Fall back to domain (remove .myshopify.com for display)
+    // 4. LAST RESORT: Fall back to cleaned domain only if no business name is available
+    // This should rarely happen, but provides a fallback for edge cases
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
     if (shopDomain) {
       return shopDomain.replace(".myshopify.com", "");
@@ -453,11 +458,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark
+    // getShopName returns the actual business name (e.g., "My Fashion Store"), NOT the domain
+    // Only falls back to cleaned domain if business name is unavailable
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-    const storeName = getShopName || shopDomain;
+    const storeName = getShopName; // This is the business name, not the domain
     const storeWatermarkInfo = storeName ? {
-      name: storeName,
-      domain: shopDomain || storeName,
+      name: storeName, // Business name to display on image
+      domain: shopDomain || null, // Domain for reference (not displayed)
       logoUrl: null,
     } : null;
 
@@ -1804,11 +1811,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     
     try {
       // Prepare store info for watermark
+      // getShopName returns the actual business name (e.g., "My Fashion Store"), NOT the domain
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-      const storeName = getShopName || shopDomain;
+      const storeName = getShopName; // This is the business name, not the domain
       const storeWatermarkInfo = storeName ? {
-        name: storeName,
-        domain: shopDomain || storeName,
+        name: storeName, // Business name to display on image
+        domain: shopDomain || null, // Domain for reference (not displayed)
         logoUrl: null, // TODO: Add store logo URL if available
       } : null;
       
@@ -1874,8 +1882,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark (synchronously)
+    // getShopName returns the actual business name (e.g., "My Fashion Store"), NOT the domain
     const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
-    const storeName = getShopName || shopDomain;
+    const storeName = getShopName; // This is the business name, not the domain
     const cacheKey = `${imageUrl}_${storeName || 'default'}`;
     const cached = watermarkedBlobCacheRef.current;
     
@@ -1888,8 +1897,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       });
       
       const storeWatermarkInfo = storeName ? {
-        name: storeName,
-        domain: shopDomain || storeName,
+        name: storeName, // Business name to display on image
+        domain: shopDomain || null, // Domain for reference (not displayed)
         logoUrl: null,
       } : null;
       
