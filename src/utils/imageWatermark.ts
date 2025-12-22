@@ -159,19 +159,19 @@ export async function addWatermarkToImage(
           0, 0, canvasWidth, canvasHeight // Destination rectangle (full canvas)
         );
         
-        // Draw store name in top-right corner (if available)
+        // Draw store name in top-left corner (if available)
         if (storeName) {
           // Draw background for store name (rounded rectangle with gradient for contrast)
           const backgroundPadding = Math.max(8, canvasWidth / 135); // Padding around text (equal on all sides)
           const backgroundWidth = storeNameWidth + (backgroundPadding * 2);
           const backgroundHeight = storeNameHeight + (backgroundPadding * 2);
-          const backgroundX = canvasWidth - backgroundWidth - cornerPadding;
+          const backgroundX = cornerPadding; // Position from left edge
           const backgroundY = cornerPadding;
           const borderRadius = Math.max(4, canvasWidth / 270); // Rounded corners
           
           // Calculate text position - centered vertically within the background
           // Using top baseline, position text at top padding + ascent from top of background
-          const storeNameX = canvasWidth - cornerPadding - backgroundPadding; // Right-aligned with padding
+          const storeNameX = cornerPadding + backgroundPadding; // Left-aligned with padding
           const storeNameY = backgroundY + backgroundPadding; // Top padding from background top
           
           // Draw rounded rectangle background with light gradient for maximum contrast
@@ -207,8 +207,8 @@ export async function addWatermarkToImage(
           ctx.fillStyle = cornerGradient;
           ctx.fill();
           
-          // Configure text rendering for top-right corner
-          ctx.textAlign = "right";
+          // Configure text rendering for top-left corner
+          ctx.textAlign = "left";
           ctx.textBaseline = "top"; // Use top baseline for consistent vertical positioning
           ctx.shadowColor = "rgba(0, 0, 0, 0.3)"; // Dark shadow for dark text on light background
           ctx.shadowBlur = 4;
