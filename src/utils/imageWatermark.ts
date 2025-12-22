@@ -114,6 +114,7 @@ export async function addWatermarkToImage(
         const tempCtx = tempCanvas.getContext("2d");
         let storeNameWidth = 0;
         let storeNameHeight = 0;
+        let storeNameAscent = 0;
         let copyrightHeight = 20; // Default fallback
         
         if (tempCtx) {
@@ -122,10 +123,9 @@ export async function addWatermarkToImage(
             tempCtx.font = storeNameFont;
             const storeNameMetrics = tempCtx.measureText(storeName);
             storeNameWidth = Math.ceil(storeNameMetrics.width) || 100;
-            storeNameHeight = Math.ceil(
-              (storeNameMetrics.actualBoundingBoxAscent || 16) + 
-              (storeNameMetrics.actualBoundingBoxDescent || 4)
-            ) || 24;
+            storeNameAscent = Math.ceil(storeNameMetrics.actualBoundingBoxAscent || 16) || 16;
+            const storeNameDescent = Math.ceil(storeNameMetrics.actualBoundingBoxDescent || 4) || 4;
+            storeNameHeight = storeNameAscent + storeNameDescent;
           }
           
           // Measure copyright (for footer)
@@ -161,25 +161,26 @@ export async function addWatermarkToImage(
         
         // Draw store name in top-right corner (if available)
         if (storeName) {
-          // Calculate position for top-right corner
-          const storeNameX = canvasWidth - cornerPadding;
-          const storeNameY = cornerPadding + storeNameHeight;
-          
           // Draw background for store name (rounded rectangle with gradient for contrast)
-          const backgroundPadding = Math.max(8, canvasWidth / 135); // Padding around text
+          const backgroundPadding = Math.max(8, canvasWidth / 135); // Padding around text (equal on all sides)
           const backgroundWidth = storeNameWidth + (backgroundPadding * 2);
           const backgroundHeight = storeNameHeight + (backgroundPadding * 2);
           const backgroundX = canvasWidth - backgroundWidth - cornerPadding;
           const backgroundY = cornerPadding;
           const borderRadius = Math.max(4, canvasWidth / 270); // Rounded corners
           
-          // Draw rounded rectangle background with gradient for maximum contrast
+          // Calculate text position - centered vertically within the background
+          // Using top baseline, position text at top padding + ascent from top of background
+          const storeNameX = canvasWidth - cornerPadding - backgroundPadding; // Right-aligned with padding
+          const storeNameY = backgroundY + backgroundPadding; // Top padding from background top
+          
+          // Draw rounded rectangle background with light gradient for maximum contrast
           const cornerGradient = ctx.createLinearGradient(
             backgroundX, backgroundY,
             backgroundX, backgroundY + backgroundHeight
           );
-          cornerGradient.addColorStop(0, "rgba(0, 0, 0, 0.8)");
-          cornerGradient.addColorStop(1, "rgba(0, 0, 0, 0.9)");
+          cornerGradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+          cornerGradient.addColorStop(1, "rgba(255, 255, 255, 0.98)");
           
           // Draw rounded rectangle background
           ctx.beginPath();
@@ -208,45 +209,48 @@ export async function addWatermarkToImage(
           
           // Configure text rendering for top-right corner
           ctx.textAlign = "right";
-          ctx.textBaseline = "alphabetic";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-          ctx.shadowBlur = 6;
+          ctx.textBaseline = "top"; // Use top baseline for consistent vertical positioning
+          ctx.shadowColor = "rgba(0, 0, 0, 0.3)"; // Dark shadow for dark text on light background
+          ctx.shadowBlur = 4;
           ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 2;
-          ctx.fillStyle = "#FFFFFF"; // Pure white for maximum contrast
+          ctx.shadowOffsetY = 1;
+          ctx.fillStyle = "#1E293B"; // Dark slate for maximum contrast on light background
           ctx.font = storeNameFont;
           
-          // Draw store name text
+          // Draw store name text - positioned with equal padding top and bottom
+          // The text will be drawn from its top, so storeNameY is at top padding
+          // Since backgroundHeight = storeNameHeight + (backgroundPadding * 2),
+          // this ensures equal padding on top and bottom
           ctx.fillText(storeName, storeNameX, storeNameY);
         }
         
         // Draw footer overlay (centered, at the bottom, as overlay on top of image)
         const footerY = canvasHeight - footerHeight;
         
-        // Draw gradient background for maximum contrast and visibility
-        // Creates a smooth fade from transparent to semi-opaque at the bottom
+        // Draw gradient background for maximum contrast and visibility (light theme)
+        // Creates a smooth fade from transparent to semi-opaque light at the bottom
         const footerGradient = ctx.createLinearGradient(0, footerY, 0, canvasHeight);
-        footerGradient.addColorStop(0, "rgba(0, 0, 0, 0)"); // Fully transparent at top
-        footerGradient.addColorStop(0.3, "rgba(0, 0, 0, 0.4)"); // Start fading
-        footerGradient.addColorStop(0.7, "rgba(0, 0, 0, 0.75)"); // More opaque
-        footerGradient.addColorStop(1, "rgba(0, 0, 0, 0.85)"); // Most opaque at bottom
+        footerGradient.addColorStop(0, "rgba(255, 255, 255, 0)"); // Fully transparent at top
+        footerGradient.addColorStop(0.3, "rgba(255, 255, 255, 0.4)"); // Start fading
+        footerGradient.addColorStop(0.7, "rgba(255, 255, 255, 0.75)"); // More opaque
+        footerGradient.addColorStop(1, "rgba(255, 255, 255, 0.95)"); // Most opaque at bottom
         
         ctx.fillStyle = footerGradient;
         ctx.fillRect(0, footerY, canvasWidth, footerHeight);
         
-        // Additional solid background for text area for extra contrast
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        // Additional solid background for text area for extra contrast (light theme)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
         const textAreaHeight = copyrightHeight + (verticalPadding * 2);
         ctx.fillRect(0, canvasHeight - textAreaHeight, canvasWidth, textAreaHeight);
         
         // Configure text rendering for footer
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
-        ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-        ctx.shadowBlur = 6;
+        ctx.shadowColor = "rgba(0, 0, 0, 0.25)"; // Dark shadow for dark text on light background
+        ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 1;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.95)"; // Slightly transparent white
+        ctx.fillStyle = "#1E293B"; // Dark slate for maximum contrast on light background (fully opaque)
         ctx.font = copyrightFont;
         
         // Draw copyright text in footer
