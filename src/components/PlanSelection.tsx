@@ -363,13 +363,6 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                          `$${plan.monthlyEquivalent}/month billed annually`}
                       </p>
                     )}
-                    {plan.trialDays && plan.trialDays > 0 && (
-                      <p className="text-xs text-primary font-semibold mt-2 inline-flex items-center gap-1 px-2 py-1 bg-primary/10 rounded border border-primary/20">
-                        <Sparkle className="w-3 h-3" />
-                        {t("planSelection.trialDays", { days: plan.trialDays }) || 
-                         `${plan.trialDays} days free trial`}
-                      </p>
-                    )}
                   </div>
 
                   {/* Features - Flex grow to fill space */}
