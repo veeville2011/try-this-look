@@ -46,7 +46,6 @@ import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
 import NavigationBar from "@/components/NavigationBar";
-import TrialNotificationBanner from "@/components/TrialNotificationBanner";
 import CreditBalance from "@/components/CreditBalance";
 
 const Index = () => {
@@ -1079,15 +1078,6 @@ const Index = () => {
           <header className="relative bg-card border-b border-border min-h-[calc(100vh-56px)] flex items-center" role="banner">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
           <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
-            {/* Trial Notification Banner */}
-            <div className="mb-6">
-              <TrialNotificationBanner
-                onApprovalInitiated={() => {
-                  refreshSubscription();
-                }}
-              />
-            </div>
-
             {/* Main Hero Content - Grid Layout with Plan Info on Right */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
               {/* Left Section - Hero Content */}
@@ -1191,30 +1181,6 @@ const Index = () => {
                                   : subscription.plan.interval}
                               </p>
                             </div>
-                          )}
-                        </div>
-
-                        {/* Trial Days Remaining - Single line display */}
-                        <div className="min-h-[36px] flex items-center">
-                          {subscription.subscription?.isInTrial &&
-                          subscription.subscription?.trialDaysRemaining !== null ? (
-                            <div className="w-full px-2.5 py-1.5 bg-primary/5 border border-primary/20 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0" aria-hidden="true" />
-                                <p className="text-xs font-medium text-foreground">
-                                  <span className="text-muted-foreground">{t("index.planCard.trialPeriod")}</span>
-                                  {" "}
-                                  <span className="font-bold text-primary">
-                                    {subscription.subscription.trialDaysRemaining}{" "}
-                                    {subscription.subscription.trialDaysRemaining === 1
-                                      ? t("index.planCard.trialDayRemaining")
-                                      : t("index.planCard.trialDaysRemaining")}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="w-full" aria-hidden="true" />
                           )}
                         </div>
 

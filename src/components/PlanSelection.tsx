@@ -364,6 +364,19 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           : (t("planSelection.annualPeriod") || "year")}
                       </span>
                     </div>
+                    {/* Monthly equivalent for annual plans */}
+                    {selectedInterval === "annual" && plan.monthlyEquivalent && plan.monthlyEquivalent > 0 && plan.interval === "ANNUAL" && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
+                         `$${plan.monthlyEquivalent}/month billed annually`}
+                      </p>
+                    )}
+                    {/* Overage information */}
+                    {plan.hasOverage && plan.limits?.costPerGeneration && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("planSelection.overageRate", { rate: plan.limits.costPerGeneration })}
+                      </p>
+                    )}
                   </div>
 
                   {/* Features - Flex grow to fill space */}

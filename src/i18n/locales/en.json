@@ -50,7 +50,8 @@
     "getStarted": "Get Started",
     "noPlans": "No plans available at this time.",
     "free": "Free",
-    "yearlySavings": "Save ${{amount}}/year"
+    "yearlySavings": "Save ${{amount}}/year",
+    "overageRate": "Overage: ${{rate}}/credit"
   },
   "coupon": {
     "redeemTitle": "Coupon code",

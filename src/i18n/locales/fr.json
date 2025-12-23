@@ -50,7 +50,8 @@
     "getStarted": "Commencer",
     "noPlans": "Aucun plan disponible pour le moment.",
     "free": "Gratuit",
-    "yearlySavings": "Économisez {{amount}} $/an"
+    "yearlySavings": "Économisez {{amount}} $/an",
+    "overageRate": "Dépassement : {{rate}} $/crédit"
   },
   "coupon": {
     "redeemTitle": "Code promo",
