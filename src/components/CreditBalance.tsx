@@ -97,7 +97,7 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
     );
   }
 
-  if (error || !credits) {
+  if (error) {
     const ErrorWrapper = variant === "embedded" ? "div" : Card;
     const errorWrapperProps = variant === "embedded" 
       ? { className: "space-y-2" }
@@ -131,6 +131,24 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
           </Alert>
         )}
       </ErrorWrapper>
+    );
+  }
+
+  // Show loading/empty state if credits is null or undefined
+  if (!credits) {
+    return (
+      <div className="p-8 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
+        <div className="text-center space-y-2">
+          <Coins
+            className="w-8 h-8 text-muted-foreground mx-auto opacity-50"
+            aria-hidden="true"
+          />
+          <p className="text-sm text-muted-foreground">
+            {t("index.planCard.creditsAvailableAfterUpgrade") ||
+              "Credits available after upgrade"}
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -191,12 +209,18 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
     },
   };
 
+  // Filter out empty credit types for display (but still show if at least one has data)
+  const hasCreditData = credits.creditTypes && Object.keys(credits.creditTypes).length > 0 && 
+    Object.values(credits.creditTypes).some((type: any) => 
+      type.credited > 0 || type.balance > 0 || type.used > 0
+    );
+
   const content = (
     <div className="space-y-6">
       {/* Credit Types Table and Overage Table - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Credit Types Table */}
-        {credits.creditTypes && Object.keys(credits.creditTypes).length > 0 && (
+        {credits.creditTypes && Object.keys(credits.creditTypes).length > 0 ? (
           <div className="space-y-3 flex flex-col h-full">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -375,6 +399,26 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                   </TableRow>
                 </TableBody>
               </Table>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 flex flex-col h-full">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("credits.balanceCard.breakdown") || "Credit Breakdown"}
+              </h3>
+            </div>
+            <div className="rounded-lg border border-border overflow-hidden flex-1 flex flex-col min-h-[400px] p-8 flex items-center justify-center">
+              <div className="text-center space-y-2">
+                <Coins
+                  className="w-8 h-8 text-muted-foreground mx-auto opacity-50"
+                  aria-hidden="true"
+                />
+                <p className="text-sm text-muted-foreground">
+                  {t("credits.balanceCard.noCreditData") || "No credit data available"}
+                </p>
+              </div>
             </div>
           </div>
         )}
