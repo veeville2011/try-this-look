@@ -213,15 +213,15 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-6">
+    <div className="w-full mx-auto px-4 sm:px-6 pt-4 pb-6">
       {/* Back Button - Only show for subscribed users */}
       {hasActiveSubscription && onBack && (
         <div className="mb-4">
           <Button
-            variant="ghost"
+            variant="primary"
             size="sm"
             onClick={onBack}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             {t("planSelection.back")}
@@ -264,7 +264,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
         </Tabs>
       </div>
 
-      {/* Plans Grid */}
+      {/* Plans Grid - Using flexbox for equal heights and alignment */}
       {organizedPlans.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {organizedPlans.map(({ tier, plans }) => {
@@ -278,21 +278,22 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
             return (
               <Card
                 key={`${tier}-${selectedInterval}`}
-                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl ${
+                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col ${
                   isPopular ? "ring-2 ring-primary ring-offset-2" : ""
                 }`}
               >
                 {/* Popular Badge */}
                 {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                     <Badge className="bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
                       {t("planSelection.popular") || "Most Popular"}
                     </Badge>
                   </div>
                 )}
 
-                <CardHeader className="text-center pb-3 pt-6">
-                  <div className="flex items-center justify-center gap-2 mb-2">
+                {/* Header - Fixed height */}
+                <CardHeader className="text-center pb-3 pt-6 flex-shrink-0">
+                  <div className="flex items-center justify-center gap-2 mb-2 min-h-[2rem]">
                     <div className="flex items-center gap-2">
                       {getTierIcon(tier)}
                       <CardTitle className="text-xl font-bold text-foreground">
@@ -301,36 +302,34 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                     </div>
                   </div>
                   
-                  {/* Savings Badge */}
-                  {plan.yearlySavings && plan.yearlySavings > 0 && (
-                    <Badge
-                      variant="default"
-                      className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700 px-2 py-0.5 text-xs font-semibold mb-2"
-                    >
-                      Save ${plan.yearlySavings}/year
-                    </Badge>
-                  )}
+                  {/* Badges - Fixed height container */}
+                  <div className="min-h-[1.5rem] flex items-center justify-center">
+                    {/* Savings Badge */}
+                    {plan.yearlySavings && plan.yearlySavings > 0 && (
+                      <Badge
+                        variant="default"
+                        className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700 px-2 py-0.5 text-xs font-semibold"
+                      >
+                        Save ${plan.yearlySavings}/year
+                      </Badge>
+                    )}
 
-                  {/* Free Badge */}
-                  {plan.isFree && (
-                    <Badge
-                      variant="default"
-                      className="bg-muted text-muted-foreground px-2 py-0.5 text-xs font-semibold mb-2"
-                    >
-                      Free
-                    </Badge>
-                  )}
-
-                  {plan.description && (
-                    <CardDescription className="text-xs text-muted-foreground mt-2">
-                      {plan.description}
-                    </CardDescription>
-                  )}
+                    {/* Free Badge */}
+                    {plan.isFree && (
+                      <Badge
+                        variant="default"
+                        className="bg-muted text-muted-foreground px-2 py-0.5 text-xs font-semibold"
+                      >
+                        Free
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4 px-4 pb-5">
-                  {/* Pricing */}
-                  <div className="text-center border-b border-border pb-4">
+                {/* Content - Flex grow to push button to bottom */}
+                <CardContent className="flex flex-col flex-grow px-4 pb-5">
+                  {/* Pricing - Fixed height */}
+                  <div className="text-center border-b border-border pb-4 flex-shrink-0">
                     <div className="flex items-baseline justify-center gap-2 mb-1">
                       <span className="text-3xl sm:text-4xl font-bold text-foreground">
                         ${plan.price}
@@ -356,8 +355,8 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                     )}
                   </div>
 
-                  {/* Features */}
-                  <div className="space-y-2">
+                  {/* Features - Flex grow to fill space */}
+                  <div className="flex-grow py-4">
                     <ul className="space-y-2">
                       {plan.features.map((feature, index) => (
                         <li
@@ -373,10 +372,10 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                     </ul>
                   </div>
 
-                  {/* CTA Button or Current Plan Badge */}
-                  <div className="pt-2">
+                  {/* CTA Button - Fixed at bottom */}
+                  <div className="mt-auto pt-4 flex-shrink-0">
                     {isSubscribed ? (
-                      <div className="flex items-center justify-center w-full h-10 px-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-center w-full h-11 px-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                         <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 mr-2" />
                         <span className="text-xs font-semibold text-green-700 dark:text-green-400">
                           {t("planSelection.currentPlan") || "Current Plan"}
@@ -386,7 +385,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       <Button
                         onClick={() => handleSelectPlan(plan.handle)}
                         disabled={loading}
-                        className={`w-full h-10 text-xs font-semibold ${colors.button} text-white`}
+                        className={`w-full h-11 text-xs font-semibold ${colors.button} text-white`}
                         size="lg"
                       >
                         {loading 
