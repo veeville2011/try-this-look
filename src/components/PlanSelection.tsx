@@ -4,7 +4,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Sparkle, CheckCircle2, ArrowLeft, Crown, Zap, TrendingUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface PlanLimits {
   includedCredits: number;
@@ -306,15 +305,6 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                 key={`${tier}-${selectedInterval}`}
                 className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col`}
               >
-                {/* Popular Badge */}
-                {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                    <Badge className="bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
-                      {t("planSelection.popular") || "Most Popular"}
-                    </Badge>
-                  </div>
-                )}
-
                 {/* Header - Fixed height */}
                 <CardHeader className="text-center pb-3 pt-6 flex-shrink-0">
                   <div className="flex items-center justify-center gap-2 mb-2 min-h-[2rem]">
@@ -324,29 +314,6 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                         {plan.name}
                       </CardTitle>
                     </div>
-                  </div>
-                  
-                  {/* Badges - Fixed height container */}
-                  <div className="min-h-[1.5rem] flex items-center justify-center">
-                    {/* Savings Badge */}
-                    {plan.yearlySavings && plan.yearlySavings > 0 && (
-                      <Badge
-                        variant="default"
-                        className="bg-primary/10 text-primary border-primary/20 px-2 py-0.5 text-xs font-semibold"
-                      >
-                        {t("planSelection.yearlySavings", { amount: plan.yearlySavings })}
-                      </Badge>
-                    )}
-
-                    {/* Free Badge */}
-                    {plan.isFree && (
-                      <Badge
-                        variant="default"
-                        className="bg-muted text-muted-foreground px-2 py-0.5 text-xs font-semibold"
-                      >
-                        {t("planSelection.free")}
-                      </Badge>
-                    )}
                   </div>
                 </CardHeader>
 
