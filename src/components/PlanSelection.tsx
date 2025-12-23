@@ -71,6 +71,7 @@ interface PlanSelectionProps {
 const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onBack }: PlanSelectionProps) => {
   const { t } = useTranslation();
   const [selectedInterval, setSelectedInterval] = useState<"monthly" | "annual">("annual");
+  const [loadingPlanHandle, setLoadingPlanHandle] = useState<string | null>(null);
 
   // Normalize plans data - handle both array and object response
   const plansData = useMemo(() => {
@@ -173,8 +174,16 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
   };
 
   const handleSelectPlan = (planHandle: string) => {
+    setLoadingPlanHandle(planHandle);
     onSelectPlan(planHandle);
   };
+
+  // Clear loading state when global loading becomes false
+  useEffect(() => {
+    if (!loading) {
+      setLoadingPlanHandle(null);
+    }
+  }, [loading]);
 
   // Get tier icon
   const getTierIcon = (tier: string) => {
@@ -247,7 +256,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
 
       {/* Heading and Description - Left aligned above cards */}
       <div className="mb-6">
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+        <h2 id="plan-selection-title" className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
           {t("planSelection.title")}
         </h2>
         <p className="text-sm sm:text-base text-muted-foreground">
@@ -386,11 +395,11 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                     ) : (
                       <Button
                         onClick={() => handleSelectPlan(plan.handle)}
-                        disabled={loading}
+                        disabled={loadingPlanHandle === plan.handle}
                         className={`w-full h-11 text-xs font-semibold ${colors.button} text-primary-foreground`}
                         size="lg"
                       >
-                        {loading 
+                        {loadingPlanHandle === plan.handle
                           ? (t("planSelection.processing") || "Processing...")
                           : plan.isFree
                           ? (t("planSelection.getStarted") || "Get Started")

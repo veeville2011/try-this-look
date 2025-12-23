@@ -85,6 +85,28 @@ const Index = () => {
     refresh: refreshCredits,
   } = useCredits();
 
+  // Lock body scroll when plan selection modal is open
+  useEffect(() => {
+    if (showPlanSelection) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      // Lock body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scroll position when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showPlanSelection]);
+
   const CreditsBalanceSkeleton = () => (
     <div
       className="p-6 sm:p-8 rounded-lg bg-muted/20 border border-border/40 min-h-[200px]"
@@ -1884,8 +1906,26 @@ const Index = () => {
 
       {/* Plan Selection UI - Modal Overlay */}
       {showPlanSelection && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-[95vw] max-h-[95vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            // Prevent closing on backdrop click - only allow closing via back button
+            e.stopPropagation();
+          }}
+          onKeyDown={(e) => {
+            // Prevent keyboard interaction with parent page
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+            }
+          }}
+        >
+          <div 
+            className="bg-card border border-border rounded-lg shadow-lg w-full max-w-[95vw] max-h-[95vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plan-selection-title"
+          >
             <PlanSelection
               plans={availablePlans}
               onSelectPlan={handleSelectPlan}
