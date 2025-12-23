@@ -474,11 +474,10 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
               </Table>
             </div>
           </div>
-        )}
 
           {/* Overage Information Table */}
           {hasOverage && (
-          <div className="space-y-3 flex flex-col h-full">
+            <div className="space-y-3 flex flex-col h-full">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-warning" />
               <h3 className="text-sm font-semibold text-foreground">
@@ -585,7 +584,8 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Alerts */}
       {isExhausted && (
