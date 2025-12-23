@@ -1412,21 +1412,8 @@ const Index = () => {
                         {t("credits.balanceCard.title") || "Credit Balance"}
                       </h2>
                     </div>
-                    {/* Credits Table - Clean tabular UI */}
-                    {subscription.isFree ? (
-                      <div className="p-8 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
-                        <div className="text-center space-y-2">
-                          <Coins
-                            className="w-8 h-8 text-muted-foreground mx-auto opacity-50"
-                            aria-hidden="true"
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            {t("index.planCard.creditsAvailableAfterUpgrade") ||
-                              "Credits available after upgrade"}
-                          </p>
-                        </div>
-                      </div>
-                    ) : creditsLoading ? (
+                    {/* Credits Table - Clean tabular UI - Always show for UI consistency */}
+                    {creditsLoading ? (
                       <CreditsBalanceSkeleton />
                     ) : creditsError ? (
                       <div
@@ -1441,7 +1428,7 @@ const Index = () => {
                           />
                           <p className="text-sm text-foreground">
                             {t("credits.balanceCard.errorMessage") ||
-                              "We couldn’t load your credits. Please try again."}
+                              "We couldn't load your credits. Please try again."}
                           </p>
                         </div>
                       </div>
