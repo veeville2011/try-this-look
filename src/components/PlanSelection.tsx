@@ -1,10 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkle, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Check, Sparkle, CheckCircle2, ArrowLeft, Crown, Zap, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+interface PlanLimits {
+  includedCredits: number;
+  processingPriority: string;
+  imageQuality: string;
+  supportLevel: string;
+  analyticsLevel: string;
+  apiAccess: boolean;
+  costPerGeneration: number;
+}
 
 interface Plan {
   name: string;
@@ -16,6 +26,23 @@ interface Plan {
   monthlyEquivalent?: number;
   description?: string;
   features: string[];
+  isFree?: boolean;
+  hasOverage?: boolean;
+  yearlySavings?: number | null;
+  limits?: PlanLimits;
+}
+
+interface PlanTiers {
+  free?: Plan[];
+  starter?: Plan[];
+  growth?: Plan[];
+  pro?: Plan[];
+}
+
+interface PlansResponse {
+  plans: Plan[];
+  planTiers?: PlanTiers;
+  totalPlans?: number;
 }
 
 interface SubscriptionStatus {
@@ -34,7 +61,7 @@ interface SubscriptionStatus {
 }
 
 interface PlanSelectionProps {
-  plans: Plan[];
+  plans: Plan[] | PlansResponse;
   onSelectPlan: (planHandle: string) => void;
   loading?: boolean;
   subscription?: SubscriptionStatus | null;
@@ -45,15 +72,22 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
   const { t } = useTranslation();
   const [selectedInterval, setSelectedInterval] = useState<"monthly" | "annual">("annual");
 
+  // Normalize plans data - handle both array and object response
+  const plansData = useMemo(() => {
+    if (Array.isArray(plans)) {
+      return { plans, planTiers: undefined };
+    }
+    return plans as PlansResponse;
+  }, [plans]);
+
+  const allPlans = plansData.plans || [];
+  const planTiers = plansData.planTiers;
+
   // Check if user has an active subscription (for showing back button)
   const hasActiveSubscription = 
     subscription?.subscription !== null &&
     subscription?.hasActiveSubscription &&
     !subscription?.isFree;
-
-  // Separate plans by interval
-  const monthlyPlan = plans.find((p) => p.interval === "EVERY_30_DAYS");
-  const annualPlan = plans.find((p) => p.interval === "ANNUAL");
 
   // Auto-select the interval tab based on subscription if available
   useEffect(() => {
@@ -66,25 +100,120 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     }
   }, [subscription?.plan?.interval]);
 
-  const currentPlan = selectedInterval === "monthly" ? monthlyPlan : annualPlan;
+  // Get plans filtered by interval
+  const filteredPlans = useMemo(() => {
+    const interval = selectedInterval === "monthly" ? "EVERY_30_DAYS" : "ANNUAL";
+    return allPlans.filter((p) => p.interval === interval);
+  }, [allPlans, selectedInterval]);
 
-  // Check if user is subscribed and if this plan matches their subscription
-  // Match by plan name and interval (since subscription doesn't have handle)
-  const isSubscribedToThisPlan = 
-    subscription?.subscription !== null &&
-    subscription?.hasActiveSubscription &&
-    !subscription?.isFree &&
-    subscription?.plan?.name === currentPlan?.name &&
-    subscription?.plan?.interval === currentPlan?.interval;
+  // Organize plans by tier if planTiers exists, otherwise group by name
+  const organizedPlans = useMemo(() => {
+    if (planTiers) {
+      // Use planTiers structure
+      const tiers: { tier: string; plans: Plan[] }[] = [];
+      
+      if (planTiers.free) {
+        const freePlan = planTiers.free.find((p) => p.interval === (selectedInterval === "monthly" ? "EVERY_30_DAYS" : "ANNUAL"));
+        if (freePlan) tiers.push({ tier: "free", plans: [freePlan] });
+      }
+      if (planTiers.starter) {
+        const starterPlan = planTiers.starter.find((p) => p.interval === (selectedInterval === "monthly" ? "EVERY_30_DAYS" : "ANNUAL"));
+        if (starterPlan) tiers.push({ tier: "starter", plans: [starterPlan] });
+      }
+      if (planTiers.growth) {
+        const growthPlan = planTiers.growth.find((p) => p.interval === (selectedInterval === "monthly" ? "EVERY_30_DAYS" : "ANNUAL"));
+        if (growthPlan) tiers.push({ tier: "growth", plans: [growthPlan] });
+      }
+      if (planTiers.pro) {
+        const proPlan = planTiers.pro.find((p) => p.interval === (selectedInterval === "monthly" ? "EVERY_30_DAYS" : "ANNUAL"));
+        if (proPlan) tiers.push({ tier: "pro", plans: [proPlan] });
+      }
+      
+      return tiers;
+    } else {
+      // Group by plan name
+      const grouped = new Map<string, Plan[]>();
+      filteredPlans.forEach((plan) => {
+        const existing = grouped.get(plan.name) || [];
+        grouped.set(plan.name, [...existing, plan]);
+      });
+      
+      return Array.from(grouped.entries()).map(([name, plans]) => ({
+        tier: name.toLowerCase(),
+        plans,
+      }));
+    }
+  }, [planTiers, filteredPlans, selectedInterval]);
 
-  const handleSelectPlan = () => {
-    if (currentPlan) {
-      onSelectPlan(currentPlan.handle);
+  // Check if user is subscribed to a specific plan
+  const isSubscribedToPlan = (plan: Plan) => {
+    return (
+      subscription?.subscription !== null &&
+      subscription?.hasActiveSubscription &&
+      !subscription?.isFree &&
+      subscription?.plan?.name === plan.name &&
+      subscription?.plan?.interval === plan.interval
+    );
+  };
+
+  const handleSelectPlan = (planHandle: string) => {
+    onSelectPlan(planHandle);
+  };
+
+  // Get tier icon
+  const getTierIcon = (tier: string) => {
+    switch (tier) {
+      case "free":
+        return <Sparkle className="w-5 h-5" />;
+      case "starter":
+        return <Zap className="w-5 h-5" />;
+      case "growth":
+        return <TrendingUp className="w-5 h-5" />;
+      case "pro":
+        return <Crown className="w-5 h-5" />;
+      default:
+        return <Sparkle className="w-5 h-5" />;
+    }
+  };
+
+  // Get tier color classes
+  const getTierColorClasses = (tier: string) => {
+    switch (tier) {
+      case "free":
+        return {
+          border: "border-border",
+          badge: "bg-muted text-muted-foreground",
+          button: "bg-primary hover:bg-primary/90",
+        };
+      case "starter":
+        return {
+          border: "border-blue-300 dark:border-blue-700",
+          badge: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+          button: "bg-blue-600 hover:bg-blue-700",
+        };
+      case "growth":
+        return {
+          border: "border-purple-300 dark:border-purple-700",
+          badge: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+          button: "bg-purple-600 hover:bg-purple-700",
+        };
+      case "pro":
+        return {
+          border: "border-amber-300 dark:border-amber-700",
+          badge: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+          button: "bg-amber-600 hover:bg-amber-700",
+        };
+      default:
+        return {
+          border: "border-border",
+          badge: "bg-muted text-muted-foreground",
+          button: "bg-primary hover:bg-primary/90",
+        };
     }
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 pt-4 pb-6">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-6">
       {/* Back Button - Only show for subscribed users */}
       {hasActiveSubscription && onBack && (
         <div className="mb-4">
@@ -100,17 +229,17 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
         </div>
       )}
 
-      <div className="text-center mb-4">
+      <div className="text-center mb-6">
         <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
-          {t("planSelection.title")}
+          {t("planSelection.title") || "Choose Your Plan"}
         </h2>
         <p className="text-sm sm:text-base text-muted-foreground">
-          {t("planSelection.subtitle")}
+          {t("planSelection.subtitle") || "Select the perfect plan for your needs"}
         </p>
       </div>
 
-      {/* Interval Tabs - Similar to Shopify Managed Pricing */}
-      <div className="flex justify-center mb-4">
+      {/* Interval Tabs */}
+      <div className="flex justify-center mb-6">
         <Tabs
           value={selectedInterval}
           onValueChange={(value) =>
@@ -123,114 +252,168 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
               value="monthly"
               className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm font-medium transition-all"
             >
-              {t("planSelection.monthly")}
+              {t("planSelection.monthly") || "Monthly"}
             </TabsTrigger>
             <TabsTrigger
               value="annual"
               className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm font-medium transition-all"
             >
-              {t("planSelection.annual")}
+              {t("planSelection.annual") || "Annual"}
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Plan Card */}
-      {currentPlan && (
-        <Card className="border-2 border-border shadow-xl bg-card max-w-md mx-auto">
-          <CardHeader className="text-center pb-3 pt-4">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">
-                {currentPlan.name}
-              </CardTitle>
-              {selectedInterval === "annual" && annualPlan?.monthlyEquivalent && (
-                <Badge
-                  variant="default"
-                  className="bg-primary/20 text-primary border-primary/30 px-2 py-0.5 text-xs font-semibold"
-                >
-                  {t("planSelection.save25")}
-                </Badge>
-              )}
-            </div>
-            {currentPlan.description && (
-              <CardDescription className="text-sm text-muted-foreground">
-                {currentPlan.description}
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4 px-5 pb-5">
-            {/* Pricing */}
-            <div className="text-center border-b border-border pb-4">
-              <div className="flex items-baseline justify-center gap-2 mb-1">
-                <span className="text-4xl sm:text-5xl font-bold text-foreground">
-                  ${selectedInterval === "monthly" ? currentPlan.price : currentPlan.price}
-                </span>
-                <span className="text-lg text-muted-foreground">
-                  /{selectedInterval === "monthly" ? t("planSelection.monthlyPeriod") : t("planSelection.annualPeriod")}
-                </span>
-              </div>
-              {selectedInterval === "annual" && annualPlan?.monthlyEquivalent && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("planSelection.billedAnnually", { price: `$${annualPlan.monthlyEquivalent}` })}
-                </p>
-              )}
-              {currentPlan.trialDays && (
-                <p className="text-xs text-primary font-semibold mt-2 inline-flex items-center gap-1 px-2 py-1 bg-primary/10 rounded border border-primary/20">
-                  <Sparkle className="w-3 h-3" />
-                  {t("planSelection.trialDays", { days: currentPlan.trialDays })}
-                </p>
-              )}
-            </div>
+      {/* Plans Grid */}
+      {organizedPlans.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {organizedPlans.map(({ tier, plans }) => {
+            const plan = plans[0]; // Get the plan for current interval
+            if (!plan) return null;
 
-            {/* Features */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground mb-2 flex items-center justify-center gap-1.5">
-                <Sparkle className="w-4 h-4 text-primary" />
-                {t("planSelection.featuresTitle")}
-              </p>
-              <ul className="space-y-1.5">
-                {currentPlan.features.map((feature, index) => (
-                  <li
-                    key={index}
-                    className="flex items-start gap-2 text-xs sm:text-sm"
-                  >
-                    <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground leading-snug">
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            const isSubscribed = isSubscribedToPlan(plan);
+            const colors = getTierColorClasses(tier);
+            const isPopular = tier === "growth";
 
-            {/* CTA Button or Current Plan Badge */}
-            <div className="pt-2">
-              {isSubscribedToThisPlan ? (
-                <div className="flex items-center justify-center w-full h-11 px-4 rounded-md bg-success/10 border border-success/30">
-                  <CheckCircle2 className="w-5 h-5 text-success mr-2" />
-                  <span className="text-sm font-semibold text-success">
-                    {t("planSelection.currentPlan")}
-                  </span>
-                </div>
-              ) : (
-                <Button
-                  onClick={handleSelectPlan}
-                  disabled={loading}
-                  className="w-full h-11 text-sm font-semibold"
-                  size="lg"
-                >
-                  {loading ? t("planSelection.processing") : t("planSelection.selectPlan")}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            return (
+              <Card
+                key={`${tier}-${selectedInterval}`}
+                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl ${
+                  isPopular ? "ring-2 ring-primary ring-offset-2" : ""
+                }`}
+              >
+                {/* Popular Badge */}
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
+                      {t("planSelection.popular") || "Most Popular"}
+                    </Badge>
+                  </div>
+                )}
+
+                <CardHeader className="text-center pb-3 pt-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      {getTierIcon(tier)}
+                      <CardTitle className="text-xl font-bold text-foreground">
+                        {plan.name}
+                      </CardTitle>
+                    </div>
+                  </div>
+                  
+                  {/* Savings Badge */}
+                  {plan.yearlySavings && plan.yearlySavings > 0 && (
+                    <Badge
+                      variant="default"
+                      className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700 px-2 py-0.5 text-xs font-semibold mb-2"
+                    >
+                      Save ${plan.yearlySavings}/year
+                    </Badge>
+                  )}
+
+                  {/* Free Badge */}
+                  {plan.isFree && (
+                    <Badge
+                      variant="default"
+                      className="bg-muted text-muted-foreground px-2 py-0.5 text-xs font-semibold mb-2"
+                    >
+                      Free
+                    </Badge>
+                  )}
+
+                  {plan.description && (
+                    <CardDescription className="text-xs text-muted-foreground mt-2">
+                      {plan.description}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+
+                <CardContent className="space-y-4 px-4 pb-5">
+                  {/* Pricing */}
+                  <div className="text-center border-b border-border pb-4">
+                    <div className="flex items-baseline justify-center gap-2 mb-1">
+                      <span className="text-3xl sm:text-4xl font-bold text-foreground">
+                        ${plan.price}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        /{selectedInterval === "monthly" 
+                          ? (t("planSelection.monthlyPeriod") || "month")
+                          : (t("planSelection.annualPeriod") || "year")}
+                      </span>
+                    </div>
+                    {selectedInterval === "annual" && plan.monthlyEquivalent && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
+                         `$${plan.monthlyEquivalent}/month billed annually`}
+                      </p>
+                    )}
+                    {plan.trialDays && plan.trialDays > 0 && (
+                      <p className="text-xs text-primary font-semibold mt-2 inline-flex items-center gap-1 px-2 py-1 bg-primary/10 rounded border border-primary/20">
+                        <Sparkle className="w-3 h-3" />
+                        {t("planSelection.trialDays", { days: plan.trialDays }) || 
+                         `${plan.trialDays} days free trial`}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Features */}
+                  <div className="space-y-2">
+                    <ul className="space-y-2">
+                      {plan.features.map((feature, index) => (
+                        <li
+                          key={index}
+                          className="flex items-start gap-2 text-xs"
+                        >
+                          <Check className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                          <span className="text-muted-foreground leading-snug">
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* CTA Button or Current Plan Badge */}
+                  <div className="pt-2">
+                    {isSubscribed ? (
+                      <div className="flex items-center justify-center w-full h-10 px-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                        <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 mr-2" />
+                        <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+                          {t("planSelection.currentPlan") || "Current Plan"}
+                        </span>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => handleSelectPlan(plan.handle)}
+                        disabled={loading}
+                        className={`w-full h-10 text-xs font-semibold ${colors.button} text-white`}
+                        size="lg"
+                      >
+                        {loading 
+                          ? (t("planSelection.processing") || "Processing...")
+                          : plan.isFree
+                          ? (t("planSelection.getStarted") || "Get Started")
+                          : (t("planSelection.selectPlan") || "Select Plan")}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            {t("planSelection.noPlans") || "No plans available at this time."}
+          </p>
+        </div>
       )}
 
       {/* Info Note */}
-      <div className="mt-4 text-center">
+      <div className="mt-6 text-center">
         <p className="text-xs text-muted-foreground">
-          {t("planSelection.infoNote")}
+          {t("planSelection.infoNote") || "All plans include our core features. Upgrade or downgrade at any time."}
         </p>
       </div>
     </div>

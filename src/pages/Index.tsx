@@ -61,7 +61,7 @@ const Index = () => {
 
   // Subscription state
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
-  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [availablePlans, setAvailablePlans] = useState<any[] | any>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -197,7 +197,16 @@ const Index = () => {
 
       // Use remote API service
       const data = await getAvailablePlans(shopDomain);
-      setAvailablePlans(Array.isArray(data.plans) ? data.plans : []);
+      
+      // Handle new API structure: can be array of plans or object with plans and planTiers
+      if (Array.isArray(data)) {
+        setAvailablePlans(data);
+      } else if (data.plans) {
+        // New structure with plans and planTiers
+        setAvailablePlans(data);
+      } else {
+        setAvailablePlans([]);
+      }
     } catch (error: any) {
       console.error("[Billing] Failed to load plans", error);
     }
@@ -211,7 +220,10 @@ const Index = () => {
       return;
     }
 
-    if (!availablePlans.length) {
+    const hasPlans = Array.isArray(availablePlans) 
+      ? availablePlans.length > 0 
+      : (availablePlans?.plans?.length > 0 || availablePlans?.planTiers);
+    if (!hasPlans) {
       await fetchAvailablePlans();
     }
 
@@ -434,7 +446,10 @@ const Index = () => {
 
   // Fetch plans on mount
   useEffect(() => {
-    if (availablePlans.length === 0) {
+    const hasPlans = Array.isArray(availablePlans) 
+      ? availablePlans.length > 0 
+      : (availablePlans?.plans?.length > 0 || availablePlans?.planTiers);
+    if (!hasPlans) {
       fetchAvailablePlans();
     }
   }, []);
