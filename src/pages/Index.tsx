@@ -1200,11 +1200,10 @@ const Index = () => {
                               ? t("index.planCard.upgradeToPremium")
                               : t("index.planCard.manageSubscription")}
                           </Button>
-                          {/* Cancel Button - Consistent spacing whether shown or not */}
+                          {/* Cancel Button - Show for all plans (user has right to cancel anytime) */}
                           <div className="min-h-[36px]">
                             {subscription && 
                              subscription.subscription !== null && 
-                             !subscription.isFree && 
                              subscription.subscription?.id ? (
                                 <>
                                   <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
