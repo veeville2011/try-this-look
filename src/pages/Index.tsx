@@ -1073,8 +1073,7 @@ const Index = () => {
       <NavigationBar />
 
       {/* Main Content - Always visible */}
-      <>
-          {/* Hero Section - Shopify Style */}
+      {/* Hero Section - Shopify Style */}
           <header className="relative bg-card border-b border-border min-h-[calc(100vh-56px)] flex items-center" role="banner">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
           <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
@@ -1855,7 +1854,6 @@ const Index = () => {
             </div>
           </div>
         </footer>
-      </>
 
       {/* Plan Selection UI - Modal Overlay */}
       {showPlanSelection && (
