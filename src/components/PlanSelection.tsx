@@ -347,31 +347,21 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                 <CardContent className="flex flex-col flex-grow px-4 pb-5">
                   {/* Pricing - Fixed height */}
                   <div className="text-center border-b border-border pb-4 flex-shrink-0">
-                    {plan.price === 0 || plan.isFree ? (
-                      <div className="mb-1">
-                        <span className="text-3xl sm:text-4xl font-bold text-foreground">
-                          {t("planSelection.free") || "Free"}
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-baseline justify-center gap-2 mb-1">
-                          <span className="text-3xl sm:text-4xl font-bold text-foreground">
-                            ${plan.price}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            /{plan.interval === "EVERY_30_DAYS" 
-                              ? (t("planSelection.monthlyPeriod") || "month")
-                              : (t("planSelection.annualPeriod") || "year")}
-                          </span>
-                        </div>
-                        {selectedInterval === "annual" && plan.monthlyEquivalent && plan.interval === "ANNUAL" && plan.monthlyEquivalent > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
-                             `$${plan.monthlyEquivalent}/month billed annually`}
-                          </p>
-                        )}
-                      </>
+                    <div className="flex items-baseline justify-center gap-2 mb-1">
+                      <span className="text-3xl sm:text-4xl font-bold text-foreground">
+                        ${plan.price}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        /{plan.interval === "EVERY_30_DAYS" 
+                          ? (t("planSelection.monthlyPeriod") || "month")
+                          : (t("planSelection.annualPeriod") || "year")}
+                      </span>
+                    </div>
+                    {selectedInterval === "annual" && plan.monthlyEquivalent && plan.monthlyEquivalent > 0 && plan.interval === "ANNUAL" && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
+                         `$${plan.monthlyEquivalent}/month billed annually`}
+                      </p>
                     )}
                     {plan.trialDays && plan.trialDays > 0 && (
                       <p className="text-xs text-primary font-semibold mt-2 inline-flex items-center gap-1 px-2 py-1 bg-primary/10 rounded border border-primary/20">
