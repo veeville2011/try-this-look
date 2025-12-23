@@ -44,19 +44,48 @@ interface PlansResponse {
   totalPlans?: number;
 }
 
+interface PlanLimits {
+  includedCredits: number;
+  processingPriority: string;
+  imageQuality: string;
+  supportLevel: string;
+  analyticsLevel: string;
+  apiAccess: boolean;
+  costPerGeneration: number;
+}
+
+interface SubscriptionPlan {
+  name: string;
+  handle: string;
+  price: number;
+  currencyCode: string;
+  interval: string;
+  trialDays?: number;
+  description?: string;
+  features?: string[];
+  limits?: PlanLimits;
+}
+
+interface SubscriptionDetails {
+  id: string;
+  status: string;
+  currentPeriodEnd: string;
+  approvedAt?: string;
+  planStartDate?: string;
+  currentPeriodStart: string;
+  createdAt: string;
+  name: string;
+  trialDays: number;
+  trialDaysRemaining: number;
+  isInTrial: boolean;
+}
+
 interface SubscriptionStatus {
-  subscription: {
-    id: string;
-    status: string;
-  } | null;
-  plan: {
-    name: string;
-    price: number;
-    currencyCode: string;
-    interval: string;
-  } | null;
+  requestId?: string;
   hasActiveSubscription: boolean;
   isFree: boolean;
+  plan: SubscriptionPlan | null;
+  subscription: SubscriptionDetails | null;
 }
 
 interface PlanSelectionProps {
@@ -84,10 +113,10 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
   const planTiers = plansData.planTiers;
 
   // Check if user has an active subscription (for showing back button)
+  // Show back button if user has any active subscription (including free plan)
   const hasActiveSubscription = 
     subscription?.subscription !== null &&
-    subscription?.hasActiveSubscription &&
-    !subscription?.isFree;
+    subscription?.hasActiveSubscription === true;
 
   // Auto-select the interval tab based on subscription if available
   useEffect(() => {
@@ -162,14 +191,26 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
   }, [planTiers, filteredPlans, selectedInterval, allPlans]);
 
   // Check if user is subscribed to a specific plan
+  // This includes free plans - if user has free plan active, show as subscribed
   const isSubscribedToPlan = (plan: Plan) => {
-    return (
-      subscription?.subscription !== null &&
-      subscription?.hasActiveSubscription &&
-      !subscription?.isFree &&
-      subscription?.plan?.name === plan.name &&
-      subscription?.plan?.interval === plan.interval
-    );
+    if (!subscription || !subscription.subscription || !subscription.plan) {
+      return false;
+    }
+    
+    // Check if subscription is active
+    if (!subscription.hasActiveSubscription) {
+      return false;
+    }
+    
+    // Match by plan name and interval (handle is more specific but name+interval is reliable)
+    const planMatches = 
+      subscription.plan.name === plan.name &&
+      subscription.plan.interval === plan.interval;
+    
+    // Also check by handle if available (more specific match)
+    const handleMatches = subscription.plan.handle === plan.handle;
+    
+    return planMatches || handleMatches;
   };
 
   const handleSelectPlan = (planHandle: string) => {

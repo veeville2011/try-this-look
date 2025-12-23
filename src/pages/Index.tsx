@@ -1141,10 +1141,10 @@ const Index = () => {
                               <Badge
                                 variant="outline"
                                 className="gap-1.5 text-xs px-2.5 py-1 font-medium"
-                                aria-label={t("index.planCard.freePlan")}
+                                aria-label={subscription.plan?.name || t("index.planCard.freePlan")}
                               >
                                 <Zap className="w-3 h-3" aria-hidden="true" />
-                                <span>{t("index.planCard.freePlan")}</span>
+                                <span>{subscription.plan?.name || t("index.planCard.freePlan")}</span>
                               </Badge>
                             ) : (
                               <Badge
@@ -1156,7 +1156,7 @@ const Index = () => {
                                 <span>{subscription.plan?.name || t("index.planCard.premiumPlan")}</span>
                               </Badge>
                             )}
-                            {subscription.hasActiveSubscription && !subscription.isFree && (
+                            {subscription.hasActiveSubscription && (
                               <Badge
                                 variant="secondary"
                                 className="gap-1.5 bg-success/10 text-success border-success/20 text-xs px-2.5 py-1 font-medium"
