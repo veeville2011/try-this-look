@@ -390,28 +390,24 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {data.credited > 0 ? (
-                            <div className="flex items-center justify-end">
-                              <RadialProgress
-                                value={data.used}
-                                max={data.credited}
-                                size="sm"
-                                color={
-                                  isEmpty 
-                                    ? "muted" 
-                                    : typeUsagePercentage >= 90 
-                                      ? "destructive" 
-                                      : typeUsagePercentage >= 70 
-                                        ? "warning" 
-                                        : "primary"
-                                }
-                                showLabel={true}
-                                labelPosition="center"
-                              />
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
+                          <div className="flex items-center justify-end">
+                            <RadialProgress
+                              value={data.used}
+                              max={data.credited > 0 ? data.credited : 1}
+                              size="sm"
+                              color={
+                                isEmpty 
+                                  ? "muted" 
+                                  : typeUsagePercentage >= 90 
+                                    ? "destructive" 
+                                    : typeUsagePercentage >= 70 
+                                      ? "warning" 
+                                      : "primary"
+                              }
+                              showLabel={true}
+                              labelPosition="center"
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -448,26 +444,22 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {totalCredited > 0 ? (
-                        <div className="flex items-center justify-end">
-                          <RadialProgress
-                            value={totalUsed}
-                            max={totalCredited}
-                            size="sm"
-                            color={
-                              isExhausted 
-                                ? "destructive" 
-                                : isLow 
-                                  ? "warning" 
-                                  : "primary"
-                            }
-                            showLabel={true}
-                            labelPosition="center"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <div className="flex items-center justify-end">
+                        <RadialProgress
+                          value={totalUsed}
+                          max={totalCredited > 0 ? totalCredited : 1}
+                          size="sm"
+                          color={
+                            isExhausted 
+                              ? "destructive" 
+                              : isLow 
+                                ? "warning" 
+                                : "primary"
+                          }
+                          showLabel={true}
+                          labelPosition="center"
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 </TableBody>
