@@ -248,10 +248,10 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       {/* Heading and Description - Left aligned above cards */}
       <div className="mb-6">
         <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-          Choisissez votre plan
+          {t("planSelection.title")}
         </h2>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Sélectionnez le plan qui correspond le mieux à vos besoins
+          {t("planSelection.subtitle")}
         </p>
       </div>
 
@@ -295,9 +295,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
             return (
               <Card
                 key={`${tier}-${selectedInterval}`}
-                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col ${
-                  isPopular ? "ring-2 ring-primary ring-offset-2" : ""
-                }`}
+                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col`}
               >
                 {/* Popular Badge */}
                 {isPopular && (
@@ -327,7 +325,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                         variant="default"
                         className="bg-primary/10 text-primary border-primary/20 px-2 py-0.5 text-xs font-semibold"
                       >
-                        Save ${plan.yearlySavings}/year
+                        {t("planSelection.yearlySavings", { amount: plan.yearlySavings })}
                       </Badge>
                     )}
 
@@ -337,7 +335,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                         variant="default"
                         className="bg-muted text-muted-foreground px-2 py-0.5 text-xs font-semibold"
                       >
-                        Free
+                        {t("planSelection.free")}
                       </Badge>
                     )}
                   </div>
@@ -357,12 +355,6 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           : (t("planSelection.annualPeriod") || "year")}
                       </span>
                     </div>
-                    {selectedInterval === "annual" && plan.monthlyEquivalent && plan.monthlyEquivalent > 0 && plan.interval === "ANNUAL" && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
-                         `$${plan.monthlyEquivalent}/month billed annually`}
-                      </p>
-                    )}
                   </div>
 
                   {/* Features - Flex grow to fill space */}

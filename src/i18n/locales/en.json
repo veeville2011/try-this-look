@@ -45,7 +45,12 @@
     "currentPlan": "Current Plan",
     "processing": "Processing...",
     "back": "Back",
-    "infoNote": "You can modify or cancel your plan at any time from your Shopify admin."
+    "infoNote": "You can modify or cancel your plan at any time from your Shopify admin.",
+    "popular": "Most Popular",
+    "getStarted": "Get Started",
+    "noPlans": "No plans available at this time.",
+    "free": "Free",
+    "yearlySavings": "Save ${{amount}}/year"
   },
   "coupon": {
     "redeemTitle": "Coupon code",

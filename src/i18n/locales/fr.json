@@ -45,7 +45,12 @@
     "currentPlan": "Plan actuel",
     "processing": "Traitement...",
     "back": "Retour",
-    "infoNote": "Vous pouvez modifier ou annuler votre plan à tout moment depuis votre admin Shopify."
+    "infoNote": "Vous pouvez modifier ou annuler votre plan à tout moment depuis votre admin Shopify.",
+    "popular": "Le Plus Populaire",
+    "getStarted": "Commencer",
+    "noPlans": "Aucun plan disponible pour le moment.",
+    "free": "Gratuit",
+    "yearlySavings": "Économisez {{amount}} $/an"
   },
   "coupon": {
     "redeemTitle": "Code promo",
