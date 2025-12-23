@@ -412,56 +412,6 @@ const CreditBalance = ({ variant = "standalone" }: CreditBalanceProps) => {
                       </TableRow>
                     );
                   })}
-                  {/* Total Row */}
-                  <TableRow className="bg-muted/50 border-t-2 border-border font-semibold">
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Coins className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-bold text-foreground">
-                          {t("credits.balanceCard.totalCredits") || "Total"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(
-                        "text-sm font-bold",
-                        isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-primary"
-                      )}>
-                        {totalCredited.toLocaleString()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="text-sm font-bold text-foreground">
-                        {totalUsed.toLocaleString()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(
-                        "text-sm font-bold",
-                        isExhausted ? "text-destructive" : isLow ? "text-warning" : "text-success"
-                      )}>
-                        {totalBalance.toLocaleString()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end">
-                        <RadialProgress
-                          value={totalUsed}
-                          max={totalCredited > 0 ? totalCredited : 1}
-                          size="sm"
-                          color={
-                            isExhausted 
-                              ? "destructive" 
-                              : isLow 
-                                ? "warning" 
-                                : "primary"
-                          }
-                          showLabel={true}
-                          labelPosition="center"
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
                 </TableBody>
               </Table>
             </div>
