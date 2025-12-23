@@ -230,65 +230,60 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
 
   return (
     <div className="w-full mx-auto px-4 sm:px-6 pt-4 pb-6">
-      <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
-        {/* Left Side - Heading, Description, and Back Button */}
-        <div className="flex-shrink-0 lg:w-80">
-          {/* Back Button - Only show for subscribed users */}
-          {hasActiveSubscription && onBack && (
-            <div className="mb-6">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={onBack}
-                className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {t("planSelection.back")}
-              </Button>
-            </div>
-          )}
-
-          <div className="mb-6 lg:mb-0">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-              Choisissez votre plan
-            </h2>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Sélectionnez le plan qui correspond le mieux à vos besoins
-            </p>
-          </div>
+      {/* Back Button - Only show for subscribed users */}
+      {hasActiveSubscription && onBack && (
+        <div className="mb-4">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onBack}
+            className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {t("planSelection.back")}
+          </Button>
         </div>
+      )}
 
-        {/* Right Side - Tabs and Cards */}
-        <div className="flex-1 min-w-0">
-          {/* Interval Tabs */}
-          <div className="flex justify-center mb-6">
-            <Tabs
-              value={selectedInterval}
-              onValueChange={(value) =>
-                setSelectedInterval(value as "monthly" | "annual")
-              }
-              className="w-full max-w-xs"
+      {/* Heading and Description - Left aligned above cards */}
+      <div className="mb-6">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+          Choisissez votre plan
+        </h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Sélectionnez le plan qui correspond le mieux à vos besoins
+        </p>
+      </div>
+
+      {/* Interval Tabs */}
+      <div className="flex justify-center mb-6">
+        <Tabs
+          value={selectedInterval}
+          onValueChange={(value) =>
+            setSelectedInterval(value as "monthly" | "annual")
+          }
+          className="w-full max-w-xs"
+        >
+          <TabsList className="grid w-full grid-cols-2 bg-muted p-1.5 h-12">
+            <TabsTrigger
+              value="monthly"
+              className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm font-medium transition-all"
             >
-              <TabsList className="grid w-full grid-cols-2 bg-muted p-1.5 h-12">
-                <TabsTrigger
-                  value="monthly"
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm font-medium transition-all"
-                >
-                  {t("planSelection.monthly") || "Monthly"}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="annual"
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm font-medium transition-all"
-                >
-                  {t("planSelection.annual") || "Annual"}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+              {t("planSelection.monthly") || "Monthly"}
+            </TabsTrigger>
+            <TabsTrigger
+              value="annual"
+              className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm font-medium transition-all"
+            >
+              {t("planSelection.annual") || "Annual"}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-          {/* Plans Grid - Using flexbox for equal heights and alignment */}
-          {organizedPlans.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Plans Grid - Using flexbox for equal heights and alignment */}
+      {organizedPlans.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {organizedPlans.map(({ tier, plans }) => {
             const plan = plans[0]; // Get the plan for current interval
             if (!plan) return null;
@@ -421,23 +416,21 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                 </CardContent>
               </Card>
             );
-            })}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                {t("planSelection.noPlans") || "No plans available at this time."}
-              </p>
-            </div>
-          )}
-
-          {/* Info Note */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              {t("planSelection.infoNote") || "All plans include our core features. Upgrade or downgrade at any time."}
-            </p>
-          </div>
+          })}
         </div>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            {t("planSelection.noPlans") || "No plans available at this time."}
+          </p>
+        </div>
+      )}
+
+      {/* Info Note */}
+      <div className="mt-6 text-center">
+        <p className="text-xs text-muted-foreground">
+          {t("planSelection.infoNote") || "All plans include our core features. Upgrade or downgrade at any time."}
+        </p>
       </div>
     </div>
   );
