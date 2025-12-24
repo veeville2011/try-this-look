@@ -284,7 +284,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
   };
 
   // Get feature category priority for consistent ordering across plans
-  // Order: 1. Resolution, 2. Credits, 3. Support, 4. Analytics, 5. Watermark, 6. Cost per generation
+  // Order: 1. Resolution, 2. Credits, 3. Support, 4. Analytics, 5. Watermark, 6. Other features, 7. Cost per generation (last)
   const getFeatureCategory = (feature: string): number => {
     const lowerFeature = normalizeFeature(feature);
     
@@ -322,15 +322,15 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       return 5;
     }
     
-    // 6. Cost per generation
+    // 6. Cost per generation - should be at the very end (highest priority number)
     if (lowerFeature.includes("cost per generation") || lowerFeature.includes("coût par génération") ||
         (lowerFeature.includes("cost") && lowerFeature.includes("generation")) ||
         (lowerFeature.includes("coût") && lowerFeature.includes("génération"))) {
-      return 6;
+      return 10;
     }
     
-    // Default: put other features at the end (priority 7)
-    return 7;
+    // Default: put other features before cost per generation (priority 6)
+    return 6;
   };
 
   // Process features for a plan (extracted logic for reuse)
