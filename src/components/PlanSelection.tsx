@@ -278,6 +278,104 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     }
   };
 
+  // Helper function to normalize feature strings for comparison
+  const normalizeFeature = (feature: string): string => {
+    return feature.toLowerCase().trim();
+  };
+
+  // Process features for a plan (extracted logic for reuse)
+  const processPlanFeatures = (plan: Plan, tier: string): string[] => {
+    const processedFeatures = plan.features.filter((feature) => {
+      const lowerFeature = feature.toLowerCase().trim();
+      
+      // Filter out existing image quality mentions (we'll add our own)
+      if (
+        lowerFeature.includes("watermarked") ||
+        lowerFeature.includes("filigrane") ||
+        lowerFeature.includes("standard definition") ||
+        lowerFeature.includes("définition standard") ||
+        lowerFeature.includes("standard quality") ||
+        lowerFeature.includes("qualité standard") ||
+        lowerFeature.includes("full hd") ||
+        lowerFeature.includes("fullhd") ||
+        lowerFeature.includes("full-hd") ||
+        lowerFeature.includes("image quality") ||
+        lowerFeature.includes("qualité d'image") ||
+        lowerFeature.includes("images")
+      ) {
+        return false;
+      }
+      
+      // Filter out savings messages (shown as badge, not feature)
+      if (
+        (lowerFeature.includes("save") && (lowerFeature.includes("per year") || lowerFeature.includes("par an"))) ||
+        (lowerFeature.includes("économisez") && lowerFeature.includes("par an"))
+      ) {
+        return false;
+      }
+      
+      // Filter out "Payment method required for overage billing" and "basic analytics" for free plans only
+      if (plan.isFree) {
+        return !(
+          lowerFeature.includes("payment method required") ||
+          lowerFeature.includes("méthode de paiement requise") ||
+          lowerFeature.includes("basic analytics") ||
+          lowerFeature.includes("analyses de base")
+        );
+      }
+      
+      return true;
+    });
+
+    // Add image quality and resolution features based on plan tier
+    if (tier === "free") {
+      processedFeatures.unshift("Watermarked images");
+      processedFeatures.unshift("768 × 1024 px resolution");
+    } else if (tier === "starter" || tier === "growth" || tier === "pro") {
+      processedFeatures.unshift("1792 × 2400 px resolution");
+    }
+
+    // Add Usage Report for all non-free plans
+    if (tier !== "free") {
+      processedFeatures.unshift("Usage Report");
+    }
+
+    return processedFeatures;
+  };
+
+  // Identify common features across all plans
+  const commonFeatures = useMemo(() => {
+    if (organizedPlans.length === 0) return new Set<string>();
+
+    // Process all plans' features
+    const allPlanFeatures = organizedPlans.map(({ tier, plans }) => {
+      const plan = plans[0];
+      if (!plan) return [];
+      return processPlanFeatures(plan, tier).map(normalizeFeature);
+    }).filter(features => features.length > 0);
+
+    if (allPlanFeatures.length === 0) return new Set<string>();
+
+    // Find features that appear in all plans
+    const featureCounts = new Map<string, number>();
+    allPlanFeatures.forEach(features => {
+      const uniqueFeatures = new Set(features);
+      uniqueFeatures.forEach(feature => {
+        featureCounts.set(feature, (featureCounts.get(feature) || 0) + 1);
+      });
+    });
+
+    // Features that appear in all plans are common
+    const common = new Set<string>();
+    featureCounts.forEach((count, feature) => {
+      if (count === allPlanFeatures.length) {
+        common.add(feature);
+      }
+    });
+
+    return common;
+  }, [organizedPlans]);
+
   // Translate plan feature strings
   const translateFeature = (feature: string): string => {
     if (!feature) return feature;
@@ -638,63 +736,24 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                   <div className="flex-grow py-4">
                     <ul className="space-y-2">
                       {(() => {
-                        // Process features: filter out existing image quality mentions and payment method requirement for free plans
-                        const processedFeatures = plan.features.filter((feature) => {
-                          const lowerFeature = feature.toLowerCase().trim();
-                          
-                          // Filter out existing image quality mentions (we'll add our own)
-                          if (
-                            lowerFeature.includes("watermarked") ||
-                            lowerFeature.includes("filigrane") ||
-                            lowerFeature.includes("standard definition") ||
-                            lowerFeature.includes("définition standard") ||
-                            lowerFeature.includes("standard quality") ||
-                            lowerFeature.includes("qualité standard") ||
-                            lowerFeature.includes("full hd") ||
-                            lowerFeature.includes("fullhd") ||
-                            lowerFeature.includes("full-hd") ||
-                            lowerFeature.includes("image quality") ||
-                            lowerFeature.includes("qualité d'image") ||
-                            lowerFeature.includes("images")
-                          ) {
-                            return false;
+                        // Process features for this plan
+                        const processedFeatures = processPlanFeatures(plan, tier);
+
+                        // Separate features into common and unique
+                        const commonFeaturesList: string[] = [];
+                        const uniqueFeaturesList: string[] = [];
+
+                        processedFeatures.forEach(feature => {
+                          const normalized = normalizeFeature(feature);
+                          if (commonFeatures.has(normalized)) {
+                            commonFeaturesList.push(feature);
+                          } else {
+                            uniqueFeaturesList.push(feature);
                           }
-                          
-                          // Filter out savings messages (shown as badge, not feature)
-                          if (
-                            (lowerFeature.includes("save") && (lowerFeature.includes("per year") || lowerFeature.includes("par an"))) ||
-                            (lowerFeature.includes("économisez") && lowerFeature.includes("par an"))
-                          ) {
-                            return false;
-                          }
-                          
-                          // Filter out "Payment method required for overage billing" and "basic analytics" for free plans only
-                          if (plan.isFree) {
-                            return !(
-                              lowerFeature.includes("payment method required") ||
-                              lowerFeature.includes("méthode de paiement requise") ||
-                              lowerFeature.includes("basic analytics") ||
-                              lowerFeature.includes("analyses de base")
-                            );
-                          }
-                          
-                          return true;
                         });
 
-                        // Add image quality and resolution features based on plan tier
-                        if (tier === "free") {
-                          processedFeatures.unshift("Watermarked images");
-                          processedFeatures.unshift("768 × 1024 px resolution");
-                        } else if (tier === "starter" || tier === "growth" || tier === "pro") {
-                          processedFeatures.unshift("1792 × 2400 px resolution");
-                        }
-
-                        // Add Usage Report for all non-free plans
-                        if (tier !== "free") {
-                          processedFeatures.unshift("Usage Report");
-                        }
-
-                        return processedFeatures;
+                        // Combine: common first, then unique
+                        return [...commonFeaturesList, ...uniqueFeaturesList];
                       })().map((feature, index) => (
                         <li
                           key={index}
