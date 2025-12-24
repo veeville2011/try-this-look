@@ -624,6 +624,14 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                             return false;
                           }
                           
+                          // Filter out savings messages (shown as badge, not feature)
+                          if (
+                            (lowerFeature.includes("save") && (lowerFeature.includes("per year") || lowerFeature.includes("par an"))) ||
+                            (lowerFeature.includes("économisez") && lowerFeature.includes("par an"))
+                          ) {
+                            return false;
+                          }
+                          
                           // Filter out "Payment method required for overage billing" for free plans only
                           if (plan.isFree) {
                             return !(
