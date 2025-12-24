@@ -46,7 +46,6 @@ import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
 import NavigationBar from "@/components/NavigationBar";
-import TrialNotificationBanner from "@/components/TrialNotificationBanner";
 import CreditBalance from "@/components/CreditBalance";
 
 const Index = () => {
@@ -61,7 +60,7 @@ const Index = () => {
 
   // Subscription state
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
-  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [availablePlans, setAvailablePlans] = useState<any[] | any>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -84,6 +83,28 @@ const Index = () => {
     error: creditsError,
     refresh: refreshCredits,
   } = useCredits();
+
+  // Lock body scroll when plan selection modal is open
+  useEffect(() => {
+    if (showPlanSelection) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      // Lock body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scroll position when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showPlanSelection]);
 
   const CreditsBalanceSkeleton = () => (
     <div
@@ -197,7 +218,16 @@ const Index = () => {
 
       // Use remote API service
       const data = await getAvailablePlans(shopDomain);
-      setAvailablePlans(Array.isArray(data.plans) ? data.plans : []);
+      
+      // Handle new API structure: can be array of plans or object with plans and planTiers
+      if (Array.isArray(data)) {
+        setAvailablePlans(data);
+      } else if (data.plans) {
+        // New structure with plans and planTiers
+        setAvailablePlans(data);
+      } else {
+        setAvailablePlans([]);
+      }
     } catch (error: any) {
       console.error("[Billing] Failed to load plans", error);
     }
@@ -211,7 +241,10 @@ const Index = () => {
       return;
     }
 
-    if (!availablePlans.length) {
+    const hasPlans = Array.isArray(availablePlans) 
+      ? availablePlans.length > 0 
+      : (availablePlans?.plans?.length > 0 || availablePlans?.planTiers);
+    if (!hasPlans) {
       await fetchAvailablePlans();
     }
 
@@ -434,7 +467,10 @@ const Index = () => {
 
   // Fetch plans on mount
   useEffect(() => {
-    if (availablePlans.length === 0) {
+    const hasPlans = Array.isArray(availablePlans) 
+      ? availablePlans.length > 0 
+      : (availablePlans?.plans?.length > 0 || availablePlans?.planTiers);
+    if (!hasPlans) {
       fetchAvailablePlans();
     }
   }, []);
@@ -1037,20 +1073,10 @@ const Index = () => {
       <NavigationBar />
 
       {/* Main Content - Always visible */}
-      <>
-          {/* Hero Section - Shopify Style */}
+      {/* Hero Section - Shopify Style */}
           <header className="relative bg-card border-b border-border min-h-[calc(100vh-56px)] flex items-center" role="banner">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
           <div className="max-w-7xl mx-auto" id="main-content" tabIndex={-1}>
-            {/* Trial Notification Banner */}
-            <div className="mb-6">
-              <TrialNotificationBanner
-                onApprovalInitiated={() => {
-                  refreshSubscription();
-                }}
-              />
-            </div>
-
             {/* Main Hero Content - Grid Layout with Plan Info on Right */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
               {/* Left Section - Hero Content */}
@@ -1114,10 +1140,10 @@ const Index = () => {
                               <Badge
                                 variant="outline"
                                 className="gap-1.5 text-xs px-2.5 py-1 font-medium"
-                                aria-label={t("index.planCard.freePlan")}
+                                aria-label={subscription.plan?.name || t("index.planCard.freePlan")}
                               >
                                 <Zap className="w-3 h-3" aria-hidden="true" />
-                                <span>{t("index.planCard.freePlan")}</span>
+                                <span>{subscription.plan?.name || t("index.planCard.freePlan")}</span>
                               </Badge>
                             ) : (
                               <Badge
@@ -1129,7 +1155,7 @@ const Index = () => {
                                 <span>{subscription.plan?.name || t("index.planCard.premiumPlan")}</span>
                               </Badge>
                             )}
-                            {subscription.hasActiveSubscription && !subscription.isFree && (
+                            {subscription.hasActiveSubscription && (
                               <Badge
                                 variant="secondary"
                                 className="gap-1.5 bg-success/10 text-success border-success/20 text-xs px-2.5 py-1 font-medium"
@@ -1161,30 +1187,6 @@ const Index = () => {
                           </div>
                         </div>
 
-                        {/* Trial Days Remaining - Single line display */}
-                        <div className="min-h-[36px] flex items-center">
-                          {subscription.subscription?.isInTrial &&
-                          subscription.subscription?.trialDaysRemaining !== null ? (
-                            <div className="w-full px-2.5 py-1.5 bg-primary/5 border border-primary/20 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <Sparkle className="w-3.5 h-3.5 text-primary flex-shrink-0" aria-hidden="true" />
-                                <p className="text-xs font-medium text-foreground">
-                                  <span className="text-muted-foreground">{t("index.planCard.trialPeriod")}</span>
-                                  {" "}
-                                  <span className="font-bold text-primary">
-                                    {subscription.subscription.trialDaysRemaining}{" "}
-                                    {subscription.subscription.trialDaysRemaining === 1
-                                      ? t("index.planCard.trialDayRemaining")
-                                      : t("index.planCard.trialDaysRemaining")}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="w-full" aria-hidden="true" />
-                          )}
-                        </div>
-
                         {/* Action Buttons - Consistent spacing */}
                         <div className="space-y-1.5" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                           <Button
@@ -1202,11 +1204,10 @@ const Index = () => {
                               ? t("index.planCard.upgradeToPremium")
                               : t("index.planCard.manageSubscription")}
                           </Button>
-                          {/* Cancel Button - Consistent spacing whether shown or not */}
+                          {/* Cancel Button - Show for all plans (user has right to cancel anytime) */}
                           <div className="min-h-[36px]">
                             {subscription && 
                              subscription.subscription !== null && 
-                             !subscription.isFree && 
                              subscription.subscription?.id ? (
                                 <>
                                   <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
@@ -1454,21 +1455,8 @@ const Index = () => {
                         {t("credits.balanceCard.title") || "Credit Balance"}
                       </h2>
                     </div>
-                    {/* Credits Table - Clean tabular UI */}
-                    {subscription.isFree ? (
-                      <div className="p-8 rounded-lg bg-muted/20 border border-border/40 flex items-center justify-center min-h-[200px]">
-                        <div className="text-center space-y-2">
-                          <Coins
-                            className="w-8 h-8 text-muted-foreground mx-auto opacity-50"
-                            aria-hidden="true"
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            {t("index.planCard.creditsAvailableAfterUpgrade") ||
-                              "Credits available after upgrade"}
-                          </p>
-                        </div>
-                      </div>
-                    ) : creditsLoading ? (
+                    {/* Credits Table - Clean tabular UI - Always show for UI consistency */}
+                    {creditsLoading ? (
                       <CreditsBalanceSkeleton />
                     ) : creditsError ? (
                       <div
@@ -1483,7 +1471,7 @@ const Index = () => {
                           />
                           <p className="text-sm text-foreground">
                             {t("credits.balanceCard.errorMessage") ||
-                              "We couldn’t load your credits. Please try again."}
+                              "We couldn't load your credits. Please try again."}
                           </p>
                         </div>
                       </div>
@@ -1910,12 +1898,29 @@ const Index = () => {
             </div>
           </div>
         </footer>
-      </>
 
       {/* Plan Selection UI - Modal Overlay */}
       {showPlanSelection && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            // Prevent closing on backdrop click - only allow closing via back button
+            e.stopPropagation();
+          }}
+          onKeyDown={(e) => {
+            // Prevent keyboard interaction with parent page
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+            }
+          }}
+        >
+          <div 
+            className="bg-card border border-border rounded-lg shadow-lg w-full max-w-[95vw] max-h-[95vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plan-selection-title"
+          >
             <PlanSelection
               plans={availablePlans}
               onSelectPlan={handleSelectPlan}

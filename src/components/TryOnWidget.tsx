@@ -13,6 +13,7 @@ import {
   detectStoreOrigin,
   requestStoreInfoFromParent,
   getStoreOriginFromPostMessage,
+  extractShopName,
   type StoreInfo,
 } from "@/utils/shopifyIntegration";
 import { storage } from "@/utils/storage";
@@ -338,6 +339,42 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
   const storeRecommendedLoadedForShopRef = useRef<string | null>(null);
   console.log({ storeInfo });
 
+  // Helper function to get shop name with fallbacks
+  const getShopName = useMemo(() => {
+    // 1. Try from Redux store info (from API) - This is the actual business name from Shopify
+
+    
+     
+    if (reduxStoreInfo?.name) {
+      return reduxStoreInfo.name;
+    }
+
+    if (reduxStoreInfo?.shopName) {
+      return reduxStoreInfo.shopName;
+    }
+    // 2. Try from storeInfo state (from page extraction) - Business name extracted from page
+    if (storeInfo?.shopName) {
+      return storeInfo.shopName;
+    }
+    // 3. Try to extract business name from page (JSON-LD, meta tags, etc.)
+    const extractedName = extractShopName();
+    console.log({ extractedName });
+    if (extractedName) {
+      // Validate it's not a domain - check for .myshopify.com specifically
+      // Allow dots in business names (e.g., "Dr. Martens", "A.B.C. Store")
+      if (!extractedName.toLowerCase().includes('.myshopify.com')) {
+        return extractedName;
+      }
+    }
+    // 4. LAST RESORT: Fall back to cleaned domain only if no business name is available
+    // This should rarely happen, but provides a fallback for edge cases
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+    if (shopDomain) {
+      return shopDomain.replace(".myshopify.com", "");
+    }
+    return null;
+  }, [storeInfo, reduxStoreInfo]);
+
   // Set initial status message
   useEffect(() => {
     if (!statusMessage) {
@@ -429,10 +466,13 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark
-    const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    // getShopName is the business name (for display), shopDomain is the actual domain (for API/domain field)
+    const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
+    console.log({ storeName, shopDomain });
     const storeWatermarkInfo = storeName ? {
       name: storeName,
-      domain: storeName,
+      domain: shopDomain || null, // Use shopDomain only, don't fallback to storeName (business name)
       logoUrl: null,
     } : null;
 
@@ -450,7 +490,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       .then((blob) => {
         // Pre-compute share data to minimize work on click
         const productData = getProductData();
-        const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+        // getShopName already handles all fallbacks including domain cleanup
+        const storeDisplayName = getShopName || "Store";
         const productTitle = productData?.title || "Product";
         const productUrl = productData?.url || window.location.href;
         
@@ -481,7 +522,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         setIsWatermarkReady(false);
         // Don't set cache on error - will retry on share click
       });
-  }, [generatedImage, storeInfo, reduxStoreInfo]);
+  }, [generatedImage, storeInfo, reduxStoreInfo, getShopName]);
 
 
   useEffect(() => {
@@ -1247,8 +1288,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const clothingResponse = await fetch(selectedClothing);
       const clothingBlob = await clothingResponse.blob();
 
-      // Get store name from storeInfo
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || null;
+      // Get shop domain (prioritize domain over business name for API calls)
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      // Use shopDomain for API calls, not storeName (business name)
+      const storeDomainForApi = shopDomain || null;
 
       // Get clothingKey from selected clothing ID (non-mandatory field)
       const clothingKey = selectedClothingKey
@@ -1267,7 +1310,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
-        storeName,
+        storeDomainForApi,
         clothingKey, // Non-mandatory: sent when product image has ID
         personKey, // Non-mandatory: sent when demo picture is used
         selectedVersion // Non-mandatory: sent when version is selected
@@ -1638,9 +1681,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
     try {
       const personBlob = await cartDataURLToBlob(cartMultipleImage);
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || "";
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || "";
+      // Use shopDomain for API calls, not storeName (business name)
+      const storeDomainForApi = shopDomain || null;
 
-      if (!storeName) {
+      if (!storeDomainForApi) {
         throw new Error(t("tryOnWidget.errors.storeInfoUnavailable") || "Informations de magasin non disponibles");
       }
 
@@ -1686,7 +1731,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         const result = await generateCartTryOn(
           personBlob as File | Blob,
           garmentFiles as File[],
-          storeName,
+          storeDomainForApi,
           garmentKeys.length > 0 ? garmentKeys : undefined,
           personKey,
           selectedVersion
@@ -1723,7 +1768,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           personBlob as File | Blob,
           garmentFiles as File[],
           garmentTypes,
-          storeName,
+          storeDomainForApi,
           garmentKeys.length > 0 ? garmentKeys : undefined,
           personKey,
           selectedVersion
@@ -1776,10 +1821,12 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     
     try {
       // Prepare store info for watermark
-      const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+      // getShopName is the business name (for display), shopDomain is the actual domain (for API/domain field)
+      const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
       const storeWatermarkInfo = storeName ? {
         name: storeName,
-        domain: storeName,
+        domain: shopDomain || null, // Use shopDomain only, don't fallback to storeName (business name)
         logoUrl: null, // TODO: Add store logo URL if available
       } : null;
       
@@ -1845,7 +1892,9 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
 
     // Prepare store info for watermark (synchronously)
-    const storeName = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop || null;
+    // getShopName is the business name (for display), shopDomain is the actual domain (for API/domain field)
+    const storeName = getShopName || (shopDomain ? shopDomain.replace(".myshopify.com", "") : null);
     const cacheKey = `${imageUrl}_${storeName || 'default'}`;
     const cached = watermarkedBlobCacheRef.current;
     
@@ -1859,7 +1908,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       
       const storeWatermarkInfo = storeName ? {
         name: storeName,
-        domain: storeName,
+        domain: shopDomain || null, // Use shopDomain only, don't fallback to storeName (business name)
         logoUrl: null,
       } : null;
       
@@ -1867,7 +1916,8 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         const blob = await addWatermarkToImage(imageUrl, storeWatermarkInfo);
         // Pre-compute share data
         const productData = getProductData();
-        const storeDisplayName = storeName?.replace(".myshopify.com", "") || "Store";
+        // getShopName already handles all fallbacks including domain cleanup
+        const storeDisplayName = getShopName || "Store";
         const productTitle = productData?.title || "Product";
         const productUrl = productData?.url || window.location.href;
         

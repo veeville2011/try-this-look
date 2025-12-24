@@ -545,6 +545,7 @@ export interface StoreInfo {
   domain: string | null;
   fullUrl: string | null;
   shopDomain: string | null; // Shopify store domain (e.g., "mystore.myshopify.com")
+  shopName?: string | null; // Shopify store name (business name)
   origin: string | null; // Full origin (e.g., "https://mystore.myshopify.com")
   method: 'referrer' | 'url-param' | 'postmessage' | 'parent-request' | 'unknown';
 }
@@ -775,6 +776,103 @@ export function getCurrentStoreInfo(): StoreInfo | null {
   if (typeof window !== 'undefined' && (window as any).NUSENSE_STORE_INFO) {
     return (window as any).NUSENSE_STORE_INFO;
   }
+  return null;
+}
+
+/**
+ * Extract shop name from Shopify storefront page
+ * Tries multiple methods to get the store's business name
+ * 
+ * @returns Shop name string or null if not found
+ */
+export function extractShopName(): string | null {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return null;
+  }
+
+  // 1. Try to get from JSON-LD structured data (schema.org Organization)
+  try {
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of jsonLdScripts) {
+      try {
+        const parsed = JSON.parse(script.textContent || '{}');
+        // Handle both single objects and arrays
+        const dataArray = Array.isArray(parsed) ? parsed : [parsed];
+        
+        for (const data of dataArray) {
+          if (data && typeof data === 'object') {
+            // Check for Organization or Store type
+            if (data['@type'] === 'Organization' || data['@type'] === 'Store') {
+              if (data.name && typeof data.name === 'string') {
+                return data.name;
+              }
+            }
+            // Also check for nested organization (e.g., in Product schema)
+            if (data.publisher?.['@type'] === 'Organization' && data.publisher.name) {
+              return data.publisher.name;
+            }
+            // Check for brand (often contains store name in Product schema)
+            if (data.brand?.['@type'] === 'Brand' && data.brand.name) {
+              return data.brand.name;
+            }
+          }
+        }
+      } catch (e) {
+        // Invalid JSON, skip
+      }
+    }
+  } catch (e) {
+    // Error parsing JSON-LD
+  }
+
+  // 2. Try to get from Open Graph meta tag (og:site_name)
+  const ogSiteName = document.querySelector('meta[property="og:site_name"]');
+  if (ogSiteName) {
+    const content = ogSiteName.getAttribute('content');
+    if (content) {
+      return content;
+    }
+  }
+
+  // 3. Try to get from Shopify global object (if available)
+  // Note: Shopify.shop contains the domain, not the name, but we check Shopify.shopName if it exists
+  try {
+    const shopify = (window as any).Shopify;
+    if (shopify) {
+      // Some themes expose shop name directly
+      if (shopify.shopName && typeof shopify.shopName === 'string') {
+        return shopify.shopName;
+      }
+      // Shopify.routes might have shop info
+      if (shopify.routes?.root && typeof shopify.routes.root === 'string') {
+        // This is usually the domain, but we skip it as it's not the name
+      }
+    }
+  } catch (e) {
+    // Shopify object not available
+  }
+
+  // 4. Try to get from page title (often contains store name)
+  const title = document.title;
+  if (title) {
+    // Remove common suffixes like " - Shop", " | Store", etc.
+    const cleanedTitle = title
+      .replace(/\s*[-|]\s*.*$/, '') // Remove everything after dash or pipe
+      .trim();
+    if (cleanedTitle && cleanedTitle.length > 0 && cleanedTitle.length < 100) {
+      return cleanedTitle;
+    }
+  }
+
+  // 5. Try to get from site name meta tag
+  const siteNameMeta = document.querySelector('meta[name="site_name"]');
+  if (siteNameMeta) {
+    const content = siteNameMeta.getAttribute('content');
+    if (content) {
+      return content;
+    }
+  }
+
   return null;
 }
 

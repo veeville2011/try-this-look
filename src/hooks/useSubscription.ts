@@ -2,27 +2,48 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { getSubscriptionStatus } from "@/services/billingApi";
 
+interface PlanLimits {
+  includedCredits: number;
+  processingPriority: string;
+  imageQuality: string;
+  supportLevel: string;
+  analyticsLevel: string;
+  apiAccess: boolean;
+  costPerGeneration: number;
+}
+
+interface SubscriptionPlan {
+  name: string;
+  handle: string;
+  price: number;
+  currencyCode: string;
+  interval: string;
+  trialDays?: number;
+  description?: string;
+  features?: string[];
+  limits?: PlanLimits;
+}
+
+interface SubscriptionDetails {
+  id: string;
+  status: string;
+  currentPeriodEnd: string;
+  approvedAt?: string;
+  planStartDate?: string;
+  currentPeriodStart: string;
+  createdAt: string;
+  name: string;
+  trialDays: number;
+  trialDaysRemaining: number;
+  isInTrial: boolean;
+}
+
 interface SubscriptionStatus {
+  requestId?: string;
   hasActiveSubscription: boolean;
   isFree: boolean;
-  plan: {
-    name: string;
-    price: number;
-    currencyCode: string;
-    interval: string;
-  } | null;
-  subscription: {
-    id: string;
-    status: string;
-    currentPeriodEnd: string;
-    currentPeriodStart: string;
-    createdAt: string;
-    name: string;
-    trialDays: number | null;
-    trialDaysRemaining: number | null;
-    isInTrial: boolean;
-  } | null;
-  requestId?: string;
+  plan: SubscriptionPlan | null;
+  subscription: SubscriptionDetails | null;
 }
 
 interface UseSubscriptionReturn {

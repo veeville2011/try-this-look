@@ -17,7 +17,7 @@ export interface CreditBalance {
   subscriptionLineItemId: string;
   canPurchase: boolean;
   creditTypes: {
-    trial: CreditType;
+    trial?: CreditType;
     coupon: CreditType;
     plan: CreditType;
     purchased: CreditType;
