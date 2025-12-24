@@ -472,6 +472,32 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       }
     }
 
+    // 1792 × 2400 px resolution (for paid plans)
+    if (lowerFeature.includes("1792 × 2400 px resolution") || lowerFeature.includes("1792 x 2400 px resolution") || 
+        lowerFeature.includes("1792×2400 px resolution") || lowerFeature.includes("1792x2400 px resolution") ||
+        lowerFeature.includes("1792 × 2400 px") || lowerFeature.includes("1792 x 2400 px") ||
+        lowerFeature.includes("1792×2400 px") || lowerFeature.includes("1792x2400 px") ||
+        lowerFeature.includes("résolution 1792 × 2400 px") || lowerFeature.includes("résolution 1792 x 2400 px")) {
+      const translated = t("planSelection.features.resolution1792x2400");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+      return "1792 × 2400 px resolution";
+    }
+
+    // 768 × 1024 px resolution (for free plan)
+    if (lowerFeature.includes("768 × 1024 px resolution") || lowerFeature.includes("768 x 1024 px resolution") || 
+        lowerFeature.includes("768×1024 px resolution") || lowerFeature.includes("768x1024 px resolution") ||
+        lowerFeature.includes("768 × 1024 px") || lowerFeature.includes("768 x 1024 px") ||
+        lowerFeature.includes("768×1024 px") || lowerFeature.includes("768x1024 px") ||
+        lowerFeature.includes("résolution 768 × 1024 px") || lowerFeature.includes("résolution 768 x 1024 px")) {
+      const translated = t("planSelection.features.resolution768x1024");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+      return "768 × 1024 px resolution";
+    }
+
     // If no translation found, return original feature
     return originalFeature;
   };
@@ -655,11 +681,12 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           return true;
                         });
 
-                        // Add image quality feature based on plan tier
+                        // Add image quality and resolution features based on plan tier
                         if (tier === "free") {
                           processedFeatures.unshift("Watermarked images");
+                          processedFeatures.unshift("768 × 1024 px resolution");
                         } else if (tier === "starter" || tier === "growth" || tier === "pro") {
-                          processedFeatures.unshift("QHD (2K resolution) images");
+                          processedFeatures.unshift("1792 × 2400 px resolution");
                         }
 
                         // Add Usage Report for all non-free plans
