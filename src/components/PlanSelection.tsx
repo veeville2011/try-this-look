@@ -766,10 +766,9 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       plan.monthlyEquivalent && 
                       plan.monthlyEquivalent > 0 && 
                       plan.interval === "ANNUAL" ? (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
-                           `$${plan.monthlyEquivalent}/month billed annually`}
-                        </p>
+                        <span>
+                          {`Includes ${plan.limits && plan.limits.includedCredits} ${plan.limits && plan.limits.includedCredits === 1 ? 'credit' : 'credits'} per month. Additional usage is billed at $${plan.limits && plan.limits.costPerGeneration} per credit.`}
+                        </span>
                       ) : null
                     )}
                   </div>
