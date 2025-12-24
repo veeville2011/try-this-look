@@ -752,7 +752,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                     {(plan.hasOverage || (plan.isFree && plan.limits?.costPerGeneration)) && 
                      plan.limits?.costPerGeneration && 
                      plan.limits?.includedCredits !== undefined ? (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1 text-left">
                         {(() => {
                           const creditsText = plan.isFree 
                             ? `${plan.limits.includedCredits} free ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`
@@ -782,7 +782,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       plan.interval === "ANNUAL" &&
                       plan.limits?.costPerGeneration && 
                       plan.limits?.includedCredits !== undefined ? (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1 text-left">
                           {(() => {
                             const creditsText = plan.isFree 
                               ? `${plan.limits.includedCredits} free ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`
