@@ -1130,9 +1130,9 @@ const Index = () => {
               {/* Right Section - Plan Info */}
               <div className="lg:col-span-4">
                 {subscription && subscription.subscription !== null ? (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 min-h-[520px] flex flex-col">
-                    <CardContent className="p-4 flex-1 flex flex-col">
-                      <div className="space-y-3 flex-1 flex flex-col">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
                         {/* Plan Badges - Always visible */}
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -1166,25 +1166,21 @@ const Index = () => {
                               </Badge>
                             )}
                           </div>
-                          {/* Plan Price & Interval - Always maintain space */}
-                          <div className="min-h-[48px] flex items-start">
-                            {subscription.plan && !subscription.isFree ? (
-                              <div className="pt-1">
-                                <p className="text-sm font-semibold text-foreground">
-                                  {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {subscription.plan.interval === "EVERY_30_DAYS" 
-                                    ? t("planSelection.monthly") || "Monthly"
-                                    : subscription.plan.interval === "ANNUAL"
-                                    ? t("planSelection.annual") || "Annual"
-                                    : subscription.plan.interval}
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="w-full" aria-hidden="true" />
-                            )}
-                          </div>
+                          {/* Plan Price & Interval - Show when plan exists */}
+                          {subscription.plan && !subscription.isFree && (
+                            <div className="pt-1">
+                              <p className="text-sm font-semibold text-foreground">
+                                {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {subscription.plan.interval === "EVERY_30_DAYS" 
+                                  ? t("planSelection.monthly") || "Monthly"
+                                  : subscription.plan.interval === "ANNUAL"
+                                  ? t("planSelection.annual") || "Annual"
+                                  : subscription.plan.interval}
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Action Buttons - Consistent spacing */}
@@ -1205,93 +1201,89 @@ const Index = () => {
                               : t("index.planCard.manageSubscription")}
                           </Button>
                           {/* Cancel Button - Show for all plans (user has right to cancel anytime) */}
-                          <div className="min-h-[36px]">
-                            {subscription && 
-                             subscription.subscription !== null && 
-                             subscription.subscription?.id ? (
-                                <>
-                                  <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                                    <AlertDialogContent className="bg-card border-border shadow-lg max-w-md">
-                                      <AlertDialogHeader className="space-y-4">
-                                        {/* Warning Icon Section */}
-                                        <div className="flex items-center gap-3">
-                                          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 border border-destructive/20 flex-shrink-0">
-                                            <AlertTriangle className="w-5 h-5 text-destructive" aria-hidden="true" />
-                                          </div>
-                                          <AlertDialogTitle className="text-lg font-semibold text-foreground leading-tight">
-                                            {t("index.planCard.confirmCancelTitle") || "Cancel Subscription"}
-                                          </AlertDialogTitle>
+                          {subscription && 
+                           subscription.subscription !== null && 
+                           subscription.subscription?.id ? (
+                              <>
+                                <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                                  <AlertDialogContent className="bg-card border-border shadow-lg max-w-md">
+                                    <AlertDialogHeader className="space-y-4">
+                                      {/* Warning Icon Section */}
+                                      <div className="flex items-center gap-3">
+                                        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 border border-destructive/20 flex-shrink-0">
+                                          <AlertTriangle className="w-5 h-5 text-destructive" aria-hidden="true" />
                                         </div>
-                                        <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed pt-2">
-                                          {t("index.errors.confirmCancel") || "Are you sure you want to cancel your subscription? Your subscription will remain active until the end of the current billing period."}
-                                        </AlertDialogDescription>
-                                        {/* Warning Info Box */}
-                                        <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg mt-2">
-                                          <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
-                                            <Shield
-                                              className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
-                                              aria-hidden="true"
-                                            />
-                                            <span>
-                                              <strong className="font-semibold text-foreground">
-                                                {t("index.planCard.important") || "Important:"}{" "}
-                                              </strong>
-                                              {t("index.planCard.cancelWarning") || "You'll continue to have access to all features until your current billing period ends."}
-                                            </span>
-                                          </p>
-                                        </div>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-6">
-                                        <AlertDialogCancel 
-                                          className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 mt-0"
-                                        >
-                                          {t("index.planCard.keepSubscription") || t("common.cancel") || "Keep Subscription"}
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={handleCancelSubscription}
-                                          disabled={cancelling}
-                                          className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive/20 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                                        >
-                                          {cancelling ? (
-                                            <>
-                                              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-destructive-foreground mr-1.5" aria-hidden="true" />
-                                              {t("index.planCard.cancelling") || "Cancelling..."}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                                              {t("index.planCard.confirmCancel") || "Yes, Cancel Subscription"}
-                                            </>
-                                          )}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                                    onClick={() => setShowCancelDialog(true)}
-                                    disabled={cancelling}
-                                    aria-label={cancelling
-                                      ? t("index.planCard.cancelling")
-                                      : t("index.planCard.cancelSubscription")}
-                                  >
-                                    <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                                    {cancelling
-                                      ? t("index.planCard.cancelling")
-                                      : t("index.planCard.cancelSubscription")}
-                                  </Button>
-                                </>
-                              ) : (
-                                <div className="w-full" aria-hidden="true" />
-                              )}
-                          </div>
+                                        <AlertDialogTitle className="text-lg font-semibold text-foreground leading-tight">
+                                          {t("index.planCard.confirmCancelTitle") || "Cancel Subscription"}
+                                        </AlertDialogTitle>
+                                      </div>
+                                      <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed pt-2">
+                                        {t("index.errors.confirmCancel") || "Are you sure you want to cancel your subscription? Your subscription will remain active until the end of the current billing period."}
+                                      </AlertDialogDescription>
+                                      {/* Warning Info Box */}
+                                      <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg mt-2">
+                                        <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                          <Shield
+                                            className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
+                                            aria-hidden="true"
+                                          />
+                                          <span>
+                                            <strong className="font-semibold text-foreground">
+                                              {t("index.planCard.important") || "Important:"}{" "}
+                                            </strong>
+                                            {t("index.planCard.cancelWarning") || "You'll continue to have access to all features until your current billing period ends."}
+                                          </span>
+                                        </p>
+                                      </div>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-6">
+                                      <AlertDialogCancel 
+                                        className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 mt-0"
+                                      >
+                                        {t("index.planCard.keepSubscription") || t("common.cancel") || "Keep Subscription"}
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={handleCancelSubscription}
+                                        disabled={cancelling}
+                                        className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive/20 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                      >
+                                        {cancelling ? (
+                                          <>
+                                            <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-destructive-foreground mr-1.5" aria-hidden="true" />
+                                            {t("index.planCard.cancelling") || "Cancelling..."}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                                            {t("index.planCard.confirmCancel") || "Yes, Cancel Subscription"}
+                                          </>
+                                        )}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                  onClick={() => setShowCancelDialog(true)}
+                                  disabled={cancelling}
+                                  aria-label={cancelling
+                                    ? t("index.planCard.cancelling")
+                                    : t("index.planCard.cancelSubscription")}
+                                >
+                                  <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                                  {cancelling
+                                    ? t("index.planCard.cancelling")
+                                    : t("index.planCard.cancelSubscription")}
+                                </Button>
+                              </>
+                            ) : null}
                         </div>
 
-                        {/* Subscription Period Info - Always maintain space */}
-                        <div className="min-h-[60px] pt-1.5 border-t border-border">
-                          {subscription.subscription && !subscription.isFree ? (
+                        {/* Subscription Period Info - Show when available */}
+                        {subscription.subscription && !subscription.isFree && (
+                          <div className="pt-1.5 border-t border-border">
                             <div className="grid grid-cols-2 gap-1.5 text-[10px]">
                               <div className="p-1.5 rounded bg-muted/30">
                                 <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
@@ -1316,10 +1308,8 @@ const Index = () => {
                                 </p>
                               </div>
                             </div>
-                          ) : (
-                            <div className="w-full" aria-hidden="true" />
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         {/* Promo Code Section - Always visible for consistent layout */}
                         <div className="pt-2 border-t border-border">
@@ -1362,13 +1352,13 @@ const Index = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 min-h-[520px] flex flex-col">
-                    <CardContent className="p-4 flex-1 flex flex-col">
-                      <div className="space-y-3 flex-1 flex flex-col">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
                         <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
                           {t("index.planCard.title")}
                         </h2>
-                        <div className="flex flex-col items-center gap-3 text-center flex-1 justify-center">
+                        <div className="flex flex-col items-center gap-3 text-center">
                           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/5 border border-primary/10">
                             <CreditCard className="w-6 h-6 text-primary" aria-hidden="true" />
                           </div>
@@ -1392,8 +1382,6 @@ const Index = () => {
                             </Button>
                           </div>
                         </div>
-                        {/* Spacer to maintain consistent height */}
-                        <div className="flex-1" aria-hidden="true" />
                         {/* Promo Code Section - Always visible for consistent layout */}
                         <div className="pt-2 border-t border-border">
                           <label htmlFor="coupon-code-empty" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
