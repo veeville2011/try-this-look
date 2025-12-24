@@ -528,7 +528,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
 
             const isSubscribed = isSubscribedToPlan(plan);
             const colors = getTierColorClasses(tier);
-            const isPopular = tier === "growth";
+            const isPopular = tier === "starter";
 
             return (
               <Card
@@ -540,7 +540,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                   <div className="absolute top-0 right-0 z-10">
                     <Badge 
                       variant="secondary" 
-                      className="bg-primary text-primary-foreground border-0 shadow-md px-3 py-1.5 text-xs font-semibold rounded-bl-md rounded-tr-none"
+                      className="bg-primary text-primary-foreground border-0 shadow-md px-3 py-1.5 text-xs font-semibold rounded-bl-md rounded-tr-none hover:bg-primary"
                     >
                       {t("planSelection.popular")}
                     </Badge>
