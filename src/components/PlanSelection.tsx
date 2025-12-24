@@ -742,7 +742,9 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       </p>
                     )}
                     {/* Overage information - shown for both monthly and annual plans, including free plan */}
-                    {((plan.hasOverage || plan.isFree) && plan.limits?.costPerGeneration && plan.limits?.includedCredits !== undefined) && (
+                    {(plan.hasOverage || (plan.isFree && plan.limits?.costPerGeneration)) && 
+                     plan.limits?.costPerGeneration && 
+                     plan.limits?.includedCredits !== undefined && (
                       <p className="text-xs text-muted-foreground mt-1">
                         {(() => {
                           const creditsText = plan.isFree 
