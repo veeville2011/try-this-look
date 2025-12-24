@@ -533,8 +533,19 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
             return (
               <Card
                 key={`${tier}-${selectedInterval}`}
-                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col`}
+                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col overflow-hidden`}
               >
+                {/* Popular badge on top edge */}
+                {isPopular && (
+                  <div className="absolute top-0 right-0 z-10">
+                    <Badge 
+                      variant="secondary" 
+                      className="bg-primary text-primary-foreground border-primary rounded-none rounded-bl-lg rounded-tr-lg shadow-md"
+                    >
+                      {t("planSelection.popular")}
+                    </Badge>
+                  </div>
+                )}
                 {/* Header - Fixed height */}
                 <CardHeader className="text-center pb-3 pt-6 flex-shrink-0">
                   <div className="flex items-center justify-center gap-2 mb-2 min-h-[2rem]">
@@ -545,24 +556,17 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       </CardTitle>
                     </div>
                   </div>
-                  {/* Badges section */}
-                  <div className="flex flex-col items-center gap-2 mt-2">
-                    {/* Popular badge for growth plan */}
-                    {isPopular && (
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                        {t("planSelection.popular")}
-                      </Badge>
-                    )}
-                    {/* Savings badge for annual plans */}
-                    {selectedInterval === "annual" && 
-                     plan.interval === "ANNUAL" && 
-                     plan.yearlySavings && 
-                     plan.yearlySavings > 0 && (
+                  {/* Savings badge for annual plans */}
+                  {selectedInterval === "annual" && 
+                   plan.interval === "ANNUAL" && 
+                   plan.yearlySavings && 
+                   plan.yearlySavings > 0 && (
+                    <div className="flex justify-center mt-2">
                       <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                         {t("planSelection.yearlySavings", { amount: plan.yearlySavings })}
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardHeader>
 
                 {/* Content - Flex grow to push button to bottom */}
