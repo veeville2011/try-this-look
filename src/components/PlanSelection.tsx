@@ -296,6 +296,27 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       return 1;
     }
     
+    // Check for cost per generation FIRST (before credits) to ensure it's detected correctly
+    // Cost per generation - should be at the very end (highest priority number)
+    const hasCostPattern = lowerFeature.includes("cost per generation") || 
+                          lowerFeature.includes("coût par génération") ||
+                          (lowerFeature.includes("cost") && lowerFeature.includes("generation")) ||
+                          (lowerFeature.includes("coût") && lowerFeature.includes("génération")) ||
+                          lowerFeature.includes("overage billing") || 
+                          lowerFeature.includes("facturation du dépassement") ||
+                          (lowerFeature.includes("cost:") && (lowerFeature.includes("per") || lowerFeature.includes("par"))) ||
+                          (lowerFeature.includes("coût:") && (lowerFeature.includes("par") || lowerFeature.includes("per")));
+    
+    // Also check for patterns with dollar/currency symbols and generation/credit terms
+    const hasCostWithAmount = (lowerFeature.includes("$") || lowerFeature.includes("€")) && 
+                              (lowerFeature.includes("generation") || lowerFeature.includes("génération") || 
+                               (lowerFeature.includes("credit") && lowerFeature.includes("per") && !lowerFeature.includes("included") && !lowerFeature.includes("inclus")) ||
+                               (lowerFeature.includes("crédit") && lowerFeature.includes("par") && !lowerFeature.includes("inclus")));
+    
+    if (hasCostPattern || hasCostWithAmount) {
+      return 10;
+    }
+    
     // 2. Credits (must check before support/analytics to avoid false matches)
     if ((lowerFeature.includes("credit") || lowerFeature.includes("crédit")) &&
         !lowerFeature.includes("cost per") && !lowerFeature.includes("coût par")) {
@@ -320,13 +341,6 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     if (lowerFeature.includes("watermarked") || lowerFeature.includes("filigrane") ||
         lowerFeature.includes("watermark")) {
       return 5;
-    }
-    
-    // 6. Cost per generation - should be at the very end (highest priority number)
-    if (lowerFeature.includes("cost per generation") || lowerFeature.includes("coût par génération") ||
-        (lowerFeature.includes("cost") && lowerFeature.includes("generation")) ||
-        (lowerFeature.includes("coût") && lowerFeature.includes("génération"))) {
-      return 10;
     }
     
     // Default: put other features before cost per generation (priority 6)
