@@ -748,6 +748,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           const translated = t("planSelection.overageInfo", { 
                             includedCredits: plan.limits.includedCredits,
                             rate: plan.limits.costPerGeneration,
+                            creditsText: creditsText,
                             isFree: plan.isFree || false,
                             interval: plan.interval
                           });
@@ -765,9 +766,30 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       selectedInterval === "annual" && 
                       plan.monthlyEquivalent && 
                       plan.monthlyEquivalent > 0 && 
-                      plan.interval === "ANNUAL" ? (
+                      plan.interval === "ANNUAL" &&
+                      plan.limits?.costPerGeneration && 
+                      plan.limits?.includedCredits !== undefined ? (
                         <p className="text-xs text-muted-foreground mt-1">
-                          {`Includes ${plan.limits && plan.limits.includedCredits} ${plan.limits && plan.limits.includedCredits === 1 ? 'credit' : 'credits'} per month. Additional usage is billed at $${plan.limits && plan.limits.costPerGeneration} per credit.`}
+                          {(() => {
+                            const creditsText = plan.isFree 
+                              ? `${plan.limits.includedCredits} free ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`
+                              : `${plan.limits.includedCredits} ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`;
+                            
+                            const translated = t("planSelection.overageInfo", { 
+                              includedCredits: plan.limits.includedCredits,
+                              rate: plan.limits.costPerGeneration,
+                              creditsText: creditsText,
+                              isFree: plan.isFree || false,
+                              interval: plan.interval
+                            });
+                            
+                            // Only use translation if it exists and is different from the key
+                            if (translated && !translated.startsWith("planSelection.overageInfo")) {
+                              return translated;
+                            }
+                            
+                            return `Includes ${creditsText} per month. Additional usage is billed at $${plan.limits.costPerGeneration} per credit.`;
+                          })()}
                         </p>
                       ) : null
                     )}

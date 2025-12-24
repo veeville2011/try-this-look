@@ -81,6 +81,7 @@
     "free": "Free",
     "yearlySavings": "Save ${{amount}}/year",
     "overageRate": "Overage: ${{rate}}/credit",
+    "overageInfo": "Includes {{creditsText}} per month. Additional usage is billed at ${{rate}} per credit.",
     "features": {
       "creditsIncluded": "{{count}} monthly credits included",
       "creditsIncluded_plural": "{{count}} monthly credits included",
@@ -104,7 +105,10 @@
       "oneUsageOneCredit": "(1 usage = 1 credit)",
       "rechargePossible": "Recharge possible after overage.",
       "creditsIncludedSimple": "{{count}} credit included",
-      "creditsIncludedSimple_plural": "{{count}} credits included"
+      "creditsIncludedSimple_plural": "{{count}} credits included",
+      "usageReport": "Usage Report",
+      "resolution1792x2400": "1792 × 2400 px resolution",
+      "resolution768x1024": "768 × 1024 px resolution"
     }
   },
   "coupon": {
