@@ -1130,11 +1130,11 @@ const Index = () => {
               {/* Right Section - Plan Info */}
               <div className="lg:col-span-4">
                 {subscription && subscription.subscription !== null ? (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 h-full flex flex-col">
+                    <CardContent className="p-4 flex flex-col flex-1">
+                      <div className="space-y-3 flex flex-col flex-1">
                         {/* Plan Badges - Always visible */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 flex-shrink-0">
                           <div className="flex flex-wrap items-center gap-1.5">
                             {subscription.isFree ? (
                               <Badge
@@ -1166,25 +1166,27 @@ const Index = () => {
                               </Badge>
                             )}
                           </div>
-                          {/* Plan Price & Interval - Show when plan exists */}
-                          {subscription.plan && !subscription.isFree && (
-                            <div className="pt-1">
-                              <p className="text-sm font-semibold text-foreground">
-                                {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {subscription.plan.interval === "EVERY_30_DAYS" 
-                                  ? t("planSelection.monthly") || "Monthly"
-                                  : subscription.plan.interval === "ANNUAL"
-                                  ? t("planSelection.annual") || "Annual"
-                                  : subscription.plan.interval}
-                              </p>
-                            </div>
-                          )}
+                          {/* Plan Price & Interval - Show when plan exists - Fixed height container */}
+                          <div className="min-h-[48px] flex items-start">
+                            {subscription.plan && !subscription.isFree ? (
+                              <div className="pt-1">
+                                <p className="text-sm font-semibold text-foreground">
+                                  {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {subscription.plan.interval === "EVERY_30_DAYS" 
+                                    ? t("planSelection.monthly") || "Monthly"
+                                    : subscription.plan.interval === "ANNUAL"
+                                    ? t("planSelection.annual") || "Annual"
+                                    : subscription.plan.interval}
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
 
-                        {/* Action Buttons - Consistent spacing */}
-                        <div className="space-y-1.5" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
+                        {/* Action Buttons - Consistent spacing - Fixed height */}
+                        <div className="space-y-1.5 flex-shrink-0 min-h-[72px]" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                           <Button
                             size="sm"
                             className="w-full h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -1281,38 +1283,40 @@ const Index = () => {
                             ) : null}
                         </div>
 
-                        {/* Subscription Period Info - Show when available */}
-                        {subscription.subscription && !subscription.isFree && (
-                          <div className="pt-1.5 border-t border-border">
-                            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                              <div className="p-1.5 rounded bg-muted/30">
-                                <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
-                                <p className="font-medium text-foreground leading-tight">
-                                  {subscription.subscription.currentPeriodStart
-                                    ? new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
-                                        i18n.language === "fr" ? "fr-FR" : "en-US",
-                                        { year: 'numeric', month: 'short', day: 'numeric' }
-                                      )
-                                    : "—"}
-                                </p>
-                              </div>
-                              <div className="p-1.5 rounded bg-muted/30">
-                                <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
-                                <p className="font-medium text-foreground leading-tight">
-                                  {subscription.subscription.currentPeriodEnd
-                                    ? new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
-                                        i18n.language === "fr" ? "fr-FR" : "en-US",
-                                        { year: 'numeric', month: 'short', day: 'numeric' }
-                                      )
-                                    : "—"}
-                                </p>
+                        {/* Subscription Period Info - Show when available - Fixed height container */}
+                        <div className="flex-shrink-0 min-h-[60px] flex items-start">
+                          {subscription.subscription && !subscription.isFree ? (
+                            <div className="pt-1.5 border-t border-border w-full">
+                              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                                <div className="p-1.5 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
+                                  <p className="font-medium text-foreground leading-tight">
+                                    {subscription.subscription.currentPeriodStart
+                                      ? new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
+                                          i18n.language === "fr" ? "fr-FR" : "en-US",
+                                          { year: 'numeric', month: 'short', day: 'numeric' }
+                                        )
+                                      : "—"}
+                                  </p>
+                                </div>
+                                <div className="p-1.5 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
+                                  <p className="font-medium text-foreground leading-tight">
+                                    {subscription.subscription.currentPeriodEnd
+                                      ? new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
+                                          i18n.language === "fr" ? "fr-FR" : "en-US",
+                                          { year: 'numeric', month: 'short', day: 'numeric' }
+                                        )
+                                      : "—"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          ) : null}
+                        </div>
 
-                        {/* Promo Code Section - Always visible for consistent layout */}
-                        <div className="pt-2 border-t border-border">
+                        {/* Promo Code Section - Always visible for consistent layout - Fixed height */}
+                        <div className="pt-2 border-t border-border flex-shrink-0">
                           <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
                             <Tag className="w-3 h-3" aria-hidden="true" />
                             {t("index.coupon.label") || "Promo Code"}
@@ -1352,13 +1356,13 @@ const Index = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 h-full flex flex-col">
+                    <CardContent className="p-4 flex flex-col flex-1">
+                      <div className="space-y-3 flex flex-col flex-1">
+                        <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground flex-shrink-0">
                           {t("index.planCard.title")}
                         </h2>
-                        <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="flex flex-col items-center gap-3 text-center flex-shrink-0 min-h-[180px]">
                           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/5 border border-primary/10">
                             <CreditCard className="w-6 h-6 text-primary" aria-hidden="true" />
                           </div>
@@ -1382,8 +1386,8 @@ const Index = () => {
                             </Button>
                           </div>
                         </div>
-                        {/* Promo Code Section - Always visible for consistent layout */}
-                        <div className="pt-2 border-t border-border">
+                        {/* Promo Code Section - Always visible for consistent layout - Fixed height */}
+                        <div className="pt-2 border-t border-border flex-shrink-0">
                           <label htmlFor="coupon-code-empty" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
                             <Tag className="w-3 h-3" aria-hidden="true" />
                             {t("index.coupon.label") || "Promo Code"}
