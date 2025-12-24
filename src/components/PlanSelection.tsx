@@ -734,17 +734,11 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           : (t("planSelection.annualPeriod") || "year")}
                       </span>
                     </div>
-                    {/* Monthly equivalent for annual plans */}
-                    {selectedInterval === "annual" && plan.monthlyEquivalent && plan.monthlyEquivalent > 0 && plan.interval === "ANNUAL" && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
-                         `$${plan.monthlyEquivalent}/month billed annually`}
-                      </p>
-                    )}
                     {/* Overage information - shown for both monthly and annual plans, including free plan */}
+                    {/* For annual plans, show overage info instead of "billed annually" */}
                     {(plan.hasOverage || (plan.isFree && plan.limits?.costPerGeneration)) && 
                      plan.limits?.costPerGeneration && 
-                     plan.limits?.includedCredits !== undefined && (
+                     plan.limits?.includedCredits !== undefined ? (
                       <p className="text-xs text-muted-foreground mt-1">
                         {(() => {
                           const creditsText = plan.isFree 
@@ -766,6 +760,17 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           return `Includes ${creditsText} per month. Additional usage is billed at $${plan.limits.costPerGeneration} per credit.`;
                         })()}
                       </p>
+                    ) : (
+                      /* Monthly equivalent for annual plans - only show if overage info is not available */
+                      selectedInterval === "annual" && 
+                      plan.monthlyEquivalent && 
+                      plan.monthlyEquivalent > 0 && 
+                      plan.interval === "ANNUAL" ? (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
+                           `$${plan.monthlyEquivalent}/month billed annually`}
+                        </p>
+                      ) : null
                     )}
                   </div>
 
