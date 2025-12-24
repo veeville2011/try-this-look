@@ -80,7 +80,31 @@
     "noPlans": "No plans available at this time.",
     "free": "Free",
     "yearlySavings": "Save ${{amount}}/year",
-    "overageRate": "Overage: ${{rate}}/credit"
+    "overageRate": "Overage: ${{rate}}/credit",
+    "features": {
+      "creditsIncluded": "{{count}} monthly credits included",
+      "creditsIncluded_plural": "{{count}} monthly credits included",
+      "watermarkedImageQuality": "Standard definition image quality",
+      "fullHdImageQuality": "Full HD image quality",
+      "watermarkedImages": "Watermarked images",
+      "fullHdImages": "Full HD images",
+      "communitySupport": "Community support",
+      "emailSupport24h": "Email support (24h response)",
+      "prioritySupport12h": "Priority support (12h response)",
+      "dedicatedSupport4h": "Dedicated support (4h response)",
+      "basicAnalytics": "Basic analytics",
+      "advancedAnalytics": "Advanced analytics",
+      "advancedAnalyticsApi": "Advanced analytics + API",
+      "apiAccessIncluded": "API access included",
+      "overageBilling": "Overage billing: ${{rate}} per credit after {{freeCredits}} free credits",
+      "paymentMethodRequired": "Payment method required for overage billing",
+      "costPerGeneration": "Cost: ${{rate}} per generation",
+      "savePerYear": "Save ${{amount}} per year",
+      "oneUsageOneCredit": "(1 usage = 1 credit)",
+      "rechargePossible": "Recharge possible after overage.",
+      "creditsIncludedSimple": "{{count}} credit included",
+      "creditsIncludedSimple_plural": "{{count}} credits included"
+    }
   },
   "coupon": {
     "redeemTitle": "Coupon code",

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Check, Sparkle, CheckCircle2, ArrowLeft, Crown, Zap, TrendingUp } from "lucide-react";
 
 interface PlanLimits {
@@ -277,6 +278,194 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     }
   };
 
+  // Translate plan feature strings
+  const translateFeature = (feature: string): string => {
+    if (!feature) return feature;
+
+    const lowerFeature = feature.toLowerCase().trim();
+    const originalFeature = feature.trim();
+
+    // Credits included patterns - English: "X monthly credits included"
+    const creditsMatch = lowerFeature.match(/(\d+)\s*(monthly\s*)?credits?\s*(included|mensuel|mensuels)?/i);
+    if (creditsMatch) {
+      const count = parseInt(creditsMatch[1], 10);
+      const translated = t("planSelection.features.creditsIncluded", { count });
+      // Only use translation if it's different from the key (translation exists)
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Simple credits included - French format: "X crédits inclus"
+    const simpleCreditsMatch = lowerFeature.match(/(\d+)\s*crédits?\s*inclus/i);
+    if (simpleCreditsMatch) {
+      const count = parseInt(simpleCreditsMatch[1], 10);
+      const translated = t("planSelection.features.creditsIncludedSimple", { count });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Watermarked images (specific for free plan)
+    if (lowerFeature === "watermarked images" || lowerFeature.includes("watermarked images")) {
+      const translated = t("planSelection.features.watermarkedImages");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Full HD images (specific for paid plans)
+    if (lowerFeature === "full hd images" || lowerFeature.includes("full hd images")) {
+      const translated = t("planSelection.features.fullHdImages");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Standard definition image quality (watermarked) - legacy support
+    if (lowerFeature.includes("watermarked") || lowerFeature.includes("filigrane") || 
+        lowerFeature.includes("standard definition") || lowerFeature.includes("définition standard") ||
+        lowerFeature.includes("standard quality") || lowerFeature.includes("qualité standard")) {
+      const translated = t("planSelection.features.watermarkedImageQuality");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Full HD image quality - legacy support
+    if (lowerFeature.includes("full hd") || lowerFeature.includes("fullhd") || lowerFeature.includes("full-hd") || lowerFeature.includes("qualité d'image full hd")) {
+      const translated = t("planSelection.features.fullHdImageQuality");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Community support
+    if (lowerFeature.includes("community support") || lowerFeature.includes("support communautaire")) {
+      const translated = t("planSelection.features.communitySupport");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Email support 24h
+    if ((lowerFeature.includes("email support") || lowerFeature.includes("support par email")) && (lowerFeature.includes("24h") || lowerFeature.includes("24 h") || lowerFeature.includes("24h response") || lowerFeature.includes("réponse sous 24h"))) {
+      const translated = t("planSelection.features.emailSupport24h");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Priority support 12h
+    if ((lowerFeature.includes("priority support") || lowerFeature.includes("support prioritaire")) && (lowerFeature.includes("12h") || lowerFeature.includes("12 h") || lowerFeature.includes("12h response") || lowerFeature.includes("réponse sous 12h"))) {
+      const translated = t("planSelection.features.prioritySupport12h");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Dedicated support 4h
+    if ((lowerFeature.includes("dedicated support") || lowerFeature.includes("support dédié")) && (lowerFeature.includes("4h") || lowerFeature.includes("4 h") || lowerFeature.includes("4h response") || lowerFeature.includes("réponse sous 4h"))) {
+      const translated = t("planSelection.features.dedicatedSupport4h");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Basic analytics
+    if (lowerFeature.includes("basic analytics") || lowerFeature.includes("analyses de base")) {
+      const translated = t("planSelection.features.basicAnalytics");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Advanced analytics + API
+    if ((lowerFeature.includes("advanced analytics") || lowerFeature.includes("analyses avancées")) && (lowerFeature.includes("api") || lowerFeature.includes("+ api"))) {
+      const translated = t("planSelection.features.advancedAnalyticsApi");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Advanced analytics (without API)
+    if (lowerFeature.includes("advanced analytics") || lowerFeature.includes("analyses avancées")) {
+      const translated = t("planSelection.features.advancedAnalytics");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // API access included
+    if ((lowerFeature.includes("api access") || lowerFeature.includes("accès api")) && (lowerFeature.includes("included") || lowerFeature.includes("inclus"))) {
+      const translated = t("planSelection.features.apiAccessIncluded");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Overage billing with rate and free credits
+    const overageMatch = lowerFeature.match(/overage\s*billing[:\s]*\$?(\d+\.?\d*)\s*per\s*credit\s*after\s*(\d+)\s*free/i) ||
+                         lowerFeature.match(/facturation\s*du\s*dépassement[:\s]*(\d+\.?\d*)\s*\$?\s*par\s*crédit\s*après\s*(\d+)\s*(free|gratuits?)/i);
+    if (overageMatch) {
+      const rate = overageMatch[1];
+      const freeCredits = overageMatch[2];
+      const translated = t("planSelection.features.overageBilling", { rate, freeCredits });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Payment method required
+    if (lowerFeature.includes("payment method required") || lowerFeature.includes("méthode de paiement requise")) {
+      const translated = t("planSelection.features.paymentMethodRequired");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Cost per generation
+    const costMatch = lowerFeature.match(/cost[:\s]*\$?(\d+\.?\d*)\s*per\s*generation/i) ||
+                      lowerFeature.match(/coût[:\s]*(\d+\.?\d*)\s*\$?\s*par\s*génération/i);
+    if (costMatch) {
+      const rate = costMatch[1];
+      const translated = t("planSelection.features.costPerGeneration", { rate });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Save per year
+    const saveMatch = lowerFeature.match(/save\s*\$?(\d+)\s*per\s*year/i) ||
+                      lowerFeature.match(/économisez\s*\$?(\d+)\s*par\s*an/i);
+    if (saveMatch) {
+      const amount = saveMatch[1];
+      const translated = t("planSelection.features.savePerYear", { amount });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // One usage one credit (French format)
+    if (lowerFeature.includes("1 utilisation = 1 crédit") || lowerFeature.includes("(1 utilisation = 1 crédit)")) {
+      const translated = t("planSelection.features.oneUsageOneCredit");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Recharge possible (French format)
+    if (lowerFeature.includes("recharge possible après dépassement")) {
+      const translated = t("planSelection.features.rechargePossible");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // If no translation found, return original feature
+    return originalFeature;
+  };
+
   return (
     <div className="w-full mx-auto px-4 sm:px-6 pt-4 pb-6">
       {/* Back Button - Only show for subscribed users */}
@@ -356,6 +545,24 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       </CardTitle>
                     </div>
                   </div>
+                  {/* Badges section */}
+                  <div className="flex flex-col items-center gap-2 mt-2">
+                    {/* Popular badge for growth plan */}
+                    {isPopular && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                        {t("planSelection.popular")}
+                      </Badge>
+                    )}
+                    {/* Savings badge for annual plans */}
+                    {selectedInterval === "annual" && 
+                     plan.interval === "ANNUAL" && 
+                     plan.yearlySavings && 
+                     plan.yearlySavings > 0 && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                        {t("planSelection.yearlySavings", { amount: plan.yearlySavings })}
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
 
                 {/* Content - Flex grow to push button to bottom */}
@@ -390,14 +597,56 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                   {/* Features - Flex grow to fill space */}
                   <div className="flex-grow py-4">
                     <ul className="space-y-2">
-                      {plan.features.map((feature, index) => (
+                      {(() => {
+                        // Process features: filter out existing image quality mentions and payment method requirement for free plans
+                        const processedFeatures = plan.features.filter((feature) => {
+                          const lowerFeature = feature.toLowerCase().trim();
+                          
+                          // Filter out existing image quality mentions (we'll add our own)
+                          if (
+                            lowerFeature.includes("watermarked") ||
+                            lowerFeature.includes("filigrane") ||
+                            lowerFeature.includes("standard definition") ||
+                            lowerFeature.includes("définition standard") ||
+                            lowerFeature.includes("standard quality") ||
+                            lowerFeature.includes("qualité standard") ||
+                            lowerFeature.includes("full hd") ||
+                            lowerFeature.includes("fullhd") ||
+                            lowerFeature.includes("full-hd") ||
+                            lowerFeature.includes("image quality") ||
+                            lowerFeature.includes("qualité d'image") ||
+                            lowerFeature.includes("images")
+                          ) {
+                            return false;
+                          }
+                          
+                          // Filter out "Payment method required for overage billing" for free plans only
+                          if (plan.isFree) {
+                            return !(
+                              lowerFeature.includes("payment method required") ||
+                              lowerFeature.includes("méthode de paiement requise")
+                            );
+                          }
+                          
+                          return true;
+                        });
+
+                        // Add image quality feature based on plan tier
+                        if (tier === "free") {
+                          processedFeatures.unshift("Watermarked images");
+                        } else if (tier === "starter" || tier === "growth" || tier === "pro") {
+                          processedFeatures.unshift("Full HD images");
+                        }
+
+                        return processedFeatures;
+                      })().map((feature, index) => (
                         <li
                           key={index}
                           className="flex items-start gap-2 text-xs"
                         >
                           <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                           <span className="text-muted-foreground leading-snug">
-                            {feature}
+                            {translateFeature(feature)}
                           </span>
                         </li>
                       ))}
