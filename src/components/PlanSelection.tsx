@@ -464,6 +464,14 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       }
     }
 
+    // Usage Report
+    if (lowerFeature.includes("usage report") || lowerFeature.includes("rapport d'utilisation")) {
+      const translated = t("planSelection.features.usageReport");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
     // If no translation found, return original feature
     return originalFeature;
   };
@@ -634,11 +642,13 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                             return false;
                           }
                           
-                          // Filter out "Payment method required for overage billing" for free plans only
+                          // Filter out "Payment method required for overage billing" and "basic analytics" for free plans only
                           if (plan.isFree) {
                             return !(
                               lowerFeature.includes("payment method required") ||
-                              lowerFeature.includes("méthode de paiement requise")
+                              lowerFeature.includes("méthode de paiement requise") ||
+                              lowerFeature.includes("basic analytics") ||
+                              lowerFeature.includes("analyses de base")
                             );
                           }
                           
@@ -650,6 +660,11 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           processedFeatures.unshift("Watermarked images");
                         } else if (tier === "starter" || tier === "growth" || tier === "pro") {
                           processedFeatures.unshift("QHD (2K resolution) images");
+                        }
+
+                        // Add Usage Report for all non-free plans
+                        if (tier !== "free") {
+                          processedFeatures.unshift("Usage Report");
                         }
 
                         return processedFeatures;
