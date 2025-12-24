@@ -314,9 +314,11 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       }
     }
 
-    // Full HD images (specific for paid plans)
-    if (lowerFeature === "full hd images" || lowerFeature.includes("full hd images")) {
-      const translated = t("planSelection.features.fullHdImages");
+    // QHD (2K resolution) images (specific for paid plans)
+    if (lowerFeature === "qhd (2k resolution) images" || lowerFeature.includes("qhd (2k resolution) images") ||
+        lowerFeature === "full hd images" || lowerFeature.includes("full hd images") ||
+        lowerFeature.includes("2k resolution") || lowerFeature.includes("qhd")) {
+      const translated = t("planSelection.features.qhd2kImages");
       if (translated && !translated.startsWith("planSelection.features")) {
         return translated;
       }
@@ -647,7 +649,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                         if (tier === "free") {
                           processedFeatures.unshift("Watermarked images");
                         } else if (tier === "starter" || tier === "growth" || tier === "pro") {
-                          processedFeatures.unshift("Full HD images");
+                          processedFeatures.unshift("QHD (2K resolution) images");
                         }
 
                         return processedFeatures;
