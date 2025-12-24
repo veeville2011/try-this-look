@@ -521,13 +521,12 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
       }
     }
 
-    // Overage billing with rate and free credits
-    const overageMatch = lowerFeature.match(/overage\s*billing[:\s]*\$?(\d+\.?\d*)\s*per\s*credit\s*after\s*(\d+)\s*free/i) ||
-                         lowerFeature.match(/facturation\s*du\s*dépassement[:\s]*(\d+\.?\d*)\s*\$?\s*par\s*crédit\s*après\s*(\d+)\s*(free|gratuits?)/i);
+    // Overage billing with rate - show as cost per generation
+    const overageMatch = lowerFeature.match(/overage\s*billing[:\s]*\$?(\d+\.?\d*)\s*per\s*credit/i) ||
+                         lowerFeature.match(/facturation\s*du\s*dépassement[:\s]*(\d+\.?\d*)\s*\$?\s*par\s*crédit/i);
     if (overageMatch) {
       const rate = overageMatch[1];
-      const freeCredits = overageMatch[2];
-      const translated = t("planSelection.features.overageBilling", { rate, freeCredits });
+      const translated = t("planSelection.features.costPerGeneration", { rate });
       if (translated && !translated.startsWith("planSelection.features")) {
         return translated;
       }
