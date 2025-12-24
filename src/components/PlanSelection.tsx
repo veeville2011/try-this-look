@@ -521,7 +521,7 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
 
       {/* Plans Grid - Using flexbox for equal heights and alignment */}
       {organizedPlans.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 auto-rows-fr">
           {organizedPlans.map(({ tier, plans }) => {
             const plan = plans[0]; // Get the plan for current interval
             if (!plan) return null;
@@ -533,21 +533,21 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
             return (
               <Card
                 key={`${tier}-${selectedInterval}`}
-                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col overflow-hidden`}
+                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col overflow-hidden h-full`}
               >
-                {/* Popular badge on top edge */}
+                {/* Popular badge on top edge - corner ribbon style */}
                 {isPopular && (
                   <div className="absolute top-0 right-0 z-10">
                     <Badge 
                       variant="secondary" 
-                      className="bg-primary text-primary-foreground border-primary rounded-none rounded-bl-lg rounded-tr-lg shadow-md"
+                      className="bg-primary text-primary-foreground border-0 shadow-md px-3 py-1.5 text-xs font-semibold rounded-bl-md rounded-tr-none"
                     >
                       {t("planSelection.popular")}
                     </Badge>
                   </div>
                 )}
-                {/* Header - Fixed height */}
-                <CardHeader className="text-center pb-3 pt-6 flex-shrink-0">
+                {/* Header - Fixed height with consistent padding */}
+                <CardHeader className={`text-center pb-3 flex-shrink-0 ${isPopular ? 'pt-7' : 'pt-6'}`}>
                   <div className="flex items-center justify-center gap-2 mb-2 min-h-[2rem]">
                     <div className="flex items-center gap-2">
                       {getTierIcon(tier)}
@@ -556,23 +556,23 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       </CardTitle>
                     </div>
                   </div>
-                  {/* Savings badge for annual plans */}
-                  {selectedInterval === "annual" && 
-                   plan.interval === "ANNUAL" && 
-                   plan.yearlySavings && 
-                   plan.yearlySavings > 0 && (
-                    <div className="flex justify-center mt-2">
+                  {/* Savings badge for annual plans - Fixed height container */}
+                  <div className="min-h-[28px] flex items-center justify-center">
+                    {selectedInterval === "annual" && 
+                     plan.interval === "ANNUAL" && 
+                     plan.yearlySavings && 
+                     plan.yearlySavings > 0 ? (
                       <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                         {t("planSelection.yearlySavings", { amount: plan.yearlySavings })}
                       </Badge>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </CardHeader>
 
                 {/* Content - Flex grow to push button to bottom */}
                 <CardContent className="flex flex-col flex-grow px-4 pb-5">
                   {/* Pricing - Fixed height */}
-                  <div className="text-center border-b border-border pb-4 flex-shrink-0">
+                  <div className="text-center border-b border-border pb-4 flex-shrink-0 min-h-[80px] flex flex-col justify-center">
                     <div className="flex items-baseline justify-center gap-2 mb-1">
                       <span className="text-3xl sm:text-4xl font-bold text-foreground">
                         ${plan.price}
