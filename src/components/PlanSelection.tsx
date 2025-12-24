@@ -283,6 +283,56 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     return feature.toLowerCase().trim();
   };
 
+  // Get feature category priority for consistent ordering across plans
+  // Order: 1. Resolution, 2. Credits, 3. Support, 4. Analytics, 5. Watermark, 6. Cost per generation
+  const getFeatureCategory = (feature: string): number => {
+    const lowerFeature = normalizeFeature(feature);
+    
+    // 1. Resolution (check first to avoid conflicts)
+    if (lowerFeature.includes("resolution") || lowerFeature.includes("résolution") ||
+        lowerFeature.includes("1792") || lowerFeature.includes("768") ||
+        (lowerFeature.includes("×") && lowerFeature.includes("px")) ||
+        (lowerFeature.includes("x") && lowerFeature.includes("px") && !lowerFeature.includes("credit"))) {
+      return 1;
+    }
+    
+    // 2. Credits (must check before support/analytics to avoid false matches)
+    if ((lowerFeature.includes("credit") || lowerFeature.includes("crédit")) &&
+        !lowerFeature.includes("cost per") && !lowerFeature.includes("coût par")) {
+      return 2;
+    }
+    
+    // 3. Support
+    if (lowerFeature.includes("support") || lowerFeature.includes("community") ||
+        (lowerFeature.includes("email") && (lowerFeature.includes("24h") || lowerFeature.includes("24 h"))) ||
+        (lowerFeature.includes("priority") && (lowerFeature.includes("12h") || lowerFeature.includes("12 h"))) ||
+        (lowerFeature.includes("dedicated") && (lowerFeature.includes("4h") || lowerFeature.includes("4 h")))) {
+      return 3;
+    }
+    
+    // 4. Analytics (check before watermark to catch usage report)
+    if (lowerFeature.includes("analytics") || lowerFeature.includes("analyses") ||
+        lowerFeature.includes("usage report") || lowerFeature.includes("rapport d'utilisation")) {
+      return 4;
+    }
+    
+    // 5. Watermark
+    if (lowerFeature.includes("watermarked") || lowerFeature.includes("filigrane") ||
+        lowerFeature.includes("watermark")) {
+      return 5;
+    }
+    
+    // 6. Cost per generation
+    if (lowerFeature.includes("cost per generation") || lowerFeature.includes("coût par génération") ||
+        (lowerFeature.includes("cost") && lowerFeature.includes("generation")) ||
+        (lowerFeature.includes("coût") && lowerFeature.includes("génération"))) {
+      return 6;
+    }
+    
+    // Default: put other features at the end (priority 7)
+    return 7;
+  };
+
   // Process features for a plan (extracted logic for reuse)
   const processPlanFeatures = (plan: Plan, tier: string): string[] => {
     const processedFeatures = plan.features.filter((feature) => {
@@ -342,39 +392,6 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
 
     return processedFeatures;
   };
-
-  // Identify common features across all plans
-  const commonFeatures = useMemo(() => {
-    if (organizedPlans.length === 0) return new Set<string>();
-
-    // Process all plans' features
-    const allPlanFeatures = organizedPlans.map(({ tier, plans }) => {
-      const plan = plans[0];
-      if (!plan) return [];
-      return processPlanFeatures(plan, tier).map(normalizeFeature);
-    }).filter(features => features.length > 0);
-
-    if (allPlanFeatures.length === 0) return new Set<string>();
-
-    // Find features that appear in all plans
-    const featureCounts = new Map<string, number>();
-    allPlanFeatures.forEach(features => {
-      const uniqueFeatures = new Set(features);
-      uniqueFeatures.forEach(feature => {
-        featureCounts.set(feature, (featureCounts.get(feature) || 0) + 1);
-      });
-    });
-
-    // Features that appear in all plans are common
-    const common = new Set<string>();
-    featureCounts.forEach((count, feature) => {
-      if (count === allPlanFeatures.length) {
-        common.add(feature);
-      }
-    });
-
-    return common;
-  }, [organizedPlans]);
 
   // Translate plan feature strings
   const translateFeature = (feature: string): string => {
@@ -724,10 +741,28 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                          `$${plan.monthlyEquivalent}/month billed annually`}
                       </p>
                     )}
-                    {/* Overage information */}
-                    {plan.hasOverage && plan.limits?.costPerGeneration && (
+                    {/* Overage information - shown for both monthly and annual plans, including free plan */}
+                    {((plan.hasOverage || plan.isFree) && plan.limits?.costPerGeneration && plan.limits?.includedCredits !== undefined) && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {t("planSelection.overageRate", { rate: plan.limits.costPerGeneration })}
+                        {(() => {
+                          const creditsText = plan.isFree 
+                            ? `${plan.limits.includedCredits} free ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`
+                            : `${plan.limits.includedCredits} ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`;
+                          
+                          const translated = t("planSelection.overageInfo", { 
+                            includedCredits: plan.limits.includedCredits,
+                            rate: plan.limits.costPerGeneration,
+                            isFree: plan.isFree || false,
+                            interval: plan.interval
+                          });
+                          
+                          // Only use translation if it exists and is different from the key
+                          if (translated && !translated.startsWith("planSelection.overageInfo")) {
+                            return translated;
+                          }
+                          
+                          return `Includes ${creditsText} per month. Additional usage is billed at $${plan.limits.costPerGeneration} per credit.`;
+                        })()}
                       </p>
                     )}
                   </div>
@@ -739,21 +774,20 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                         // Process features for this plan
                         const processedFeatures = processPlanFeatures(plan, tier);
 
-                        // Separate features into common and unique
-                        const commonFeaturesList: string[] = [];
-                        const uniqueFeaturesList: string[] = [];
-
-                        processedFeatures.forEach(feature => {
-                          const normalized = normalizeFeature(feature);
-                          if (commonFeatures.has(normalized)) {
-                            commonFeaturesList.push(feature);
-                          } else {
-                            uniqueFeaturesList.push(feature);
+                        // Sort features by category order for consistent side-by-side comparison
+                        // Order: 1. Resolution, 2. Credits, 3. Support, 4. Analytics, 5. Watermark, 6. Cost per generation
+                        return processedFeatures.sort((a, b) => {
+                          const categoryA = getFeatureCategory(a);
+                          const categoryB = getFeatureCategory(b);
+                          
+                          // First sort by category
+                          if (categoryA !== categoryB) {
+                            return categoryA - categoryB;
                           }
+                          
+                          // If same category, maintain original order (stable sort)
+                          return 0;
                         });
-
-                        // Combine: common first, then unique
-                        return [...commonFeaturesList, ...uniqueFeaturesList];
                       })().map((feature, index) => (
                         <li
                           key={index}
