@@ -259,8 +259,8 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
         };
       case "growth":
         return {
-          border: "border-primary",
-          badge: "bg-primary/10 text-primary",
+          border: "border-border",
+          badge: "bg-muted text-muted-foreground",
           button: "bg-primary hover:bg-primary/90",
         };
       case "pro":
