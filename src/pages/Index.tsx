@@ -1104,9 +1104,9 @@ const Index = () => {
               {/* Right Section - Plan Info */}
               <div className="lg:col-span-4">
                 {subscription && subscription.subscription !== null ? (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 min-h-[520px] flex flex-col">
+                    <CardContent className="p-4 flex-1 flex flex-col">
+                      <div className="space-y-3 flex-1 flex flex-col">
                         {/* Plan Badges - Always visible */}
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -1140,21 +1140,25 @@ const Index = () => {
                               </Badge>
                             )}
                           </div>
-                          {/* Plan Price & Interval - Show when plan exists */}
-                          {subscription.plan && !subscription.isFree && (
-                            <div className="pt-1">
-                              <p className="text-sm font-semibold text-foreground">
-                                {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {subscription.plan.interval === "EVERY_30_DAYS" 
-                                  ? t("planSelection.monthly") || "Monthly"
-                                  : subscription.plan.interval === "ANNUAL"
-                                  ? t("planSelection.annual") || "Annual"
-                                  : subscription.plan.interval}
-                              </p>
-                            </div>
-                          )}
+                          {/* Plan Price & Interval - Always maintain space */}
+                          <div className="min-h-[48px] flex items-start">
+                            {subscription.plan && !subscription.isFree ? (
+                              <div className="pt-1">
+                                <p className="text-sm font-semibold text-foreground">
+                                  {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {subscription.plan.interval === "EVERY_30_DAYS" 
+                                    ? t("planSelection.monthly") || "Monthly"
+                                    : subscription.plan.interval === "ANNUAL"
+                                    ? t("planSelection.annual") || "Annual"
+                                    : subscription.plan.interval}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="w-full" aria-hidden="true" />
+                            )}
+                          </div>
                         </div>
 
                         {/* Trial Days Remaining - Single line display */}
@@ -1284,9 +1288,9 @@ const Index = () => {
                           </div>
                         </div>
 
-                        {/* Subscription Period Info - Show when available */}
-                        {subscription.subscription && !subscription.isFree && (
-                          <div className="pt-1.5 border-t border-border">
+                        {/* Subscription Period Info - Always maintain space */}
+                        <div className="min-h-[60px] pt-1.5 border-t border-border">
+                          {subscription.subscription && !subscription.isFree ? (
                             <div className="grid grid-cols-2 gap-1.5 text-[10px]">
                               <div className="p-1.5 rounded bg-muted/30">
                                 <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
@@ -1311,8 +1315,10 @@ const Index = () => {
                                 </p>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="w-full" aria-hidden="true" />
+                          )}
+                        </div>
 
                         {/* Promo Code Section - Always visible for consistent layout */}
                         <div className="pt-2 border-t border-border">
@@ -1355,13 +1361,13 @@ const Index = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 min-h-[520px] flex flex-col">
+                    <CardContent className="p-4 flex-1 flex flex-col">
+                      <div className="space-y-3 flex-1 flex flex-col">
                         <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
                           {t("index.planCard.title")}
                         </h2>
-                        <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="flex flex-col items-center gap-3 text-center flex-1 justify-center">
                           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/5 border border-primary/10">
                             <CreditCard className="w-6 h-6 text-primary" aria-hidden="true" />
                           </div>
@@ -1384,6 +1390,45 @@ const Index = () => {
                               {t("index.planCard.choosePlan")}
                             </Button>
                           </div>
+                        </div>
+                        {/* Spacer to maintain consistent height */}
+                        <div className="flex-1" aria-hidden="true" />
+                        {/* Promo Code Section - Always visible for consistent layout */}
+                        <div className="pt-2 border-t border-border">
+                          <label htmlFor="coupon-code-empty" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
+                            <Tag className="w-3 h-3" aria-hidden="true" />
+                            {t("index.coupon.label") || "Promo Code"}
+                          </label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              id="coupon-code-empty"
+                              type="text"
+                              placeholder={t("index.coupon.placeholder") || "Enter promo code"}
+                              value={couponCode}
+                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !redeemingCoupon) {
+                                  handleRedeemCoupon();
+                                }
+                              }}
+                              disabled={redeemingCoupon}
+                              className="flex-1 h-8 text-xs"
+                              aria-label={t("index.coupon.inputLabel") || "Promo code input"}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={handleRedeemCoupon}
+                              disabled={redeemingCoupon || !couponCode.trim()}
+                              className="h-8 px-3 font-medium text-xs whitespace-nowrap"
+                              aria-label={redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
+                            >
+                              {redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
