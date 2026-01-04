@@ -952,6 +952,66 @@
       "instagramShareError": "Erreur de partage sur Instagram",
       "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez réessayer."
     }
+  },
+  "referral": {
+    "title": "Programme de Parrainage",
+    "description": "Partagez votre code de parrainage et gagnez des récompenses lorsque d'autres s'inscrivent",
+    "backToDashboard": "Retour au Tableau de Bord",
+    "upgradeRequired": {
+      "title": "Passer à un Plan Payant",
+      "description": "Les codes de parrainage ne sont disponibles que pour les utilisateurs de plans payants. Passez à un plan payant pour commencer à gagner des récompenses de parrainage !",
+      "viewPlans": "Voir les Plans"
+    },
+    "error": {
+      "title": "Erreur de Chargement des Données de Parrainage",
+      "message": "Échec du chargement des données de parrainage. Veuillez réessayer."
+    },
+    "code": {
+      "title": "Votre Code de Parrainage",
+      "description": "Partagez ce code avec d'autres pour gagner des récompenses",
+      "active": "Actif",
+      "copy": "Copier",
+      "share": "Partager",
+      "copying": "Copie en cours...",
+      "copyAriaLabel": "Copier le code de parrainage",
+      "loading": "Chargement de votre code de parrainage...",
+      "label": "Code de Parrainage",
+      "shareHint": "Partagez votre code pour gagner 20 crédits par parrainage",
+      "willAppear": "Votre code de parrainage apparaîtra ici",
+      "rewardMessage": "Lorsque quelqu'un utilise votre code de parrainage, vous recevez tous les deux 20 crédits !"
+    },
+    "statistics": {
+      "title": "Statistiques de Parrainage",
+      "description": "Suivez vos performances de parrainage",
+      "totalReferrals": "Total des Parrainages",
+      "completed": "Terminés",
+      "pending": "En Attente",
+      "creditsEarned": "Crédits Gagnés"
+    },
+    "howItWorks": {
+      "title": "Comment Fonctionne le Parrainage",
+      "step1": "Partagez votre code de parrainage avec vos amis et collègues",
+      "step2": "Lorsqu'ils s'inscrivent et s'abonnent à un plan payant, vous recevez tous les deux 20 crédits",
+      "step3": "Les crédits sont attribués automatiquement après l'approbation de leur abonnement",
+      "step4": "Il n'y a pas de limite au nombre de personnes que vous pouvez parrainer !"
+    },
+    "empty": {
+      "title": "Aucun Parrainage pour le Moment",
+      "description": "Commencez à partager votre code de parrainage pour gagner des récompenses !"
+    },
+    "toast": {
+      "codeCopied": "Code de parrainage copié !",
+      "codeCopiedDescription": "Vous pouvez maintenant le partager avec d'autres",
+      "copyFailed": "Échec de la copie du code",
+      "copyFailedDescription": "Veuillez réessayer",
+      "sharedSuccess": "Partagé avec succès !",
+      "sharedSuccessDescription": "Merci d'avoir partagé votre code de parrainage",
+      "shareFailed": "Échec du partage",
+      "shareFailedDescription": "Veuillez réessayer",
+      "linkCopied": "Lien de parrainage copié !",
+      "linkCopiedDescription": "Vous pouvez maintenant le coller n'importe où",
+      "copyFailedGeneric": "Échec de la copie"
+    }
   }
 }
 

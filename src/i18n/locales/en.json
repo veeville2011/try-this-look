@@ -952,6 +952,66 @@
       "instagramShareError": "Error sharing to Instagram",
       "instagramShareErrorDescription": "Unable to share to Instagram. Please try again."
     }
+  },
+  "referral": {
+    "title": "Referral Program",
+    "description": "Share your referral code and earn rewards when others sign up",
+    "backToDashboard": "Back to Dashboard",
+    "upgradeRequired": {
+      "title": "Upgrade to a Paid Plan",
+      "description": "Referral codes are only available for users on paid plans. Upgrade your plan to start earning referral rewards!",
+      "viewPlans": "View Plans"
+    },
+    "error": {
+      "title": "Error Loading Referral Data",
+      "message": "Failed to load referral data. Please try again."
+    },
+    "code": {
+      "title": "Your Referral Code",
+      "description": "Share this code with others to earn rewards",
+      "active": "Active",
+      "copy": "Copy",
+      "share": "Share",
+      "copying": "Copying...",
+      "copyAriaLabel": "Copy referral code",
+      "loading": "Loading your referral code...",
+      "label": "Referral Code",
+      "shareHint": "Share your code to earn 20 credits per referral",
+      "willAppear": "Your referral code will appear here",
+      "rewardMessage": "When someone uses your referral code, you both receive 20 credits!"
+    },
+    "statistics": {
+      "title": "Referral Statistics",
+      "description": "Track your referral performance",
+      "totalReferrals": "Total Referrals",
+      "completed": "Completed",
+      "pending": "Pending",
+      "creditsEarned": "Credits Earned"
+    },
+    "howItWorks": {
+      "title": "How Referrals Work",
+      "step1": "Share your referral code with friends and colleagues",
+      "step2": "When they sign up and subscribe to a paid plan, you both receive 20 credits",
+      "step3": "Credits are awarded automatically after their subscription is approved",
+      "step4": "There's no limit to how many people you can refer!"
+    },
+    "empty": {
+      "title": "No Referrals Yet",
+      "description": "Start sharing your referral code to earn rewards!"
+    },
+    "toast": {
+      "codeCopied": "Referral code copied!",
+      "codeCopiedDescription": "You can now share it with others",
+      "copyFailed": "Failed to copy code",
+      "copyFailedDescription": "Please try again",
+      "sharedSuccess": "Shared successfully!",
+      "sharedSuccessDescription": "Thanks for sharing your referral code",
+      "shareFailed": "Failed to share",
+      "shareFailedDescription": "Please try again",
+      "linkCopied": "Referral link copied!",
+      "linkCopiedDescription": "You can now paste it anywhere",
+      "copyFailedGeneric": "Failed to copy"
+    }
   }
 }
 

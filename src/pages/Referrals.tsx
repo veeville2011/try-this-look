@@ -87,11 +87,11 @@ const Referrals = () => {
         if (statsResponse.success && statsResponse.stats) {
           setStats(statsResponse.stats);
         } else if (statsResponse.error) {
-          setError(statsResponse.message || "Failed to load referral statistics");
+          setError(statsResponse.message || t("referral.error.message"));
         }
       } catch (err: any) {
         console.error("[Referrals] Failed to fetch referral data", err);
-        setError(err.message || "An unexpected error occurred");
+        setError(err.message || t("referral.error.message"));
       } finally {
         setLoading(false);
       }
@@ -106,13 +106,13 @@ const Referrals = () => {
     try {
       setCopyingCode(true);
       await navigator.clipboard.writeText(referralCode);
-      toast.success("Referral code copied!", {
-        description: "You can now share it with others",
+      toast.success(t("referral.toast.codeCopied"), {
+        description: t("referral.toast.codeCopiedDescription"),
       });
     } catch (err) {
       console.error("[Referrals] Failed to copy code", err);
-      toast.error("Failed to copy code", {
-        description: "Please try again",
+      toast.error(t("referral.toast.copyFailed"), {
+        description: t("referral.toast.copyFailedDescription"),
       });
     } finally {
       setCopyingCode(false);
@@ -128,18 +128,18 @@ const Referrals = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Referral Code",
+          title: t("referral.code.label"),
           text: shareText,
           url: shareUrl,
         });
-        toast.success("Shared successfully!", {
-          description: "Thanks for sharing your referral code",
+        toast.success(t("referral.toast.sharedSuccess"), {
+          description: t("referral.toast.sharedSuccessDescription"),
         });
       } catch (err: any) {
         if (err.name !== "AbortError") {
           console.error("[Referrals] Failed to share", err);
-          toast.error("Failed to share", {
-            description: "Please try again",
+          toast.error(t("referral.toast.shareFailed"), {
+            description: t("referral.toast.shareFailedDescription"),
           });
         }
       }
@@ -147,13 +147,13 @@ const Referrals = () => {
       // Fallback to copy
       try {
         await navigator.clipboard.writeText(`${shareText} - ${shareUrl}`);
-        toast.success("Referral link copied!", {
-          description: "You can now paste it anywhere",
+        toast.success(t("referral.toast.linkCopied"), {
+          description: t("referral.toast.linkCopiedDescription"),
         });
       } catch (copyErr) {
         console.error("[Referrals] Failed to copy", copyErr);
-        toast.error("Failed to copy", {
-          description: "Please try again",
+        toast.error(t("referral.toast.copyFailedGeneric"), {
+          description: t("referral.toast.copyFailedDescription"),
         });
       }
     }
@@ -200,7 +200,7 @@ const Referrals = () => {
               className="mb-6"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              {t("referral.backToDashboard")}
             </Button>
 
             <Card className="border-2 border-border shadow-lg bg-card">
@@ -211,10 +211,10 @@ const Referrals = () => {
                   </div>
                   <div>
                     <CardTitle className="text-2xl font-bold text-foreground">
-                      Referral Program
+                      {t("referral.title")}
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      Share your referral code and earn rewards
+                      {t("referral.description")}
                     </CardDescription>
                   </div>
                 </div>
@@ -225,17 +225,17 @@ const Referrals = () => {
                   <AlertDescription className="mt-2">
                     <div className="space-y-3">
                       <p className="text-base font-semibold text-foreground">
-                        Upgrade to a Paid Plan
+                        {t("referral.upgradeRequired.title")}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Referral codes are only available for users on paid plans. Upgrade your plan to start earning referral rewards!
+                        {t("referral.upgradeRequired.description")}
                       </p>
                       <Button
                         onClick={handleBackToDashboard}
                         className="mt-4"
                       >
                         <Crown className="w-4 h-4 mr-2" />
-                        View Plans
+                        {t("referral.upgradeRequired.viewPlans")}
                       </Button>
                     </div>
                   </AlertDescription>
@@ -260,14 +260,14 @@ const Referrals = () => {
               className="mb-6"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              {t("referral.backToDashboard")}
             </Button>
 
             <Card className="border-2 border-destructive/20 shadow-lg bg-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-destructive">
                   <AlertCircle className="h-5 w-5" />
-                  Error Loading Referral Data
+                  {t("referral.error.title")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -283,7 +283,7 @@ const Referrals = () => {
                   variant="outline"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Dashboard
+                  {t("referral.backToDashboard")}
                 </Button>
               </CardContent>
             </Card>
@@ -304,7 +304,7 @@ const Referrals = () => {
             className="mb-6"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            {t("referral.backToDashboard")}
           </Button>
 
           {/* Header */}
@@ -314,11 +314,11 @@ const Referrals = () => {
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <h1 className="text-3xl font-bold text-foreground">
-                Referral Program
+                {t("referral.title")}
               </h1>
             </div>
             <p className="text-muted-foreground">
-              Share your referral code and earn rewards when others sign up
+              {t("referral.description")}
             </p>
           </div>
 
@@ -329,16 +329,16 @@ const Referrals = () => {
                 <div>
                   <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    Your Referral Code
+                    {t("referral.code.title")}
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Share this code with others to earn rewards
+                    {t("referral.code.description")}
                   </CardDescription>
                 </div>
                 {referralCode && (
                   <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Active
+                    {t("referral.code.active")}
                   </Badge>
                 )}
               </div>
@@ -358,13 +358,14 @@ const Referrals = () => {
                       variant="outline"
                       size="lg"
                       className="h-12 px-6"
+                      aria-label={copyingCode ? t("referral.code.copying") : t("referral.code.copyAriaLabel")}
                     >
                       {copyingCode ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <Copy className="w-4 h-4 mr-2" />
                       )}
-                      Copy
+                      {t("referral.code.copy")}
                     </Button>
                     <Button
                       onClick={handleShareCode}
@@ -372,18 +373,18 @@ const Referrals = () => {
                       className="h-12 px-6"
                     >
                       <Share2 className="w-4 h-4 mr-2" />
-                      Share
+                      {t("referral.code.share")}
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    When someone uses your referral code, you both receive 20 credits!
+                    {t("referral.code.rewardMessage")}
                   </p>
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-4" />
                   <p className="text-sm text-muted-foreground">
-                    Loading your referral code...
+                    {t("referral.code.loading")}
                   </p>
                 </div>
               )}
@@ -396,10 +397,10 @@ const Referrals = () => {
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  Referral Statistics
+                  {t("referral.statistics.title")}
                 </CardTitle>
                 <CardDescription>
-                  Track your referral performance
+                  {t("referral.statistics.description")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -408,7 +409,7 @@ const Referrals = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Total Referrals
+                        {t("referral.statistics.totalReferrals")}
                       </p>
                     </div>
                     <p className="text-3xl font-bold text-foreground">
@@ -420,7 +421,7 @@ const Referrals = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircle2 className="h-4 w-4 text-success" />
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Completed
+                        {t("referral.statistics.completed")}
                       </p>
                     </div>
                     <p className="text-3xl font-bold text-success">
@@ -432,7 +433,7 @@ const Referrals = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <Loader2 className="h-4 w-4 text-warning" />
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Pending
+                        {t("referral.statistics.pending")}
                       </p>
                     </div>
                     <p className="text-3xl font-bold text-warning">
@@ -444,7 +445,7 @@ const Referrals = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <Coins className="h-4 w-4 text-primary" />
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Credits Earned
+                        {t("referral.statistics.creditsEarned")}
                       </p>
                     </div>
                     <p className="text-3xl font-bold text-primary">
@@ -459,24 +460,24 @@ const Referrals = () => {
                     <Gift className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-foreground mb-1">
-                        How Referrals Work
+                        {t("referral.howItWorks.title")}
                       </p>
                       <ul className="text-sm text-muted-foreground space-y-1">
                         <li className="flex items-start gap-2">
                           <span className="text-primary mt-0.5">•</span>
-                          <span>Share your referral code with friends and colleagues</span>
+                          <span>{t("referral.howItWorks.step1")}</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-primary mt-0.5">•</span>
-                          <span>When they sign up and subscribe to a paid plan, you both receive 20 credits</span>
+                          <span>{t("referral.howItWorks.step2")}</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-primary mt-0.5">•</span>
-                          <span>Credits are awarded automatically after their subscription is approved</span>
+                          <span>{t("referral.howItWorks.step3")}</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-primary mt-0.5">•</span>
-                          <span>There's no limit to how many people you can refer!</span>
+                          <span>{t("referral.howItWorks.step4")}</span>
                         </li>
                       </ul>
                     </div>
@@ -492,10 +493,10 @@ const Referrals = () => {
               <CardContent className="p-8 text-center">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <p className="text-base font-semibold text-foreground mb-2">
-                  No Referrals Yet
+                  {t("referral.empty.title")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Start sharing your referral code to earn rewards!
+                  {t("referral.empty.description")}
                 </p>
               </CardContent>
             </Card>

@@ -317,13 +317,13 @@ const Index = () => {
     try {
       setCopyingReferralCode(true);
       await navigator.clipboard.writeText(referralCode);
-      toast.success("Referral code copied!", {
-        description: "You can now share it with others",
+      toast.success(t("referral.toast.codeCopied"), {
+        description: t("referral.toast.codeCopiedDescription"),
       });
     } catch (err) {
       console.error("[Index] Failed to copy referral code", err);
-      toast.error("Failed to copy code", {
-        description: "Please try again",
+      toast.error(t("referral.toast.copyFailed"), {
+        description: t("referral.toast.copyFailedDescription"),
       });
     } finally {
       setCopyingReferralCode(false);
@@ -1406,7 +1406,7 @@ const Index = () => {
                           <div className="pt-2 border-t border-border flex-shrink-0">
                             <label className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
                               <Users className="w-3 h-3" aria-hidden="true" />
-                              Referral Code
+                              {t("referral.code.label")}
                             </label>
                             {loadingReferralCode ? (
                               <div className="flex items-center gap-2 py-2">
@@ -1425,24 +1425,24 @@ const Index = () => {
                                     onClick={handleCopyReferralCode}
                                     disabled={copyingReferralCode}
                                     className="h-8 px-3 font-medium text-xs whitespace-nowrap"
-                                    aria-label={copyingReferralCode ? "Copying..." : "Copy referral code"}
+                                    aria-label={copyingReferralCode ? t("referral.code.copying") : t("referral.code.copyAriaLabel")}
                                   >
                                     {copyingReferralCode ? (
                                       <div className="w-3 h-3 mr-1 border-2 border-border border-t-primary rounded-full animate-spin" />
                                     ) : (
                                       <Copy className="w-3 h-3 mr-1" />
                                     )}
-                                    Copy
+                                    {t("referral.code.copy")}
                                   </Button>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">
-                                  Share your code to earn 20 credits per referral
+                                  {t("referral.code.shareHint")}
                                 </p>
                               </div>
                             ) : (
                               <div className="py-2">
                                 <p className="text-[10px] text-muted-foreground">
-                                  Your referral code will appear here
+                                  {t("referral.code.willAppear")}
                                 </p>
                               </div>
                             )}
