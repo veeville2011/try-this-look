@@ -24,7 +24,6 @@ import {
   Calendar,
   CreditCard,
   Sparkle,
-  Tag,
   Coins,
   X,
   AlertTriangle,
@@ -1402,44 +1401,6 @@ const Index = () => {
                           ) : null}
                         </div>
 
-                        {/* Promo Code Section - Always visible for consistent layout - Fixed height */}
-                        <div className="pt-2 border-t border-border flex-shrink-0">
-                          <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
-                            <Tag className="w-3 h-3" aria-hidden="true" />
-                            {t("index.coupon.label") || "Promo Code"}
-                          </label>
-                          <div className="flex gap-1.5">
-                            <Input
-                              id="coupon-code"
-                              type="text"
-                              placeholder={t("index.coupon.placeholder") || "Enter promo code"}
-                              value={couponCode}
-                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !redeemingCoupon) {
-                                  handleRedeemCoupon();
-                                }
-                              }}
-                              disabled={redeemingCoupon}
-                              className="flex-1 h-8 text-xs"
-                              aria-label={t("index.coupon.inputLabel") || "Promo code input"}
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={handleRedeemCoupon}
-                              disabled={redeemingCoupon || !couponCode.trim()}
-                              className="h-8 px-3 font-medium text-xs whitespace-nowrap"
-                              aria-label={redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
-                            >
-                              {redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
-                          </p>
-                        </div>
-
                         {/* Referral Code Section - Show only for paid plan users */}
                         {subscription && !subscription.isFree && subscription.hasActiveSubscription && (
                           <div className="pt-2 border-t border-border flex-shrink-0">
@@ -1520,43 +1481,6 @@ const Index = () => {
                               {t("index.planCard.choosePlan")}
                             </Button>
                           </div>
-                        </div>
-                        {/* Promo Code Section - Always visible for consistent layout - Fixed height */}
-                        <div className="pt-2 border-t border-border flex-shrink-0">
-                          <label htmlFor="coupon-code-empty" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
-                            <Tag className="w-3 h-3" aria-hidden="true" />
-                            {t("index.coupon.label") || "Promo Code"}
-                          </label>
-                          <div className="flex gap-1.5">
-                            <Input
-                              id="coupon-code-empty"
-                              type="text"
-                              placeholder={t("index.coupon.placeholder") || "Enter promo code"}
-                              value={couponCode}
-                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !redeemingCoupon) {
-                                  handleRedeemCoupon();
-                                }
-                              }}
-                              disabled={redeemingCoupon}
-                              className="flex-1 h-8 text-xs"
-                              aria-label={t("index.coupon.inputLabel") || "Promo code input"}
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={handleRedeemCoupon}
-                              disabled={redeemingCoupon || !couponCode.trim()}
-                              className="h-8 px-3 font-medium text-xs whitespace-nowrap"
-                              aria-label={redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
-                            >
-                              {redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
-                          </p>
                         </div>
                       </div>
                     </CardContent>
