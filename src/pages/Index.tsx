@@ -48,6 +48,7 @@ import {
 import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
+import { PlanConfirmation } from "@/components/PlanConfirmation";
 import NavigationBar from "@/components/NavigationBar";
 import CreditBalance from "@/components/CreditBalance";
 
@@ -66,6 +67,8 @@ const Index = () => {
   const [availablePlans, setAvailablePlans] = useState<any[] | any>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
+  const [showPlanConfirmation, setShowPlanConfirmation] = useState(false);
+  const [selectedPlanForConfirmation, setSelectedPlanForConfirmation] = useState<any | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -369,11 +372,50 @@ const Index = () => {
     }
   };
 
-  const handleSelectPlan = async (planHandle: string) => {
+  // Helper function to find plan by handle
+  const findPlanByHandle = (planHandle: string): any | null => {
+    if (Array.isArray(availablePlans)) {
+      return availablePlans.find((p: any) => p.handle === planHandle) || null;
+    } else if (availablePlans?.plans) {
+      return availablePlans.plans.find((p: any) => p.handle === planHandle) || null;
+    } else if (availablePlans?.planTiers) {
+      // Search through all tiers
+      const tiers = availablePlans.planTiers;
+      for (const tierKey in tiers) {
+        const tierPlans = tiers[tierKey];
+        if (Array.isArray(tierPlans)) {
+          const found = tierPlans.find((p: any) => p.handle === planHandle);
+          if (found) return found;
+        }
+      }
+    }
+    return null;
+  };
+
+  const handleSelectPlan = (planHandle: string) => {
+    const plan = findPlanByHandle(planHandle);
+    
+    if (plan) {
+      setSelectedPlanForConfirmation(plan);
+      setShowPlanSelection(false);
+      setShowPlanConfirmation(true);
+    } else {
+      console.error("[Billing] Plan not found for handle:", planHandle);
+      toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
+    }
+  };
+
+  const handleConfirmPlan = async (referralCode: string | null) => {
+    if (!selectedPlanForConfirmation) {
+      toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
+      return;
+    }
+
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
 
     if (!shopDomain) {
+      toast.error("Shop domain not found");
       return;
     }
 
@@ -382,11 +424,14 @@ const Index = () => {
 
       console.log("[Billing] Creating subscription request", {
         shop: shopDomain,
-        planHandle,
+        planHandle: selectedPlanForConfirmation.handle,
+        referralCode: referralCode || "none",
       });
 
-      // Use remote API service
-      const data = await subscribeToPlan(shopDomain, planHandle, null);
+      // Note: Referral code is validated separately via /api/referrals/validate
+      // The backend will handle referral code validation during subscription creation
+      // We pass null as promoCode (promoCode is different from referral code)
+      const data = await subscribeToPlan(shopDomain, selectedPlanForConfirmation.handle, null);
 
       console.log("[Billing] Subscription response received", {
         confirmationUrl: data.confirmationUrl,
@@ -430,6 +475,12 @@ const Index = () => {
     } finally {
       setBillingLoading(false);
     }
+  };
+
+  const handleBackToPlanSelection = () => {
+    setShowPlanConfirmation(false);
+    setSelectedPlanForConfirmation(null);
+    setShowPlanSelection(true);
   };
 
   // Debug logging for subscription API call
@@ -1981,6 +2032,17 @@ const Index = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* Plan Confirmation Step - Full Page View */}
+      {showPlanConfirmation && selectedPlanForConfirmation && shop && (
+        <PlanConfirmation
+          selectedPlan={selectedPlanForConfirmation}
+          onConfirm={handleConfirmPlan}
+          onBack={handleBackToPlanSelection}
+          loading={billingLoading}
+          shop={shop}
+        />
       )}
 
       {/* Loading Indicator - Non-blocking, shows in top-right corner */}
