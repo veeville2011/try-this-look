@@ -5880,6 +5880,624 @@ app.post("/api/stores/sync", async (req, res) => {
   }
 });
 
+// Referral API Routes
+
+// Get or Create Referral Code
+app.get("/api/referrals/code", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      logger.warn("[REFERRALS] [GET_CODE] Missing shop parameter", {
+        requestId,
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      logger.warn("[REFERRALS] [GET_CODE] Invalid shop parameter", {
+        requestId,
+        originalShop: shop,
+      });
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    // Get session token from request
+    const sessionToken = req.sessionToken;
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+        requestId,
+      });
+    }
+
+    // Exchange JWT session token for offline access token
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Failed to get access token",
+        requestId,
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: false,
+      },
+    });
+
+    // Check subscription status to verify user is on paid plan
+    const subscriptionStatus = await fetchManagedSubscriptionStatus(
+      shopDomain,
+      req.session,
+      req.sessionToken
+    );
+
+    if (!subscriptionStatus.hasActiveSubscription || subscriptionStatus.isFree) {
+      logger.warn("[REFERRALS] [GET_CODE] User not on paid plan", {
+        requestId,
+        shop: shopDomain,
+        hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+        isFree: subscriptionStatus.isFree,
+      });
+      return res.status(403).json({
+        error: "Not eligible",
+        message: "Only users on paid plans can generate referral codes",
+        requestId,
+      });
+    }
+
+    // Call remote backend to get or create referral code
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [GET_CODE] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral code",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/code?shop=${encodeURIComponent(shopDomain)}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [GET_CODE] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shop: shopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral code",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error");
+        logger.error("[REFERRALS] [GET_CODE] Remote backend error", null, req, {
+          requestId,
+          shop: shopDomain,
+          status: response.status,
+          error: errorText,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral code",
+          message: "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const data = await response.json();
+      
+      return res.status(200).json({
+        success: true,
+        referralCode: data.referralCode,
+        isActive: data.isActive ?? true,
+        createdAt: data.createdAt,
+        requestId,
+      });
+    } catch (error) {
+      logger.error("[REFERRALS] [GET_CODE] Failed to call remote backend", error, req, {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral code",
+        message: error.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [GET_CODE] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to get referral code",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+// Validate Referral Code
+app.post("/api/referrals/validate", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const { referralCode, shopDomain } = req.body;
+
+    if (!referralCode) {
+      logger.warn("[REFERRALS] [VALIDATE] Missing referral code", {
+        requestId,
+        body: req.body,
+      });
+      return res.status(400).json({
+        error: "Missing referral code",
+        message: "Referral code is required",
+        requestId,
+      });
+    }
+
+    if (!shopDomain) {
+      logger.warn("[REFERRALS] [VALIDATE] Missing shop domain", {
+        requestId,
+        body: req.body,
+      });
+      return res.status(400).json({
+        error: "Missing shop domain",
+        message: "Shop domain is required",
+        requestId,
+      });
+    }
+
+    const normalizedShopDomain = normalizeShopDomain(shopDomain);
+    if (!normalizedShopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop domain",
+        message: "Provide a valid .myshopify.com domain",
+        requestId,
+      });
+    }
+
+    // Call remote backend to validate referral code
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [VALIDATE] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shopDomain: normalizedShopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to validate referral code",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/validate`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            referralCode: referralCode.trim().toUpperCase(),
+            shopDomain: normalizedShopDomain,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [VALIDATE] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shopDomain: normalizedShopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to validate referral code",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.error("[REFERRALS] [VALIDATE] Failed to parse response", parseError, req, {
+          requestId,
+          status: response.status,
+          responseText,
+        });
+        return res.status(500).json({
+          error: "Failed to validate referral code",
+          message: "Invalid response from referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        logger.warn("[REFERRALS] [VALIDATE] Validation failed", {
+          requestId,
+          shopDomain: normalizedShopDomain,
+          status: response.status,
+          error: data.message || data.error,
+        });
+        return res.status(response.status || 400).json({
+          error: data.error || "Validation failed",
+          message: data.message || "Invalid or inactive referral code",
+          requestId,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Referral code validated successfully",
+        referralId: data.referralId,
+        status: data.status || "pending",
+        requestId,
+      });
+    } catch (error) {
+      logger.error("[REFERRALS] [VALIDATE] Failed to call remote backend", error, req, {
+        requestId,
+        shopDomain: normalizedShopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to validate referral code",
+        message: error.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [VALIDATE] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to validate referral code",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+// Award Referral Credits
+app.post("/api/referrals/award", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const shop = req.query.shop || req.body.shop;
+    if (!shop) {
+      logger.warn("[REFERRALS] [AWARD] Missing shop parameter", {
+        requestId,
+        query: req.query,
+        body: req.body,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    // Call remote backend to get referral information and award credits
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [AWARD] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to award referral credits",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/award`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ shopDomain }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [AWARD] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shop: shopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to award referral credits",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.error("[REFERRALS] [AWARD] Failed to parse response", parseError, req, {
+          requestId,
+          status: response.status,
+          responseText,
+        });
+        return res.status(500).json({
+          error: "Failed to award referral credits",
+          message: "Invalid response from referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        logger.error("[REFERRALS] [AWARD] Remote backend error", null, req, {
+          requestId,
+          shop: shopDomain,
+          status: response.status,
+          error: data.message || data.error,
+        });
+        return res.status(response.status || 500).json({
+          error: data.error || "Failed to award referral credits",
+          message: data.message || "Error processing referral award",
+          requestId,
+        });
+      }
+
+      // If credits were awarded, we need to add them to both shops
+      if (data.creditsAwarded && data.referrerShop && data.referredShop) {
+        try {
+          // Award credits to referred user (20 credits)
+          if (data.referredShop) {
+            // Note: This requires authentication from the referred shop
+            // In practice, this should be called from the payment success page
+            // For now, we'll just log it - the frontend should handle calling this
+            // with the proper authentication
+            logger.info("[REFERRALS] [AWARD] Credits should be awarded to referred shop", {
+              requestId,
+              shop: data.referredShop,
+              credits: data.referredCredits || 20,
+            });
+          }
+
+          // Award credits to referrer (20 credits)
+          if (data.referrerShop) {
+            logger.info("[REFERRALS] [AWARD] Credits should be awarded to referrer shop", {
+              requestId,
+              shop: data.referrerShop,
+              credits: data.referrerCredits || 20,
+            });
+          }
+        } catch (creditError) {
+          logger.error("[REFERRALS] [AWARD] Failed to award credits (non-blocking)", creditError, req, {
+            requestId,
+            shop: shopDomain,
+          });
+          // Don't fail the request - credits can be awarded later
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: data.creditsAwarded ? "Credits awarded successfully" : "No referral to process",
+        creditsAwarded: data.creditsAwarded || false,
+        referrerCredits: data.referrerCredits || 0,
+        referredCredits: data.referredCredits || 0,
+        requestId,
+      });
+    } catch (fetchError) {
+      logger.error("[REFERRALS] [AWARD] Failed to call remote backend", fetchError, req, {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to award referral credits",
+        message: fetchError.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [AWARD] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to award referral credits",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+// Get Referral Statistics
+app.get("/api/referrals/stats", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      logger.warn("[REFERRALS] [STATS] Missing shop parameter", {
+        requestId,
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    // Call remote backend to get referral statistics
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [STATS] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral statistics",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/stats?shop=${encodeURIComponent(shopDomain)}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [STATS] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shop: shopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral statistics",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error");
+        logger.error("[REFERRALS] [STATS] Remote backend error", null, req, {
+          requestId,
+          shop: shopDomain,
+          status: response.status,
+          error: errorText,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral statistics",
+          message: "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const data = await response.json();
+      
+      return res.status(200).json({
+        success: true,
+        stats: data.stats || {
+          hasReferralCode: false,
+          referralCode: null,
+          totalReferrals: 0,
+          completedReferrals: 0,
+          pendingReferrals: 0,
+          totalCreditsEarned: 0,
+        },
+        requestId,
+      });
+    } catch (fetchError) {
+      logger.error("[REFERRALS] [STATS] Failed to call remote backend", fetchError, req, {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral statistics",
+        message: fetchError.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [STATS] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to get referral statistics",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
 // API Routes
 app.post("/api/tryon/generate", async (req, res) => {
   const startTime = Date.now();
