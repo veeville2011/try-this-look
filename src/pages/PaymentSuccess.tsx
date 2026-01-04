@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { CheckCircle2, Sparkles, ArrowRight, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { notifyPaymentSuccess } from "@/services/paymentSuccessApi";
+import { syncCredits } from "@/services/creditsApi";
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
@@ -12,18 +12,41 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const shop = searchParams.get("shop");
 
-  // Call payment success API when component mounts
+  // Sync credits when component mounts (after subscription approval)
   useEffect(() => {
-    const callPaymentSuccessApi = async () => {
+    const syncCreditsAfterApproval = async () => {
+      if (!shop) {
+        console.warn("[PaymentSuccess] No shop parameter, skipping credit sync");
+        return;
+      }
+
       try {
-        await notifyPaymentSuccess(shop || null);
+        console.log("[PaymentSuccess] Syncing credits after subscription approval", {
+          shop,
+        });
+        const result = await syncCredits(shop);
+        
+        if (result.success) {
+          console.log("[PaymentSuccess] Credits synced successfully", {
+            action: result.action,
+            planHandle: result.planHandle,
+            includedCredits: result.includedCredits,
+            requestId: result.requestId,
+          });
+        } else {
+          console.error("[PaymentSuccess] Credit sync failed", {
+            error: result.error,
+            message: result.message,
+            requestId: result.requestId,
+          });
+        }
       } catch (error) {
         // Silently handle errors - don't disrupt user experience
-        console.error("[PaymentSuccess] Failed to notify payment success", error);
+        console.error("[PaymentSuccess] Failed to sync credits", error);
       }
     };
 
-    callPaymentSuccessApi();
+    syncCreditsAfterApproval();
   }, [shop]);
 
   const handleRedirectToApp = () => {

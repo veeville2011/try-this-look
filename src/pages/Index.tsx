@@ -274,6 +274,27 @@ const Index = () => {
       // Refresh subscription status
       await refreshSubscription();
 
+      // Sync credits after cancellation to clear plan credits
+      try {
+        const { syncCredits } = await import("@/services/creditsApi");
+        const syncResult = await syncCredits(shopDomain);
+        if (syncResult.success) {
+          console.log("[Billing] Credits synced after cancellation", {
+            action: syncResult.action,
+            requestId: syncResult.requestId,
+          });
+        } else {
+          console.warn("[Billing] Credit sync failed after cancellation", {
+            error: syncResult.error,
+            message: syncResult.message,
+            requestId: syncResult.requestId,
+          });
+        }
+      } catch (syncError) {
+        // Don't block cancellation flow if credit sync fails
+        console.error("[Billing] Failed to sync credits after cancellation", syncError);
+      }
+
       toast.success(t("index.planCard.subscriptionCancelled") || "Subscription cancelled successfully");
       console.log("[Billing] Subscription cancelled successfully", data);
     } catch (error: any) {

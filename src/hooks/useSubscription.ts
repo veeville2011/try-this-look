@@ -293,6 +293,46 @@ export const useSubscription = (): UseSubscriptionReturn => {
       
       // Verify shop hasn't changed before updating state
       if (currentNormalizedShop === normalizedShop) {
+        // Check for subscription renewal (period change)
+        const cachedData = safeCacheOperations.get(storageKey);
+        const currentPeriodEnd = subscriptionData.subscription?.currentPeriodEnd;
+        const cachedPeriodEnd = cachedData?.subscription?.currentPeriodEnd;
+        
+        // If subscription period has changed, sync credits (renewal detected)
+        if (
+          subscriptionData.subscription &&
+          currentPeriodEnd &&
+          cachedPeriodEnd &&
+          currentPeriodEnd !== cachedPeriodEnd
+        ) {
+          console.log("[useSubscription] Subscription period changed, syncing credits", {
+            shop: normalizedShop,
+            oldPeriodEnd: cachedPeriodEnd,
+            newPeriodEnd: currentPeriodEnd,
+          });
+          
+          // Sync credits in background (don't block subscription update)
+          import("@/services/creditsApi")
+            .then(({ syncCredits }) => syncCredits(normalizedShop))
+            .then((syncResult) => {
+              if (syncResult.success) {
+                console.log("[useSubscription] Credits synced after renewal detection", {
+                  action: syncResult.action,
+                  requestId: syncResult.requestId,
+                });
+              } else {
+                console.warn("[useSubscription] Credit sync failed after renewal detection", {
+                  error: syncResult.error,
+                  message: syncResult.message,
+                  requestId: syncResult.requestId,
+                });
+              }
+            })
+            .catch((syncError) => {
+              console.error("[useSubscription] Failed to sync credits after renewal detection", syncError);
+            });
+        }
+        
         setSubscription(subscriptionData);
         
         // Safely store in cache
