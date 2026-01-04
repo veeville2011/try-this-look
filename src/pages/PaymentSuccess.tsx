@@ -5,6 +5,7 @@ import { CheckCircle2, Sparkles, ArrowRight, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { syncCredits } from "@/services/creditsApi";
+import { awardReferralCredits } from "@/services/referralsApi";
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
@@ -12,11 +13,11 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const shop = searchParams.get("shop");
 
-  // Sync credits when component mounts (after subscription approval)
+  // Sync credits and award referral credits when component mounts (after subscription approval)
   useEffect(() => {
-    const syncCreditsAfterApproval = async () => {
+    const processAfterApproval = async () => {
       if (!shop) {
-        console.warn("[PaymentSuccess] No shop parameter, skipping credit sync");
+        console.warn("[PaymentSuccess] No shop parameter, skipping credit sync and referral award");
         return;
       }
 
@@ -40,13 +41,42 @@ const PaymentSuccess = () => {
             requestId: result.requestId,
           });
         }
+
+        // Award referral credits (non-blocking - errors don't disrupt user flow)
+        try {
+          console.log("[PaymentSuccess] Awarding referral credits", {
+            shop,
+          });
+          const awardResult = await awardReferralCredits(shop);
+          
+          if (awardResult.success && awardResult.creditsAwarded) {
+            console.log("[PaymentSuccess] Referral credits awarded successfully", {
+              referrerCredits: awardResult.referrerCredits,
+              referredCredits: awardResult.referredCredits,
+              requestId: awardResult.requestId,
+            });
+          } else if (awardResult.success && !awardResult.creditsAwarded) {
+            console.log("[PaymentSuccess] No referral to process", {
+              requestId: awardResult.requestId,
+            });
+          } else {
+            console.warn("[PaymentSuccess] Referral credit award failed (non-blocking)", {
+              error: awardResult.error,
+              message: awardResult.message,
+              requestId: awardResult.requestId,
+            });
+          }
+        } catch (referralError) {
+          // Silently handle referral errors - don't disrupt user experience
+          console.warn("[PaymentSuccess] Failed to award referral credits (non-blocking)", referralError);
+        }
       } catch (error) {
         // Silently handle errors - don't disrupt user experience
         console.error("[PaymentSuccess] Failed to sync credits", error);
       }
     };
 
-    syncCreditsAfterApproval();
+    processAfterApproval();
   }, [shop]);
 
   const handleRedirectToApp = () => {

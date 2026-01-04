@@ -4,6 +4,7 @@ import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
 import { getAvailablePlans, subscribeToPlan, cancelSubscription, redeemCouponCode } from "@/services/billingApi";
+import { getReferralCode } from "@/services/referralsApi";
 import {
   Card,
   CardContent,
@@ -27,6 +28,9 @@ import {
   Coins,
   X,
   AlertTriangle,
+  Copy,
+  Users,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +71,9 @@ const Index = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [loadingReferralCode, setLoadingReferralCode] = useState(false);
+  const [copyingReferralCode, setCopyingReferralCode] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -305,6 +312,25 @@ const Index = () => {
     }
   };
 
+  const handleCopyReferralCode = async () => {
+    if (!referralCode) return;
+
+    try {
+      setCopyingReferralCode(true);
+      await navigator.clipboard.writeText(referralCode);
+      toast.success("Referral code copied!", {
+        description: "You can now share it with others",
+      });
+    } catch (err) {
+      console.error("[Index] Failed to copy referral code", err);
+      toast.error("Failed to copy code", {
+        description: "Please try again",
+      });
+    } finally {
+      setCopyingReferralCode(false);
+    }
+  };
+
   const handleRedeemCoupon = async () => {
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
@@ -507,6 +533,46 @@ const Index = () => {
       refreshCredits();
     }
   }, [subscription?.subscription?.id, refreshCredits]);
+
+  // Fetch referral code for paid plan users
+  useEffect(() => {
+    const fetchReferralCode = async () => {
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      
+      if (!shopDomain) {
+        return;
+      }
+
+      // Only fetch if user is on paid plan
+      if (!subscription || subscription.isFree || !subscription.hasActiveSubscription) {
+        setReferralCode(null);
+        return;
+      }
+
+      // Wait for subscription to finish loading
+      if (subscriptionLoading) {
+        return;
+      }
+
+      try {
+        setLoadingReferralCode(true);
+        const response = await getReferralCode(shopDomain);
+        
+        if (response.success && response.referralCode) {
+          setReferralCode(response.referralCode);
+        } else {
+          setReferralCode(null);
+        }
+      } catch (error) {
+        console.error("[Index] Failed to fetch referral code", error);
+        setReferralCode(null);
+      } finally {
+        setLoadingReferralCode(false);
+      }
+    };
+
+    fetchReferralCode();
+  }, [shop, subscription, subscriptionLoading]);
 
   // Track if billing flow has been triggered to prevent infinite loops
   const billingTriggeredRef = useRef(false);
@@ -1373,6 +1439,54 @@ const Index = () => {
                             {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
                           </p>
                         </div>
+
+                        {/* Referral Code Section - Show only for paid plan users */}
+                        {subscription && !subscription.isFree && subscription.hasActiveSubscription && (
+                          <div className="pt-2 border-t border-border flex-shrink-0">
+                            <label className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
+                              <Users className="w-3 h-3" aria-hidden="true" />
+                              Referral Code
+                            </label>
+                            {loadingReferralCode ? (
+                              <div className="flex items-center gap-2 py-2">
+                                <div className="h-8 flex-1 bg-muted/50 rounded border border-border animate-pulse" />
+                              </div>
+                            ) : referralCode ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex-1 px-3 py-2 bg-muted/50 border border-border rounded text-sm font-mono font-bold text-foreground">
+                                    {referralCode}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCopyReferralCode}
+                                    disabled={copyingReferralCode}
+                                    className="h-8 px-3 font-medium text-xs whitespace-nowrap"
+                                    aria-label={copyingReferralCode ? "Copying..." : "Copy referral code"}
+                                  >
+                                    {copyingReferralCode ? (
+                                      <div className="w-3 h-3 mr-1 border-2 border-border border-t-primary rounded-full animate-spin" />
+                                    ) : (
+                                      <Copy className="w-3 h-3 mr-1" />
+                                    )}
+                                    Copy
+                                  </Button>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Share your code to earn 20 credits per referral
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="py-2">
+                                <p className="text-[10px] text-muted-foreground">
+                                  Your referral code will appear here
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

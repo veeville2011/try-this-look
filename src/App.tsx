@@ -14,6 +14,7 @@ import Nucopy from "./pages/Nucopy";
 import Nulight from "./pages/Nulight";
 import Nu3d from "./pages/Nu3d";
 import Nuscene from "./pages/Nuscene";
+import Referrals from "./pages/Referrals";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,14 @@ const App = () => {
                 element={
                   <AppBridgeProvider>
                     <Index />
+                  </AppBridgeProvider>
+                }
+              />
+              <Route
+                path="/referrals"
+                element={
+                  <AppBridgeProvider>
+                    <Referrals />
                   </AppBridgeProvider>
                 }
               />
