@@ -3571,65 +3571,6 @@ app.get("/api/billing/return", async (req, res) => {
       return res.status(400).send("Invalid shop parameter");
     }
 
-    // Call payment success API
-    try {
-      const formData = new FormData();
-      formData.append("shop", shopDomain);
-      
-      // Add any additional query parameters that might be relevant
-      if (req.query.charge_id) {
-        formData.append("chargeId", req.query.charge_id);
-      }
-      if (req.query.plan_id) {
-        formData.append("planId", req.query.plan_id);
-      }
-
-      const startTime = Date.now();
-      logger.info("[BILLING] [RETURN] Calling payment success API", {
-        requestId,
-        shop: shopDomain,
-      });
-
-      const paymentSuccessResponse = await fetch(
-        "https://try-on-server-v1-aqjt.onrender.com/api/payment-success",
-        {
-          method: "POST",
-          headers: {
-            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-            "Content-Language": "fr",
-          },
-          body: formData,
-        }
-      );
-
-      if (!paymentSuccessResponse.ok) {
-        const errorText = await paymentSuccessResponse.text().catch(() => "Unknown error");
-        logger.error("[BILLING] [RETURN] Payment success API returned error", null, req, {
-          status: paymentSuccessResponse.status,
-          statusText: paymentSuccessResponse.statusText,
-          errorText: errorText.substring(0, 500),
-          shop: shopDomain,
-          requestId,
-        });
-      } else {
-        const paymentSuccessData = await paymentSuccessResponse.json().catch(() => null);
-        const duration = Date.now() - startTime;
-        logger.info("[BILLING] [RETURN] Payment success API called successfully", {
-          requestId,
-          shop: shopDomain,
-          duration: `${duration}ms`,
-          hasResult: !!paymentSuccessData,
-        });
-      }
-    } catch (paymentError) {
-      // Don't block the redirect if payment success API call fails
-      logger.error("[BILLING] [RETURN] Payment success API call failed", paymentError, req, {
-        requestId,
-        shop: shopDomain,
-        note: "Continuing with redirect despite payment success API error",
-      });
-    }
-
     // Redirect to payment success page first to show congratulations message
     // The success page will then redirect to the embedded app URL after showing the message
     const appBaseUrl = appUrl || `https://${shopDomain}`;

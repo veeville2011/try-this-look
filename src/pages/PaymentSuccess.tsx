@@ -1,14 +1,30 @@
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Sparkles, ArrowRight, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { notifyPaymentSuccess } from "@/services/paymentSuccessApi";
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const shop = searchParams.get("shop");
+
+  // Call payment success API when component mounts
+  useEffect(() => {
+    const callPaymentSuccessApi = async () => {
+      try {
+        await notifyPaymentSuccess(shop || null);
+      } catch (error) {
+        // Silently handle errors - don't disrupt user experience
+        console.error("[PaymentSuccess] Failed to notify payment success", error);
+      }
+    };
+
+    callPaymentSuccessApi();
+  }, [shop]);
 
   const handleRedirectToApp = () => {
     if (shop) {
