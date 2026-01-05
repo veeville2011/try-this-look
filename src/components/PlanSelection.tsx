@@ -99,7 +99,24 @@ interface PlanSelectionProps {
 
 const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onBack }: PlanSelectionProps) => {
   const { t } = useTranslation();
-  const [selectedInterval, setSelectedInterval] = useState<"monthly" | "annual">("annual");
+  
+  // Calculate initial interval dynamically based on subscription
+  // If plan is subscribed, show the tab where that plan is available
+  // If free plan or no plan, default to monthly
+  const getInitialInterval = (): "monthly" | "annual" => {
+    // If user has a subscribed plan (not free) with an interval, use that interval's tab
+    if (subscription?.plan?.interval && subscription?.hasActiveSubscription && !subscription?.isFree) {
+      if (subscription.plan.interval === "EVERY_30_DAYS") {
+        return "monthly";
+      } else if (subscription.plan.interval === "ANNUAL") {
+        return "annual";
+      }
+    }
+    // Default to monthly for free plan or no subscription
+    return "monthly";
+  };
+
+  const [selectedInterval, setSelectedInterval] = useState<"monthly" | "annual">(getInitialInterval);
   const [loadingPlanHandle, setLoadingPlanHandle] = useState<string | null>(null);
 
   // Normalize plans data - handle both array and object response
@@ -119,16 +136,20 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     subscription?.subscription !== null &&
     subscription?.hasActiveSubscription === true;
 
-  // Auto-select the interval tab based on subscription if available
+  // Auto-select the interval tab based on subscription if available (update when subscription changes)
   useEffect(() => {
-    if (subscription?.plan?.interval) {
+    // If user has a subscribed plan (not free) with an interval, use that interval's tab
+    if (subscription?.plan?.interval && subscription?.hasActiveSubscription && !subscription?.isFree) {
       if (subscription.plan.interval === "EVERY_30_DAYS") {
         setSelectedInterval("monthly");
       } else if (subscription.plan.interval === "ANNUAL") {
         setSelectedInterval("annual");
       }
+    } else {
+      // If free plan or no subscription, default to monthly
+      setSelectedInterval("monthly");
     }
-  }, [subscription?.plan?.interval]);
+  }, [subscription?.plan?.interval, subscription?.hasActiveSubscription, subscription?.isFree]);
 
   // Get plans filtered by interval
   const filteredPlans = useMemo(() => {
