@@ -878,15 +878,14 @@ const createAppSubscription = async (
     // Check if test mode should be enabled (development stores only)
     const useTestMode = await shouldUseTestMode(normalizedShop, client);
 
+    // FORCE test mode for all billing - for testing purposes only
     const variables = {
       name: planConfig.name,
       returnUrl,
       lineItems,
       trialDays: planConfig.trialDays || null,
-      // Enable test mode for development stores only
-      // Test charges don't require actual payment and can be approved without payment method
-      // Production stores will use real billing (test: false)
-      test: useTestMode || true,
+      // Force test mode ON for all stores (always test: true)
+      test: true,
     };
 
     logger.info("[BILLING] Store billing mode", {
