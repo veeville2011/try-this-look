@@ -156,7 +156,10 @@ const isDevelopmentStore = (shopData) => {
   if (!shopData || !shopData.plan) {
     return false;
   }
-  return shopData.plan.partnerDevelopment === true;
+  // Handle both boolean true and truthy values (defensive check)
+  // Some GraphQL responses might return the value in different formats
+  const partnerDev = shopData.plan.partnerDevelopment;
+  return partnerDev === true || partnerDev === "true" || partnerDev === 1;
 };
 
 /**
@@ -181,11 +184,31 @@ const checkIsDevelopmentStore = async (client) => {
       data: { query: shopInfoQuery },
     });
 
+    // Check for GraphQL errors first
+    if (response?.body?.errors) {
+      logger.error("[UTILS] GraphQL errors in development store check", null, null, {
+        errors: response.body.errors,
+        fullResponse: JSON.stringify(response.body, null, 2),
+      });
+    }
+
     const shopData = response?.body?.data?.shop;
+    
+    // Enhanced logging with full response structure for debugging
+    logger.info("[UTILS] Development store check - Full Response", {
+      hasShopData: !!shopData,
+      hasPlan: !!shopData?.plan,
+      partnerDevelopment: shopData?.plan?.partnerDevelopment,
+      partnerDevelopmentType: typeof shopData?.plan?.partnerDevelopment,
+      planDisplayName: shopData?.plan?.displayName,
+      rawPlanData: shopData?.plan,
+      fullShopData: JSON.stringify(shopData, null, 2),
+    });
+    
     const isDevStore = isDevelopmentStore(shopData);
     
     // Enhanced logging to help diagnose test charge approval issues
-    logger.info("[UTILS] Development store check", {
+    logger.info("[UTILS] Development store check - Result", {
       partnerDevelopment: shopData?.plan?.partnerDevelopment,
       planDisplayName: shopData?.plan?.displayName,
       isDevelopmentStore: isDevStore,

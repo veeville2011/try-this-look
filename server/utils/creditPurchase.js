@@ -30,8 +30,26 @@ const checkIsDevelopmentStore = async (client) => {
       data: { query: shopInfoQuery },
     });
 
+    // Check for GraphQL errors first
+    if (response?.body?.errors) {
+      logger.error("[CREDIT_PURCHASE] GraphQL errors in development store check", null, null, {
+        errors: response.body.errors,
+      });
+    }
+
     const shopData = response?.body?.data?.shop;
-    return shopData?.plan?.partnerDevelopment === true;
+    const partnerDev = shopData?.plan?.partnerDevelopment;
+    
+    // Handle both boolean true and truthy values (defensive check)
+    const isDevStore = partnerDev === true || partnerDev === "true" || partnerDev === 1;
+    
+    logger.info("[CREDIT_PURCHASE] Development store check", {
+      partnerDevelopment: partnerDev,
+      partnerDevelopmentType: typeof partnerDev,
+      isDevelopmentStore: isDevStore,
+    });
+    
+    return isDevStore;
   } catch (error) {
     logger.error("[CREDIT_PURCHASE] Failed to check if store is development store", error);
     return false;
