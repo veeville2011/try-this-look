@@ -227,11 +227,23 @@ const checkIsDevelopmentStore = async (client) => {
 /**
  * Check if test mode should be enabled for a store
  * Test mode is enabled only for Shopify partner development stores
+ * Can be forced via FORCE_TEST_MODE environment variable
  * @param {string} shopDomain - The shop domain (for logging purposes)
  * @param {Object} client - GraphQL client to check development store status (required)
  * @returns {Promise<boolean>} True if test mode should be enabled
  */
 const shouldUseTestMode = async (shopDomain, client) => {
+  // Check if test mode is forced via environment variable
+  const forceTestMode = true;
+  
+  if (forceTestMode) {
+    logger.info("[UTILS] Test mode FORCED via FORCE_TEST_MODE environment variable", {
+      shop: shopDomain,
+      note: "All subscriptions will be created in test mode (approve button enabled without payment method)",
+    });
+    return true;
+  }
+  
   if (!client) {
     logger.warn("[UTILS] No client provided for test mode check, defaulting to false", {
       shop: shopDomain,
