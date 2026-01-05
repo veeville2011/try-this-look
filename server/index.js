@@ -233,13 +233,14 @@ const checkIsDevelopmentStore = async (client) => {
  * @returns {Promise<boolean>} True if test mode should be enabled
  */
 const shouldUseTestMode = async (shopDomain, client) => {
-  // Check if test mode is forced via environment variable
-  const forceTestMode = true;
+  // Check if test mode is forced via environment variable (for testing purposes only)
+  const forceTestMode = process.env.FORCE_TEST_MODE === "true" || process.env.FORCE_TEST_MODE === "1";
   
   if (forceTestMode) {
     logger.info("[UTILS] Test mode FORCED via FORCE_TEST_MODE environment variable", {
       shop: shopDomain,
       note: "All subscriptions will be created in test mode (approve button enabled without payment method)",
+      warning: "FORCE_TEST_MODE is enabled - remove this for production to use automatic development store detection",
     });
     return true;
   }
@@ -252,7 +253,19 @@ const shouldUseTestMode = async (shopDomain, client) => {
   }
   
   try {
+    // Check if store is a development store using Shopify's partnerDevelopment field
+    // Development stores should use test mode (test charges), production stores use real billing
     const isDevStore = await checkIsDevelopmentStore(client);
+    
+    logger.info("[UTILS] Test mode determination", {
+      shop: shopDomain,
+      isDevelopmentStore: isDevStore,
+      testModeEnabled: isDevStore,
+      note: isDevStore 
+        ? "Development store detected - test charges will be created (approve button enabled without payment method)"
+        : "Production store detected - real charges will be created (payment method required)",
+    });
+    
     return isDevStore;
   } catch (error) {
     logger.error("[UTILS] Failed to check development store status", error, null, {
