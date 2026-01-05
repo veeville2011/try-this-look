@@ -158,7 +158,8 @@
     "error": {
       "planNotFound": "Selected plan not found",
       "validationFailed": "Failed to validate referral code",
-      "enterCode": "Please enter a referral code"
+      "enterCode": "Please enter a referral code",
+      "validationRequired": "Please validate your referral code before confirming, or remove it to continue without a referral code"
     }
   },
   "credits": {

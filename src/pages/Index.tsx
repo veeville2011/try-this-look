@@ -448,6 +448,11 @@ const Index = () => {
         confirmationUrl: data.confirmationUrl,
       });
 
+      // Reset confirmation state before redirecting
+      // This prevents showing confirmation step if user returns/cancels payment
+      setShowPlanConfirmation(false);
+      setSelectedPlanForConfirmation(null);
+
       // Use App Bridge Redirect action for safe navigation from embedded app
       // This properly handles cross-origin navigation without security errors
       // Per Shopify docs: https://shopify.dev/docs/api/app-bridge/previous-versions/actions/navigation/redirect-navigate
@@ -472,6 +477,9 @@ const Index = () => {
       console.error("[Billing] Failed to create subscription", error);
       const errorMessage = error?.message || t("index.errors.subscriptionFailed") || "Failed to create subscription. Please try again.";
       toast.error(errorMessage);
+      // Reset confirmation state on error so user can try again
+      setShowPlanConfirmation(false);
+      setSelectedPlanForConfirmation(null);
     } finally {
       setBillingLoading(false);
     }
@@ -899,9 +907,13 @@ const Index = () => {
           }
         }
 
-        // Hide plan selection if showing
+        // Hide plan selection and confirmation if showing
         if (showPlanSelection) {
           setShowPlanSelection(false);
+        }
+        if (showPlanConfirmation) {
+          setShowPlanConfirmation(false);
+          setSelectedPlanForConfirmation(null);
         }
 
         billingTriggeredRef.current = false;
@@ -1085,6 +1097,21 @@ const Index = () => {
     }
     featuresElement.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Early return if showing plan confirmation - render only confirmation step
+  if (showPlanConfirmation && selectedPlanForConfirmation && shop) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PlanConfirmation
+          selectedPlan={selectedPlanForConfirmation}
+          onConfirm={handleConfirmPlan}
+          onBack={handleBackToPlanSelection}
+          loading={billingLoading}
+          shop={shop}
+        />
+      </div>
+    );
+  }
 
   // Show skeleton loading when subscription is loading
   if (subscriptionLoading && !isWaitingForPaymentSuccess) {
@@ -2034,16 +2061,6 @@ const Index = () => {
         </div>
       )}
 
-      {/* Plan Confirmation Step - Full Page View */}
-      {showPlanConfirmation && selectedPlanForConfirmation && shop && (
-        <PlanConfirmation
-          selectedPlan={selectedPlanForConfirmation}
-          onConfirm={handleConfirmPlan}
-          onBack={handleBackToPlanSelection}
-          loading={billingLoading}
-          shop={shop}
-        />
-      )}
 
       {/* Loading Indicator - Non-blocking, shows in top-right corner */}
       {shouldShowLoading && (

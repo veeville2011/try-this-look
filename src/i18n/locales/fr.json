@@ -158,7 +158,8 @@
     "error": {
       "planNotFound": "Plan sélectionné introuvable",
       "validationFailed": "Échec de la validation du code de parrainage",
-      "enterCode": "Veuillez entrer un code de parrainage"
+      "enterCode": "Veuillez entrer un code de parrainage",
+      "validationRequired": "Veuillez valider votre code de parrainage avant de confirmer, ou supprimez-le pour continuer sans code de parrainage"
     }
   },
   "credits": {

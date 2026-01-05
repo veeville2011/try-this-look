@@ -121,6 +121,16 @@ export const PlanConfirmation = ({
   };
 
   const handleConfirm = () => {
+    // If user entered a referral code, it must be validated before confirming
+    if (referralCodeInput.trim() && !validationStatus.valid) {
+      toast.error(
+        t("planConfirmation.error.validationRequired") ||
+        "Please validate your referral code before confirming, or remove it to continue without a referral code."
+      );
+      return;
+    }
+
+    // Only pass referral code if it was successfully validated
     const referralCode = validationStatus.valid && referralCodeInput.trim()
       ? referralCodeInput.trim().toUpperCase()
       : null;
@@ -384,6 +394,11 @@ export const PlanConfirmation = ({
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   {t("planConfirmation.confirmButtonLoading") || "Processing..."}
+                </>
+              ) : validationStatus.validating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("planConfirmation.validating") || "Validating..."}
                 </>
               ) : (
                 t("planConfirmation.confirmButton") || "Confirm & Continue to Payment"
