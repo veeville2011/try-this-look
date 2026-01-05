@@ -163,222 +163,211 @@ export const PlanConfirmation = ({
     : t("planConfirmation.annual") || "Annual";
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="max-w-3xl mx-auto space-y-6">
+    <div className="h-screen bg-background overflow-hidden flex flex-col">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1 flex flex-col min-h-0">
+        <div className="max-w-3xl mx-auto w-full flex flex-col flex-1 min-h-0 space-y-4">
           {/* Back Button */}
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            disabled={loading}
-            className="mb-4"
-            aria-label={t("planConfirmation.backToPlans") || "Back to Plans"}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t("planConfirmation.backToPlans") || "Back to Plans"}
-          </Button>
+          <div className="flex-shrink-0">
+            <Button
+              variant="ghost"
+              onClick={onBack}
+              disabled={loading}
+              className="h-10 px-3"
+              aria-label={t("planConfirmation.backToPlans") || "Back to Plans"}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              {t("planConfirmation.backToPlans") || "Back to Plans"}
+            </Button>
+          </div>
 
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <CheckCircle2 className="h-6 w-6 text-primary" />
+          {/* Header - Compact */}
+          <div className="flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
               </div>
-              <h1 className="text-3xl font-bold text-foreground">
+              <h1 className="text-2xl font-bold text-foreground">
                 {t("planConfirmation.title") || "Review Your Subscription"}
               </h1>
             </div>
-            <p className="text-muted-foreground">
-              {t("planConfirmation.subtitle") ||
-                "Review your plan details and apply a referral code before proceeding to payment"}
-            </p>
           </div>
 
-          {/* Plan Summary Card */}
-          <Card className="border-2 border-border shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                {t("planConfirmation.selectedPlan") || "Selected Plan"}
-              </CardTitle>
-              <CardDescription>
-                {t("planConfirmation.planDescription") || "Review your plan details before confirming"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Plan Name and Price */}
-              <div className="border-b border-border pb-4">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-foreground">{selectedPlan.name}</h3>
-                    <p className="text-muted-foreground mt-1">
-                      {formatPrice(selectedPlan.price, selectedPlan.currencyCode)}
-                      {isMonthly
-                        ? `/${t("planConfirmation.perMonth") || "month"}`
-                        : `/${t("planConfirmation.perYear") || "year"}`}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    {billingInterval}
-                  </Badge>
-                </div>
-
-                {/* Trial Days */}
-                {selectedPlan.trialDays && selectedPlan.trialDays > 0 && (
-                  <div className="mt-2">
-                    <Badge variant="outline" className="bg-success/5 text-success border-success/20">
-                      {t("planConfirmation.trialDays", { days: selectedPlan.trialDays }) ||
-                        `${selectedPlan.trialDays} day trial`}
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
+            {/* Plan Summary Card */}
+            <Card className="border-2 border-border shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  {t("planConfirmation.selectedPlan") || "Selected Plan"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Plan Name and Price */}
+                <div className="border-b border-border pb-3">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">{selectedPlan.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {formatPrice(selectedPlan.price, selectedPlan.currencyCode)}
+                        {isMonthly
+                          ? `/${t("planConfirmation.perMonth") || "month"}`
+                          : `/${t("planConfirmation.perYear") || "year"}`}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 h-6">
+                      {billingInterval}
                     </Badge>
                   </div>
-                )}
-              </div>
 
-              {/* Plan Details */}
-              <div className="space-y-4">
-                {/* Credits */}
-                {selectedPlan.limits?.includedCredits !== undefined && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-muted-foreground">
-                      {t("planConfirmation.includedCredits") || "Included Credits"}
-                    </span>
-                    <span className="font-semibold text-foreground">
-                      {selectedPlan.limits.includedCredits}{" "}
-                      {isMonthly
-                        ? t("planConfirmation.perMonth") || "per month"
-                        : t("planConfirmation.perYear") || "per year"}
-                    </span>
+                  {/* Trial Days */}
+                  {selectedPlan.trialDays && selectedPlan.trialDays > 0 && (
+                    <div>
+                      <Badge variant="outline" className="bg-success/5 text-success border-success/20 h-5 text-xs">
+                        {t("planConfirmation.trialDays", { days: selectedPlan.trialDays }) ||
+                          `${selectedPlan.trialDays} day trial`}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Plan Details */}
+                <div className="space-y-3">
+                  {/* Credits */}
+                  {selectedPlan.limits?.includedCredits !== undefined && (
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-sm text-muted-foreground">
+                        {t("planConfirmation.includedCredits") || "Included Credits"}
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">
+                        {selectedPlan.limits.includedCredits}{" "}
+                        {isMonthly
+                          ? t("planConfirmation.perMonth") || "per month"
+                          : t("planConfirmation.perYear") || "per year"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Cost per Credit */}
+                  {selectedPlan.limits?.costPerGeneration && (
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-sm text-muted-foreground">
+                        {t("planConfirmation.costPerCredit") || "Cost per additional credit"}
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatPrice(selectedPlan.limits.costPerGeneration, selectedPlan.currencyCode)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Features */}
+                {selectedPlan.features && selectedPlan.features.length > 0 && (
+                  <div className="border-t border-border pt-3">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">
+                      {t("planConfirmation.features") || "Features"}
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {selectedPlan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5" />
+                          <span className="text-xs text-muted-foreground leading-relaxed">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
+              </CardContent>
+            </Card>
 
-                {/* Cost per Credit */}
-                {selectedPlan.limits?.costPerGeneration && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-muted-foreground">
-                      {t("planConfirmation.costPerCredit") || "Cost per additional credit"}
-                    </span>
-                    <span className="font-semibold text-foreground">
-                      {formatPrice(selectedPlan.limits.costPerGeneration, selectedPlan.currencyCode)}
-                    </span>
+            {/* Referral Code Section */}
+            <Card className="border-2 border-border shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Gift className="h-4 w-4 text-primary" />
+                  {t("planConfirmation.referralCodeLabel") || "Referral Code (Optional)"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Gift className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder={t("planConfirmation.referralCodePlaceholder") || "Enter referral code"}
+                      value={referralCodeInput}
+                      onChange={(e) => {
+                        setReferralCodeInput(e.target.value.toUpperCase());
+                        setValidationStatus({
+                          validating: false,
+                          valid: false,
+                          error: null,
+                        });
+                      }}
+                      onKeyPress={handleKeyPress}
+                      className="pl-9 h-10"
+                      disabled={validationStatus.validating || loading}
+                      aria-label={t("planConfirmation.referralCodePlaceholder") || "Enter referral code"}
+                    />
                   </div>
-                )}
-              </div>
-
-              {/* Features */}
-              {selectedPlan.features && selectedPlan.features.length > 0 && (
-                <div className="border-t border-border pt-4">
-                  <h4 className="font-semibold text-foreground mb-3">
-                    {t("planConfirmation.features") || "Features"}
-                  </h4>
-                  <ul className="space-y-2">
-                    {selectedPlan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Referral Code Section */}
-          <Card className="border-2 border-border shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="h-5 w-5 text-primary" />
-                {t("planConfirmation.referralCodeLabel") || "Referral Code (Optional)"}
-              </CardTitle>
-              <CardDescription>
-                {t("planConfirmation.referralCodeHelper") ||
-                  "Enter a referral code to earn bonus credits after signup"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Gift className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={t("planConfirmation.referralCodePlaceholder") || "Enter referral code"}
-                    value={referralCodeInput}
-                    onChange={(e) => {
-                      setReferralCodeInput(e.target.value.toUpperCase());
-                      setValidationStatus({
-                        validating: false,
-                        valid: false,
-                        error: null,
-                      });
-                    }}
-                    onKeyPress={handleKeyPress}
-                    className="pl-9"
-                    disabled={validationStatus.validating || loading}
-                    aria-label={t("planConfirmation.referralCodePlaceholder") || "Enter referral code"}
-                  />
-                </div>
-                {validationStatus.valid ? (
                   <Button
                     onClick={handleValidateReferralCode}
                     disabled={validationStatus.validating || loading || !referralCodeInput.trim()}
                     variant="outline"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    {t("planConfirmation.validate") || "Validate"}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleValidateReferralCode}
-                    disabled={validationStatus.validating || loading || !referralCodeInput.trim()}
-                    variant="outline"
+                    className="h-10 px-4"
                   >
                     {validationStatus.validating ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         {t("planConfirmation.validating") || "Validating..."}
                       </>
+                    ) : validationStatus.valid ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        {t("planConfirmation.validate") || "Validate"}
+                      </>
                     ) : (
                       t("planConfirmation.validate") || "Validate"
                     )}
                   </Button>
+                </div>
+
+                {/* Validation Feedback */}
+                {validationStatus.error && (
+                  <Alert variant="destructive" className="py-2">
+                    <X className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{validationStatus.error}</AlertDescription>
+                  </Alert>
                 )}
-              </div>
 
-              {/* Validation Feedback */}
-              {validationStatus.error && (
-                <Alert variant="destructive">
-                  <X className="h-4 w-4" />
-                  <AlertDescription>{validationStatus.error}</AlertDescription>
-                </Alert>
-              )}
+                {validationStatus.valid && !validationStatus.error && (
+                  <Alert className="bg-success/5 border-success/20 py-2">
+                    <Check className="h-4 w-4 text-success" />
+                    <AlertDescription className="text-success text-xs">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          {t("planConfirmation.validCode", { credits: 20 }) ||
+                            "Valid code! You'll receive 20 credits after signup."}
+                        </span>
+                        <Badge variant="default" className="bg-success text-success-foreground h-5 text-xs">
+                          <Check className="h-3 w-3 mr-1" />
+                          {t("common.success") || "Valid"}
+                        </Badge>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-              {validationStatus.valid && !validationStatus.error && (
-                <Alert className="bg-success/5 border-success/20">
-                  <Check className="h-4 w-4 text-success" />
-                  <AlertDescription className="text-success">
-                    <div className="flex items-center justify-between">
-                      <span>
-                        {t("planConfirmation.validCode", { credits: 20 }) ||
-                          "Valid code! You'll receive 20 credits after signup."}
-                      </span>
-                      <Badge variant="default" className="bg-success text-success-foreground">
-                        <Check className="h-3 w-3 mr-1" />
-                        {t("common.success") || "Valid"}
-                      </Badge>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+          {/* Action Buttons - Fixed at bottom */}
+          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3 pt-2 border-t border-border">
             <Button
               variant="outline"
               onClick={onBack}
               disabled={loading}
-              className="sm:w-auto"
+              className="h-10 sm:w-auto w-full"
               aria-label={t("planConfirmation.cancelButton") || "Cancel"}
             >
               {t("planConfirmation.cancelButton") || "Cancel"}
@@ -386,8 +375,7 @@ export const PlanConfirmation = ({
             <Button
               onClick={handleConfirm}
               disabled={loading || validationStatus.validating}
-              className="flex-1 sm:flex-initial"
-              size="lg"
+              className="h-10 flex-1 sm:flex-initial"
               aria-label={t("planConfirmation.confirmButton") || "Confirm & Continue to Payment"}
             >
               {loading ? (
