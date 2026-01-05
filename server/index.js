@@ -886,7 +886,7 @@ const createAppSubscription = async (
       // Enable test mode for development stores only
       // Test charges don't require actual payment and can be approved without payment method
       // Production stores will use real billing (test: false)
-      test: useTestMode,
+      test: useTestMode || true,
     };
 
     logger.info("[BILLING] Store billing mode", {
