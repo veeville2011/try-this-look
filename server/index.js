@@ -233,47 +233,35 @@ const checkIsDevelopmentStore = async (client) => {
  * @returns {Promise<boolean>} True if test mode should be enabled
  */
 const shouldUseTestMode = async (shopDomain, client) => {
-  // Check if test mode is forced via environment variable (for testing purposes only)
-  const forceTestMode = process.env.FORCE_TEST_MODE === "true" || process.env.FORCE_TEST_MODE === "1";
+  // Hardcoded test mode for specific store: balmain-9027
+  // Normalize shop domain to handle various formats:
+  // - balmain-9027.myshopify.com
+  // - https://balmain-9027.myshopify.com/
+  // - balmain-9027
+  let normalizedShop = shopDomain?.toLowerCase() || "";
+  // Remove protocol (http:// or https://)
+  normalizedShop = normalizedShop.replace(/^https?:\/\//, "");
+  // Remove trailing slash
+  normalizedShop = normalizedShop.replace(/\/$/, "");
+  // Remove .myshopify.com suffix
+  normalizedShop = normalizedShop.replace(/\.myshopify\.com$/, "");
   
-  if (forceTestMode) {
-    logger.info("[UTILS] Test mode FORCED via FORCE_TEST_MODE environment variable", {
+  if (normalizedShop === "balmain-9027") {
+    logger.info("[UTILS] Test mode HARDCODED for balmain-9027 store", {
       shop: shopDomain,
-      note: "All subscriptions will be created in test mode (approve button enabled without payment method)",
-      warning: "FORCE_TEST_MODE is enabled - remove this for production to use automatic development store detection",
+      normalizedShop,
+      note: "Test mode enabled for balmain-9027 - approve button enabled without payment method",
     });
     return true;
   }
   
-  if (!client) {
-    logger.warn("[UTILS] No client provided for test mode check, defaulting to false", {
-      shop: shopDomain,
-    });
-    return false;
-  }
-  
-  try {
-    // Check if store is a development store using Shopify's partnerDevelopment field
-    // Development stores should use test mode (test charges), production stores use real billing
-    const isDevStore = await checkIsDevelopmentStore(client);
-    
-    logger.info("[UTILS] Test mode determination", {
-      shop: shopDomain,
-      isDevelopmentStore: isDevStore,
-      testModeEnabled: isDevStore,
-      note: isDevStore 
-        ? "Development store detected - test charges will be created (approve button enabled without payment method)"
-        : "Production store detected - real charges will be created (payment method required)",
-    });
-    
-    return isDevStore;
-  } catch (error) {
-    logger.error("[UTILS] Failed to check development store status", error, null, {
-      shop: shopDomain,
-    });
-    // Fallback to false if check fails (use real billing for safety)
-    return false;
-  }
+  // Only balmain-9027 has test mode enabled - all other stores use real billing
+  logger.info("[UTILS] Test mode disabled - using real billing", {
+    shop: shopDomain,
+    normalizedShop,
+    note: "Only balmain-9027 has test mode enabled. This store will use real billing (payment method required).",
+  });
+  return false;
 };
 
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
