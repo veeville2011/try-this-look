@@ -4,7 +4,7 @@ import { useShop } from "@/providers/AppBridgeProvider";
 import { useNusceneProducts } from "@/hooks/useNusceneProducts";
 import { fetchAllStoreProducts } from "@/services/productsApi";
 import NavigationBar from "@/components/NavigationBar";
-import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Play, Video, RefreshCw } from "lucide-react";
+import { Sparkles, Package, Store, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Loader2, Image as ImageIcon, Eye, Play, Video, RefreshCw, Maximize2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -284,6 +284,7 @@ const ProductDetailsDialog = ({
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(0);
   const [processingVideoId, setProcessingVideoId] = useState<string | null>(null);
   const [processingProduct, setProcessingProduct] = useState(false);
+  const [zoomVideo, setZoomVideo] = useState<string | null>(null);
 
   const variant = product.variants.nodes[selectedVariantIndex] || product.variants.nodes[0] || null;
   const variantVideos = variant?.images || [];
@@ -416,6 +417,7 @@ const ProductDetailsDialog = ({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -531,7 +533,7 @@ const ProductDetailsDialog = ({
                     {currentVideo.approvalStatus && getApprovalStatusBadge(currentVideo.approvalStatus)}
                   </div>
                   {currentVideo.videoStatus === "completed" && currentVideo.video_url ? (
-                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                    <div className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
                       <video
                         src={currentVideo.video_url}
                         controls
@@ -545,6 +547,15 @@ const ProductDetailsDialog = ({
                           <Play className="w-6 h-6 text-white" />
                         </div>
                       </div>
+                      <Button
+                        onClick={() => setZoomVideo(currentVideo.video_url)}
+                        size="sm"
+                        variant="secondary"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto shadow-lg"
+                        aria-label={t("nuscene.video.zoom") || "Zoom video"}
+                      >
+                        <Maximize2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   ) : currentVideo.videoStatus === "processing" ? (
                     <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed">
@@ -678,6 +689,29 @@ const ProductDetailsDialog = ({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Zoom Video Dialog */}
+    <Dialog open={!!zoomVideo} onOpenChange={() => setZoomVideo(null)}>
+      <DialogContent className="max-w-4xl p-0">
+        <DialogHeader className="p-6 pb-0">
+          <DialogTitle>{t("nuscene.video.preview") || "Video Preview"}</DialogTitle>
+        </DialogHeader>
+        <div className="p-6">
+          {zoomVideo && (
+            <video
+              src={zoomVideo}
+              controls
+              className="w-full h-auto rounded-lg max-h-[80vh]"
+              preload="metadata"
+              autoPlay
+            >
+              {t("nuscene.video.notSupported")}
+            </video>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 };
 
