@@ -2188,7 +2188,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
   // Check if store is vto-demo (only show tabs for vto-demo store)
   const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-  const isVtoDemoStore = shopDomain && shopDomain.includes("vto-demo-store");
+  const isVtoDemoStore = shopDomain && shopDomain.includes("vto-demo");
   const normalizedShopDomain = shopDomain ? shopDomain.replace(".myshopify.com", "") : null;
 
   const isSingleTabImagesLoading =
