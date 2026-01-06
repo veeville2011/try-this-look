@@ -3782,30 +3782,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           )}
 
-          {/* Generate button - Show when not generating and no results */}
-          {!isGeneratingMultiple && !cartResults && (
-            <div className={cn(
-              "flex justify-center",
-              layoutMode === "wide" ? "pt-2" : "pt-2"
-            )}>
-              <div className="w-full max-w-2xl">
-                <Button
-                  onClick={handleCartMultipleGenerate}
-                  disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
-                  className={cn(
-                    "h-12 text-base min-h-[44px]",
-                    layoutMode === "wide" ? "w-full" : "w-full"
-                  )}
-                  aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
-                  aria-busy={isGeneratingMultiple}
-                >
-                  <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
-                </Button>
-              </div>
-            </div>
-          )}
-
 
           {/* Progress Tracker */}
           {isGeneratingMultiple && !cartResults && (
@@ -4632,30 +4608,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
                 {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
               </Button>
-            </div>
-          )}
-
-          {/* Generate button - Show when not generating and no results */}
-          {!isGeneratingMultiple && !outfitResult && (
-            <div className={cn(
-              "flex justify-center",
-              layoutMode === "wide" ? "pt-2" : "pt-2"
-            )}>
-              <div className="w-full max-w-2xl">
-                <Button
-                  onClick={handleCartMultipleGenerate}
-                  disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
-                  className={cn(
-                    "h-12 text-base min-h-[44px]",
-                    layoutMode === "wide" ? "w-full" : "w-full"
-                  )}
-                  aria-label={t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
-                  aria-busy={isGeneratingMultiple}
-                >
-                  <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
-                </Button>
-              </div>
             </div>
           )}
 
