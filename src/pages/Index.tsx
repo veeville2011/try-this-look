@@ -592,7 +592,7 @@ const Index = () => {
     }
   }, [subscription?.subscription?.id, refreshCredits]);
 
-  // Fetch referral code for paid plan users
+  // Fetch referral code for all users (free and paid plans)
   useEffect(() => {
     const fetchReferralCode = async () => {
       const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
@@ -601,17 +601,12 @@ const Index = () => {
         return;
       }
 
-      // Only fetch if user is on paid plan
-      if (!subscription || subscription.isFree || !subscription.hasActiveSubscription) {
-        setReferralCode(null);
-        return;
-      }
-
       // Wait for subscription to finish loading
       if (subscriptionLoading) {
         return;
       }
 
+      // Fetch referral code for all users (no longer restricted to paid plans)
       try {
         setLoadingReferralCode(true);
         const response = await getReferralCode(shopDomain);
@@ -630,7 +625,7 @@ const Index = () => {
     };
 
     fetchReferralCode();
-  }, [shop, subscription, subscriptionLoading]);
+  }, [shop, subscriptionLoading]);
 
   // Track if billing flow has been triggered to prevent infinite loops
   const billingTriggeredRef = useRef(false);
@@ -1479,8 +1474,8 @@ const Index = () => {
                           ) : null}
                         </div>
 
-                        {/* Referral Code Section - Show only for paid plan users */}
-                        {subscription && !subscription.isFree && subscription.hasActiveSubscription && (
+                        {/* Referral Code Section - Available for all users (free and paid plans) */}
+                        {subscription && (
                           <div className="pt-2 border-t border-border flex-shrink-0">
                             <label className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
                               <Users className="w-3 h-3" aria-hidden="true" />

@@ -17,7 +17,6 @@ import {
   TrendingUp,
   AlertCircle,
   Sparkles,
-  Crown,
   CheckCircle2,
   Loader2,
   ArrowLeft,
@@ -50,8 +49,6 @@ const Referrals = () => {
 
   const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
 
-  const isPaidPlan = subscription && !subscription.isFree && subscription.hasActiveSubscription;
-
   useEffect(() => {
     const fetchReferralData = async () => {
       if (!shopDomain) {
@@ -64,17 +61,12 @@ const Referrals = () => {
         return; // Wait for subscription to load
       }
 
-      // Only fetch if user is on paid plan
-      if (!isPaidPlan) {
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         setError(null);
 
         // Fetch referral code and stats in parallel
+        // Now available for all users (free and paid plans)
         const [codeResponse, statsResponse] = await Promise.all([
           getReferralCode(shopDomain),
           getReferralStats(shopDomain),
@@ -98,7 +90,7 @@ const Referrals = () => {
     };
 
     fetchReferralData();
-  }, [shopDomain, isPaidPlan, subscriptionLoading]);
+  }, [shopDomain, subscriptionLoading, t]);
 
   const handleCopyCode = async () => {
     if (!referralCode) return;
@@ -180,66 +172,6 @@ const Referrals = () => {
                   <Skeleton className="h-32 w-full" />
                   <Skeleton className="h-64 w-full" />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if not on paid plan
-  if (!isPaidPlan) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <div className="max-w-4xl mx-auto">
-            <Button
-              variant="ghost"
-              onClick={handleBackToDashboard}
-              className="mb-6"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t("referral.backToDashboard")}
-            </Button>
-
-            <Card className="border-2 border-border shadow-lg bg-card">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Users className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl font-bold text-foreground">
-                      {t("referral.title")}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {t("referral.description")}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Alert className="bg-muted/50 border-border">
-                  <AlertCircle className="h-5 w-5 text-muted-foreground" />
-                  <AlertDescription className="mt-2">
-                    <div className="space-y-3">
-                      <p className="text-base font-semibold text-foreground">
-                        {t("referral.upgradeRequired.title")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {t("referral.upgradeRequired.description")}
-                      </p>
-                      <Button
-                        onClick={handleBackToDashboard}
-                        className="mt-4"
-                      >
-                        <Crown className="w-4 h-4 mr-2" />
-                        {t("referral.upgradeRequired.viewPlans")}
-                      </Button>
-                    </div>
-                  </AlertDescription>
-                </Alert>
               </CardContent>
             </Card>
           </div>
