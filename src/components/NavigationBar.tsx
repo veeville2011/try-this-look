@@ -68,17 +68,20 @@ const NavigationBar = () => {
                   {t("navigation.nuLight") || "NU Light"}
                 </Link>
               )}
-              <Link
-                to="/nu3d"
-                className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                  location.pathname === "/nu3d"
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label={t("navigation.nu3d") || "Nu3d"}
-              >
-                {t("navigation.nu3d") || "Nu3d"}
-              </Link>
+              {/* Nu3d link disabled */}
+              {false && (
+                <Link
+                  to="/nu3d"
+                  className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
+                    location.pathname === "/nu3d"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label={t("navigation.nu3d") || "Nu3d"}
+                >
+                  {t("navigation.nu3d") || "Nu3d"}
+                </Link>
+              )}
               <Link
                 to="/nuscene"
                 className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
