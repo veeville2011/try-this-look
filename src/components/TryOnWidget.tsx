@@ -3445,70 +3445,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   "flex flex-col min-h-0 w-full overflow-hidden",
                   layoutMode !== "wide" ? "flex-1 min-h-[400px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
                 )}>
-                  <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
-                    {/* Products Count & Selection Counter - Fixed Header */}
-                    <div className="flex-shrink-0 space-y-2">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">
-                              {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${
-                                selectedGarments.length >= 1 && selectedGarments.length < 6
-                                  ? "bg-primary/10 text-primary"
-                                  : selectedGarments.length >= 6
-                                    ? "bg-warning/10 text-warning"
-                                    : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {selectedGarments.length} / 6
-                            </span>
-                          </div>
-                          {multipleTabImages.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Grid3x3 className="h-3.5 w-3.5" />
-                              <span>
-                                {multipleTabImages.length} {t("tryOnWidget.filters.availableProducts") || "produits disponibles"}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {selectedGarments.length > 0 && (
-                          <Button
-                            variant={"outline" as const}
-                            size="sm"
-                            onClick={handleClearAllGarments}
-                            className="h-9 px-3 text-sm gap-1.5"
-                            aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
-                          >
-                            <XCircle className="h-4 w-4" aria-hidden="true" />
-                            <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Validation Message */}
-                      {selectedGarments.length < 1 && (
-                        <div
-                          role="alert"
-                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
-                        >
-                          {t("tryOnWidget.validation.minGarmentsMultiple") || "Sélectionnez au moins 1 article pour continuer"}
-                        </div>
-                      )}
-
-                      {selectedGarments.length >= 6 && (
-                        <div
-                          role="alert"
-                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
-                        >
-                          {t("tryOnWidget.validation.maxGarmentsMultiple") || "Maximum 6 articles sélectionnés"}
-                        </div>
-                      )}
-                    </div>
-
+                  <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                     {/* Garment Grid - Scrollable with fixed height */}
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {multipleTabImages.length === 0 ? (
@@ -3630,67 +3567,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         </div>
                       )}
                     </div>
-
-                    {/* Selected Garments Summary - Fixed at bottom when garments are selected */}
-                    {selectedGarments.length > 0 && (
-                      <div className="flex-shrink-0 mt-3 sm:mt-4">
-                        <Card className="p-3 sm:p-4 border-2 border-primary/20 bg-primary/5 shadow-sm">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                              <h3 className="text-sm sm:text-base font-semibold">
-                                {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
-                              </h3>
-                              <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                                {selectedGarments.length} / 6
-                              </span>
-                            </div>
-                            <Button
-                              variant={"outline" as const}
-                              size="sm"
-                              onClick={() => {
-                                for (let i = selectedGarments.length - 1; i >= 0; i--) {
-                                  handleGarmentDeselect(i);
-                                }
-                              }}
-                              className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
-                              aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
-                            >
-                              <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-                              <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
-                            </Button>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedGarments.map((garment, index) => (
-                              <div key={`selected-${index}`} className="relative group">
-                                <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30 shadow-md">
-                                  <img
-                                    src={garment.url}
-                                    alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
-                                    className="w-full h-full object-contain"
-                                  />
-                                  <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br z-10">
-                                    {index + 1}
-                                  </div>
-                                  <Button
-                                    variant={"destructive" as const}
-                                    size="icon"
-                                    onClick={() => handleGarmentDeselect(index)}
-                                    className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl z-20"
-                                    aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
-                                  >
-                                    <XCircle className="h-3 w-3" aria-hidden="true" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <p className="mt-3 text-xs text-muted-foreground">
-                            {t("tryOnWidget.sections.selectedGarments.hint") || "💡 Astuce: Vous pouvez changer de catégorie pour ajouter des articles de différentes catégories à votre sélection"}
-                          </p>
-                        </Card>
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -4274,70 +4150,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   "flex flex-col min-h-0 w-full overflow-hidden",
                   layoutMode !== "wide" ? "flex-1 min-h-[400px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
                 )}>
-                  <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
-                    {/* Products Count & Selection Counter - Fixed Header */}
-                    <div className="flex-shrink-0 space-y-2">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">
-                              {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${
-                                selectedGarments.length >= 2 && selectedGarments.length < 8
-                                  ? "bg-primary/10 text-primary"
-                                  : selectedGarments.length >= 8
-                                    ? "bg-warning/10 text-warning"
-                                    : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {selectedGarments.length} / 8
-                            </span>
-                          </div>
-                          {lookTabImages.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Grid3x3 className="h-3.5 w-3.5" />
-                              <span>
-                                {lookTabImages.length} {t("tryOnWidget.filters.availableProducts") || "produits disponibles"}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {selectedGarments.length > 0 && (
-                          <Button
-                            variant={"outline" as const}
-                            size="sm"
-                            onClick={handleClearAllGarments}
-                            className="h-9 px-3 text-sm gap-1.5"
-                            aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
-                          >
-                            <XCircle className="h-4 w-4" aria-hidden="true" />
-                            <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Validation Message */}
-                      {selectedGarments.length < 2 && (
-                        <div
-                          role="alert"
-                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
-                        >
-                          {t("tryOnWidget.validation.minGarmentsLook") || "Sélectionnez au moins 2 articles pour continuer"}
-                        </div>
-                      )}
-
-                      {selectedGarments.length >= 8 && (
-                        <div
-                          role="alert"
-                          className="text-sm text-warning bg-warning/10 p-3 rounded-lg"
-                        >
-                          {t("tryOnWidget.validation.maxGarmentsLook") || "Maximum 8 articles sélectionnés"}
-                        </div>
-                      )}
-                    </div>
-
+                  <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                     {/* Garment Grid - Scrollable with fixed height */}
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {lookTabImages.length === 0 ? (
@@ -4459,67 +4272,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                         </div>
                       )}
                     </div>
-
-                    {/* Selected Garments Summary - Fixed at bottom when garments are selected */}
-                    {selectedGarments.length > 0 && (
-                      <div className="flex-shrink-0 mt-3 sm:mt-4">
-                        <Card className="p-3 sm:p-4 border-2 border-primary/20 bg-primary/5 shadow-sm">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                              <h3 className="text-sm sm:text-base font-semibold">
-                                {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
-                              </h3>
-                              <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                                {selectedGarments.length} / 8
-                              </span>
-                            </div>
-                            <Button
-                              variant={"outline" as const}
-                              size="sm"
-                              onClick={() => {
-                                for (let i = selectedGarments.length - 1; i >= 0; i--) {
-                                  handleGarmentDeselect(i);
-                                }
-                              }}
-                              className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5"
-                              aria-label={t("tryOnWidget.buttons.clearAll") || "Effacer toutes les sélections"}
-                            >
-                              <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
-                              <span>{t("tryOnWidget.buttons.clearAll") || "Effacer tout"}</span>
-                            </Button>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedGarments.map((garment, index) => (
-                              <div key={`selected-${index}`} className="relative group">
-                                <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded overflow-hidden border-2 border-primary bg-muted/30 shadow-md">
-                                  <img
-                                    src={garment.url}
-                                    alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
-                                    className="w-full h-full object-contain"
-                                  />
-                                  <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-br z-10">
-                                    {index + 1}
-                                  </div>
-                                  <Button
-                                    variant={"destructive" as const}
-                                    size="icon"
-                                    onClick={() => handleGarmentDeselect(index)}
-                                    className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded-bl z-20"
-                                    aria-label={t("tryOnWidget.ariaLabels.removeGarment", { index: index + 1 }) || `Retirer l'article ${index + 1}`}
-                                  >
-                                    <XCircle className="h-3 w-3" aria-hidden="true" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <p className="mt-3 text-xs text-muted-foreground">
-                            {t("tryOnWidget.sections.selectedGarments.hint") || "💡 Astuce: Vous pouvez changer de catégorie pour ajouter des articles de différentes catégories à votre sélection"}
-                          </p>
-                        </Card>
-                      </div>
-                    )}
                   </div>
                 </div>
                 
