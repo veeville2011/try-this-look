@@ -782,7 +782,9 @@
       "resolution": "Résolution",
       "aspectRatio": "Ratio d'aspect",
       "prompt": "Invite",
-      "videoOf": "Vidéo {{current}} sur {{total}}"
+      "videoOf": "Vidéo {{current}} sur {{total}}",
+      "zoom": "Zoomer la vidéo",
+      "preview": "Aperçu de la vidéo"
     },
     "ariaLabels": {
       "selectVariant": "Sélectionner {{product}} - {{variant}}",
