@@ -391,19 +391,19 @@ const ProductDetailsDialog = ({
       case "completed":
         return (
           <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 text-xs">
-            {t("nuscene.video.completed") || "Completed"}
+            {t("nuscene.video.completed")}
           </Badge>
         );
       case "processing":
         return (
           <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-xs">
-            {t("nuscene.video.processing") || "Processing"}
+            {t("nuscene.video.processing")}
           </Badge>
         );
       case "failed":
         return (
           <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-xs">
-            {t("nuscene.video.failed") || "Failed"}
+            {t("nuscene.video.failed")}
           </Badge>
         );
       default:
@@ -474,7 +474,7 @@ const ProductDetailsDialog = ({
                 <div className="flex items-center gap-2">
                   <Video className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium">
-                    {t("nuscene.video.videoOf", { current: selectedVideoIndex + 1, total: displayVideos.length }) || `Video ${selectedVideoIndex + 1} of ${displayVideos.length}`}
+                    {t("nuscene.video.videoOf", { current: selectedVideoIndex + 1, total: displayVideos.length })}
                   </span>
                   {currentVideo.videoStatus && getVideoStatusBadge(currentVideo.videoStatus)}
                 </div>
@@ -489,7 +489,7 @@ const ProductDetailsDialog = ({
                           prev > 0 ? prev - 1 : displayVideos.length - 1
                         )
                       }
-                      aria-label={t("nuscene.video.previous") || "Previous video"}
+                      aria-label={t("nuscene.video.previous")}
                     >
                       <ChevronLeft className="w-3 h-3" />
                     </Button>
@@ -502,7 +502,7 @@ const ProductDetailsDialog = ({
                           prev < displayVideos.length - 1 ? prev + 1 : 0
                         )
                       }
-                      aria-label={t("nuscene.video.next") || "Next video"}
+                      aria-label={t("nuscene.video.next")}
                     >
                       <ChevronRight className="w-3 h-3" />
                     </Button>
@@ -512,18 +512,22 @@ const ProductDetailsDialog = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <span className="text-xs font-medium text-muted-foreground">{t("nuscene.video.original") || "Original Image"}</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("nuscene.video.original")}
+                  </span>
                   <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
                     <img
                       src={currentVideo.originalImageUrl || currentVideo.original_url}
-                      alt={t("nuscene.video.original") || "Original"}
+                      alt={t("nuscene.video.original")}
                       className="w-full h-full object-cover"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">{t("nuscene.video.generated") || "Generated Video"}</span>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {t("nuscene.video.generated")}
+                    </span>
                     {currentVideo.approvalStatus && getApprovalStatusBadge(currentVideo.approvalStatus)}
                   </div>
                   {currentVideo.videoStatus === "completed" && currentVideo.video_url ? (
@@ -534,7 +538,7 @@ const ProductDetailsDialog = ({
                         className="w-full h-full object-cover"
                         preload="metadata"
                       >
-                        {t("nuscene.video.notSupported") || "Your browser does not support the video tag."}
+                        {t("nuscene.video.notSupported")}
                       </video>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="bg-black/20 rounded-full p-2">
@@ -545,11 +549,15 @@ const ProductDetailsDialog = ({
                   ) : currentVideo.videoStatus === "processing" ? (
                     <div className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center border-2 border-dashed">
                       <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mb-2" />
-                      <span className="text-xs text-muted-foreground">{t("nuscene.video.processing") || "Processing..."}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t("nuscene.video.processing")}
+                      </span>
                     </div>
                   ) : (
                     <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                      <span className="text-xs text-muted-foreground">{t("nuscene.video.notAvailable") || "Video not available"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t("nuscene.video.notAvailable")}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -560,25 +568,25 @@ const ProductDetailsDialog = ({
                 <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
                   {currentVideo.duration && (
                     <div>
-                      <span className="font-medium">{t("nuscene.video.duration") || "Duration"}:</span>
+                      <span className="font-medium">{t("nuscene.video.duration")}:</span>
                       <span className="ml-2">{currentVideo.duration}s</span>
                     </div>
                   )}
                   {currentVideo.resolution && (
                     <div>
-                      <span className="font-medium">{t("nuscene.video.resolution") || "Resolution"}:</span>
+                      <span className="font-medium">{t("nuscene.video.resolution")}:</span>
                       <span className="ml-2">{currentVideo.resolution}</span>
                     </div>
                   )}
                   {currentVideo.aspect_ratio && (
                     <div>
-                      <span className="font-medium">{t("nuscene.video.aspectRatio") || "Aspect Ratio"}:</span>
+                      <span className="font-medium">{t("nuscene.video.aspectRatio")}:</span>
                       <span className="ml-2">{currentVideo.aspect_ratio}</span>
                     </div>
                   )}
                   {currentVideo.prompt && (
                     <div className="col-span-2">
-                      <span className="font-medium">{t("nuscene.video.prompt") || "Prompt"}:</span>
+                      <span className="font-medium">{t("nuscene.video.prompt")}:</span>
                       <p className="mt-1 text-xs line-clamp-2">{currentVideo.prompt}</p>
                     </div>
                   )}
