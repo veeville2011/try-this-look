@@ -3030,219 +3030,421 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
         </TabsContent>
 
         {/* Try Multiple Tab - Cart Mode */}
-        <TabsContent value="multiple" className="mt-0 space-y-6">
-            {/* Selection sections (container-responsive) */}
-            <div
-              className={cn(
-                "grid gap-6",
-                layoutMode === "wide" ? "grid-cols-2 gap-8" : "grid-cols-1"
-              )}
-            >
-              {/* Left Panel: Upload */}
-              <section aria-labelledby="upload-multiple-heading" className="flex flex-col">
-                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
-                  <div className="flex items-center gap-3 mb-4 flex-shrink-0">
-                    <div
-                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
-                      aria-hidden="true"
-                    >
-                      1
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2
-                        id="upload-multiple-heading"
-                        className="text-lg font-semibold"
-                      >
-                        {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
+        <TabsContent value="multiple" className="mt-0 flex-1 flex flex-col min-h-0">
+          {/* Content */}
+          {(isGeneratingMultiple || cartResults) ? (
+            /* Result Layout: Container-responsive (popover-safe) */
+            layoutMode === "wide" ? (
+              <div className="grid items-stretch justify-center flex-1 min-h-0 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
+                {/* Left Panel: Generated Images */}
+                <section
+                  aria-labelledby="result-multiple-heading"
+                  className="flex flex-col flex-1 w-full min-h-0 max-w-sm pt-3"
+                >
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
+                      <h2 id="result-multiple-heading" className="text-slate-800 text-xl font-semibold">
+                        {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
+                    </div>
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
+                      <p className="text-slate-800 text-sm">
+                        {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
                       </p>
+                      <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                    </div>
+                    <div className="w-full flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
+                      {isGeneratingMultiple ? (
+                        <div
+                          className="relative w-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center mb-4"
+                          role="status"
+                          aria-live="polite"
+                          aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                          aria-busy="true"
+                          style={{ aspectRatio: "1 / 1", minHeight: "400px" }}
+                        >
+                          <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                          <span className="sr-only">
+                            {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                          </span>
+                        </div>
+                      ) : cartResults && cartResults.results && cartResults.results.length > 0 ? (
+                        <div className="space-y-4">
+                          {cartResults.results.map((result, index) => (
+                            result.image ? (
+                              <div key={index} className="relative w-full rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center" style={{ aspectRatio: "1 / 1" }}>
+                                <img
+                                  src={result.image}
+                                  alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
+                                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                                />
+                                {/* Floating action buttons */}
+                                <div className="absolute top-3 right-3 flex gap-2 z-10">
+                                  <Button
+                                    onClick={() => handleCartMultipleDownload(result.image, index)}
+                                    disabled={downloadingIndex === index}
+                                    size="icon"
+                                    className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                                    aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                                    aria-busy={downloadingIndex === index}
+                                  >
+                                    {downloadingIndex === index ? (
+                                      <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                                    ) : (
+                                      <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : null
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
+                </section>
 
-                  <div className="flex-1 flex flex-col min-h-0">
-                    {!cartMultipleImage && (
-                      <div className="flex-1 flex items-center justify-center">
-                        <PhotoUpload
-                          onPhotoUpload={handleCartMultiplePhotoUpload}
-                          generatedPersonKeys={new Set()}
-                          matchingPersonKeys={[]}
-                          showDemoPhotoStatusIndicator={false}
-                          isMobile={layoutMode !== "wide"}
+                <div
+                  className="w-px self-stretch flex-none bg-slate-200 mt-3"
+                  aria-hidden="true"
+                />
+
+                {/* Right Panel: Person Image + Selected Garments */}
+                <section
+                  aria-labelledby="inputs-multiple-heading"
+                  className="flex flex-col items-start w-full min-h-0 max-w-sm pt-3 flex-1"
+                >
+                  <h2 id="inputs-multiple-heading" className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                    {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
+                  </h2>
+                  <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
+                    {t("tryOnWidget.sections.selectGarments.multiple.description") || "Sélectionnez 1-6 articles"}
+                  </p>
+                  <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+                    {cartMultipleImage && (
+                      <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[532px] mb-4">
+                        <img
+                          src={cartMultipleImage}
+                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                          className="max-h-full max-w-full w-auto h-auto object-contain"
                         />
                       </div>
                     )}
-
-                    {cartMultipleImage && (
-                      <div className="relative rounded-lg bg-card p-3 sm:p-4 border border-border shadow-sm flex-1 flex flex-col min-h-0 gap-3">
-                        <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                          <h3 className="font-semibold text-sm sm:text-base">
-                            {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
-                          </h3>
-                          <Button
-                            variant={"outline" as const}
-                            size="sm"
-                            onClick={() => {
-                              setCartMultipleImage(null);
-                              setCartMultipleDemoPhotoUrl(null);
-                            }}
-                            className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                            aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
-                          >
-                            <XCircle
-                              className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
-                              aria-hidden="true"
+                    {selectedGarments.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedGarments.map((garment, index) => (
+                          <div key={index} className="rounded-xl bg-white border border-border overflow-hidden p-2 flex items-center justify-center">
+                            <img
+                              src={garment.url}
+                              alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
+                              className="max-h-full max-w-full w-auto h-auto object-contain"
                             />
-                            <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
-                          </Button>
-                        </div>
-                        <div className="relative flex-1 rounded-lg overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0 p-2">
-                          <img
-                            src={cartMultipleImage}
-                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                            className="h-full w-full object-contain max-h-full"
-                          />
-                        </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                </Card>
-              </section>
-
-              {/* Right Panel: Garment Selection */}
-              <section aria-labelledby="garments-multiple-heading" className="flex flex-col">
-                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
-                      aria-hidden="true"
-                    >
-                      2
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2
-                        id="garments-multiple-heading"
-                        className="text-lg font-semibold"
+                  
+                  {/* Action buttons - Positioned at bottom, consistent with TryOn tab */}
+                  <div className="flex flex-col items-end w-full flex-shrink-0 gap-3 mt-4">
+                    <div className="flex items-start gap-4 w-full justify-end flex-wrap">
+                      <Button
+                        onClick={() => {
+                          setCartMultipleImage(null);
+                          setCartMultipleDemoPhotoUrl(null);
+                          setSelectedGarments([]);
+                          setCartResults(null);
+                          setErrorMultiple(null);
+                          setProgressMultiple(0);
+                          setBatchProgress(null);
+                          setHasUnsavedChanges(false);
+                        }}
+                        variant={"outline" as const}
+                        disabled={isGeneratingMultiple}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                        aria-busy={isGeneratingMultiple}
                       >
-                        {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
-                      </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {t("tryOnWidget.sections.selectGarments.multiple.description") || "Sélectionnez 1-6 articles"}
-                      </p>
+                        <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                      </Button>
+
+                      <Button
+                        onClick={handleCartMultipleGenerate}
+                        variant={"outline" as const}
+                        disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                        aria-busy={isGeneratingMultiple}
+                      >
+                        <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                      </Button>
                     </div>
                   </div>
+                </section>
+              </div>
+            ) : (
+              <div className="flex flex-col w-full mb-6">
+                {/* Header */}
+                <div className="flex justify-between items-start self-stretch mb-4">
+                  <div className="flex flex-col shrink-0 items-start gap-1">
+                    <h2 className="text-slate-800 text-xl sm:text-2xl font-semibold">
+                      {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
+                    </h2>
+                    <p className="text-slate-800 text-sm">
+                      {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
+                    </p>
+                  </div>
+                  <Info className="w-5 h-5 sm:w-6 sm:h-6 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                </div>
 
-                  {/* Category Filter Dropdown - Enhanced UI/UX */}
-                  {isLoadingCategories && (
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <label className="text-sm font-semibold">
-                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                        </label>
-                      </div>
-                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted/30">
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        <span className="text-sm text-muted-foreground">
-                          {t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Filter className="h-4 w-4 text-primary" />
-                        <label
-                          htmlFor="category-filter-multiple"
-                          className="text-sm font-semibold"
-                        >
-                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                        </label>
-                        {selectedCategory !== "all" && (
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {(() => {
-                              if (selectedCategory === "uncategorized") {
-                                return `${store_products.uncategorized.productCount} ${t("tryOnWidget.filters.products") || "produits"}`;
-                              }
-                              const selectedCat = store_products.categories.find(
-                                (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
-                              );
-                              return selectedCat ? `${selectedCat.productCount} ${t("tryOnWidget.filters.products") || "produits"}` : "";
-                            })()}
-                          </span>
-                        )}
-                      </div>
-                      <Select
-                        value={selectedCategory}
-                        onValueChange={setSelectedCategory}
-                      >
-                        <SelectTrigger
-                          id="category-filter-multiple"
-                          className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
-                          aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
-                        >
-                          <div className="flex items-center gap-2 flex-1">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                {/* Generated Images */}
+                {isGeneratingMultiple ? (
+                  <div
+                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-white"
+                    role="status"
+                    aria-live="polite"
+                    aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                    aria-busy="true"
+                  >
+                    <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                    <span className="sr-only">
+                      {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                    </span>
+                  </div>
+                ) : cartResults && cartResults.results && cartResults.results.length > 0 ? (
+                  <div className="space-y-4 mb-8">
+                    {cartResults.results.map((result, index) => (
+                      result.image ? (
+                        <div key={index} className="relative self-stretch min-h-[400px] max-h-[600px] rounded-xl bg-white overflow-hidden border border-border flex items-center justify-center">
+                          <img
+                            src={result.image}
+                            alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
+                            className="w-full h-auto max-h-[600px] object-contain"
+                          />
+                          {/* Floating action buttons */}
+                          <div className="absolute top-3 right-3 flex gap-2 z-10">
+                            <Button
+                              onClick={() => handleCartMultipleDownload(result.image, index)}
+                              disabled={downloadingIndex === index}
+                              size="icon"
+                              className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                              aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                              aria-busy={downloadingIndex === index}
+                            >
+                              {downloadingIndex === index ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                              ) : (
+                                <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                              )}
+                            </Button>
                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          <SelectItem 
-                            value="all"
-                            className="font-medium cursor-pointer focus:bg-primary/10"
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )
+          ) : (
+            /* Default Layout: Upload on left, Garment selection on right */
+            <div
+              className={cn(
+                "flex flex-1 min-h-0 max-w-full",
+                layoutMode === "wide" ? "flex-row items-stretch gap-6" : "flex-col items-center gap-4"
+              )}
+            >
+              {/* Left Panel: Upload / Preview */}
+              <section
+                aria-labelledby="upload-multiple-heading" 
+                className={cn(
+                  "flex flex-col flex-1 w-full min-h-0 max-w-full",
+                  layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                )}
+              >
+                {!cartMultipleImage && (
+                  <PhotoUpload
+                    onPhotoUpload={handleCartMultiplePhotoUpload}
+                    generatedPersonKeys={new Set()}
+                    matchingPersonKeys={[]}
+                    showDemoPhotoStatusIndicator={false}
+                    isMobile={layoutMode !== "wide"}
+                  />
+                )}
+
+                {cartMultipleImage && (
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                    <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          setCartMultipleImage(null);
+                          setCartMultipleDemoPhotoUrl(null);
+                        }}
+                        className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                        aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                      >
+                        <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
+                      </button>
+                      <h2 className="text-slate-800 text-xl font-semibold">
+                        {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
+                      </h2>
+                    </div>
+                    <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
+                      <p className="text-slate-800 text-sm">
+                        {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                      </p>
+                      <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                    </div>
+                    <div className="w-full flex-1 max-h-[24rem] min-h-[24rem] flex items-center justify-center">
+                      <img
+                        src={cartMultipleImage}
+                        alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                        className="max-h-[24rem] min-h-[24rem] max-w-full w-auto h-auto rounded-lg object-contain bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Vertical Divider - Wide layout only */}
+              {layoutMode === "wide" && (
+                <div
+                  className="w-px self-stretch flex-none bg-slate-200 mt-3"
+                  aria-hidden="true"
+                />
+              )}
+
+              {/* Right Panel: Garment Selection */}
+              <section
+                aria-labelledby="garments-multiple-heading"
+                className={cn(
+                  "flex flex-col items-start w-full min-h-0 max-w-full",
+                  layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
+                )}
+              >
+                <h2 id="garments-multiple-heading" className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                  {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
+                </h2>
+                <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
+                  {t("tryOnWidget.sections.selectGarments.multiple.description") || "Sélectionnez 1-6 articles"}
+                </p>
+
+                {/* Category Filter Dropdown - Enhanced UI/UX */}
+                {isLoadingCategories && (
+                  <div className="mb-4 w-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Filter className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-sm font-semibold">
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted/30">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">
+                        {t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
+                  <div className="mb-4 w-full">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Filter className="h-4 w-4 text-primary" />
+                      <label
+                        htmlFor="category-filter-multiple"
+                        className="text-sm font-semibold"
+                      >
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                      {selectedCategory !== "all" && (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {(() => {
+                            if (selectedCategory === "uncategorized") {
+                              return `${store_products.uncategorized.productCount} ${t("tryOnWidget.filters.products") || "produits"}`;
+                            }
+                            const selectedCat = store_products.categories.find(
+                              (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
+                            );
+                            return selectedCat ? `${selectedCat.productCount} ${t("tryOnWidget.filters.products") || "produits"}` : "";
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={setSelectedCategory}
+                    >
+                      <SelectTrigger
+                        id="category-filter-multiple"
+                        className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
+                        aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
+                      >
+                        <div className="flex items-center gap-2 flex-1">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <SelectItem 
+                          value="all"
+                          className="font-medium cursor-pointer focus:bg-primary/10"
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              <Grid3x3 className="h-4 w-4" />
+                              <span>{t("tryOnWidget.filters.allCategories") || "Toutes les catégories"}</span>
+                            </div>
+                            <span className="ml-4 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                              {store_products.statistics?.totalProducts || 0}
+                            </span>
+                          </div>
+                        </SelectItem>
+                        {store_products.categories.map((category) => (
+                          <SelectItem
+                            key={category.categoryId || category.categoryName}
+                            value={category.categoryId || category.categoryName}
+                            className="cursor-pointer focus:bg-primary/10"
                           >
                             <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <Grid3x3 className="h-4 w-4" />
-                                <span>{t("tryOnWidget.filters.allCategories") || "Toutes les catégories"}</span>
-                              </div>
-                              <span className="ml-4 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                                {store_products.statistics?.totalProducts || 0}
+                              <span className="truncate flex-1">{category.categoryName}</span>
+                              <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                {category.productCount}
                               </span>
                             </div>
                           </SelectItem>
-                          {store_products.categories.map((category) => (
-                            <SelectItem
-                              key={category.categoryId || category.categoryName}
-                              value={category.categoryId || category.categoryName}
-                              className="cursor-pointer focus:bg-primary/10"
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span className="truncate flex-1">{category.categoryName}</span>
-                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
-                                  {category.productCount}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                          {store_products.uncategorized.productCount > 0 && (
-                            <SelectItem 
-                              value="uncategorized"
-                              className="cursor-pointer focus:bg-primary/10 border-t border-border mt-1 pt-1"
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span className="text-muted-foreground">{store_products.uncategorized.categoryName}</span>
-                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
-                                  {store_products.uncategorized.productCount}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                        ))}
+                        {store_products.uncategorized.productCount > 0 && (
+                          <SelectItem 
+                            value="uncategorized"
+                            className="cursor-pointer focus:bg-primary/10 border-t border-border mt-1 pt-1"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-muted-foreground">{store_products.uncategorized.categoryName}</span>
+                              <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                {store_products.uncategorized.productCount}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
+                  <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30 w-full">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Package className="h-4 w-4" />
+                      <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
                     </div>
-                  )}
-                  {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
-                    <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Package className="h-4 w-4" />
-                        <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                )}
 
+                {/* Garment Selection Container */}
+                <div className={cn(
+                  "flex flex-col min-h-0 w-full",
+                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
+                )}>
                   <div className="flex flex-col flex-1 min-h-0 space-y-4">
                     {/* Products Count & Selection Counter - Fixed Header */}
                     <div className="flex-shrink-0 space-y-2">
@@ -3440,7 +3642,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                 {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
                               </h3>
                               <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                                {selectedGarments.length} / {activeTab === "multiple" ? 6 : 8}
+                                {selectedGarments.length} / 6
                               </span>
                             </div>
                             <Button
@@ -3490,323 +3692,612 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     )}
                   </div>
-                </Card>
+                </div>
+                
+                {/* Action buttons - Positioned at bottom with minimal gap */}
+                {!isGeneratingMultiple && !cartResults && (
+                  <div
+                    className={cn(
+                      "flex flex-col items-end w-full flex-shrink-0 gap-3",
+                      layoutMode !== "wide" ? "mt-auto pb-0" : "mt-4"
+                    )}
+                  >
+                    <div className="flex items-start gap-4 w-full justify-end flex-wrap">
+                      <Button
+                        onClick={() => {
+                          setCartMultipleImage(null);
+                          setCartMultipleDemoPhotoUrl(null);
+                          setSelectedGarments([]);
+                          setHasUnsavedChanges(false);
+                        }}
+                        variant={"outline" as const}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                      >
+                        <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                      </Button>
+                      <Button
+                        onClick={handleCartMultipleGenerate}
+                        disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                        aria-describedby={
+                          !cartMultipleImage || selectedGarments.length < 1
+                            ? "generate-multiple-help"
+                            : undefined
+                        }
+                        aria-busy={isGeneratingMultiple}
+                      >
+                        <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.generate") || "Générer"}
+                      </Button>
+                      {(!cartMultipleImage || selectedGarments.length < 1) && (
+                        <p id="generate-multiple-help" className="sr-only">
+                          {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner au moins 1 article pour générer l'essayage virtuel"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
+          )}
 
-            {/* Generate button */}
-            {!isGeneratingMultiple && (
-              <div className="pt-2 flex justify-center">
-                <div className="w-full max-w-2xl">
-                  <Button
-                    onClick={handleCartMultipleGenerate}
-                    disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
-                    className="w-full h-12 text-base min-h-[44px]"
-                    aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
-                    aria-busy={isGeneratingMultiple}
-                  >
-                    <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
-                  </Button>
-                </div>
+          {(isGeneratingMultiple || cartResults) && layoutMode !== "wide" && (
+            /* Result buttons: Mobile - Stacked vertically */
+            <div className="flex flex-col self-stretch mb-8 gap-4">
+              <Button
+                onClick={handleCartMultipleGenerate}
+                variant={"outline" as const}
+                disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                aria-busy={isGeneratingMultiple}
+              >
+                <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                {t("tryOnWidget.buttons.retry") || "Réessayer"}
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setCartMultipleImage(null);
+                  setCartMultipleDemoPhotoUrl(null);
+                  setSelectedGarments([]);
+                  setCartResults(null);
+                  setErrorMultiple(null);
+                  setProgressMultiple(0);
+                  setBatchProgress(null);
+                  setHasUnsavedChanges(false);
+                }}
+                variant={"outline" as const}
+                disabled={isGeneratingMultiple}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                aria-busy={isGeneratingMultiple}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+              </Button>
+            </div>
+          )}
+
+          {/* Generate button - Show when not generating and no results */}
+          {!isGeneratingMultiple && !cartResults && (
+            <div className={cn(
+              "flex justify-center",
+              layoutMode === "wide" ? "pt-2" : "pt-2"
+            )}>
+              <div className="w-full max-w-2xl">
+                <Button
+                  onClick={handleCartMultipleGenerate}
+                  disabled={!cartMultipleImage || selectedGarments.length < 1 || isGeneratingMultiple}
+                  className={cn(
+                    "h-12 text-base min-h-[44px]",
+                    layoutMode === "wide" ? "w-full" : "w-full"
+                  )}
+                  aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                  aria-busy={isGeneratingMultiple}
+                >
+                  <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.generateMultiple", { count: selectedGarments.length }) || `Générer ${selectedGarments.length} Image${selectedGarments.length > 1 ? "s" : ""}`}
+                </Button>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Progress Tracker */}
-            {isGeneratingMultiple && (
-              <Card className="p-6 border-border bg-card">
-                <div className="space-y-4" aria-busy="true">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Loader2
-                          className="h-5 w-5 animate-spin text-primary"
-                          aria-hidden="true"
-                        />
-                        <span className="text-base font-semibold">
-                          {t("tryOnWidget.status.generating") || "Génération en cours..."}
-                        </span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {batchProgress
-                          ? Math.round((batchProgress.completed / batchProgress.total) * 100)
-                          : progressMultiple}%
+
+          {/* Progress Tracker */}
+          {isGeneratingMultiple && !cartResults && (
+            <Card className="p-6 border-border bg-card">
+              <div className="space-y-4" aria-busy="true">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Loader2
+                        className="h-5 w-5 animate-spin text-primary"
+                        aria-hidden="true"
+                      />
+                      <span className="text-base font-semibold">
+                        {t("tryOnWidget.status.generating") || "Génération en cours..."}
                       </span>
                     </div>
-                    <Progress
-                      value={
-                        batchProgress
-                          ? Math.round((batchProgress.completed / batchProgress.total) * 100)
-                          : progressMultiple
-                      }
-                      className="h-2"
-                      aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
-                    />
+                    <span className="text-sm text-muted-foreground">
+                      {batchProgress
+                        ? Math.round((batchProgress.completed / batchProgress.total) * 100)
+                        : progressMultiple}%
+                    </span>
                   </div>
-
-                  {batchProgress && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {t("tryOnWidget.progress.garmentsProcessed") || "Articles traités"}: {batchProgress.completed} / {batchProgress.total}
-                        </span>
-                        {batchProgress.failed > 0 && (
-                          <span className="text-warning">
-                            {t("tryOnWidget.progress.failed") || "Échecs"}: {batchProgress.failed}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <Progress
+                    value={
+                      batchProgress
+                        ? Math.round((batchProgress.completed / batchProgress.total) * 100)
+                        : progressMultiple
+                    }
+                    className="h-2"
+                    aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
+                  />
                 </div>
-              </Card>
-            )}
 
-            {/* Error Display */}
-            {errorMultiple && (
-              <div role="alert" aria-live="assertive" className="mb-6">
-                <Card className="p-6 bg-destructive/10 border-destructive">
-                  <p className="text-destructive font-medium mb-4" id="error-multiple-message">
-                    {errorMultiple}
-                  </p>
-                  <Button
-                    variant={"outline" as const}
-                    onClick={() => {
-                      setErrorMultiple(null);
-                      setCartMultipleImage(null);
-                      setCartMultipleDemoPhotoUrl(null);
-                      setSelectedGarments([]);
-                      setCartResults(null);
-                      setProgressMultiple(0);
-                      setBatchProgress(null);
-                      setHasUnsavedChanges(false);
-                    }}
-                    className="w-full sm:w-auto"
-                    aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
-                    aria-describedby="error-multiple-message"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                  </Button>
-                </Card>
+                {batchProgress && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {t("tryOnWidget.progress.garmentsProcessed") || "Articles traités"}: {batchProgress.completed} / {batchProgress.total}
+                      </span>
+                      {batchProgress.failed > 0 && (
+                        <span className="text-warning">
+                          {t("tryOnWidget.progress.failed") || "Échecs"}: {batchProgress.failed}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </Card>
+          )}
+
+          {/* Error Display */}
+          {errorMultiple && (
+            <div role="alert" aria-live="assertive" className="mb-6">
+              <Card className="p-6 bg-destructive/10 border-destructive">
+                <p className="text-destructive font-medium mb-4" id="error-multiple-message">
+                  {errorMultiple}
+                </p>
+                <Button
+                  variant={"outline" as const}
+                  onClick={() => {
+                    setErrorMultiple(null);
+                    setCartMultipleImage(null);
+                    setCartMultipleDemoPhotoUrl(null);
+                    setSelectedGarments([]);
+                    setCartResults(null);
+                    setProgressMultiple(0);
+                    setBatchProgress(null);
+                    setHasUnsavedChanges(false);
+                  }}
+                  className="w-full sm:w-auto"
+                  aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
+                  aria-describedby="error-multiple-message"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                </Button>
+              </Card>
+            </div>
+          )}
           </TabsContent>
 
           {/* Try Look Tab - Outfit Mode */}
-          <TabsContent value="look" className="mt-0 space-y-6">
-            {/* Selection sections (container-responsive) */}
-            <div
-              className={cn(
-                "grid gap-6",
-                layoutMode === "wide" ? "grid-cols-2 gap-8" : "grid-cols-1"
-              )}
-            >
-              {/* Left Panel: Upload */}
-              <section aria-labelledby="upload-look-heading" className="flex flex-col">
-                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
-                  <div className="flex items-center gap-3 mb-4 flex-shrink-0">
-                    <div
-                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
-                      aria-hidden="true"
-                    >
-                      1
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2
-                        id="upload-look-heading"
-                        className="text-lg font-semibold"
-                      >
-                        {t("tryOnWidget.sections.uploadPhoto.title") || "Téléchargez Votre Photo"}
-                      </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {t("tryOnWidget.sections.uploadPhoto.description") || "Choisissez une photo claire de vous-même"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 flex flex-col min-h-0">
-                    {!cartMultipleImage && (
-                      <div className="flex-1 flex items-center justify-center">
-                        <PhotoUpload
-                          onPhotoUpload={handleCartMultiplePhotoUpload}
-                          generatedPersonKeys={new Set()}
-                          matchingPersonKeys={[]}
-                          showDemoPhotoStatusIndicator={false}
-                          isMobile={layoutMode !== "wide"}
-                        />
+          <TabsContent value="look" className="mt-0 flex-1 flex flex-col min-h-0">
+            {/* Content */}
+            {(isGeneratingMultiple || outfitResult) ? (
+              /* Result Layout: Container-responsive (popover-safe) */
+              layoutMode === "wide" ? (
+                <div className="grid items-stretch justify-center flex-1 min-h-0 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
+                  {/* Left Panel: Generated Outfit Image */}
+                  <section
+                    aria-labelledby="result-look-heading"
+                    className="flex flex-col flex-1 w-full min-h-0 max-w-sm pt-3"
+                  >
+                    <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                      <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
+                        <h2 id="result-look-heading" className="text-slate-800 text-xl font-semibold">
+                          {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
+                        </h2>
                       </div>
-                    )}
-
-                    {cartMultipleImage && (
-                      <div className="relative rounded-lg bg-card p-3 sm:p-4 border border-border shadow-sm flex-1 flex flex-col min-h-0 gap-3">
-                        <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                          <h3 className="font-semibold text-sm sm:text-base">
-                            {t("tryOnWidget.sections.yourPhoto.title") || "Votre Photo"}
-                          </h3>
-                          <Button
-                            variant={"outline" as const}
-                            size="sm"
-                            onClick={() => {
-                              setCartMultipleImage(null);
-                              setCartMultipleDemoPhotoUrl(null);
-                            }}
-                            className="group h-8 sm:h-9 px-2.5 sm:px-3 text-xs sm:text-sm flex-shrink-0 gap-1.5 border-border text-foreground hover:bg-muted hover:border-muted-foreground/20 hover:text-muted-foreground transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                            aria-label={t("tryOnWidget.buttons.clearPhoto") || "Effacer la photo téléchargée"}
+                      <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
+                        <p className="text-slate-800 text-sm">
+                          {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
+                        </p>
+                        <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                      </div>
+                      <div className="w-full flex-1 min-h-0 flex items-center justify-center">
+                        {isGeneratingMultiple ? (
+                          <div
+                            className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center"
+                            role="status"
+                            aria-live="polite"
+                            aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                            aria-busy="true"
+                            style={{ aspectRatio: "1 / 1" }}
                           >
-                            <XCircle
-                              className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200"
-                              aria-hidden="true"
+                            <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                            <span className="sr-only">
+                              {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                            </span>
+                          </div>
+                        ) : outfitResult && outfitResult.data?.image ? (
+                          <div className="relative w-full max-w-full max-h-full rounded-lg bg-white overflow-hidden border border-border flex items-center justify-center" style={{ aspectRatio: "1 / 1" }}>
+                            <img
+                              src={outfitResult.data.image}
+                              alt={
+                                t("tryOnWidget.resultDisplay.resultAlt") ||
+                                "Résultat de l'essayage virtuel généré par intelligence artificielle"
+                              }
+                              className="max-h-full max-w-full w-auto h-auto object-contain"
                             />
-                            <span>{t("tryOnWidget.buttons.clear") || "Effacer"}</span>
-                          </Button>
-                        </div>
-                        <div className="relative flex-1 rounded-lg overflow-hidden border border-border bg-card flex items-center justify-center shadow-sm min-h-0 p-2">
+                            {/* Floating action buttons */}
+                            <div className="absolute top-3 right-3 flex gap-2 z-10">
+                              <Button
+                                onClick={() => handleCartMultipleDownload(outfitResult.data.image)}
+                                disabled={downloadingIndex !== null}
+                                size="icon"
+                                className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                                aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                                aria-busy={downloadingIndex !== null}
+                              >
+                                {downloadingIndex !== null ? (
+                                  <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                                ) : (
+                                  <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+
+                  <div
+                    className="w-px self-stretch flex-none bg-slate-200 mt-3"
+                    aria-hidden="true"
+                  />
+
+                  {/* Right Panel: Person Image + Selected Garments */}
+                  <section
+                    aria-labelledby="inputs-look-heading"
+                    className="flex flex-col items-start w-full min-h-0 max-w-sm pt-3 flex-1"
+                  >
+                    <h2 id="inputs-look-heading" className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                      {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
+                    </h2>
+                    <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
+                      {t("tryOnWidget.sections.selectGarments.look.description") || "Sélectionnez 2-8 articles pour une tenue complète"}
+                    </p>
+                    <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+                      {cartMultipleImage && (
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[532px] mb-4">
                           <img
                             src={cartMultipleImage}
                             alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                            className="h-full w-full object-contain max-h-full"
+                            className="max-h-full max-w-full w-auto h-auto object-contain"
                           />
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </section>
-
-              {/* Right Panel: Garment Selection */}
-              <section aria-labelledby="garments-look-heading" className="flex flex-col">
-                <Card className="p-4 sm:p-6 border-border bg-card flex flex-col min-h-[500px] max-h-[800px]">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-8 h-8 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold text-sm flex-shrink-0 shadow-sm"
-                      aria-hidden="true"
-                    >
-                      2
+                      )}
+                      {selectedGarments.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {selectedGarments.map((garment, index) => (
+                            <div key={index} className="rounded-xl bg-white border border-border overflow-hidden p-2 flex items-center justify-center">
+                              <img
+                                src={garment.url}
+                                alt={t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article sélectionné ${index + 1}`}
+                                className="max-h-full max-w-full w-auto h-auto object-contain"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h2
-                        id="garments-look-heading"
-                        className="text-lg font-semibold"
-                      >
-                        {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
+                    
+                    {/* Action buttons - Positioned at bottom, consistent with TryOn tab */}
+                    <div className="flex flex-col items-end w-full flex-shrink-0 gap-3 mt-4">
+                      <div className="flex items-start gap-4 w-full justify-end flex-wrap">
+                        <Button
+                          onClick={() => {
+                            setCartMultipleImage(null);
+                            setCartMultipleDemoPhotoUrl(null);
+                            setSelectedGarments([]);
+                            setOutfitResult(null);
+                            setErrorMultiple(null);
+                            setProgressMultiple(0);
+                            setBatchProgress(null);
+                            setHasUnsavedChanges(false);
+                          }}
+                          variant={"outline" as const}
+                          disabled={isGeneratingMultiple}
+                          className="min-w-[160px] h-11"
+                          aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                          aria-busy={isGeneratingMultiple}
+                        >
+                          <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                          {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                        </Button>
+
+                        <Button
+                          onClick={handleCartMultipleGenerate}
+                          variant={"outline" as const}
+                          disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
+                          className="min-w-[160px] h-11"
+                          aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                          aria-busy={isGeneratingMultiple}
+                        >
+                          <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                          {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                        </Button>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              ) : (
+                <div className="flex flex-col w-full mb-6">
+                  {/* Header */}
+                  <div className="flex justify-between items-start self-stretch mb-4">
+                    <div className="flex flex-col shrink-0 items-start gap-1">
+                      <h2 className="text-slate-800 text-xl sm:text-2xl font-semibold">
+                        {t("tryOnWidget.resultDisplay.generatedResult") || "Résultat Généré"}
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {t("tryOnWidget.sections.selectGarments.look.description") || "Sélectionnez 2-8 articles pour une tenue complète"}
+                      <p className="text-slate-800 text-sm">
+                        {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
                       </p>
                     </div>
+                    <Info className="w-5 h-5 sm:w-6 sm:h-6 text-slate-800 flex-shrink-0" aria-hidden="true" />
                   </div>
 
-                  {/* Category Filter Dropdown - Enhanced UI/UX */}
-                  {isLoadingCategories && (
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <label className="text-sm font-semibold">
-                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                        </label>
+                  {/* Generated Outfit Image */}
+                  {isGeneratingMultiple ? (
+                    <div
+                      className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-white"
+                      role="status"
+                      aria-live="polite"
+                      aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                      aria-busy="true"
+                    >
+                      <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                      <span className="sr-only">
+                        {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                      </span>
+                    </div>
+                  ) : outfitResult && outfitResult.data?.image ? (
+                    <div className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl bg-white overflow-hidden border border-border flex items-center justify-center">
+                      <img
+                        src={outfitResult.data.image}
+                        alt={
+                          t("tryOnWidget.resultDisplay.resultAlt") ||
+                          "Résultat de l'essayage virtuel généré par intelligence artificielle"
+                        }
+                        className="w-full h-auto max-h-[600px] object-contain"
+                      />
+                      {/* Floating action buttons */}
+                      <div className="absolute top-3 right-3 flex gap-2 z-10">
+                        <Button
+                          onClick={() => handleCartMultipleDownload(outfitResult.data.image)}
+                          disabled={downloadingIndex !== null}
+                          size="icon"
+                          className="h-10 w-10 bg-white hover:bg-gray-50 border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200"
+                          aria-label={t("tryOnWidget.resultDisplay.downloadAriaLabel") || "Télécharger l'image"}
+                          aria-busy={downloadingIndex !== null}
+                        >
+                          {downloadingIndex !== null ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-slate-700" aria-hidden="true" />
+                          ) : (
+                            <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
+                          )}
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted/30">
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        <span className="text-sm text-muted-foreground">
-                          {t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}
-                        </span>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            ) : (
+              /* Default Layout: Upload on left, Garment selection on right */
+              <div
+                className={cn(
+                  "flex flex-1 min-h-0 max-w-full",
+                  layoutMode === "wide" ? "flex-row items-stretch gap-6" : "flex-col items-center gap-4"
+                )}
+              >
+                {/* Left Panel: Upload / Preview */}
+                <section
+                  aria-labelledby="upload-look-heading" 
+                  className={cn(
+                    "flex flex-col flex-1 w-full min-h-0 max-w-full",
+                    layoutMode === "wide" ? "max-w-sm pt-3" : ""
+                  )}
+                >
+                  {!cartMultipleImage && (
+                    <PhotoUpload
+                      onPhotoUpload={handleCartMultiplePhotoUpload}
+                      generatedPersonKeys={new Set()}
+                      matchingPersonKeys={[]}
+                      showDemoPhotoStatusIndicator={false}
+                      isMobile={layoutMode !== "wide"}
+                    />
+                  )}
+
+                  {cartMultipleImage && (
+                    <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1">
+                      <div className="flex items-center mb-2 px-0 gap-2 w-full flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            setCartMultipleImage(null);
+                            setCartMultipleDemoPhotoUrl(null);
+                          }}
+                          className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
+                          aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
+                        >
+                          <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
+                        </button>
+                        <h2 className="text-slate-800 text-xl font-semibold">
+                          {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
+                        </h2>
+                      </div>
+                      <div className="flex items-center mb-4 px-0 gap-2 w-full flex-shrink-0">
+                        <p className="text-slate-800 text-sm">
+                          {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
+                        </p>
+                        <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
+                      </div>
+                      <div className="w-full flex-1 max-h-[24rem] min-h-[24rem] flex items-center justify-center">
+                        <img
+                          src={cartMultipleImage}
+                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                          className="max-h-[24rem] min-h-[24rem] max-w-full w-auto h-auto rounded-lg object-contain bg-white"
+                        />
                       </div>
                     </div>
                   )}
-                  {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Filter className="h-4 w-4 text-primary" />
-                        <label
-                          htmlFor="category-filter-look"
-                          className="text-sm font-semibold"
-                        >
-                          {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
-                        </label>
-                        {selectedCategory !== "all" && (
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {(() => {
-                              if (selectedCategory === "uncategorized") {
-                                return `${store_products.uncategorized.productCount} ${t("tryOnWidget.filters.products") || "produits"}`;
-                              }
-                              const selectedCat = store_products.categories.find(
-                                (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
-                              );
-                              return selectedCat ? `${selectedCat.productCount} ${t("tryOnWidget.filters.products") || "produits"}` : "";
-                            })()}
-                          </span>
-                        )}
-                      </div>
-                      <Select
-                        value={selectedCategory}
-                        onValueChange={setSelectedCategory}
+                </section>
+
+                {/* Vertical Divider - Wide layout only */}
+                {layoutMode === "wide" && (
+                  <div
+                    className="w-px self-stretch flex-none bg-slate-200 mt-3"
+                    aria-hidden="true"
+                  />
+                )}
+
+                {/* Right Panel: Garment Selection */}
+                <section
+                  aria-labelledby="garments-look-heading"
+                  className={cn(
+                    "flex flex-col items-start w-full min-h-0 max-w-full",
+                    layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
+                  )}
+                >
+                  <h2 id="garments-look-heading" className="text-slate-800 text-xl font-semibold mb-1 w-full flex-shrink-0">
+                    {t("tryOnWidget.sections.selectGarments.title") || "Sélectionner les Articles"}
+                  </h2>
+                  <p className="text-slate-800 text-sm w-full flex-shrink-0 mb-3">
+                    {t("tryOnWidget.sections.selectGarments.look.description") || "Sélectionnez 2-8 articles pour une tenue complète"}
+                  </p>
+
+                {/* Category Filter Dropdown - Enhanced UI/UX */}
+                {isLoadingCategories && (
+                  <div className="mb-4 w-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Filter className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-sm font-semibold">
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted/30">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">
+                        {t("tryOnWidget.filters.loadingCategories") || "Chargement des catégories..."}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {!isLoadingCategories && store_products && store_products.categories.length > 0 && (
+                  <div className="mb-4 w-full">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Filter className="h-4 w-4 text-primary" />
+                      <label
+                        htmlFor="category-filter-look"
+                        className="text-sm font-semibold"
                       >
-                        <SelectTrigger
-                          id="category-filter-look"
-                          className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
-                          aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
+                        {t("tryOnWidget.filters.category") || "Filtrer par catégorie"}
+                      </label>
+                      {selectedCategory !== "all" && (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {(() => {
+                            if (selectedCategory === "uncategorized") {
+                              return `${store_products.uncategorized.productCount} ${t("tryOnWidget.filters.products") || "produits"}`;
+                            }
+                            const selectedCat = store_products.categories.find(
+                              (cat) => cat.categoryId === selectedCategory || cat.categoryName === selectedCategory
+                            );
+                            return selectedCat ? `${selectedCat.productCount} ${t("tryOnWidget.filters.products") || "produits"}` : "";
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={setSelectedCategory}
+                    >
+                      <SelectTrigger
+                        id="category-filter-look"
+                        className="w-full h-11 bg-background hover:bg-muted/50 transition-colors border-2 data-[state=open]:border-primary shadow-sm"
+                        aria-label={t("tryOnWidget.filters.categoryAriaLabel") || "Sélectionner une catégorie"}
+                      >
+                        <div className="flex items-center gap-2 flex-1">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <SelectItem 
+                          value="all"
+                          className="font-medium cursor-pointer focus:bg-primary/10"
                         >
-                          <div className="flex items-center gap-2 flex-1">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder={t("tryOnWidget.filters.selectCategory") || "Toutes les catégories"} />
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              <Grid3x3 className="h-4 w-4" />
+                              <span>{t("tryOnWidget.filters.allCategories") || "Toutes les catégories"}</span>
+                            </div>
+                            <span className="ml-4 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                              {store_products.statistics?.totalProducts || 0}
+                            </span>
                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          <SelectItem 
-                            value="all"
-                            className="font-medium cursor-pointer focus:bg-primary/10"
+                        </SelectItem>
+                        {store_products.categories.map((category) => (
+                          <SelectItem
+                            key={category.categoryId || category.categoryName}
+                            value={category.categoryId || category.categoryName}
+                            className="cursor-pointer focus:bg-primary/10"
                           >
                             <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <Grid3x3 className="h-4 w-4" />
-                                <span>{t("tryOnWidget.filters.allCategories") || "Toutes les catégories"}</span>
-                              </div>
-                              <span className="ml-4 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                                {store_products.statistics?.totalProducts || 0}
+                              <span className="truncate flex-1">{category.categoryName}</span>
+                              <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                {category.productCount}
                               </span>
                             </div>
                           </SelectItem>
-                          {store_products.categories.map((category) => (
-                            <SelectItem
-                              key={category.categoryId || category.categoryName}
-                              value={category.categoryId || category.categoryName}
-                              className="cursor-pointer focus:bg-primary/10"
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span className="truncate flex-1">{category.categoryName}</span>
-                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
-                                  {category.productCount}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                          {store_products.uncategorized.productCount > 0 && (
-                            <SelectItem 
-                              value="uncategorized"
-                              className="cursor-pointer focus:bg-primary/10 border-t border-border mt-1 pt-1"
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span className="text-muted-foreground">{store_products.uncategorized.categoryName}</span>
-                                <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
-                                  {store_products.uncategorized.productCount}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                        ))}
+                        {store_products.uncategorized.productCount > 0 && (
+                          <SelectItem 
+                            value="uncategorized"
+                            className="cursor-pointer focus:bg-primary/10 border-t border-border mt-1 pt-1"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-muted-foreground">{store_products.uncategorized.categoryName}</span>
+                              <span className="ml-4 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium flex-shrink-0">
+                                {store_products.uncategorized.productCount}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
+                  <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30 w-full">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Package className="h-4 w-4" />
+                      <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
                     </div>
-                  )}
-                  {!isLoadingCategories && store_products && store_products.categories.length === 0 && (
-                    <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Package className="h-4 w-4" />
-                        <span>{t("tryOnWidget.filters.noCategories") || "Aucune catégorie disponible"}</span>
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                )}
 
+                {/* Garment Selection Container */}
+                <div className={cn(
+                  "flex flex-col min-h-0 w-full",
+                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
+                )}>
                   <div className="flex flex-col flex-1 min-h-0 space-y-4">
                     {/* Products Count & Selection Counter - Fixed Header */}
                     <div className="flex-shrink-0 space-y-2">
@@ -4004,7 +4495,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                 {t("tryOnWidget.sections.selectedGarments.title") || "Articles Sélectionnés"}
                               </h3>
                               <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                                {selectedGarments.length} / {activeTab === "multiple" ? 6 : 8}
+                                {selectedGarments.length} / 8
                               </span>
                             </div>
                             <Button
@@ -4054,90 +4545,183 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       </div>
                     )}
                   </div>
-                </Card>
+                </div>
+                
+                {/* Action buttons - Positioned at bottom with minimal gap */}
+                {!isGeneratingMultiple && !outfitResult && (
+                  <div
+                    className={cn(
+                      "flex flex-col items-end w-full flex-shrink-0 gap-3",
+                      layoutMode !== "wide" ? "mt-auto pb-0" : "mt-4"
+                    )}
+                  >
+                    <div className="flex items-start gap-4 w-full justify-end flex-wrap">
+                      <Button
+                        onClick={() => {
+                          setCartMultipleImage(null);
+                          setCartMultipleDemoPhotoUrl(null);
+                          setSelectedGarments([]);
+                          setHasUnsavedChanges(false);
+                        }}
+                        variant={"outline" as const}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                      >
+                        <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+                      </Button>
+                      <Button
+                        onClick={handleCartMultipleGenerate}
+                        disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
+                        className="min-w-[160px] h-11"
+                        aria-label={t("tryOnWidget.buttons.generate") || "Générer l'essayage virtuel"}
+                        aria-describedby={
+                          !cartMultipleImage || selectedGarments.length < 2
+                            ? "generate-look-help"
+                            : undefined
+                        }
+                        aria-busy={isGeneratingMultiple}
+                      >
+                        <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                        {t("tryOnWidget.buttons.generate") || "Générer"}
+                      </Button>
+                      {(!cartMultipleImage || selectedGarments.length < 2) && (
+                        <p id="generate-look-help" className="sr-only">
+                          {t("tryOnWidget.buttons.generateHelp") || "Veuillez télécharger une photo et sélectionner au moins 2 articles pour générer l'essayage virtuel"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
+          )}
 
-            {/* Generate button */}
-            {!isGeneratingMultiple && (
-              <div className="pt-2 flex justify-center">
-                <div className="w-full max-w-2xl">
-                  <Button
-                    onClick={handleCartMultipleGenerate}
-                    disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
-                    className="w-full h-12 text-base min-h-[44px]"
-                    aria-label={t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
-                    aria-busy={isGeneratingMultiple}
-                  >
-                    <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
-                  </Button>
-                </div>
+          {(isGeneratingMultiple || outfitResult) && layoutMode !== "wide" && (
+            /* Result buttons: Mobile - Stacked vertically */
+            <div className="flex flex-col self-stretch mb-8 gap-4">
+              <Button
+                onClick={handleCartMultipleGenerate}
+                variant={"outline" as const}
+                disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
+                aria-busy={isGeneratingMultiple}
+              >
+                <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                {t("tryOnWidget.buttons.retry") || "Réessayer"}
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setCartMultipleImage(null);
+                  setCartMultipleDemoPhotoUrl(null);
+                  setSelectedGarments([]);
+                  setOutfitResult(null);
+                  setErrorMultiple(null);
+                  setProgressMultiple(0);
+                  setBatchProgress(null);
+                  setHasUnsavedChanges(false);
+                }}
+                variant={"outline" as const}
+                disabled={isGeneratingMultiple}
+                className="w-full h-11"
+                aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
+                aria-busy={isGeneratingMultiple}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
+                {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
+              </Button>
+            </div>
+          )}
+
+          {/* Generate button - Show when not generating and no results */}
+          {!isGeneratingMultiple && !outfitResult && (
+            <div className={cn(
+              "flex justify-center",
+              layoutMode === "wide" ? "pt-2" : "pt-2"
+            )}>
+              <div className="w-full max-w-2xl">
+                <Button
+                  onClick={handleCartMultipleGenerate}
+                  disabled={!cartMultipleImage || selectedGarments.length < 2 || isGeneratingMultiple}
+                  className={cn(
+                    "h-12 text-base min-h-[44px]",
+                    layoutMode === "wide" ? "w-full" : "w-full"
+                  )}
+                  aria-label={t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
+                  aria-busy={isGeneratingMultiple}
+                >
+                  <Sparkles className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.generateOutfit") || "Générer la Tenue Complète"}
+                </Button>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Progress Tracker */}
-            {isGeneratingMultiple && (
-              <Card className="p-6 border-border bg-card">
-                <div className="space-y-4" aria-busy="true">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Loader2
-                          className="h-5 w-5 animate-spin text-primary"
-                          aria-hidden="true"
-                        />
-                        <span className="text-base font-semibold">
-                          {t("tryOnWidget.status.generatingOutfit") || "Génération de la tenue complète..."}
-                        </span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {progressMultiple}%
+          {/* Progress Tracker */}
+          {isGeneratingMultiple && !outfitResult && (
+            <Card className="p-6 border-border bg-card">
+              <div className="space-y-4" aria-busy="true">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Loader2
+                        className="h-5 w-5 animate-spin text-primary"
+                        aria-hidden="true"
+                      />
+                      <span className="text-base font-semibold">
+                        {t("tryOnWidget.status.generatingOutfit") || "Génération de la tenue complète..."}
                       </span>
                     </div>
-                    <Progress 
-                      value={progressMultiple} 
-                      className="h-2"
-                      aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
-                    />
+                    <span className="text-sm text-muted-foreground">
+                      {progressMultiple}%
+                    </span>
                   </div>
-
-                  <div className="text-sm text-muted-foreground">
-                    {t("tryOnWidget.status.generatingOutfitTime") || "La génération d'une tenue complète peut prendre 10 à 15 secondes..."}
-                  </div>
+                  <Progress 
+                    value={progressMultiple} 
+                    className="h-2"
+                    aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
+                  />
                 </div>
-              </Card>
-            )}
 
-            {/* Error Display */}
-            {errorMultiple && (
-              <div role="alert" aria-live="assertive" className="mb-6">
-                <Card className="p-6 bg-destructive/10 border-destructive">
-                  <p className="text-destructive font-medium mb-4" id="error-look-message">
-                    {errorMultiple}
-                  </p>
-                  <Button
-                    variant={"outline" as const}
-                    onClick={() => {
-                      setErrorMultiple(null);
-                      setCartMultipleImage(null);
-                      setCartMultipleDemoPhotoUrl(null);
-                      setSelectedGarments([]);
-                      setOutfitResult(null);
-                      setProgressMultiple(0);
-                      setBatchProgress(null);
-                      setHasUnsavedChanges(false);
-                    }}
-                    className="w-full sm:w-auto"
-                    aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
-                    aria-describedby="error-look-message"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
-                    {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                  </Button>
-                </Card>
+                <div className="text-sm text-muted-foreground">
+                  {t("tryOnWidget.status.generatingOutfitTime") || "La génération d'une tenue complète peut prendre 10 à 15 secondes..."}
+                </div>
               </div>
-            )}
+            </Card>
+          )}
+
+          {/* Error Display */}
+          {errorMultiple && (
+            <div role="alert" aria-live="assertive" className="mb-6">
+              <Card className="p-6 bg-destructive/10 border-destructive">
+                <p className="text-destructive font-medium mb-4" id="error-look-message">
+                  {errorMultiple}
+                </p>
+                <Button
+                  variant={"outline" as const}
+                  onClick={() => {
+                    setErrorMultiple(null);
+                    setCartMultipleImage(null);
+                    setCartMultipleDemoPhotoUrl(null);
+                    setSelectedGarments([]);
+                    setOutfitResult(null);
+                    setProgressMultiple(0);
+                    setBatchProgress(null);
+                    setHasUnsavedChanges(false);
+                  }}
+                  className="w-full sm:w-auto"
+                  aria-label={t("tryOnWidget.buttons.retry") || "Réessayer après une erreur"}
+                  aria-describedby="error-look-message"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" aria-hidden="true" />
+                  {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                </Button>
+              </Card>
+            </div>
+          )}
+
           </TabsContent>
         </Tabs>
         </div>

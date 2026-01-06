@@ -403,6 +403,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -439,7 +450,18 @@
       "original": "Original",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "zoomedImage": "Zoomed image",
+      "noRelightedImages": "No relighted images yet",
+      "noRelightedImagesAvailable": "No relighted images available yet. Images will appear here once relighting is processed.",
+      "productImages": "Product Images",
+      "zoomImage": "Zoom image",
+      "relightingInProgress": "Relighting in progress..."
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "processing": "Processing"
     },
     "dialog": {
       "price": "Price",
@@ -453,7 +475,8 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "pending": "Pending",
-      "noImages": "No Images"
+      "noImages": "No Images",
+      "noImagesAvailable": "No images available"
     },
     "info": {
       "title": "Products Management",
@@ -479,6 +502,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -515,7 +549,8 @@
       "original": "Original",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "zoomedImage": "Zoomed image"
     },
     "dialog": {
       "price": "Price",
@@ -555,6 +590,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -609,7 +655,8 @@
       "closeViewer": "Close viewer",
       "viewerHint": "Drag to rotate, scroll to zoom, right-click to pan",
       "formattedMetadata": "Formatted Metadata",
-      "metadata": "3D Model Metadata"
+      "metadata": "3D Model Metadata",
+      "zoomedImage": "Zoomed image"
     },
     "dialog": {
       "price": "Price",
@@ -650,6 +697,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -686,7 +744,8 @@
       "original": "Original",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "zoomedImage": "Zoomed image"
     },
     "dialog": {
       "price": "Price",
@@ -700,7 +759,37 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "pending": "Pending",
-      "noImages": "No Images"
+      "noImages": "No Images",
+      "noVideos": "No Videos"
+    },
+    "video": {
+      "approve": "Approve Video",
+      "reject": "Reject Video",
+      "approveSuccess": "Video approved successfully",
+      "rejectSuccess": "Video rejected successfully",
+      "approveError": "Failed to approve video. Please try again.",
+      "rejectError": "Failed to reject video. Please try again.",
+      "previous": "Previous video",
+      "next": "Next video",
+      "original": "Original Image",
+      "generated": "Generated Video",
+      "notSupported": "Your browser does not support the video tag.",
+      "notAvailable": "Video not available",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "duration": "Duration",
+      "resolution": "Resolution",
+      "aspectRatio": "Aspect Ratio",
+      "prompt": "Prompt",
+      "videoOf": "Video {{current}} of {{total}}"
+    },
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
     },
     "info": {
       "title": "Products Management",

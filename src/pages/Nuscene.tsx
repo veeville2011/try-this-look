@@ -145,7 +145,7 @@ const VariantTableRow = ({
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
-            aria-label={`Select ${product.title} - ${variant.title}`}
+            aria-label={t("nuscene.ariaLabels.selectVariant", { product: product.title, variant: variant.title }) || `Select ${product.title} - ${variant.title}`}
           />
         </TableCell>
         <TableCell>
@@ -153,7 +153,7 @@ const VariantTableRow = ({
             <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
               <img
                 src={variantImage}
-                alt={variant.title}
+                alt={variant.title || t("nuscene.imageLabel") || "Image"}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -188,11 +188,11 @@ const VariantTableRow = ({
         <TableCell>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-foreground font-medium">
-              {variant.sku || "N/A"}
+              {variant.sku || t("nuscene.notAvailable") || "N/A"}
             </span>
             {variant.inventoryQuantity !== null && (
               <span className="text-xs text-muted-foreground">
-                Qty: {variant.inventoryQuantity}
+                {t("nuscene.quantityLabel") || "Qty:"} {variant.inventoryQuantity}
               </span>
             )}
           </div>
@@ -205,7 +205,7 @@ const VariantTableRow = ({
               variant="ghost"
               onClick={() => setShowDetails(true)}
               className="h-8 w-8 p-0 hover:bg-muted"
-              aria-label={`View details for ${product.title} - ${variant.title}`}
+              aria-label={t("nuscene.ariaLabels.viewDetails", { product: product.title, variant: variant.title }) || `View details for ${product.title} - ${variant.title}`}
             >
               <Eye className="w-4 h-4 text-muted-foreground" />
             </Button>
@@ -215,7 +215,7 @@ const VariantTableRow = ({
               onClick={() => handleProductAction("approve")}
               disabled={processingProduct}
               className="h-8 w-8 p-0 hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
-              aria-label={`Approve ${product.title}`}
+              aria-label={t("nuscene.ariaLabels.approveProduct", { product: product.title }) || `Approve ${product.title}`}
             >
               {processingProduct ? (
                 <Loader2 className="w-4 h-4 animate-spin text-green-600 dark:text-green-400" />
@@ -229,7 +229,7 @@ const VariantTableRow = ({
               onClick={() => handleProductAction("reject")}
               disabled={processingProduct}
               className="h-8 w-8 p-0 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
-              aria-label={`Reject ${product.title}`}
+              aria-label={t("nuscene.ariaLabels.rejectProduct", { product: product.title }) || `Reject ${product.title}`}
             >
               {processingProduct ? (
                 <Loader2 className="w-4 h-4 animate-spin text-red-600 dark:text-red-400" />

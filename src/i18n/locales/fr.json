@@ -403,6 +403,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -439,7 +450,18 @@
       "original": "Original",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "zoomedImage": "Image zoomée",
+      "noRelightedImages": "Aucune image relightée pour le moment",
+      "noRelightedImagesAvailable": "Aucune image relightée disponible pour le moment. Les images apparaîtront ici une fois le relighting traité.",
+      "productImages": "Images du produit",
+      "zoomImage": "Zoomer l'image",
+      "relightingInProgress": "Relighting en cours..."
+    },
+    "status": {
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "processing": "Traitement"
     },
     "dialog": {
       "price": "Prix",
@@ -453,7 +475,8 @@
       "approved": "Approuvé",
       "rejected": "Rejeté",
       "pending": "En attente",
-      "noImages": "Aucune image"
+      "noImages": "Aucune image",
+      "noImagesAvailable": "Aucune image disponible"
     },
     "info": {
       "title": "Gestion des produits",
@@ -479,6 +502,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -515,7 +549,8 @@
       "original": "Original",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "zoomedImage": "Image zoomée"
     },
     "dialog": {
       "price": "Prix",
@@ -555,6 +590,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -609,7 +655,8 @@
       "closeViewer": "Fermer le visualiseur",
       "viewerHint": "Glisser pour faire pivoter, faire défiler pour zoomer, clic droit pour déplacer",
       "formattedMetadata": "Métadonnées formatées",
-      "metadata": "Métadonnées du modèle 3D"
+      "metadata": "Métadonnées du modèle 3D",
+      "zoomedImage": "Image zoomée"
     },
     "dialog": {
       "price": "Prix",
@@ -650,6 +697,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -686,7 +744,8 @@
       "original": "Original",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "zoomedImage": "Image zoomée"
     },
     "dialog": {
       "price": "Prix",
@@ -700,7 +759,37 @@
       "approved": "Approuvé",
       "rejected": "Rejeté",
       "pending": "En attente",
-      "noImages": "Aucune image"
+      "noImages": "Aucune image",
+      "noVideos": "Aucune vidéo"
+    },
+    "video": {
+      "approve": "Approuver la vidéo",
+      "reject": "Rejeter la vidéo",
+      "approveSuccess": "Vidéo approuvée avec succès",
+      "rejectSuccess": "Vidéo rejetée avec succès",
+      "approveError": "Échec de l'approbation de la vidéo. Veuillez réessayer.",
+      "rejectError": "Échec du rejet de la vidéo. Veuillez réessayer.",
+      "previous": "Vidéo précédente",
+      "next": "Vidéo suivante",
+      "original": "Image originale",
+      "generated": "Vidéo générée",
+      "notSupported": "Votre navigateur ne prend pas en charge la balise vidéo.",
+      "notAvailable": "Vidéo non disponible",
+      "processing": "Traitement",
+      "completed": "Terminé",
+      "failed": "Échec",
+      "duration": "Durée",
+      "resolution": "Résolution",
+      "aspectRatio": "Ratio d'aspect",
+      "prompt": "Invite",
+      "videoOf": "Vidéo {{current}} sur {{total}}"
+    },
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
     },
     "info": {
       "title": "Gestion des produits",

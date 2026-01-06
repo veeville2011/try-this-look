@@ -119,20 +119,20 @@ const NulightProductCard = ({
         return (
           <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
             <CheckCircle2 className="w-3 h-3 mr-1" />
-            Approved
+            {t("nulight.dialog.approved") || "Approved"}
           </Badge>
         );
       case "rejected":
         return (
           <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20">
             <XCircle className="w-3 h-3 mr-1" />
-            Rejected
+            {t("nulight.dialog.rejected") || "Rejected"}
           </Badge>
         );
       default:
         return (
           <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20">
-            Pending
+            {t("nulight.dialog.pending") || "Pending"}
           </Badge>
         );
     }
@@ -143,19 +143,19 @@ const NulightProductCard = ({
       case "completed":
         return (
           <Badge variant="outline" className="text-xs">
-            Completed
+            {t("nulight.status.completed") || "Completed"}
           </Badge>
         );
       case "failed":
         return (
           <Badge variant="destructive" className="text-xs">
-            Failed
+            {t("nulight.status.failed") || "Failed"}
           </Badge>
         );
       default:
         return (
           <Badge variant="secondary" className="text-xs">
-            Processing
+            {t("nulight.status.processing") || "Processing"}
           </Badge>
         );
     }
@@ -211,7 +211,7 @@ const NulightProductCard = ({
                 )}
                 {hasMultipleVariants && (
                   <Badge variant="outline" className="text-xs">
-                    {product.variants.nodes.length} Variants
+                    {product.variants.nodes.length} {t("nulight.variants") || "Variants"}
                   </Badge>
                 )}
               </div>
@@ -230,7 +230,7 @@ const NulightProductCard = ({
                 ) : (
                   <>
                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Approve All
+                    {t("nulight.dialog.approveAll") || "Approve All"}
                   </>
                 )}
               </Button>
@@ -247,7 +247,7 @@ const NulightProductCard = ({
                 ) : (
                   <>
                     <XCircle className="w-3 h-3 mr-1" />
-                    Reject All
+                    {t("nulight.dialog.rejectAll") || "Reject All"}
                   </>
                 )}
               </Button>
@@ -283,12 +283,12 @@ const NulightProductCard = ({
                   <ImageIcon className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm font-medium text-foreground">
                     {fallbackToProductImages 
-                      ? `Image ${selectedImageIndex + 1} of ${product.images.nodes.length}`
+                      ? t("nulight.image.imageOf", { current: selectedImageIndex + 1, total: product.images.nodes.length }) || `Image ${selectedImageIndex + 1} of ${product.images.nodes.length}`
                       : displayImages.length > 0
-                      ? `Image ${selectedImageIndex + 1} of ${displayImages.length}`
+                      ? t("nulight.image.imageOf", { current: selectedImageIndex + 1, total: displayImages.length }) || `Image ${selectedImageIndex + 1} of ${displayImages.length}`
                       : variant
-                      ? "No relighted images yet"
-                      : "No images"}
+                      ? t("nulight.image.noRelightedImages") || "No relighted images yet"
+                      : t("nulight.dialog.noImages") || "No images"}
                   </span>
                   {currentImage && currentImage.relightingStatus && getRelightingStatusBadge(currentImage.relightingStatus)}
                 </div>
@@ -304,7 +304,7 @@ const NulightProductCard = ({
                         )
                       }
                       disabled={selectedImageIndex === 0}
-                      aria-label="Previous image"
+                      aria-label={t("nulight.image.previous") || "Previous image"}
                     >
                       <ChevronLeft className="w-3 h-3" />
                     </Button>
@@ -325,7 +325,7 @@ const NulightProductCard = ({
                           ? selectedImageIndex >= product.images.nodes.length - 1
                           : selectedImageIndex >= displayImages.length - 1
                       }
-                      aria-label="Next image"
+                      aria-label={t("nulight.image.next") || "Next image"}
                     >
                       <ChevronRight className="w-3 h-3" />
                     </Button>
@@ -338,7 +338,7 @@ const NulightProductCard = ({
               // Fallback: Show product images when no variant images available
               <div className="space-y-2">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Product Images
+                  {t("nulight.image.productImages") || "Product Images"}
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   {product.images.nodes.slice(0, 4).map((img, idx) => (
@@ -352,7 +352,7 @@ const NulightProductCard = ({
                       <button
                         onClick={() => setZoomImage(img.url)}
                         className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
-                        aria-label="Zoom image"
+                        aria-label={t("nulight.image.zoomImage") || "Zoom image"}
                       >
                         <ZoomIn className="w-6 h-6 text-white" />
                       </button>
@@ -360,7 +360,7 @@ const NulightProductCard = ({
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                  No relighted images available yet. Images will appear here once relighting is processed.
+                  {t("nulight.image.noRelightedImagesAvailable") || "No relighted images available yet. Images will appear here once relighting is processed."}
                 </p>
               </div>
             ) : currentImage ? (
@@ -369,7 +369,7 @@ const NulightProductCard = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Original
+                      {t("nulight.image.original") || "Original"}
                     </span>
                   </div>
                   <div className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
@@ -382,7 +382,7 @@ const NulightProductCard = ({
                     <button
                       onClick={() => setZoomImage(currentImage.originalImageUrl)}
                       className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
-                      aria-label="Zoom image"
+                      aria-label={t("nulight.image.zoomImage") || "Zoom image"}
                     >
                       <ZoomIn className="w-6 h-6 text-white" />
                     </button>
@@ -393,7 +393,7 @@ const NulightProductCard = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Relighted
+                      {t("nulight.image.relighted") || "Relighted"}
                     </span>
                     {currentImage.approvalStatus && getApprovalStatusBadge(currentImage.approvalStatus)}
                   </div>
@@ -410,7 +410,7 @@ const NulightProductCard = ({
                           setZoomImage(currentImage.transformedImageUrls[0])
                         }
                         className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
-                        aria-label="Zoom image"
+                        aria-label={t("nulight.image.zoomImage") || "Zoom image"}
                       >
                         <ZoomIn className="w-6 h-6 text-white" />
                       </button>
@@ -420,7 +420,7 @@ const NulightProductCard = ({
                       <div className="text-center p-4">
                         <ImageIcon className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
                         <span className="text-xs text-muted-foreground">
-                          Relighting in progress...
+                          {t("nulight.image.relightingInProgress") || "Relighting in progress..."}
                         </span>
                       </div>
                     </div>
@@ -432,7 +432,7 @@ const NulightProductCard = ({
                 <div className="text-center p-4">
                   <ImageIcon className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
                   <span className="text-xs text-muted-foreground">
-                    No images available
+                    {t("nulight.dialog.noImages") || "No images available"}
                   </span>
                 </div>
               </div>
@@ -465,7 +465,7 @@ const NulightProductCard = ({
                     ) : (
                       <XCircle className="w-3 h-3 mr-1" />
                     )}
-                    Reject
+                    {t("nulight.image.reject") || "Reject"}
                   </Button>
                   <Button
                     size="sm"
@@ -486,7 +486,7 @@ const NulightProductCard = ({
                     ) : (
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                     )}
-                    Approve
+                    {t("nulight.image.approve") || "Approve"}
                   </Button>
                 </div>
               )}
@@ -495,7 +495,7 @@ const NulightProductCard = ({
           {/* Product Info */}
           <div className="pt-3 border-t border-border">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Price</span>
+              <span className="text-muted-foreground">{t("nulight.dialog.price") || "Price"}</span>
               <span className="font-semibold text-foreground">
                 {product.priceRangeV2.minVariantPrice.currencyCode}{" "}
                 {product.priceRangeV2.minVariantPrice.amount}
@@ -503,7 +503,7 @@ const NulightProductCard = ({
             </div>
             {product.vendor && (
               <div className="flex items-center justify-between text-sm mt-1">
-                <span className="text-muted-foreground">Vendor</span>
+                <span className="text-muted-foreground">{t("nulight.dialog.vendor") || "Vendor"}</span>
                 <span className="text-foreground">{product.vendor}</span>
               </div>
             )}
@@ -515,13 +515,13 @@ const NulightProductCard = ({
       <Dialog open={!!zoomImage} onOpenChange={() => setZoomImage(null)}>
         <DialogContent className="max-w-4xl p-0">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle>Image Preview</DialogTitle>
+            <DialogTitle>{t("nulight.image.preview") || "Image Preview"}</DialogTitle>
           </DialogHeader>
           <div className="p-6">
             {zoomImage && (
               <img
                 src={zoomImage}
-                alt="Zoomed image"
+                alt={t("nulight.image.zoomedImage") || "Zoomed image"}
                 className="w-full h-auto rounded-lg"
               />
             )}
