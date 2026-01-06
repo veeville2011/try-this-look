@@ -2830,10 +2830,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                   </>
                 )}
                 
-                {/* Clothing Selection Container - Fixed height with scroll */}
+                {/* Clothing Selection Container - Minimum height for 2x2 grid, scrollable */}
                 <div className={cn(
-                  "flex flex-col min-h-0 w-full overflow-hidden",
-                  layoutMode !== "wide" ? "flex-1" : "flex-1"
+                  "flex flex-col min-h-0 w-full",
+                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
                 )}>
                   <ClothingSelection
                     images={singleTabImages}
