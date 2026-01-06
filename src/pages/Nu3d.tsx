@@ -162,7 +162,7 @@ const VariantTableRow = ({
             <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
               <img
                 src={variantImage}
-                alt={variant?.title ?? t("nu3d.imageLabel") || "Image"}
+                alt={variant?.title || t("nu3d.imageLabel")}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -868,7 +868,7 @@ const ProductDetailsDialog = ({
                     <div>
                       <span className="text-muted-foreground font-medium">Object Index:</span>
                       <div className="mt-1 font-mono text-xs">
-                        {currentImage.metadata[0].object_index ?? t("nu3d.notAvailable") || "N/A"}
+                        {currentImage.metadata[0].object_index || t("nu3d.notAvailable")}
                       </div>
                     </div>
                   )}

@@ -153,7 +153,7 @@ const VariantTableRow = ({
             <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border border-border">
               <img
                 src={variantImage}
-                alt={variant?.title ?? t("nulight.imageLabel") || "Image"}
+                alt={variant?.title || t("nulight.imageLabel")}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
