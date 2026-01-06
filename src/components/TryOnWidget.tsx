@@ -39,7 +39,6 @@ import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
 import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, ArrowLeft, Info, Share2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -3056,14 +3055,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                     <div className="w-full flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {isGeneratingMultiple ? (
                         <div
-                          className="relative w-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center mb-4"
+                          className="relative w-full min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-white"
                           role="status"
                           aria-live="polite"
                           aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
                           aria-busy="true"
-                          style={{ aspectRatio: "1 / 1", minHeight: "400px" }}
                         >
-                          <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                          {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
+                          <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
                           <span className="sr-only">
                             {t("tryOnWidget.status.generating") || "Génération en cours…"}
                           </span>
@@ -3659,55 +3658,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
           )}
 
 
-          {/* Progress Tracker */}
-          {isGeneratingMultiple && !cartResults && (
-            <Card className="p-6 border-border bg-card">
-              <div className="space-y-4" aria-busy="true">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Loader2
-                        className="h-5 w-5 animate-spin text-primary"
-                        aria-hidden="true"
-                      />
-                      <span className="text-base font-semibold">
-                        {t("tryOnWidget.status.generating") || "Génération en cours..."}
-                      </span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {batchProgress
-                        ? Math.round((batchProgress.completed / batchProgress.total) * 100)
-                        : progressMultiple}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={
-                      batchProgress
-                        ? Math.round((batchProgress.completed / batchProgress.total) * 100)
-                        : progressMultiple
-                    }
-                    className="h-2"
-                    aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
-                  />
-                </div>
-
-                {batchProgress && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {t("tryOnWidget.progress.garmentsProcessed") || "Articles traités"}: {batchProgress.completed} / {batchProgress.total}
-                      </span>
-                      {batchProgress.failed > 0 && (
-                        <span className="text-warning">
-                          {t("tryOnWidget.progress.failed") || "Échecs"}: {batchProgress.failed}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
 
           {/* Error Display */}
           {errorMultiple && (
@@ -3767,14 +3717,14 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                         {isGeneratingMultiple ? (
                           <div
-                            className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center"
+                            className="relative w-full min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-white"
                             role="status"
                             aria-live="polite"
                             aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
                             aria-busy="true"
-                            style={{ aspectRatio: "1 / 1" }}
                           >
-                            <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                            {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
+                            <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
                             <span className="sr-only">
                               {t("tryOnWidget.status.generating") || "Génération en cours…"}
                             </span>
@@ -4363,38 +4313,6 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
             </div>
           )}
 
-          {/* Progress Tracker */}
-          {isGeneratingMultiple && !outfitResult && (
-            <Card className="p-6 border-border bg-card">
-              <div className="space-y-4" aria-busy="true">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Loader2
-                        className="h-5 w-5 animate-spin text-primary"
-                        aria-hidden="true"
-                      />
-                      <span className="text-base font-semibold">
-                        {t("tryOnWidget.status.generatingOutfit") || "Génération de la tenue complète..."}
-                      </span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {progressMultiple}%
-                    </span>
-                  </div>
-                  <Progress 
-                    value={progressMultiple} 
-                    className="h-2"
-                    aria-label={t("tryOnWidget.progress.label") || "Progression de la génération"}
-                  />
-                </div>
-
-                <div className="text-sm text-muted-foreground">
-                  {t("tryOnWidget.status.generatingOutfitTime") || "La génération d'une tenue complète peut prendre 10 à 15 secondes..."}
-                </div>
-              </div>
-            </Card>
-          )}
 
           {/* Error Display */}
           {errorMultiple && (
