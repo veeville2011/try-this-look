@@ -3319,7 +3319,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
               <section
                 aria-labelledby="garments-multiple-heading"
                 className={cn(
-                  "flex flex-col items-start w-full min-h-0 max-w-full",
+                  "flex flex-col items-start w-full min-h-0 max-w-full overflow-hidden",
                   layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
                 )}
               >
@@ -3442,10 +3442,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                 {/* Garment Selection Container */}
                 <div className={cn(
-                  "flex flex-col min-h-0 w-full",
-                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
+                  "flex flex-col min-h-0 w-full overflow-hidden",
+                  layoutMode !== "wide" ? "flex-1 min-h-[400px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
                 )}>
-                  <div className="flex flex-col flex-1 min-h-0 space-y-4">
+                  <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
                     {/* Products Count & Selection Counter - Fixed Header */}
                     <div className="flex-shrink-0 space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -3509,7 +3509,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       )}
                     </div>
 
-                    {/* Garment Grid - Scrollable */}
+                    {/* Garment Grid - Scrollable with fixed height */}
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {multipleTabImages.length === 0 ? (
                         isMultipleLookProductsLoading ? (
@@ -3526,10 +3526,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               <Card
                                 // eslint-disable-next-line react/no-array-index-key
                                 key={`multiple-skeleton-${index}`}
-                                className="overflow-hidden border-border"
+                                className="p-2 border border-border"
                                 aria-hidden="true"
                               >
-                                <Skeleton className="h-48 sm:h-56 md:h-64 w-full" />
+                                <Skeleton className="w-full h-auto aspect-square rounded-md" />
                               </Card>
                             ))}
                           </div>
@@ -3575,11 +3575,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             return (
                               <Card
                                 key={`${imageUrl}-${index}`}
-                                className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 isolate ${
+                                className={`p-2 border border-border cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 isolate ${
                                   selected
-                                    ? "ring-4 ring-primary shadow-lg scale-105 z-10"
+                                    ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm scale-105 z-10"
                                     : canSelectMore
-                                      ? "hover:ring-2 hover:ring-primary/50"
+                                      ? "hover:opacity-90 hover:ring-2 hover:ring-primary/50"
                                       : "opacity-60 cursor-not-allowed"
                                 }`}
                                 onClick={() => {
@@ -3604,16 +3604,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   }
                                 }}
                               >
-                                <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
+                                <div className="relative">
                                   <img
                                     src={imageUrl}
                                     alt={selected ? t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article ${index + 1} - Sélectionné` : t("tryOnWidget.ariaLabels.garment", { index: index + 1 }) || `Article ${index + 1}`}
-                                    className="h-full w-auto object-contain"
+                                    className="w-full h-auto aspect-square object-contain bg-white rounded-md"
                                     loading="lazy"
                                   />
                                   {selected && (
                                     <>
-                                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center rounded-md">
                                         <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1.5 shadow-lg">
                                           <Check className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                                         </div>
@@ -4172,7 +4172,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                 <section
                   aria-labelledby="garments-look-heading"
                   className={cn(
-                    "flex flex-col items-start w-full min-h-0 max-w-full",
+                    "flex flex-col items-start w-full min-h-0 max-w-full overflow-hidden",
                     layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
                   )}
                 >
@@ -4295,10 +4295,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
 
                 {/* Garment Selection Container */}
                 <div className={cn(
-                  "flex flex-col min-h-0 w-full",
-                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
+                  "flex flex-col min-h-0 w-full overflow-hidden",
+                  layoutMode !== "wide" ? "flex-1 min-h-[400px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
                 )}>
-                  <div className="flex flex-col flex-1 min-h-0 space-y-4">
+                  <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
                     {/* Products Count & Selection Counter - Fixed Header */}
                     <div className="flex-shrink-0 space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -4362,7 +4362,7 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                       )}
                     </div>
 
-                    {/* Garment Grid - Scrollable */}
+                    {/* Garment Grid - Scrollable with fixed height */}
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
                       {lookTabImages.length === 0 ? (
                         isMultipleLookProductsLoading ? (
@@ -4379,10 +4379,10 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                               <Card
                                 // eslint-disable-next-line react/no-array-index-key
                                 key={`look-skeleton-${index}`}
-                                className="overflow-hidden border-border"
+                                className="p-2 border border-border"
                                 aria-hidden="true"
                               >
-                                <Skeleton className="h-48 sm:h-56 md:h-64 w-full" />
+                                <Skeleton className="w-full h-auto aspect-square rounded-md" />
                               </Card>
                             ))}
                           </div>
@@ -4428,11 +4428,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                             return (
                               <Card
                                 key={`${imageUrl}-${index}`}
-                                className={`overflow-hidden cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 isolate ${
+                                className={`p-2 border border-border cursor-pointer transition-all transform hover:scale-105 relative focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 isolate ${
                                   selected
-                                    ? "ring-4 ring-primary shadow-lg scale-105 z-10"
+                                    ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm scale-105 z-10"
                                     : canSelectMore
-                                      ? "hover:ring-2 hover:ring-primary/50"
+                                      ? "hover:opacity-90 hover:ring-2 hover:ring-primary/50"
                                       : "opacity-60 cursor-not-allowed"
                                 }`}
                                 onClick={() => {
@@ -4457,16 +4457,16 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
                                   }
                                 }}
                               >
-                                <div className="relative bg-muted/30 flex items-center justify-center overflow-hidden h-48 sm:h-56 md:h-64">
+                                <div className="relative">
                                   <img
                                     src={imageUrl}
                                     alt={selected ? t("tryOnWidget.ariaLabels.selectedGarment", { index: index + 1 }) || `Article ${index + 1} - Sélectionné` : t("tryOnWidget.ariaLabels.garment", { index: index + 1 }) || `Article ${index + 1}`}
-                                    className="h-full w-auto object-contain"
+                                    className="w-full h-auto aspect-square object-contain bg-white rounded-md"
                                     loading="lazy"
                                   />
                                   {selected && (
                                     <>
-                                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center rounded-md">
                                         <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1.5 shadow-lg">
                                           <Check className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                                         </div>
