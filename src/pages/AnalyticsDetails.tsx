@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import NavigationBar from "@/components/NavigationBar";
 import { 
-  ArrowLeft,
   ExternalLink,
+  Download,
   CheckCircle2,
   XCircle,
   Clock,
@@ -18,19 +18,20 @@ import {
   Store,
   FileText,
   Globe,
-  HardDrive
+  HardDrive,
+  ChevronRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
 
 const AnalyticsDetails = () => {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const shop = useShop();
@@ -158,10 +159,6 @@ const AnalyticsDetails = () => {
     fetchRecord();
   }, [id, record, shopDomain]);
 
-  const handleBack = () => {
-    navigate("/analytics");
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -198,13 +195,12 @@ const AnalyticsDetails = () => {
                   <h3 className="text-lg font-semibold text-foreground mb-2">
                     {error || "Record not found"}
                   </h3>
-                  <Button
-                    onClick={handleBack}
-                    className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                  <Link
+                    to="/analytics"
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all rounded-md text-sm font-medium"
                   >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Analytics
-                  </Button>
+                    {t("analytics.title") || "Analytics"}
+                  </Link>
                 </CardContent>
               </Card>
             </div>
@@ -220,34 +216,24 @@ const AnalyticsDetails = () => {
       <main className="min-h-[calc(100vh-56px)] py-6" role="main">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            {/* Header with Back Button */}
-            <div className="flex items-center gap-4 mb-6">
-              <Button
-                onClick={handleBack}
-                className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {t("common.back") || "Back"}
-              </Button>
-              <div>
-                <h1 className="text-xl font-semibold text-foreground">
+            {/* Header with Breadcrumb and Status */}
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/analytics"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("analytics.title") || "Analytics"}
+                </Link>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
                   {t("analytics.table.viewDetails") || "View Details"}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {t("analytics.description") || "View and analyze all image generations"}
-                </p>
+                </span>
+              </div>
+              <div>
+                {getStatusBadge(record.status)}
               </div>
             </div>
-
-            {/* Status Card */}
-            <Card className="mb-6 border-border bg-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-foreground">{t("analytics.table.status") || "Status"}:</span>
-                  {getStatusBadge(record.status)}
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Images Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -268,14 +254,37 @@ const AnalyticsDetails = () => {
                           className="w-full h-full object-contain"
                         />
                       </div>
-                      <Button
-                        size="sm"
-                        className="absolute top-2 right-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                        onClick={() => window.open(record.personImageUrl, "_blank")}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Open
-                      </Button>
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button
+                          size="icon"
+                          className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                          onClick={() => window.open(record.personImageUrl, "_blank")}
+                          aria-label="Open in new tab"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(record.personImageUrl);
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `person-image-${record.id}.${blob.type.split("/")[1] || "jpg"}`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Failed to download image");
+                            }
+                          }}
+                          aria-label="Download image"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-48 bg-muted rounded-lg border border-border">
@@ -303,14 +312,37 @@ const AnalyticsDetails = () => {
                           className="w-full h-full object-contain"
                         />
                       </div>
-                      <Button
-                        size="sm"
-                        className="absolute top-2 right-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                        onClick={() => window.open(record.clothingImageUrl, "_blank")}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Open
-                      </Button>
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button
+                          size="icon"
+                          className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                          onClick={() => window.open(record.clothingImageUrl, "_blank")}
+                          aria-label="Open in new tab"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(record.clothingImageUrl);
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `clothing-image-${record.id}.${blob.type.split("/")[1] || "jpg"}`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Failed to download image");
+                            }
+                          }}
+                          aria-label="Download image"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-48 bg-muted rounded-lg border border-border">
@@ -338,14 +370,37 @@ const AnalyticsDetails = () => {
                           className="w-full h-full object-contain"
                         />
                       </div>
-                      <Button
-                        size="sm"
-                        className="absolute top-2 right-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                        onClick={() => window.open(record.generatedImageUrl, "_blank")}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Open
-                      </Button>
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button
+                          size="icon"
+                          className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                          onClick={() => window.open(record.generatedImageUrl, "_blank")}
+                          aria-label="Open in new tab"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(record.generatedImageUrl);
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `generated-image-${record.id}.${blob.type.split("/")[1] || "jpg"}`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Failed to download image");
+                            }
+                          }}
+                          aria-label="Download image"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-48 bg-muted rounded-lg border border-border">
