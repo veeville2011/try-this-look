@@ -164,65 +164,52 @@ const Analytics = () => {
     switch (status) {
       case "completed":
         return (
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800">
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-default">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             {t("analytics.filters.statusCompleted") || "Completed"}
           </Badge>
         );
       case "failed":
         return (
-          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800">
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800 hover:bg-red-200 dark:hover:bg-red-800 transition-colors cursor-default">
             <XCircle className="w-3 h-3 mr-1" />
             {t("analytics.filters.statusFailed") || "Failed"}
           </Badge>
         );
       case "processing":
         return (
-          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800">
+          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-default">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
             {t("analytics.filters.statusProcessing") || "Processing"}
           </Badge>
         );
       case "pending":
         return (
-          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800">
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors cursor-default">
             <Clock className="w-3 h-3 mr-1" />
             {t("analytics.filters.statusPending") || "Pending"}
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline">
+          <Badge variant="outline" className="hover:bg-accent hover:text-accent-foreground transition-colors cursor-default">
             {status}
           </Badge>
         );
     }
   };
 
-  // Format date based on locale with 12-hour format and France timezone
+  // Format date in long format with French month names, 12-hour format and France timezone
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      const isFrench = i18n.language === "fr";
       
-      if (isFrench) {
-        return date.toLocaleString("fr-FR", {
-          timeZone: "Europe/Paris",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        });
-      }
-      
-      return date.toLocaleString("en-US", {
+      // Always use French locale for month names
+      return date.toLocaleString("fr-FR", {
         timeZone: "Europe/Paris",
         year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        month: "long",
+        day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -327,34 +314,26 @@ const Analytics = () => {
                 <Button
                   onClick={fetchData}
                   disabled={loading || !shopDomain}
-                  size="icon"
-                  className="h-9 w-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label={t("analytics.refresh") || "Refresh"}
                 >
                   {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
-                    <RefreshCw className="w-4 h-4" />
+                    <RefreshCw className="w-4 h-4 mr-2" />
                   )}
+                  {t("analytics.refresh") || "Refresh"}
+                </Button>
+                <Button
+                  onClick={handleExport}
+                  disabled={loading || total === 0}
+                  className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {t("analytics.export.button") || "Export"}
                 </Button>
               </div>
             </div>
-
-            {/* Export Section */}
-            <Card className="mb-6 border-border bg-card">
-              <CardContent className="pt-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
-                  <Button
-                    onClick={handleExport}
-                    disabled={loading || total === 0}
-                    className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    {t("analytics.export.button") || "Export"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Error Display */}
             {error && (
@@ -537,7 +516,7 @@ const Analytics = () => {
                             <Button
                               size="sm"
                               onClick={() => handleViewDetails(record)}
-                              className="h-8 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                              className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               {t("analytics.table.viewDetails") || "View Details"}
