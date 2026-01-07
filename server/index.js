@@ -6720,7 +6720,7 @@ app.post("/api/tryon/generate", async (req, res) => {
 
     // Forward to your existing API
     const response = await fetch(
-      "https://try-on-server-v1-aqjt.onrender.com/api/fashion-photo",
+      "https://try-on-server-v1.onrender.com/api/fashion-photo",
       {
         method: "POST",
         headers: {

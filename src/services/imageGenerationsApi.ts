@@ -3,7 +3,7 @@ import type {
   FetchImageGenerationsParams,
 } from "@/types/imageGenerations";
 
-const API_BASE_URL = "https://try-on-server-v1-aqjt.onrender.com/api";
+const API_BASE_URL = "https://try-on-server-v1.onrender.com/api";
 
 export const fetchImageGenerations = async (
   params: FetchImageGenerationsParams = {}

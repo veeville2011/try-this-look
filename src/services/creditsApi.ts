@@ -1,7 +1,7 @@
 import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
 
-const API_BASE_URL = "https://try-on-server-v1-aqjt.onrender.com/api";
+const API_BASE_URL = "https://try-on-server-v1.onrender.com/api";
 
 /**
  * Normalize shop domain
