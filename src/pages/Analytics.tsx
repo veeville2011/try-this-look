@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useShop } from "@/providers/AppBridgeProvider";
 import NavigationBar from "@/components/NavigationBar";
 import { 
@@ -13,7 +14,6 @@ import {
   Clock,
   AlertCircle,
   Image as ImageIcon,
-  ExternalLink,
   Maximize2,
   Eye,
   Download
@@ -23,19 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
 
 const Analytics = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const shop = useShop();
 
   // State
@@ -49,10 +43,6 @@ const Analytics = () => {
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
 
-  // Image preview
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [previewTitle, setPreviewTitle] = useState<string>("");
-  const [previewRecord, setPreviewRecord] = useState<ImageGenerationRecord | null>(null);
 
   // Normalize shop domain - same way as billingApi
   const normalizeShopDomain = (shop: string): string => {
@@ -282,9 +272,7 @@ const Analytics = () => {
 
   // Handle view details
   const handleViewDetails = (record: ImageGenerationRecord) => {
-    setPreviewRecord(record);
-    setPreviewImage(record.generatedImageUrl || record.personImageUrl || record.clothingImageUrl || null);
-    setPreviewTitle(t("analytics.table.viewDetails") || "View Details");
+    navigate(`/analytics/${record.id}`, { state: { record } });
   };
 
 
@@ -407,15 +395,11 @@ const Analytics = () => {
                                 <div className="relative group">
                                   <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => {
-                                      setPreviewImage(record.personImageUrl);
-                                      setPreviewTitle(t("analytics.table.personImage") || "Person Image");
-                                    }}
+                                    onClick={() => window.open(record.personImageUrl, "_blank")}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        setPreviewImage(record.personImageUrl);
-                                        setPreviewTitle(t("analytics.table.personImage") || "Person Image");
+                                        window.open(record.personImageUrl, "_blank");
                                       }
                                     }}
                                     tabIndex={0}
@@ -443,15 +427,11 @@ const Analytics = () => {
                                 <div className="relative group">
                                   <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => {
-                                      setPreviewImage(record.clothingImageUrl);
-                                      setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
-                                    }}
+                                    onClick={() => window.open(record.clothingImageUrl, "_blank")}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        setPreviewImage(record.clothingImageUrl);
-                                        setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
+                                        window.open(record.clothingImageUrl, "_blank");
                                       }
                                     }}
                                     tabIndex={0}
@@ -479,15 +459,11 @@ const Analytics = () => {
                                 <div className="relative group">
                                   <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => {
-                                      setPreviewImage(record.generatedImageUrl);
-                                      setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
-                                    }}
+                                    onClick={() => window.open(record.generatedImageUrl, "_blank")}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        setPreviewImage(record.generatedImageUrl);
-                                        setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
+                                        window.open(record.generatedImageUrl, "_blank");
                                       }
                                     }}
                                     tabIndex={0}
@@ -577,48 +553,6 @@ const Analytics = () => {
         </div>
       </main>
 
-      {/* Image Preview Dialog */}
-      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{previewTitle}</DialogTitle>
-            <DialogDescription>
-              {t("analytics.table.viewDetails") || "View Details"}
-            </DialogDescription>
-          </DialogHeader>
-          {previewImage && (
-            <div className="relative w-full h-[60vh] bg-muted rounded-lg overflow-hidden">
-              <img
-                src={previewImage}
-                alt={previewTitle}
-                className="w-full h-full object-contain"
-              />
-              <Button
-                size="sm"
-                className="absolute top-4 right-4 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                onClick={() => window.open(previewImage, "_blank")}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open in New Tab
-              </Button>
-            </div>
-          )}
-          {previewRecord && (
-            <div className="mt-4 space-y-2 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="font-semibold text-foreground">{t("analytics.table.status") || "Status"}:</span>
-                  <div className="mt-1">{getStatusBadge(previewRecord.status)}</div>
-                </div>
-                <div>
-                  <span className="font-semibold text-foreground">{t("analytics.table.createdAt") || "Created At"}:</span>
-                  <p className="mt-1 text-muted-foreground">{formatDate(previewRecord.createdAt)}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

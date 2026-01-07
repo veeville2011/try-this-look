@@ -853,6 +853,11 @@
       "viewDetails": "View Details",
       "actions": "Actions"
     },
+    "details": {
+      "basicInfo": "Basic Information",
+      "userInfo": "User Information",
+      "technicalInfo": "Technical Information"
+    },
     "search": {
       "placeholder": "Search by ID, status, or date..."
     },

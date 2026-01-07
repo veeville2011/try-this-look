@@ -16,6 +16,7 @@ import Nu3d from "./pages/Nu3d";
 import Nuscene from "./pages/Nuscene";
 import Referrals from "./pages/Referrals";
 import Analytics from "./pages/Analytics";
+import AnalyticsDetails from "./pages/AnalyticsDetails";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => {
                 }
               />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/analytics/:id" element={<AnalyticsDetails />} />
               <Route path="/demo" element={<ProductDemo />} />
               <Route path="/widget" element={<Widget />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
