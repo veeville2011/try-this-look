@@ -800,11 +800,17 @@
   },
   "navigation": {
     "dashboard": "Tableau de bord",
+    "analytics": "Analyses",
     "nuCopy": "nucopy",
     "nuLight": "nulight",
     "nu3d": "nu3d",
     "nuScene": "nuscene",
     "mainNavigation": "Navigation principale"
+  },
+  "analytics": {
+    "title": "Analyses",
+    "comingSoon": "Bientôt disponible",
+    "description": "Le tableau de bord des analyses est actuellement en développement. Revenez bientôt pour des informations et des métriques."
   },
   "tryOnWidget": {
     "brand": {

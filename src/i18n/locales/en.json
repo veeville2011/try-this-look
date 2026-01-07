@@ -800,11 +800,17 @@
   },
   "navigation": {
     "dashboard": "Dashboard",
+    "analytics": "Analytics",
     "nuCopy": "nucopy",
     "nuLight": "nulight",
     "nu3d": "nu3d",
     "nuScene": "nuscene",
     "mainNavigation": "Main navigation"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "comingSoon": "Coming Soon",
+    "description": "Analytics dashboard is currently under development. Check back soon for insights and metrics."
   },
   "tryOnWidget": {
     "brand": {
