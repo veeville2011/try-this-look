@@ -8,8 +8,6 @@ import {
   Loader2, 
   ChevronLeft, 
   ChevronRight,
-  Filter,
-  X,
   Eye,
   CheckCircle2,
   XCircle,
@@ -18,19 +16,11 @@ import {
   Image as ImageIcon,
   ExternalLink
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -57,31 +47,27 @@ const Analytics = () => {
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [storeNameFilter, setStoreNameFilter] = useState<string>("");
-  const [userFilter, setUserFilter] = useState<string>("");
-  const [showFilters, setShowFilters] = useState(false);
-
   // Image preview
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("");
 
-  // Normalize shop domain
+  // Normalize shop domain - same way as billingApi
   const normalizeShopDomain = (shop: string): string => {
-    if (!shop) return "";
-    let normalized = shop.trim().toLowerCase();
-    normalized = normalized.replace(/^https?:\/\//, "");
-    if (!normalized.includes(".myshopify.com")) {
-      normalized = `${normalized}.myshopify.com`;
+    if (shop.includes(".myshopify.com")) {
+      return shop.toLowerCase();
     }
-    return normalized;
+    return `${shop.toLowerCase()}.myshopify.com`;
   };
 
   const shopDomain = shop ? normalizeShopDomain(shop) : "";
 
   // Fetch data
   const fetchData = async () => {
+    if (!shopDomain) {
+      setError("Store information not available");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -91,17 +77,8 @@ const Analytics = () => {
         limit,
         orderBy: "created_at",
         orderDirection: "DESC",
+        storeName: shopDomain, // Always send current store name
       };
-
-      if (statusFilter) {
-        params.status = statusFilter;
-      }
-      if (storeNameFilter) {
-        params.storeName = storeNameFilter;
-      }
-      if (userFilter) {
-        params.user = userFilter;
-      }
 
       const response = await fetchImageGenerations(params);
       
@@ -124,21 +101,11 @@ const Analytics = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [page, statusFilter, storeNameFilter, userFilter]);
-
-  // Handle filter changes
-  const handleApplyFilters = () => {
-    setPage(1);
-    fetchData();
-  };
-
-  const handleClearFilters = () => {
-    setStatusFilter("");
-    setStoreNameFilter("");
-    setUserFilter("");
-    setPage(1);
-  };
+    if (shopDomain) {
+      fetchData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, shopDomain]);
 
   // Pagination handlers
   const handlePreviousPage = () => {
@@ -234,104 +201,21 @@ const Analytics = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => setShowFilters(!showFilters)}
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  {t("analytics.filters.title") || "Filters"}
-                </Button>
-                <Button
-                  onClick={fetchData}
-                  disabled={loading}
-                  size="icon"
-                  variant="outline"
-                  className="h-9 w-9"
-                  aria-label={t("analytics.refresh") || "Refresh"}
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
+              <Button
+                onClick={fetchData}
+                disabled={loading || !shopDomain}
+                size="icon"
+                variant="outline"
+                className="h-9 w-9"
+                aria-label={t("analytics.refresh") || "Refresh"}
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-
-            {/* Filters Card */}
-            {showFilters && (
-              <Card className="mb-6 border-border">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{t("analytics.filters.title") || "Filters"}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setShowFilters(false)}
-                      aria-label="Close filters"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">
-                        {t("analytics.filters.status") || "Status"}
-                      </label>
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("analytics.filters.statusAll") || "All Statuses"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">{t("analytics.filters.statusAll") || "All Statuses"}</SelectItem>
-                          <SelectItem value="pending">{t("analytics.filters.statusPending") || "Pending"}</SelectItem>
-                          <SelectItem value="processing">{t("analytics.filters.statusProcessing") || "Processing"}</SelectItem>
-                          <SelectItem value="completed">{t("analytics.filters.statusCompleted") || "Completed"}</SelectItem>
-                          <SelectItem value="failed">{t("analytics.filters.statusFailed") || "Failed"}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">
-                        {t("analytics.filters.storeName") || "Store Name"}
-                      </label>
-                      <Input
-                        value={storeNameFilter}
-                        onChange={(e) => setStoreNameFilter(e.target.value)}
-                        placeholder={t("analytics.filters.storeNamePlaceholder") || "Filter by store name"}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">
-                        {t("analytics.filters.user") || "IP Address"}
-                      </label>
-                      <Input
-                        value={userFilter}
-                        onChange={(e) => setUserFilter(e.target.value)}
-                        placeholder={t("analytics.filters.userPlaceholder") || "Filter by IP address"}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-4">
-                    <Button onClick={handleApplyFilters} size="sm">
-                      {t("analytics.filters.apply") || "Apply Filters"}
-                    </Button>
-                    <Button onClick={handleClearFilters} variant="outline" size="sm">
-                      {t("analytics.filters.clear") || "Clear Filters"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
@@ -529,7 +413,7 @@ const Analytics = () => {
                     {t("analytics.noData") || "No data available"}
                   </h3>
                   <p className="text-sm text-muted-foreground text-center max-w-md">
-                    {t("analytics.noDataDescription") || "No image generations found matching your filters."}
+                    {t("analytics.noDataDescription") || "No image generations found for this store."}
                   </p>
                 </CardContent>
               </Card>

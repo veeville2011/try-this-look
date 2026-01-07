@@ -22,6 +22,17 @@ const getApiBaseUrl = (): string => {
   return apiUrl.replace(/\/$/, "");
 };
 
+/**
+ * Normalize shop domain - same way as billingApi
+ * Ensures consistent store name format across all API calls
+ */
+const normalizeShopDomain = (shop: string): string => {
+  if (shop.includes(".myshopify.com")) {
+    return shop.toLowerCase();
+  }
+  return `${shop.toLowerCase()}.myshopify.com`;
+};
+
 export const fetchImageGenerations = async (
   params: FetchImageGenerationsParams = {}
 ): Promise<ImageGenerationsResponse> => {
@@ -50,7 +61,9 @@ export const fetchImageGenerations = async (
     queryParams.append("user", user);
   }
   if (storeName) {
-    queryParams.append("storeName", storeName);
+    // Normalize store name to ensure consistent format
+    const normalizedStoreName = normalizeShopDomain(storeName);
+    queryParams.append("storeName", normalizedStoreName);
   }
 
   const baseUrl = getApiBaseUrl();

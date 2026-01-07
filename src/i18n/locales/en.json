@@ -815,7 +815,7 @@
     "error": "Error",
     "errorMessage": "Failed to load analytics data. Please try again.",
     "noData": "No data available",
-    "noDataDescription": "No image generations found matching your filters.",
+    "noDataDescription": "No image generations found for this store.",
     "refresh": "Refresh",
     "filters": {
       "title": "Filters",

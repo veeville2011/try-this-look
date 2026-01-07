@@ -815,7 +815,7 @@
     "error": "Erreur",
     "errorMessage": "Échec du chargement des données d'analyse. Veuillez réessayer.",
     "noData": "Aucune donnée disponible",
-    "noDataDescription": "Aucune génération d'image trouvée correspondant à vos filtres.",
+    "noDataDescription": "Aucune génération d'image trouvée pour ce magasin.",
     "refresh": "Actualiser",
     "filters": {
       "title": "Filtres",
