@@ -850,8 +850,20 @@
       "email": "Email",
       "errorMessage": "Message d'erreur",
       "viewImage": "Voir l'image",
-      "viewDetails": "Voir les détails"
+      "viewDetails": "Voir les détails",
+      "actions": "Actions"
     },
+    "search": {
+      "placeholder": "Rechercher par ID, statut ou date..."
+    },
+    "export": {
+      "button": "Exporter",
+      "exporting": "Exportation des données...",
+      "success": "Données exportées avec succès",
+      "error": "Échec de l'exportation des données",
+      "noData": "Aucune donnée à exporter"
+    },
+    "noFilteredData": "Aucun enregistrement ne correspond à vos filtres.",
     "pagination": {
       "page": "Page",
       "of": "sur",

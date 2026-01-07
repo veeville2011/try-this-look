@@ -850,8 +850,20 @@
       "email": "Email",
       "errorMessage": "Error Message",
       "viewImage": "View Image",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "actions": "Actions"
     },
+    "search": {
+      "placeholder": "Search by ID, status, or date..."
+    },
+    "export": {
+      "button": "Export",
+      "exporting": "Exporting data...",
+      "success": "Data exported successfully",
+      "error": "Failed to export data",
+      "noData": "No data to export"
+    },
+    "noFilteredData": "No records match your filters.",
     "pagination": {
       "page": "Page",
       "of": "of",

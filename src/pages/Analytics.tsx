@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import NavigationBar from "@/components/NavigationBar";
@@ -13,13 +13,27 @@ import {
   Clock,
   AlertCircle,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  Maximize2,
+  Eye,
+  Search,
+  Filter,
+  Download,
+  X
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +46,7 @@ import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
 
 const Analytics = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const shop = useShop();
 
   // State
@@ -46,9 +60,14 @@ const Analytics = () => {
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
 
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   // Image preview
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("");
+  const [previewRecord, setPreviewRecord] = useState<ImageGenerationRecord | null>(null);
 
   // Normalize shop domain - same way as billingApi
   const normalizeShopDomain = (shop: string): string => {
@@ -76,7 +95,7 @@ const Analytics = () => {
         limit,
         orderBy: "created_at",
         orderDirection: "DESC",
-        storeName: shopDomain, // Always send current store name
+        storeName: shopDomain,
       };
 
       const response = await fetchImageGenerations(params);
@@ -96,6 +115,42 @@ const Analytics = () => {
       toast.error(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch all records for export (paginates through all pages)
+  const fetchAllRecords = async () => {
+    if (!shopDomain) return [];
+
+    try {
+      const allRecords: ImageGenerationRecord[] = [];
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const params: any = {
+          page: currentPage,
+          limit: 100, // Fetch 100 at a time to avoid memory issues
+          orderBy: "created_at",
+          orderDirection: "DESC",
+          storeName: shopDomain,
+        };
+
+        const response = await fetchImageGenerations(params);
+        
+        if (response.status === "success" && response.data) {
+          allRecords.push(...response.data.records);
+          hasMore = response.data.pagination.hasNext;
+          currentPage++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allRecords;
+    } catch (err) {
+      console.error("Failed to fetch all records:", err);
+      return [];
     }
   };
 
@@ -159,23 +214,138 @@ const Analytics = () => {
     }
   };
 
-  // Format date
+  // Format date based on locale
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleString();
+      const isFrench = i18n.language === "fr";
+      
+      if (isFrench) {
+        return date.toLocaleString("fr-FR", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+      
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
     } catch {
       return dateString;
     }
   };
 
-  // Calculate stats
-  const stats = {
-    total,
-    completed: records.filter((r) => r.status === "completed").length,
-    failed: records.filter((r) => r.status === "failed").length,
-    processing: records.filter((r) => r.status === "processing").length,
-    pending: records.filter((r) => r.status === "pending").length,
+  // Reset page when filters change
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, statusFilter]);
+
+  // Filter records based on search and status
+  const filteredRecords = useMemo(() => {
+    let filtered = [...records];
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((record) => record.status === statusFilter);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((record) => {
+        return (
+          record.id?.toLowerCase().includes(query) ||
+          record.status?.toLowerCase().includes(query) ||
+          formatDate(record.createdAt).toLowerCase().includes(query)
+        );
+      });
+    }
+
+    return filtered;
+  }, [records, statusFilter, searchQuery]);
+
+  // Export to CSV
+  const handleExport = async () => {
+    const loadingToast = toast.loading(t("analytics.export.exporting") || "Exporting data...");
+    
+    try {
+      const allData = await fetchAllRecords();
+      
+      if (allData.length === 0) {
+        toast.dismiss(loadingToast);
+        toast.error(t("analytics.export.noData") || "No data to export");
+        return;
+      }
+
+      // Create CSV headers
+      const headers = [
+        "ID",
+        "Status",
+        "Person Image URL",
+        "Clothing Image URL",
+        "Generated Image URL",
+        "Created At",
+      ];
+
+      // Create CSV rows
+      const rows = allData.map((record) => [
+        record.id || "",
+        record.status || "",
+        record.personImageUrl || "",
+        record.clothingImageUrl || "",
+        record.generatedImageUrl || "",
+        formatDate(record.createdAt),
+      ]);
+
+      // Combine headers and rows
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `analytics-export-${new Date().toISOString().split("T")[0]}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.dismiss(loadingToast);
+      toast.success(t("analytics.export.success") || "Data exported successfully");
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      toast.error(t("analytics.export.error") || "Failed to export data");
+    }
+  };
+
+  // Handle view details
+  const handleViewDetails = (record: ImageGenerationRecord) => {
+    setPreviewRecord(record);
+    setPreviewImage(record.generatedImageUrl || record.personImageUrl || record.clothingImageUrl || null);
+    setPreviewTitle(t("analytics.table.viewDetails") || "View Details");
+  };
+
+  // Clear filters
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
   };
 
   return (
@@ -200,65 +370,90 @@ const Analytics = () => {
                 </div>
               </div>
 
-              <Button
-                onClick={fetchData}
-                disabled={loading || !shopDomain}
-                size="icon"
-                variant="outline"
-                className="h-9 w-9"
-                aria-label={t("analytics.refresh") || "Refresh"}
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={fetchData}
+                  disabled={loading || !shopDomain}
+                  size="icon"
+                  className="h-9 w-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                  aria-label={t("analytics.refresh") || "Refresh"}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("analytics.stats.total") || "Total Generations"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.completed}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("analytics.stats.completed") || "Completed"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.failed}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("analytics.stats.failed") || "Failed"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.processing}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("analytics.stats.processing") || "Processing"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("analytics.stats.pending") || "Pending"}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Search, Filters, and Export Section */}
+            <Card className="mb-6 border-border bg-card">
+              <CardContent className="pt-6">
+                <div className="flex flex-col gap-4">
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder={t("analytics.search.placeholder") || "Search by ID, status, or date..."}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 h-10 border-input bg-background"
+                    />
+                    {searchQuery && (
+                      <Button
+                        size="icon"
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => setSearchQuery("")}
+                        aria-label="Clear search"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Filters and Actions Row */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[180px] h-10 border-input bg-background">
+                          <Filter className="w-4 h-4 mr-2" />
+                          <SelectValue placeholder={t("analytics.filters.status") || "Status"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("analytics.filters.statusAll") || "All Statuses"}</SelectItem>
+                          <SelectItem value="pending">{t("analytics.filters.statusPending") || "Pending"}</SelectItem>
+                          <SelectItem value="processing">{t("analytics.filters.statusProcessing") || "Processing"}</SelectItem>
+                          <SelectItem value="completed">{t("analytics.filters.statusCompleted") || "Completed"}</SelectItem>
+                          <SelectItem value="failed">{t("analytics.filters.statusFailed") || "Failed"}</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {(searchQuery || statusFilter !== "all") && (
+                        <Button
+                          size="sm"
+                          onClick={handleClearFilters}
+                          className="h-10 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                        >
+                          <X className="w-4 h-4 mr-2" />
+                          {t("analytics.filters.clear") || "Clear Filters"}
+                        </Button>
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={handleExport}
+                      disabled={loading || total === 0}
+                      className="h-10 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {t("analytics.export.button") || "Export"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Error Display */}
             {error && (
@@ -272,51 +467,54 @@ const Analytics = () => {
 
             {/* Table */}
             {loading && records.length === 0 ? (
-              <Card className="border-border">
+              <Card className="border-border bg-card">
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead><Skeleton className="h-4 w-16" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-16" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-24" /></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {[...Array(5)].map((_, i) => (
-                        <TableRow key={i}>
+                        <TableRow key={i} className="border-border">
                           <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
-            ) : records.length > 0 ? (
-              <Card className="border-border">
+            ) : filteredRecords.length > 0 ? (
+              <Card className="border-border bg-card">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[80px]">#</TableHead>
-                        <TableHead className="min-w-[100px]">{t("analytics.table.status") || "Status"}</TableHead>
-                        <TableHead className="min-w-[120px]">{t("analytics.table.personImage") || "Person Image"}</TableHead>
-                        <TableHead className="min-w-[120px]">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
-                        <TableHead className="min-w-[120px]">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
-                        <TableHead className="min-w-[150px]">{t("analytics.table.createdAt") || "Created At"}</TableHead>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="min-w-[80px] bg-muted/50 font-semibold text-foreground">#</TableHead>
+                        <TableHead className="min-w-[100px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.status") || "Status"}</TableHead>
+                        <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
+                        <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
+                        <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
+                        <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.createdAt") || "Created At"}</TableHead>
+                        <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {records.map((record, index) => (
-                        <TableRow key={record.id} className="hover:bg-muted/50">
+                      {filteredRecords.map((record, index) => (
+                        <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
                           <TableCell className="text-sm text-muted-foreground font-medium">
                             {(page - 1) * limit + index + 1}
                           </TableCell>
@@ -325,28 +523,33 @@ const Analytics = () => {
                           </TableCell>
                           <TableCell>
                             {record.personImageUrl ? (
-                              <div
-                                className="cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => {
-                                  setPreviewImage(record.personImageUrl);
-                                  setPreviewTitle(t("analytics.table.personImage") || "Person Image");
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
+                              <div className="relative group">
+                                <div
+                                  className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                  onClick={() => {
                                     setPreviewImage(record.personImageUrl);
                                     setPreviewTitle(t("analytics.table.personImage") || "Person Image");
-                                  }
-                                }}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={t("analytics.table.personImage") || "Person Image"}
-                              >
-                                <img
-                                  src={record.personImageUrl}
-                                  alt={t("analytics.table.personImage") || "Person Image"}
-                                  className="h-20 w-auto object-contain rounded border border-border bg-muted"
-                                />
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setPreviewImage(record.personImageUrl);
+                                      setPreviewTitle(t("analytics.table.personImage") || "Person Image");
+                                    }
+                                  }}
+                                  tabIndex={0}
+                                  role="button"
+                                  aria-label={t("analytics.table.personImage") || "Person Image"}
+                                >
+                                  <img
+                                    src={record.personImageUrl}
+                                    alt={t("analytics.table.personImage") || "Person Image"}
+                                    className="h-20 w-auto object-contain rounded border border-border bg-muted"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                    <Maximize2 className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
@@ -354,28 +557,33 @@ const Analytics = () => {
                           </TableCell>
                           <TableCell>
                             {record.clothingImageUrl ? (
-                              <div
-                                className="cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => {
-                                  setPreviewImage(record.clothingImageUrl);
-                                  setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
+                              <div className="relative group">
+                                <div
+                                  className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                  onClick={() => {
                                     setPreviewImage(record.clothingImageUrl);
                                     setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
-                                  }
-                                }}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
-                              >
-                                <img
-                                  src={record.clothingImageUrl}
-                                  alt={t("analytics.table.clothingImage") || "Clothing Image"}
-                                  className="h-20 w-auto object-contain rounded border border-border bg-muted"
-                                />
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setPreviewImage(record.clothingImageUrl);
+                                      setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
+                                    }
+                                  }}
+                                  tabIndex={0}
+                                  role="button"
+                                  aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
+                                >
+                                  <img
+                                    src={record.clothingImageUrl}
+                                    alt={t("analytics.table.clothingImage") || "Clothing Image"}
+                                    className="h-20 w-auto object-contain rounded border border-border bg-muted"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                    <Maximize2 className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
@@ -383,28 +591,33 @@ const Analytics = () => {
                           </TableCell>
                           <TableCell>
                             {record.generatedImageUrl ? (
-                              <div
-                                className="cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => {
-                                  setPreviewImage(record.generatedImageUrl);
-                                  setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
+                              <div className="relative group">
+                                <div
+                                  className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                  onClick={() => {
                                     setPreviewImage(record.generatedImageUrl);
                                     setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
-                                  }
-                                }}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={t("analytics.table.generatedImage") || "Generated Image"}
-                              >
-                                <img
-                                  src={record.generatedImageUrl}
-                                  alt={t("analytics.table.generatedImage") || "Generated Image"}
-                                  className="h-20 w-auto object-contain rounded border border-border bg-muted"
-                                />
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setPreviewImage(record.generatedImageUrl);
+                                      setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
+                                    }
+                                  }}
+                                  tabIndex={0}
+                                  role="button"
+                                  aria-label={t("analytics.table.generatedImage") || "Generated Image"}
+                                >
+                                  <img
+                                    src={record.generatedImageUrl}
+                                    alt={t("analytics.table.generatedImage") || "Generated Image"}
+                                    className="h-20 w-auto object-contain rounded border border-border bg-muted"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                    <Maximize2 className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
@@ -413,6 +626,16 @@ const Analytics = () => {
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(record.createdAt)}
                           </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              onClick={() => handleViewDetails(record)}
+                              className="h-8 text-foreground hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              {t("analytics.table.viewDetails") || "View Details"}
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -420,32 +643,33 @@ const Analytics = () => {
                 </div>
               </Card>
             ) : (
-              <Card className="border-border">
+              <Card className="border-border bg-card">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <ImageIcon className="w-12 h-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
                     {t("analytics.noData") || "No data available"}
                   </h3>
                   <p className="text-sm text-muted-foreground text-center max-w-md">
-                    {t("analytics.noDataDescription") || "No image generations found for this store."}
+                    {searchQuery || statusFilter !== "all"
+                      ? t("analytics.noFilteredData") || "No records match your filters."
+                      : t("analytics.noDataDescription") || "No image generations found for this store."}
                   </p>
                 </CardContent>
               </Card>
             )}
 
             {/* Pagination */}
-            {records.length > 0 && (
+            {filteredRecords.length > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                 <div className="text-sm text-muted-foreground">
                   {t("analytics.pagination.showing") || "Showing"} {(page - 1) * limit + 1} {t("analytics.pagination.to") || "to"} {Math.min(page * limit, total)} {t("analytics.pagination.ofTotal") || "of"} {total} {t("analytics.pagination.results") || "results"}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="outline"
                     size="sm"
                     onClick={handlePreviousPage}
                     disabled={!hasPrev || loading}
-                    className="h-9"
+                    className="h-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     {t("analytics.pagination.previous") || "Previous"}
@@ -454,11 +678,10 @@ const Analytics = () => {
                     {t("analytics.pagination.page") || "Page"} {page} {t("analytics.pagination.of") || "of"} {totalPages}
                   </div>
                   <Button
-                    variant="outline"
                     size="sm"
                     onClick={handleNextPage}
                     disabled={!hasNext || loading}
-                    className="h-9"
+                    className="h-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                   >
                     {t("analytics.pagination.next") || "Next"}
                     <ChevronRight className="w-4 h-4 ml-1" />
@@ -487,14 +710,27 @@ const Analytics = () => {
                 className="w-full h-full object-contain"
               />
               <Button
-                variant="outline"
                 size="sm"
-                className="absolute top-4 right-4"
+                className="absolute top-4 right-4 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                 onClick={() => window.open(previewImage, "_blank")}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Open in New Tab
               </Button>
+            </div>
+          )}
+          {previewRecord && (
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="font-semibold text-foreground">{t("analytics.table.status") || "Status"}:</span>
+                  <div className="mt-1">{getStatusBadge(previewRecord.status)}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-foreground">{t("analytics.table.createdAt") || "Created At"}:</span>
+                  <p className="mt-1 text-muted-foreground">{formatDate(previewRecord.createdAt)}</p>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
