@@ -66,12 +66,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface CustomerInfo {
+  id?: string | null;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}
+
 interface TryOnWidgetProps {
   isOpen?: boolean;
   onClose?: () => void;
+  customerInfo?: CustomerInfo | null;
 }
 
-export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
+export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidgetProps) {
   type LayoutMode = "compact" | "wide";
   // Popover/container width breakpoint (popover is ~889px in your embed).
   // Use a container-based threshold so the widget shows the "desktop/wide" layout inside the popover.
@@ -373,6 +381,11 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
     }
     return null;
   }, [storeInfo, reduxStoreInfo]);
+
+  // Debug: Log customer info on component load
+  useEffect(() => {
+    console.log("[TryOnWidget] Customer info:", customerInfo);
+  }, [customerInfo]);
 
   // Set initial status message
   useEffect(() => {
@@ -1306,13 +1319,15 @@ export default function TryOnWidget({ isOpen, onClose }: TryOnWidgetProps) {
       // - clothingKey: sent when product image has an ID
       // - personKey: sent when a demo picture is used (fixed IDs: demo_person_1, demo_person_2, etc.)
       // - version: optional version parameter (1 or 2)
+      // - customerInfo: optional customer information if customer is logged in
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
         storeDomainForApi,
         clothingKey, // Non-mandatory: sent when product image has ID
         personKey, // Non-mandatory: sent when demo picture is used
-        selectedVersion // Non-mandatory: sent when version is selected
+        selectedVersion, // Non-mandatory: sent when version is selected
+        customerInfo // Non-mandatory: sent when customer is logged in
       );
 
       setProgress(100);

@@ -1,5 +1,13 @@
 {% render 'nusense-tryon-script' %}
 
+{% comment %} Output customer information as meta tags for widget loader to read {% endcomment %}
+{% if customer %}
+  <meta name="customer-id" content="{{ customer.id }}" />
+  <meta name="customer-email" content="{{ customer.email | escape }}" />
+  {% if customer.first_name %}<meta name="customer-first-name" content="{{ customer.first_name | escape }}" />{% endif %}
+  {% if customer.last_name %}<meta name="customer-last-name" content="{{ customer.last_name | escape }}" />{% endif %}
+{% endif %}
+
 {% assign button_text = block.settings.button_text | default: 'TryOn' %}
 {% assign button_style = block.settings.button_style | default: 'primary' %}
 {% assign button_icon = block.settings.button_icon | default: '✨' %}

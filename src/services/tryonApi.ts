@@ -18,13 +18,21 @@ const normalizeShopDomain = (shop: string): string => {
   return normalized;
 };
 
+interface CustomerInfo {
+  id?: string | null;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}
+
 export async function generateTryOn(
   personImage: File | Blob,
   clothingImage: Blob,
   storeName?: string | null,
   clothingKey?: string | null,
   personKey?: string | null,
-  version?: number | null
+  version?: number | null,
+  customerInfo?: CustomerInfo | null
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -37,6 +45,8 @@ export async function generateTryOn(
       storeName: storeName || "not provided",
       clothingKey: clothingKey || "not provided",
       personKey: personKey || "not provided",
+      hasCustomerInfo: !!customerInfo,
+      customerId: customerInfo?.id || "not provided",
       timestamp: new Date().toISOString(),
     });
 
@@ -59,6 +69,22 @@ export async function generateTryOn(
         formData.append("personKey", personKey);
       }
 
+      // Add customer information if available (non-mandatory)
+      if (customerInfo) {
+        if (customerInfo.id) {
+          formData.append("customerId", customerInfo.id);
+        }
+        if (customerInfo.email) {
+          formData.append("customerEmail", customerInfo.email);
+        }
+        if (customerInfo.firstName) {
+          formData.append("customerFirstName", customerInfo.firstName);
+        }
+        if (customerInfo.lastName) {
+          formData.append("customerLastName", customerInfo.lastName);
+        }
+      }
+
       // Request Instagram-compatible square (1:1) aspect ratio
       formData.append("aspectRatio", "1:1");
       
@@ -69,6 +95,7 @@ export async function generateTryOn(
         hasStoreName: !!storeName,
         hasClothingKey: !!clothingKey,
         hasPersonKey: !!personKey,
+        hasCustomerInfo: !!customerInfo,
       });
     } catch (formError) {
       logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {

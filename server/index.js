@@ -6542,13 +6542,30 @@ app.post("/api/tryon/generate", async (req, res) => {
   let shopDomain = null;
 
   try {
-    const { personImage, clothingImage, storeName, clothingKey, personKey } =
-      req.body;
+    const { 
+      personImage, 
+      clothingImage, 
+      storeName, 
+      clothingKey, 
+      personKey,
+      customerId,
+      customerEmail,
+      customerFirstName,
+      customerLastName
+    } = req.body;
 
     // Get shop from query parameter first, then fall back to storeName in body
     const shop = req.query.shop || storeName;
     shopDomain = shop ? normalizeShopDomain(shop) : null;
     tryonId = `tryon-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Build customer info object if available
+    const customerInfo = (customerId || customerEmail) ? {
+      id: customerId || null,
+      email: customerEmail || null,
+      firstName: customerFirstName || null,
+      lastName: customerLastName || null,
+    } : null;
 
     logger.info("[API] Try-on generation request received", {
       shop: req.query.shop,
@@ -6559,6 +6576,8 @@ app.post("/api/tryon/generate", async (req, res) => {
       hasClothingImage: !!clothingImage,
       hasClothingKey: !!clothingKey,
       hasPersonKey: !!personKey,
+      hasCustomerInfo: !!customerInfo,
+      customerId: customerInfo?.id || null,
     });
 
     if (!personImage || !clothingImage) {
@@ -6711,6 +6730,22 @@ app.post("/api/tryon/generate", async (req, res) => {
     // Add personKey if provided
     if (personKey) {
       formData.append("personKey", personKey);
+    }
+
+    // Add customer information if available (non-mandatory, for tracking/analytics)
+    if (customerInfo) {
+      if (customerInfo.id) {
+        formData.append("customerId", customerInfo.id);
+      }
+      if (customerInfo.email) {
+        formData.append("customerEmail", customerInfo.email);
+      }
+      if (customerInfo.firstName) {
+        formData.append("customerFirstName", customerInfo.firstName);
+      }
+      if (customerInfo.lastName) {
+        formData.append("customerLastName", customerInfo.lastName);
+      }
     }
 
     const startTime = Date.now();

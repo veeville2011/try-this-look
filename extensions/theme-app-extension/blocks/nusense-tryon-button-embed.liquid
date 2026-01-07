@@ -1,4 +1,11 @@
 
+{% comment %} Output customer information as meta tags for widget loader to read {% endcomment %}
+{% if customer %}
+  <meta name="customer-id" content="{{ customer.id }}" />
+  <meta name="customer-email" content="{{ customer.email | escape }}" />
+  {% if customer.first_name %}<meta name="customer-first-name" content="{{ customer.first_name | escape }}" />{% endif %}
+  {% if customer.last_name %}<meta name="customer-last-name" content="{{ customer.last_name | escape }}" />{% endif %}
+{% endif %}
 
 {% render 'nusense-tryon-script' %}
 
