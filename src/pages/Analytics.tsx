@@ -8,7 +8,6 @@ import {
   Loader2, 
   ChevronLeft, 
   ChevronRight,
-  Eye,
   CheckCircle2,
   XCircle,
   Clock,
@@ -278,23 +277,23 @@ const Analytics = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead><Skeleton className="h-4 w-16" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-24" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {[...Array(5)].map((_, i) => (
                         <TableRow key={i}>
+                          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -307,79 +306,112 @@ const Analytics = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="min-w-[80px]">#</TableHead>
                         <TableHead className="min-w-[100px]">{t("analytics.table.status") || "Status"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
                         <TableHead className="min-w-[150px]">{t("analytics.table.createdAt") || "Created At"}</TableHead>
-                        <TableHead className="min-w-[120px]">{t("analytics.table.ipAddress") || "IP Address"}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {records.map((record) => (
+                      {records.map((record, index) => (
                         <TableRow key={record.id} className="hover:bg-muted/50">
+                          <TableCell className="text-sm text-muted-foreground font-medium">
+                            {(page - 1) * limit + index + 1}
+                          </TableCell>
                           <TableCell>
                             {getStatusBadge(record.status)}
                           </TableCell>
                           <TableCell>
                             {record.personImageUrl ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8"
+                              <div
+                                className="cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={() => {
                                   setPreviewImage(record.personImageUrl);
                                   setPreviewTitle(t("analytics.table.personImage") || "Person Image");
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setPreviewImage(record.personImageUrl);
+                                    setPreviewTitle(t("analytics.table.personImage") || "Person Image");
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={t("analytics.table.personImage") || "Person Image"}
                               >
-                                <Eye className="w-3 h-3 mr-1" />
-                                {t("analytics.table.viewImage") || "View"}
-                              </Button>
+                                <img
+                                  src={record.personImageUrl}
+                                  alt={t("analytics.table.personImage") || "Person Image"}
+                                  className="h-20 w-auto object-contain rounded border border-border bg-muted"
+                                />
+                              </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
                           <TableCell>
                             {record.clothingImageUrl ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8"
+                              <div
+                                className="cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={() => {
                                   setPreviewImage(record.clothingImageUrl);
                                   setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setPreviewImage(record.clothingImageUrl);
+                                    setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
                               >
-                                <Eye className="w-3 h-3 mr-1" />
-                                {t("analytics.table.viewImage") || "View"}
-                              </Button>
+                                <img
+                                  src={record.clothingImageUrl}
+                                  alt={t("analytics.table.clothingImage") || "Clothing Image"}
+                                  className="h-20 w-auto object-contain rounded border border-border bg-muted"
+                                />
+                              </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
                           <TableCell>
                             {record.generatedImageUrl ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8"
+                              <div
+                                className="cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={() => {
                                   setPreviewImage(record.generatedImageUrl);
                                   setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setPreviewImage(record.generatedImageUrl);
+                                    setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={t("analytics.table.generatedImage") || "Generated Image"}
                               >
-                                <Eye className="w-3 h-3 mr-1" />
-                                {t("analytics.table.viewImage") || "View"}
-                              </Button>
+                                <img
+                                  src={record.generatedImageUrl}
+                                  alt={t("analytics.table.generatedImage") || "Generated Image"}
+                                  className="h-20 w-auto object-contain rounded border border-border bg-muted"
+                                />
+                              </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(record.createdAt)}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {record.ipAddress || "-"}
                           </TableCell>
                         </TableRow>
                       ))}
