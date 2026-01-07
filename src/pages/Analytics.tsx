@@ -278,11 +278,10 @@ const Analytics = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead><Skeleton className="h-4 w-20" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
-                        <TableHead><Skeleton className="h-4 w-24" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead><Skeleton className="h-4 w-24" /></TableHead>
                       </TableRow>
@@ -290,11 +289,10 @@ const Analytics = () => {
                     <TableBody>
                       {[...Array(5)].map((_, i) => (
                         <TableRow key={i}>
-                          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         </TableRow>
@@ -309,14 +307,10 @@ const Analytics = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[120px]">{t("analytics.table.id") || "ID"}</TableHead>
                         <TableHead className="min-w-[100px]">{t("analytics.table.status") || "Status"}</TableHead>
-                        <TableHead className="min-w-[150px]">{t("analytics.table.storeName") || "Store"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
-                        <TableHead className="min-w-[100px]">{t("analytics.table.processingTime") || "Processing Time"}</TableHead>
-                        <TableHead className="min-w-[100px]">{t("analytics.table.fileSize") || "File Size"}</TableHead>
                         <TableHead className="min-w-[150px]">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                         <TableHead className="min-w-[120px]">{t("analytics.table.ipAddress") || "IP Address"}</TableHead>
                       </TableRow>
@@ -324,14 +318,8 @@ const Analytics = () => {
                     <TableBody>
                       {records.map((record) => (
                         <TableRow key={record.id} className="hover:bg-muted/50">
-                          <TableCell className="font-mono text-xs">
-                            {record.id.substring(0, 8)}...
-                          </TableCell>
                           <TableCell>
                             {getStatusBadge(record.status)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {record.storeName || "-"}
                           </TableCell>
                           <TableCell>
                             {record.personImageUrl ? (
@@ -386,12 +374,6 @@ const Analytics = () => {
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {record.processingTime || "-"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {record.fileSize || "-"}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(record.createdAt)}
