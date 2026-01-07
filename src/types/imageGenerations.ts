@@ -5,8 +5,8 @@ export interface ImageGenerationRecord {
   clothingImageUrl: string;
   generatedImageUrl: string;
   generatedImageKey: string;
-  status: "completed" | "failed" | "processing";
-  errorMessage: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  errorMessage: string | null;
   processingTime: string;
   fileSize: string;
   mimeType: string;
@@ -41,7 +41,10 @@ export interface ImageGenerationsResponse {
 export interface FetchImageGenerationsParams {
   page?: number;
   limit?: number;
+  status?: "pending" | "processing" | "completed" | "failed";
   orderBy?: string;
   orderDirection?: "ASC" | "DESC";
+  user?: string;
+  storeName?: string;
 }
 

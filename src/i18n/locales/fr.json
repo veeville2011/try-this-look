@@ -809,8 +809,67 @@
   },
   "analytics": {
     "title": "Analyses",
+    "description": "Voir et analyser toutes les générations d'images",
     "comingSoon": "Bientôt disponible",
-    "description": "Le tableau de bord des analyses est actuellement en développement. Revenez bientôt pour des informations et des métriques."
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "errorMessage": "Échec du chargement des données d'analyse. Veuillez réessayer.",
+    "noData": "Aucune donnée disponible",
+    "noDataDescription": "Aucune génération d'image trouvée correspondant à vos filtres.",
+    "refresh": "Actualiser",
+    "filters": {
+      "title": "Filtres",
+      "status": "Statut",
+      "statusAll": "Tous les statuts",
+      "statusPending": "En attente",
+      "statusProcessing": "En cours",
+      "statusCompleted": "Terminé",
+      "statusFailed": "Échoué",
+      "storeName": "Nom du magasin",
+      "storeNamePlaceholder": "Filtrer par nom de magasin",
+      "user": "Adresse IP",
+      "userPlaceholder": "Filtrer par adresse IP",
+      "apply": "Appliquer les filtres",
+      "clear": "Effacer les filtres"
+    },
+    "table": {
+      "id": "ID",
+      "requestId": "ID de requête",
+      "personImage": "Image de la personne",
+      "clothingImage": "Image du vêtement",
+      "generatedImage": "Image générée",
+      "status": "Statut",
+      "storeName": "Magasin",
+      "processingTime": "Temps de traitement",
+      "fileSize": "Taille du fichier",
+      "createdAt": "Créé le",
+      "updatedAt": "Mis à jour le",
+      "ipAddress": "Adresse IP",
+      "userAgent": "User Agent",
+      "name": "Nom",
+      "email": "Email",
+      "errorMessage": "Message d'erreur",
+      "viewImage": "Voir l'image",
+      "viewDetails": "Voir les détails"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "sur",
+      "showing": "Affichage",
+      "to": "à",
+      "ofTotal": "sur",
+      "results": "résultats",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "goToPage": "Aller à la page"
+    },
+    "stats": {
+      "total": "Total des générations",
+      "completed": "Terminées",
+      "failed": "Échouées",
+      "processing": "En cours",
+      "pending": "En attente"
+    }
   },
   "tryOnWidget": {
     "brand": {

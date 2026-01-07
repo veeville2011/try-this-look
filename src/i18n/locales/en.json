@@ -809,8 +809,67 @@
   },
   "analytics": {
     "title": "Analytics",
+    "description": "View and analyze all image generations",
     "comingSoon": "Coming Soon",
-    "description": "Analytics dashboard is currently under development. Check back soon for insights and metrics."
+    "loading": "Loading...",
+    "error": "Error",
+    "errorMessage": "Failed to load analytics data. Please try again.",
+    "noData": "No data available",
+    "noDataDescription": "No image generations found matching your filters.",
+    "refresh": "Refresh",
+    "filters": {
+      "title": "Filters",
+      "status": "Status",
+      "statusAll": "All Statuses",
+      "statusPending": "Pending",
+      "statusProcessing": "Processing",
+      "statusCompleted": "Completed",
+      "statusFailed": "Failed",
+      "storeName": "Store Name",
+      "storeNamePlaceholder": "Filter by store name",
+      "user": "IP Address",
+      "userPlaceholder": "Filter by IP address",
+      "apply": "Apply Filters",
+      "clear": "Clear Filters"
+    },
+    "table": {
+      "id": "ID",
+      "requestId": "Request ID",
+      "personImage": "Person Image",
+      "clothingImage": "Clothing Image",
+      "generatedImage": "Generated Image",
+      "status": "Status",
+      "storeName": "Store",
+      "processingTime": "Processing Time",
+      "fileSize": "File Size",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "ipAddress": "IP Address",
+      "userAgent": "User Agent",
+      "name": "Name",
+      "email": "Email",
+      "errorMessage": "Error Message",
+      "viewImage": "View Image",
+      "viewDetails": "View Details"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "showing": "Showing",
+      "to": "to",
+      "ofTotal": "of",
+      "results": "results",
+      "previous": "Previous",
+      "next": "Next",
+      "goToPage": "Go to page"
+    },
+    "stats": {
+      "total": "Total Generations",
+      "completed": "Completed",
+      "failed": "Failed",
+      "processing": "Processing",
+      "pending": "Pending"
+    }
   },
   "tryOnWidget": {
     "brand": {
