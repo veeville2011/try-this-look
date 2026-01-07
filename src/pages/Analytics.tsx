@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import NavigationBar from "@/components/NavigationBar";
@@ -16,24 +16,13 @@ import {
   ExternalLink,
   Maximize2,
   Eye,
-  Search,
-  Filter,
-  Download,
-  X
+  Download
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -59,10 +48,6 @@ const Analytics = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
-
-  // Search and filter state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Image preview
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -214,7 +199,7 @@ const Analytics = () => {
     }
   };
 
-  // Format date based on locale
+  // Format date based on locale with 12-hour format and France timezone
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -222,59 +207,32 @@ const Analytics = () => {
       
       if (isFrench) {
         return date.toLocaleString("fr-FR", {
+          timeZone: "Europe/Paris",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
+          hour12: true,
         });
       }
       
       return date.toLocaleString("en-US", {
+        timeZone: "Europe/Paris",
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
+        hour12: true,
       });
     } catch {
       return dateString;
     }
   };
 
-  // Reset page when filters change
-  useEffect(() => {
-    if (page !== 1) {
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter]);
-
-  // Filter records based on search and status
-  const filteredRecords = useMemo(() => {
-    let filtered = [...records];
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((record) => record.status === statusFilter);
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((record) => {
-        return (
-          record.id?.toLowerCase().includes(query) ||
-          record.status?.toLowerCase().includes(query) ||
-          formatDate(record.createdAt).toLowerCase().includes(query)
-        );
-      });
-    }
-
-    return filtered;
-  }, [records, statusFilter, searchQuery]);
 
   // Export to CSV
   const handleExport = async () => {
@@ -342,11 +300,6 @@ const Analytics = () => {
     setPreviewTitle(t("analytics.table.viewDetails") || "View Details");
   };
 
-  // Clear filters
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("all");
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -375,7 +328,7 @@ const Analytics = () => {
                   onClick={fetchData}
                   disabled={loading || !shopDomain}
                   size="icon"
-                  className="h-9 w-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                  className="h-9 w-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label={t("analytics.refresh") || "Refresh"}
                 >
                   {loading ? (
@@ -387,70 +340,18 @@ const Analytics = () => {
               </div>
             </div>
 
-            {/* Search, Filters, and Export Section */}
+            {/* Export Section */}
             <Card className="mb-6 border-border bg-card">
               <CardContent className="pt-6">
-                <div className="flex flex-col gap-4">
-                  {/* Search Bar */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder={t("analytics.search.placeholder") || "Search by ID, status, or date..."}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-10 border-input bg-background"
-                    />
-                    {searchQuery && (
-                      <Button
-                        size="icon"
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => setSearchQuery("")}
-                        aria-label="Clear search"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Filters and Actions Row */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px] h-10 border-input bg-background">
-                          <Filter className="w-4 h-4 mr-2" />
-                          <SelectValue placeholder={t("analytics.filters.status") || "Status"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{t("analytics.filters.statusAll") || "All Statuses"}</SelectItem>
-                          <SelectItem value="pending">{t("analytics.filters.statusPending") || "Pending"}</SelectItem>
-                          <SelectItem value="processing">{t("analytics.filters.statusProcessing") || "Processing"}</SelectItem>
-                          <SelectItem value="completed">{t("analytics.filters.statusCompleted") || "Completed"}</SelectItem>
-                          <SelectItem value="failed">{t("analytics.filters.statusFailed") || "Failed"}</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {(searchQuery || statusFilter !== "all") && (
-                        <Button
-                          size="sm"
-                          onClick={handleClearFilters}
-                          className="h-10 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          {t("analytics.filters.clear") || "Clear Filters"}
-                        </Button>
-                      )}
-                    </div>
-
-                    <Button
-                      onClick={handleExport}
-                      disabled={loading || total === 0}
-                      className="h-10 bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      {t("analytics.export.button") || "Export"}
-                    </Button>
-                  </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
+                  <Button
+                    onClick={handleExport}
+                    disabled={loading || total === 0}
+                    className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    {t("analytics.export.button") || "Export"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -497,7 +398,7 @@ const Analytics = () => {
                   </Table>
                 </CardContent>
               </Card>
-            ) : filteredRecords.length > 0 ? (
+            ) : records.length > 0 ? (
               <Card className="border-border bg-card">
                 <div className="overflow-x-auto">
                   <Table>
@@ -513,7 +414,7 @@ const Analytics = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredRecords.map((record, index) => (
+                      {records.map((record, index) => (
                         <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
                           <TableCell className="text-sm text-muted-foreground font-medium">
                             {(page - 1) * limit + index + 1}
@@ -521,33 +422,35 @@ const Analytics = () => {
                           <TableCell>
                             {getStatusBadge(record.status)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-middle">
                             {record.personImageUrl ? (
-                              <div className="relative group">
-                                <div
-                                  className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                  onClick={() => {
-                                    setPreviewImage(record.personImageUrl);
-                                    setPreviewTitle(t("analytics.table.personImage") || "Person Image");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
+                              <div className="flex items-center justify-center">
+                                <div className="relative group">
+                                  <div
+                                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                    onClick={() => {
                                       setPreviewImage(record.personImageUrl);
                                       setPreviewTitle(t("analytics.table.personImage") || "Person Image");
-                                    }
-                                  }}
-                                  tabIndex={0}
-                                  role="button"
-                                  aria-label={t("analytics.table.personImage") || "Person Image"}
-                                >
-                                  <img
-                                    src={record.personImageUrl}
-                                    alt={t("analytics.table.personImage") || "Person Image"}
-                                    className="h-20 w-auto object-contain rounded border border-border bg-muted"
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                                    <Maximize2 className="w-6 h-6 text-white" />
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setPreviewImage(record.personImageUrl);
+                                        setPreviewTitle(t("analytics.table.personImage") || "Person Image");
+                                      }
+                                    }}
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label={t("analytics.table.personImage") || "Person Image"}
+                                  >
+                                    <img
+                                      src={record.personImageUrl}
+                                      alt={t("analytics.table.personImage") || "Person Image"}
+                                      className="w-20 h-auto object-contain rounded border border-border bg-muted"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                      <Maximize2 className="w-6 h-6 text-white" />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -555,33 +458,35 @@ const Analytics = () => {
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-middle">
                             {record.clothingImageUrl ? (
-                              <div className="relative group">
-                                <div
-                                  className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                  onClick={() => {
-                                    setPreviewImage(record.clothingImageUrl);
-                                    setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
+                              <div className="flex items-center justify-center">
+                                <div className="relative group">
+                                  <div
+                                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                    onClick={() => {
                                       setPreviewImage(record.clothingImageUrl);
                                       setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
-                                    }
-                                  }}
-                                  tabIndex={0}
-                                  role="button"
-                                  aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
-                                >
-                                  <img
-                                    src={record.clothingImageUrl}
-                                    alt={t("analytics.table.clothingImage") || "Clothing Image"}
-                                    className="h-20 w-auto object-contain rounded border border-border bg-muted"
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                                    <Maximize2 className="w-6 h-6 text-white" />
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setPreviewImage(record.clothingImageUrl);
+                                        setPreviewTitle(t("analytics.table.clothingImage") || "Clothing Image");
+                                      }
+                                    }}
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
+                                  >
+                                    <img
+                                      src={record.clothingImageUrl}
+                                      alt={t("analytics.table.clothingImage") || "Clothing Image"}
+                                      className="w-20 h-auto object-contain rounded border border-border bg-muted"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                      <Maximize2 className="w-6 h-6 text-white" />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -589,33 +494,35 @@ const Analytics = () => {
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-middle">
                             {record.generatedImageUrl ? (
-                              <div className="relative group">
-                                <div
-                                  className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                  onClick={() => {
-                                    setPreviewImage(record.generatedImageUrl);
-                                    setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
+                              <div className="flex items-center justify-center">
+                                <div className="relative group">
+                                  <div
+                                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                    onClick={() => {
                                       setPreviewImage(record.generatedImageUrl);
                                       setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
-                                    }
-                                  }}
-                                  tabIndex={0}
-                                  role="button"
-                                  aria-label={t("analytics.table.generatedImage") || "Generated Image"}
-                                >
-                                  <img
-                                    src={record.generatedImageUrl}
-                                    alt={t("analytics.table.generatedImage") || "Generated Image"}
-                                    className="h-20 w-auto object-contain rounded border border-border bg-muted"
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                                    <Maximize2 className="w-6 h-6 text-white" />
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setPreviewImage(record.generatedImageUrl);
+                                        setPreviewTitle(t("analytics.table.generatedImage") || "Generated Image");
+                                      }
+                                    }}
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label={t("analytics.table.generatedImage") || "Generated Image"}
+                                  >
+                                    <img
+                                      src={record.generatedImageUrl}
+                                      alt={t("analytics.table.generatedImage") || "Generated Image"}
+                                      className="w-20 h-auto object-contain rounded border border-border bg-muted"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                      <Maximize2 className="w-6 h-6 text-white" />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -630,7 +537,7 @@ const Analytics = () => {
                             <Button
                               size="sm"
                               onClick={() => handleViewDetails(record)}
-                              className="h-8 text-foreground hover:bg-accent hover:text-accent-foreground"
+                              className="h-8 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               {t("analytics.table.viewDetails") || "View Details"}
@@ -650,16 +557,14 @@ const Analytics = () => {
                     {t("analytics.noData") || "No data available"}
                   </h3>
                   <p className="text-sm text-muted-foreground text-center max-w-md">
-                    {searchQuery || statusFilter !== "all"
-                      ? t("analytics.noFilteredData") || "No records match your filters."
-                      : t("analytics.noDataDescription") || "No image generations found for this store."}
+                    {t("analytics.noDataDescription") || "No image generations found for this store."}
                   </p>
                 </CardContent>
               </Card>
             )}
 
             {/* Pagination */}
-            {filteredRecords.length > 0 && (
+            {records.length > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                 <div className="text-sm text-muted-foreground">
                   {t("analytics.pagination.showing") || "Showing"} {(page - 1) * limit + 1} {t("analytics.pagination.to") || "to"} {Math.min(page * limit, total)} {t("analytics.pagination.ofTotal") || "of"} {total} {t("analytics.pagination.results") || "results"}
@@ -669,7 +574,7 @@ const Analytics = () => {
                     size="sm"
                     onClick={handlePreviousPage}
                     disabled={!hasPrev || loading}
-                    className="h-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    className="h-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     {t("analytics.pagination.previous") || "Previous"}
@@ -681,7 +586,7 @@ const Analytics = () => {
                     size="sm"
                     onClick={handleNextPage}
                     disabled={!hasNext || loading}
-                    className="h-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    className="h-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {t("analytics.pagination.next") || "Next"}
                     <ChevronRight className="w-4 h-4 ml-1" />
@@ -711,7 +616,7 @@ const Analytics = () => {
               />
               <Button
                 size="sm"
-                className="absolute top-4 right-4 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                className="absolute top-4 right-4 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                 onClick={() => window.open(previewImage, "_blank")}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
