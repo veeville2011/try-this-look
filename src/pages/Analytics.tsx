@@ -16,13 +16,16 @@ import {
   Image as ImageIcon,
   Maximize2,
   Eye,
-  Download
+  Download,
+  ExternalLink,
+  X
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
@@ -43,6 +46,11 @@ const Analytics = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
+  const [imageModal, setImageModal] = useState<{ isOpen: boolean; imageUrl: string | null; imageTitle: string }>({
+    isOpen: false,
+    imageUrl: null,
+    imageTitle: "",
+  });
 
 
   // Normalize shop domain - same way as billingApi
@@ -421,6 +429,110 @@ const Analytics = () => {
     navigate(`/analytics/${record.id}`, { state: { record } });
   };
 
+  // Handle image click - open modal
+  const handleImageClick = (imageUrl: string, imageTitle: string) => {
+    setImageModal({
+      isOpen: true,
+      imageUrl,
+      imageTitle,
+    });
+  };
+
+  // Handle close modal
+  const handleCloseModal = () => {
+    setImageModal({
+      isOpen: false,
+      imageUrl: null,
+      imageTitle: "",
+    });
+  };
+
+  // Handle open in new tab
+  const handleOpenInNewTab = () => {
+    if (imageModal.imageUrl) {
+      window.open(imageModal.imageUrl, "_blank");
+    }
+  };
+
+  // Handle download image with CORS handling
+  const handleDownloadImage = async () => {
+    if (!imageModal.imageUrl) return;
+
+    try {
+      // Use canvas approach to handle CORS
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const downloadLink = document.createElement("a");
+                downloadLink.href = url;
+                downloadLink.download = imageModal.imageTitle || "image.png";
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(url);
+                toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
+              } else {
+                throw new Error("Failed to create blob");
+              }
+            }, "image/png");
+          } else {
+            throw new Error("Failed to get canvas context");
+          }
+        } catch (canvasError) {
+          console.error("Canvas error:", canvasError);
+          // Fallback: try direct download
+          const link = document.createElement("a");
+          link.href = imageModal.imageUrl;
+          link.download = imageModal.imageTitle || "image";
+          link.target = "_blank";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.info(t("analytics.imageOpenInNewTab") || "Image opened in new tab. Please save it manually.");
+        }
+      };
+      
+      img.onerror = (error) => {
+        console.error("Image load error:", error);
+        // If CORS fails, try direct download as fallback
+        try {
+          const link = document.createElement("a");
+          link.href = imageModal.imageUrl;
+          link.download = imageModal.imageTitle || "image";
+          link.target = "_blank";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.info(t("analytics.imageOpenInNewTab") || "Image opened in new tab. Please save it manually.");
+        } catch (fallbackError) {
+          // Final fallback: open in new tab
+          window.open(imageModal.imageUrl, "_blank");
+          toast.info(t("analytics.imageOpenInNewTab") || "Image opened in new tab. Please save it manually.");
+        }
+      };
+      
+      // Set src after setting up handlers
+      img.src = imageModal.imageUrl;
+    } catch (err) {
+      console.error("Download error:", err);
+      // Final fallback: open in new tab
+      window.open(imageModal.imageUrl, "_blank");
+      toast.error(t("analytics.imageDownloadError") || "Failed to download image. Opened in new tab instead.");
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -522,7 +634,7 @@ const Analytics = () => {
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
-                        <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.createdAt") || "Created At"}</TableHead>
+                        <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -541,11 +653,11 @@ const Analytics = () => {
                                 <div className="relative group">
                                   <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => window.open(record.personImageUrl, "_blank")}
+                                    onClick={() => handleImageClick(record.personImageUrl, t("analytics.table.personImage") || "Person Image")}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        window.open(record.personImageUrl, "_blank");
+                                        handleImageClick(record.personImageUrl, t("analytics.table.personImage") || "Person Image");
                                       }
                                     }}
                                     tabIndex={0}
@@ -573,11 +685,11 @@ const Analytics = () => {
                                 <div className="relative group">
                                   <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => window.open(record.clothingImageUrl, "_blank")}
+                                    onClick={() => handleImageClick(record.clothingImageUrl, t("analytics.table.clothingImage") || "Clothing Image")}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        window.open(record.clothingImageUrl, "_blank");
+                                        handleImageClick(record.clothingImageUrl, t("analytics.table.clothingImage") || "Clothing Image");
                                       }
                                     }}
                                     tabIndex={0}
@@ -605,11 +717,11 @@ const Analytics = () => {
                                 <div className="relative group">
                                   <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => window.open(record.generatedImageUrl, "_blank")}
+                                    onClick={() => handleImageClick(record.generatedImageUrl, t("analytics.table.generatedImage") || "Generated Image")}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        window.open(record.generatedImageUrl, "_blank");
+                                        handleImageClick(record.generatedImageUrl, t("analytics.table.generatedImage") || "Generated Image");
                                       }
                                     }}
                                     tabIndex={0}
@@ -631,13 +743,13 @@ const Analytics = () => {
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-sm text-muted-foreground text-center">
                             {(() => {
                               const dateParts = formatDateForTable(record.createdAt);
                               return (
-                                <div className="flex flex-col leading-tight">
+                                <div className="flex flex-col leading-tight items-center">
                                   <span>{dateParts.date}</span>
-                                  <span className="text-center">{dateParts.conjunction}</span>
+                                  <span>{dateParts.conjunction}</span>
                                   <span>{dateParts.time}</span>
                                 </div>
                               );
@@ -708,6 +820,70 @@ const Analytics = () => {
         </div>
       </main>
 
+      {/* Image Modal */}
+      <Dialog open={imageModal.isOpen} onOpenChange={(open) => !open && handleCloseModal()}>
+        <DialogContent 
+          hideOverlay={true}
+          className="fixed inset-0 z-50 w-full h-full max-w-none p-0 bg-background border-0 rounded-none"
+          style={{ transform: 'none', left: 0, top: 0 }}
+        >
+          {/* Manual overlay */}
+          <div 
+            className="absolute inset-0 bg-black/80 z-0" 
+            onClick={handleCloseModal}
+            aria-hidden="true"
+          />
+          
+          <div className="relative z-10 flex flex-col h-full w-full bg-background">
+            {/* Header with title and close button */}
+            <div className="flex items-center justify-between p-4 border-b border-border bg-background">
+              <DialogHeader className="flex-1">
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  {imageModal.imageTitle}
+                </DialogTitle>
+              </DialogHeader>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseModal}
+                className="h-9 w-9 rounded-full hover:bg-accent"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Image container */}
+            <div className="flex-1 flex items-center justify-center p-4 overflow-auto bg-muted/30">
+              {imageModal.imageUrl && (
+                <img
+                  src={imageModal.imageUrl}
+                  alt={imageModal.imageTitle}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                />
+              )}
+            </div>
+
+            {/* Footer with action buttons */}
+            <div className="flex items-center justify-center gap-4 p-4 border-t border-border bg-background">
+              <Button
+                onClick={handleOpenInNewTab}
+                className="h-10 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                {t("analytics.modal.openInNewTab") || "Open in New Tab"}
+              </Button>
+              <Button
+                onClick={handleDownloadImage}
+                className="h-10 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {t("analytics.modal.download") || "Download"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
