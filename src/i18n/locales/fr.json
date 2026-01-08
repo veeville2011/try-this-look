@@ -1086,6 +1086,7 @@
       "uploadSuccess": "Photo téléchargée avec succès !",
       "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement",
       "correctExample": "Exemple correct",
+      "makeSure": "Assurez-vous que votre photo a :",
       "examplePhotoAlt": "Exemple de photo correcte",
       "previousExample": "Exemple précédent",
       "nextExample": "Exemple suivant",

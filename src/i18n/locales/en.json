@@ -1086,6 +1086,7 @@
       "uploadSuccess": "Photo uploaded successfully!",
       "nextStepHint": "Proceed to the next step to select a garment",
       "correctExample": "Correct example",
+      "makeSure": "Make sure your photo has:",
       "examplePhotoAlt": "Example of correct photo",
       "previousExample": "Previous example",
       "nextExample": "Next example",
