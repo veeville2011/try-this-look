@@ -192,9 +192,11 @@ export default function ClothingSelection({
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full h-full max-w-full overflow-x-hidden">
       {showFinalLayout ? (
-        /* Final Layout - 2x2 Grid Layout (consistent with before selection) */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          {/* Main Product Images - 2x2 Grid */}
+        /* Final Layout - 2x2 Grid Layout with fixed height and scroll - shows exactly 4 items at a time, scrollable for more */
+        <div 
+          className="h-[400px] max-h-[400px] overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+        >
+          {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pb-2">
               {validImages.map((image, index) => (
@@ -238,9 +240,11 @@ export default function ClothingSelection({
           )}
         </div>
       ) : (
-        /* Original Layout - 2x2 Grid Layout - Minimum height for 4 items (2x2) */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          {/* Main Product Images - 2x2 Grid */}
+        /* Original Layout - 2x2 Grid Layout with fixed height and scroll - shows exactly 4 items at a time, scrollable for more */
+        <div 
+          className="h-[400px] max-h-[400px] overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+        >
+          {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pb-2">
               {validImages.map((image, index) => (
