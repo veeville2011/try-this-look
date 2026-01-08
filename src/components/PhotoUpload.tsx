@@ -30,9 +30,10 @@ export default function PhotoUpload({
   const [showDemoModel, setShowDemoModel] = useState(initialView === "demo");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // Carousel state - use only first 2 demo photos for examples
-  const examplePhotos = DEMO_PHOTOS_ARRAY.slice(0, 2);
+  // Carousel state - use first 3 demo photos for examples (3rd photo used in 2nd slide)
+  const examplePhotos = DEMO_PHOTOS_ARRAY.slice(0, 3);
   const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
+  const NUM_SLIDES = 2; // Only 2 slides in carousel
 
   const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -116,31 +117,33 @@ export default function PhotoUpload({
     setShowDemoModel(true);
   };
 
-  // Carousel navigation functions
+  // Carousel navigation functions - limit to 2 slides (indices 0 and 1)
   const handlePreviousExample = () => {
-    setCurrentExampleIndex((prev) => (prev > 0 ? prev - 1 : examplePhotos.length - 1));
+    setCurrentExampleIndex((prev) => (prev > 0 ? prev - 1 : NUM_SLIDES - 1));
   };
 
   const handleNextExample = () => {
-    setCurrentExampleIndex((prev) => (prev < examplePhotos.length - 1 ? prev + 1 : 0));
+    setCurrentExampleIndex((prev) => (prev < NUM_SLIDES - 1 ? prev + 1 : 0));
   };
 
   const handleDotClick = (index: number) => {
-    setCurrentExampleIndex(index);
+    if (index < NUM_SLIDES) {
+      setCurrentExampleIndex(index);
+    }
   };
 
   // Auto-advance carousel every 5 seconds
   useEffect(() => {
     // Only auto-advance if there's more than one slide
-    if (examplePhotos.length <= 1) return;
+    if (NUM_SLIDES <= 1) return;
 
     const interval = setInterval(() => {
-      setCurrentExampleIndex((prev) => (prev < examplePhotos.length - 1 ? prev + 1 : 0));
+      setCurrentExampleIndex((prev) => (prev < NUM_SLIDES - 1 ? prev + 1 : 0));
     }, 5000); // 5 seconds
 
     // Cleanup interval on unmount
     return () => clearInterval(interval);
-  }, [examplePhotos.length]);
+  }, [NUM_SLIDES]);
 
   return (
     <>
@@ -283,20 +286,21 @@ export default function PhotoUpload({
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start flex-1">
-                  {/* Left Image - Always shown */}
+                  {/* Left Image - Conditionally show 1st or 2nd picture */}
                   <div className="relative flex-shrink-0 flex flex-col">
                     <div className="relative w-[140px]">
                       {examplePhotos.length > 0 && (
                         <div className="relative w-full">
                           <img
-                            src={examplePhotos[0].url}
+                            src={currentExampleIndex === 0 ? examplePhotos[0].url : examplePhotos[1].url}
                             alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
                             className="w-full h-auto object-contain rounded-lg border border-slate-200 bg-white max-h-[140px] sm:max-h-[170px]"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              // Try fallback to first demo photo if current fails
-                              if (DEMO_PHOTOS_ARRAY.length > 0 && target.src !== DEMO_PHOTOS_ARRAY[0].url) {
-                                target.src = DEMO_PHOTOS_ARRAY[0].url;
+                              // Try fallback to appropriate demo photo if current fails
+                              const fallbackIndex = currentExampleIndex === 0 ? 0 : 1;
+                              if (DEMO_PHOTOS_ARRAY.length > fallbackIndex && target.src !== DEMO_PHOTOS_ARRAY[fallbackIndex].url) {
+                                target.src = DEMO_PHOTOS_ARRAY[fallbackIndex].url;
                               } else {
                                 target.style.display = 'none';
                               }
@@ -345,20 +349,20 @@ export default function PhotoUpload({
                       </div>
                     </div>
                   ) : (
-                    /* Second slide: Show second image side by side with first image */
-                    examplePhotos.length > 1 && (
+                    /* Second slide: Show 3rd picture on the right */
+                    examplePhotos.length >= 3 && (
                       <div className="relative flex-shrink-0 flex flex-col">
                         <div className="relative w-[140px]">
                           <div className="relative w-full">
                             <img
-                              src={examplePhotos[1].url}
+                              src={examplePhotos[2].url}
                               alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
                               className="w-full h-auto max-h-[140px] sm:max-h-[170px] object-contain rounded-lg border border-slate-200 bg-white"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
-                                // Try fallback to second demo photo if current fails
-                                if (DEMO_PHOTOS_ARRAY.length > 1 && target.src !== DEMO_PHOTOS_ARRAY[1].url) {
-                                  target.src = DEMO_PHOTOS_ARRAY[1].url;
+                                // Try fallback to third demo photo if current fails
+                                if (DEMO_PHOTOS_ARRAY.length > 2 && target.src !== DEMO_PHOTOS_ARRAY[2].url) {
+                                  target.src = DEMO_PHOTOS_ARRAY[2].url;
                                 } else {
                                   target.style.display = 'none';
                                 }
@@ -376,7 +380,7 @@ export default function PhotoUpload({
                 </div>
 
                 {/* Carousel navigation - dots with arrows on sides */}
-                {examplePhotos.length > 1 && (
+                {NUM_SLIDES > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-3">
                     {/* Left arrow */}
                     <button
@@ -388,9 +392,9 @@ export default function PhotoUpload({
                       <ChevronLeft className="w-4 h-4 text-slate-800" aria-hidden="true" />
                     </button>
                     
-                    {/* Carousel dots */}
+                    {/* Carousel dots - only show 2 dots */}
                     <div className="flex items-center gap-1.5">
-                      {examplePhotos.map((_, index) => (
+                      {Array.from({ length: NUM_SLIDES }).map((_, index) => (
                         <button
                           key={index}
                           onClick={() => handleDotClick(index)}
