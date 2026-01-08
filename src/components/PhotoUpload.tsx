@@ -269,79 +269,78 @@ export default function PhotoUpload({
               
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
                 {/* Example Image with Carousel - Arrows on sides, dots below */}
-                <div className="relative flex-shrink-0 w-full sm:w-auto">
-                  <div className="relative flex items-start justify-center gap-2 sm:gap-3">
-                    {/* Left arrow - positioned on the side */}
+                <div className="relative flex-shrink-0 flex flex-col">
+                  {/* Arrows and Image Row */}
+                  <div className="relative flex items-center justify-center gap-2 sm:gap-3">
+                    {/* Left arrow - positioned on the left side, aligned to image center */}
                     <button
                       onClick={handlePreviousExample}
-                      className="p-1.5 rounded-md hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mt-1"
+                      className="p-1.5 rounded-md hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                       aria-label={t("tryOnWidget.photoUpload.previousExample") || "Exemple précédent"}
                       type="button"
                       disabled={examplePhotos.length <= 1}
                     >
-                      <ChevronLeft className="w-4 h-4 text-slate-700" aria-hidden="true" />
+                      <ChevronLeft className="w-4 h-4 text-slate-600" aria-hidden="true" />
                     </button>
                     
                     {/* Image container with green checkmark overlay */}
-                    <div className="relative flex-1 sm:flex-none sm:w-[160px]">
+                    <div className="relative flex-shrink-0 w-[160px]">
                       {examplePhotos.length > 0 && (
-                        <>
-                          <div className="relative">
-                            <img
-                              src={examplePhotos[currentExampleIndex].url}
-                              alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
-                              className="w-full h-auto max-h-[180px] sm:max-h-[220px] object-contain rounded-lg border border-slate-200 bg-white"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                // Try fallback to first demo photo if current fails
-                                if (DEMO_PHOTOS_ARRAY.length > 0 && target.src !== DEMO_PHOTOS_ARRAY[0].url) {
-                                  target.src = DEMO_PHOTOS_ARRAY[0].url;
-                                } else {
-                                  target.style.display = 'none';
-                                }
-                              }}
-                            />
-                            {/* Green checkmark overlay on top-left corner */}
-                            <div className="absolute top-0 left-0 bg-green-600 rounded-full p-1 shadow-sm">
-                              <Check className="w-4 h-4 text-white" strokeWidth={3} aria-hidden="true" />
-                            </div>
+                        <div className="relative w-full">
+                          <img
+                            src={examplePhotos[currentExampleIndex].url}
+                            alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
+                            className="w-full h-auto max-h-[180px] sm:max-h-[220px] object-contain rounded-lg border border-slate-200 bg-white"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              // Try fallback to first demo photo if current fails
+                              if (DEMO_PHOTOS_ARRAY.length > 0 && target.src !== DEMO_PHOTOS_ARRAY[0].url) {
+                                target.src = DEMO_PHOTOS_ARRAY[0].url;
+                              } else {
+                                target.style.display = 'none';
+                              }
+                            }}
+                          />
+                          {/* Green checkmark overlay on top-left corner */}
+                          <div className="absolute top-0 left-0 bg-green-600 rounded-full p-1 shadow-sm">
+                            <Check className="w-4 h-4 text-white" strokeWidth={3} aria-hidden="true" />
                           </div>
-                          
-                          {/* Carousel dots - below the image */}
-                          {examplePhotos.length > 1 && (
-                            <div className="flex items-center justify-center gap-1.5 mt-2">
-                              {examplePhotos.map((_, index) => (
-                                <button
-                                  key={index}
-                                  onClick={() => handleDotClick(index)}
-                                  className={`w-2 h-2 rounded-full transition-colors ${
-                                    index === currentExampleIndex ? 'bg-primary' : 'bg-slate-300'
-                                  }`}
-                                  aria-label={`${t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple"} ${index + 1}`}
-                                  type="button"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </>
+                        </div>
                       )}
                     </div>
                     
-                    {/* Right arrow - positioned on the side */}
+                    {/* Right arrow - positioned on the right side, aligned to image center */}
                     <button
                       onClick={handleNextExample}
-                      className="p-1.5 rounded-md hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mt-1"
+                      className="p-1.5 rounded-md hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                       aria-label={t("tryOnWidget.photoUpload.nextExample") || "Exemple suivant"}
                       type="button"
                       disabled={examplePhotos.length <= 1}
                     >
-                      <ChevronRight className="w-4 h-4 text-slate-700" aria-hidden="true" />
+                      <ChevronRight className="w-4 h-4 text-slate-600" aria-hidden="true" />
                     </button>
                   </div>
+                  
+                  {/* Carousel dots - below the image, centered */}
+                  {examplePhotos.length > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-2">
+                      {examplePhotos.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleDotClick(index)}
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            index === currentExampleIndex ? 'bg-primary' : 'bg-slate-300'
+                          }`}
+                          aria-label={`${t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple"} ${index + 1}`}
+                          type="button"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Checklist - Right side of example, vertically centered */}
-                <div className="flex-1 flex flex-col gap-2.5 sm:gap-3 justify-center min-w-0 sm:pt-2">
+                <div className="flex-1 flex flex-col gap-2.5 sm:gap-3 justify-center min-w-0">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
                     <span className="text-sm text-slate-800">
