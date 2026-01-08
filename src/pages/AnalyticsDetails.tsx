@@ -70,119 +70,6 @@ const AnalyticsDetails = () => {
     }
   };
 
-  // Download image with CORS handling
-  const handleDownloadImage = async (imageUrl: string, filename: string) => {
-    try {
-      // Strategy 1: Try fetch with blob (works if CORS allows)
-      try {
-        const response = await fetch(imageUrl, {
-          method: 'GET',
-          mode: 'cors',
-        });
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-          link.style.display = "none";
-          link.setAttribute("download", filename);
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }, 100);
-          toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
-          return;
-        }
-      } catch (fetchError) {
-        console.log("Fetch failed, trying canvas approach:", fetchError);
-      }
-
-      // Strategy 2: Try canvas approach (works if image allows crossOrigin)
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Image load timeout"));
-        }, 10000); // 10 second timeout
-        
-        img.onload = () => {
-          clearTimeout(timeout);
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              canvas.toBlob((blob) => {
-                if (blob) {
-                  const url = URL.createObjectURL(blob);
-                  const downloadLink = document.createElement("a");
-                  downloadLink.href = url;
-                  downloadLink.download = filename;
-                  downloadLink.style.display = "none";
-                  downloadLink.setAttribute("download", filename);
-                  document.body.appendChild(downloadLink);
-                  downloadLink.click();
-                  setTimeout(() => {
-                    document.body.removeChild(downloadLink);
-                    URL.revokeObjectURL(url);
-                  }, 100);
-                  toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
-                  resolve();
-                } else {
-                  reject(new Error("Failed to create blob from canvas"));
-                }
-              }, "image/png");
-            } else {
-              reject(new Error("Failed to get canvas context"));
-            }
-          } catch (canvasError) {
-            reject(canvasError);
-          }
-        };
-        
-        img.onerror = (error) => {
-          clearTimeout(timeout);
-          reject(new Error("Image failed to load with CORS"));
-        };
-        
-        img.src = imageUrl;
-      });
-    } catch (err) {
-      console.error("Download methods failed, trying direct download:", err);
-      
-      // Strategy 3: Direct download link (works for same-origin or if server allows)
-      try {
-        const link = document.createElement("a");
-        link.href = imageUrl;
-        link.download = filename;
-        link.style.display = "none";
-        link.setAttribute("download", filename);
-        // Prevent navigation
-        link.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        };
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 100);
-        toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
-      } catch (finalError) {
-        console.error("Final download attempt failed:", finalError);
-        toast.error(t("analytics.imageDownloadError") || "Failed to download image. Please try right-clicking and saving the image.");
-      }
-    }
-  };
-
   // Status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -379,7 +266,20 @@ const AnalyticsDetails = () => {
                         <Button
                           size="icon"
                           className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                          onClick={() => handleDownloadImage(record.personImageUrl, `person-image-${record.id}.png`)}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(record.personImageUrl);
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `person-image-${record.id}.${blob.type.split("/")[1] || "jpg"}`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Failed to download image");
+                            }
+                          }}
                           aria-label="Download image"
                         >
                           <Download className="w-4 h-4" />
@@ -424,7 +324,20 @@ const AnalyticsDetails = () => {
                         <Button
                           size="icon"
                           className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                          onClick={() => handleDownloadImage(record.clothingImageUrl, `clothing-image-${record.id}.png`)}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(record.clothingImageUrl);
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `clothing-image-${record.id}.${blob.type.split("/")[1] || "jpg"}`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Failed to download image");
+                            }
+                          }}
                           aria-label="Download image"
                         >
                           <Download className="w-4 h-4" />
@@ -469,7 +382,20 @@ const AnalyticsDetails = () => {
                         <Button
                           size="icon"
                           className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                          onClick={() => handleDownloadImage(record.generatedImageUrl, `generated-image-${record.id}.png`)}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(record.generatedImageUrl);
+                              const blob = await response.blob();
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `generated-image-${record.id}.${blob.type.split("/")[1] || "jpg"}`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Failed to download image");
+                            }
+                          }}
                           aria-label="Download image"
                         >
                           <Download className="w-4 h-4" />
