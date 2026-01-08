@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Camera, User, ArrowLeft } from "lucide-react";
+import { X, Camera, User, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
 import { cn } from "@/lib/utils";
 
@@ -218,32 +218,114 @@ export default function PhotoUpload({
             </div>
           </div>
         ) : showFilePicker ? (
-          /* Expanded File Picker View */
-          <div className="flex flex-col bg-white w-full h-full py-3.5 px-4 rounded-2xl overflow-hidden">
-            {/* Header with back button and title */}
-            <div className="flex items-start gap-3 mb-3 flex-shrink-0">
+          /* Expanded File Picker View - New Design Matching Screenshot */
+          <div className="flex flex-col bg-white w-full h-full py-4 px-4 rounded-2xl overflow-hidden">
+            {/* Header with back button and title side-by-side */}
+            <div className="flex items-center gap-2 mb-3 flex-shrink-0">
               <button
                 onClick={() => setShowFilePicker(false)}
-                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0 mt-0.5"
+                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
                 aria-label={t("common.back") || t("tryOnWidget.buttons.back") || "Retour"}
               >
-                <ArrowLeft className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                <ArrowLeft className="w-5 h-5 text-slate-800" aria-hidden="true" />
               </button>
-              <h2 className={`text-lg font-semibold text-slate-800 ${isMobile ? 'line-clamp-2 flex-1' : ''}`}>
+              <h2 className="text-xl font-semibold text-slate-800">
                 {t("tryOnWidget.photoUpload.takePhoto") || "Prenez une photo de vous"}
               </h2>
             </div>
 
             {/* Subtitle */}
-            <div className="flex items-start gap-2 mb-4 flex-shrink-0">
-              <span className={`text-sm text-slate-600 ${isMobile ? 'line-clamp-2 flex-1' : ''}`}>
+            <div className="mb-4 flex-shrink-0">
+              <p className="text-sm text-slate-800">
                 {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
-              </span>
+              </p>
             </div>
 
-            {/* Upload Area - Takes full remaining space */}
+            {/* Example Correct Box */}
+            <div className="mb-6 p-4 border border-slate-200 rounded-xl bg-white flex-shrink-0">
+              <div className="mb-4">
+                <span className="text-sm font-semibold text-slate-800">
+                  {t("tryOnWidget.photoUpload.correctExample") || "Exemple correct"}
+                </span>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
+                {/* Example Image with Carousel - Arrows on sides, dots below */}
+                <div className="relative flex-shrink-0 w-full sm:w-auto">
+                  <div className="relative flex items-start justify-center gap-2 sm:gap-3">
+                    {/* Left arrow - positioned on the side */}
+                    <button
+                      className="p-1.5 rounded-md hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 mt-1"
+                      aria-label={t("tryOnWidget.photoUpload.previousExample") || "Exemple précédent"}
+                      type="button"
+                      disabled
+                    >
+                      <ChevronLeft className="w-4 h-4 text-slate-700" aria-hidden="true" />
+                    </button>
+                    
+                    {/* Image container */}
+                    <div className="relative flex-1 sm:flex-none sm:w-[160px]">
+                      <img
+                        src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/bibq0aat_expires_30_days.png"
+                        alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
+                        className="w-full h-auto max-h-[180px] sm:max-h-[220px] object-contain rounded-lg border border-slate-200 bg-white"
+                        onError={(e) => {
+                          // Fallback to first demo photo if example image doesn't exist
+                          const target = e.target as HTMLImageElement;
+                          if (DEMO_PHOTOS_ARRAY.length > 0) {
+                            target.src = DEMO_PHOTOS_ARRAY[0].url;
+                          } else {
+                            target.style.display = 'none';
+                          }
+                        }}
+                      />
+                      
+                      {/* Carousel dots - below the image */}
+                      <div className="flex items-center justify-center gap-1.5 mt-2">
+                        <div className="w-2 h-2 rounded-full bg-primary" aria-hidden="true" />
+                        <div className="w-2 h-2 rounded-full bg-slate-300" aria-hidden="true" />
+                        <div className="w-2 h-2 rounded-full bg-slate-300" aria-hidden="true" />
+                      </div>
+                    </div>
+                    
+                    {/* Right arrow - positioned on the side */}
+                    <button
+                      className="p-1.5 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0 mt-1"
+                      aria-label={t("tryOnWidget.photoUpload.nextExample") || "Exemple suivant"}
+                      type="button"
+                    >
+                      <ChevronRight className="w-4 h-4 text-slate-700" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Checklist - Right side of example, vertically centered */}
+                <div className="flex-1 flex flex-col gap-2.5 sm:gap-3 justify-center min-w-0 sm:pt-2">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                    <span className="text-sm text-slate-800">
+                      {t("tryOnWidget.photoUpload.checklist.visibleFace") || "Face visible"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                    <span className="text-sm text-slate-800">
+                      {t("tryOnWidget.photoUpload.checklist.fullBody") || "Corps entier"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                    <span className="text-sm text-slate-800">
+                      {t("tryOnWidget.photoUpload.checklist.simpleBackground") || "Fond simple"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upload Area - Dashed blue rectangle */}
             <div
-              className={`flex-1 flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-colors min-h-[400px] py-8 px-4 ${isMobile ? 'overflow-hidden' : ''}`}
+              className="flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-500 bg-blue-50/30 rounded-xl cursor-pointer hover:bg-blue-50/50 hover:border-blue-600 transition-all py-12 sm:py-16 px-4 mb-6 flex-shrink-0 min-h-[160px] sm:min-h-[180px]"
               onClick={() => fileInputRef.current?.click()}
               role="button"
               tabIndex={0}
@@ -255,18 +337,43 @@ export default function PhotoUpload({
                 }
               }}
             >
-              <Camera className="w-16 h-16 text-blue-600 mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <span className="text-slate-700 text-base font-medium text-center">
+              <Camera className="w-12 h-12 sm:w-14 sm:h-14 text-blue-600 mb-3 sm:mb-4" strokeWidth={1.5} aria-hidden="true" />
+              <span className="text-slate-800 text-sm sm:text-base font-medium mb-1.5 sm:mb-2 block">
                 {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
+              </span>
+              <span className="text-xs text-slate-600 block">
+                {t("tryOnWidget.photoUpload.fileFormat") || "JPG / PNG • Photo entière du corps"}
               </span>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png"
                 onChange={handleFileSelect}
                 className="hidden"
                 aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
               />
+            </div>
+
+            {/* Bottom Checklist */}
+            <div className="flex flex-col gap-2.5 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                <span className="text-sm text-slate-800">
+                  {t("tryOnWidget.photoUpload.checklist.visibleFace") || "Face visible"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                <span className="text-sm text-slate-800">
+                  {t("tryOnWidget.photoUpload.checklist.fullBody") || "Corps entier"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                <span className="text-sm text-slate-800">
+                  {t("tryOnWidget.photoUpload.checklist.simpleBackground") || "Fond simple"}
+                </span>
+              </div>
             </div>
           </div>
         ) : showDemoModel ? (
