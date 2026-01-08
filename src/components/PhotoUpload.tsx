@@ -250,9 +250,9 @@ export default function PhotoUpload({
           </div>
         ) : showFilePicker ? (
           /* Expanded File Picker View - New Design Matching Screenshot */
-          <div className="flex flex-col bg-white w-full h-full py-4 px-4 rounded-2xl overflow-hidden">
+          <div className="flex flex-col bg-white w-full h-full px-4 pb-4 rounded-2xl overflow-hidden">
             {/* Header with back button and title side-by-side */}
-            <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+            <div className="flex items-center gap-2 mb-1 flex-shrink-0">
               <button
                 onClick={() => setShowFilePicker(false)}
                 className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors flex-shrink-0"
@@ -266,38 +266,36 @@ export default function PhotoUpload({
             </div>
 
             {/* Subtitle */}
-            <div className="mb-4 flex-shrink-0">
+            <div className="mb-3 flex-shrink-0">
               <p className="text-sm text-slate-800">
                 {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
               </p>
             </div>
 
             {/* Example Correct Box */}
-            <div className="relative mb-6 p-4 border border-slate-200 rounded-xl bg-white flex-shrink-0">
-              <div className="flex flex-col">
-                {/* Heading for second slide - shown at the top */}
-                {currentExampleIndex === 1 && (
+            <div className="relative mb-4 p-3 border border-slate-200 rounded-xl bg-white flex-shrink-0 min-h-[200px] sm:min-h-[240px]">
+              <div className="flex flex-col h-full">
+                {/* Heading for second slide - shown at the top, spacer for first slide */}
+                {currentExampleIndex === 1 ? (
                   <div className="mb-2 sm:mb-3 flex-shrink-0">
                     <span className="text-sm font-semibold text-slate-800">
                       {t("tryOnWidget.photoUpload.correctExample") || "Correct example"}
                     </span>
                   </div>
+                ) : (
+                  <div className="mb-2 sm:mb-3 flex-shrink-0 h-[20px] sm:h-[24px]"></div>
                 )}
 
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start flex-1">
                   {/* Left Image - Always shown */}
                   <div className="relative flex-shrink-0 flex flex-col">
-                    <div className="relative w-[160px]">
+                    <div className="relative w-[140px]">
                       {examplePhotos.length > 0 && (
                         <div className="relative w-full">
                           <img
                             src={examplePhotos[0].url}
                             alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
-                            className={`w-full h-auto object-contain rounded-lg border border-slate-200 bg-white ${
-                              currentExampleIndex === 1 
-                                ? 'max-h-[155px] sm:max-h-[185px]' 
-                                : 'max-h-[180px] sm:max-h-[220px]'
-                            }`}
+                            className="w-full h-auto object-contain rounded-lg border border-slate-200 bg-white max-h-[140px] sm:max-h-[170px]"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               // Try fallback to first demo photo if current fails
@@ -320,16 +318,16 @@ export default function PhotoUpload({
                   {/* Right side content - Conditionally render checklist or second image */}
                   {currentExampleIndex === 0 ? (
                     /* First slide: Show checklist with "Make sure" heading and pointers */
-                    <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex flex-col min-w-0 flex-1 justify-start">
                       {/* Heading for checklist */}
-                      <div className="mb-2 sm:mb-3">
+                      <div className="mb-2 sm:mb-3 flex-shrink-0">
                         <span className="text-sm font-semibold text-slate-800">
                           {t("tryOnWidget.photoUpload.makeSure") || "Make sure your photo has:"}
                         </span>
                       </div>
                       
                       {/* Checklist items */}
-                      <div className="flex flex-col gap-2.5 sm:gap-3">
+                      <div className="flex flex-col gap-2 sm:gap-2.5 flex-shrink-0">
                         <div className="flex items-center gap-2.5">
                           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
                           <span className="text-sm text-slate-800">
@@ -354,12 +352,12 @@ export default function PhotoUpload({
                     /* Second slide: Show second image side by side with first image */
                     examplePhotos.length > 1 && (
                       <div className="relative flex-shrink-0 flex flex-col">
-                        <div className="relative w-[160px]">
+                        <div className="relative w-[140px]">
                           <div className="relative w-full">
                             <img
                               src={examplePhotos[1].url}
                               alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
-                              className="w-full h-auto max-h-[155px] sm:max-h-[185px] object-contain rounded-lg border border-slate-200 bg-white"
+                              className="w-full h-auto max-h-[140px] sm:max-h-[170px] object-contain rounded-lg border border-slate-200 bg-white"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 // Try fallback to second demo photo if current fails
@@ -383,7 +381,7 @@ export default function PhotoUpload({
 
                 {/* Carousel navigation - dots with arrows on sides */}
                 {examplePhotos.length > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-4">
+                  <div className="flex items-center justify-center gap-2 mt-3">
                     {/* Left arrow */}
                     <button
                       onClick={handlePreviousExample}
@@ -425,7 +423,7 @@ export default function PhotoUpload({
 
             {/* Upload Area - Dashed blue rectangle */}
             <div
-              className="flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-500 bg-blue-50/30 rounded-xl cursor-pointer hover:bg-blue-50/50 hover:border-blue-600 transition-all py-12 sm:py-16 px-4 mb-6 flex-shrink-0 min-h-[160px] sm:min-h-[180px]"
+              className="flex flex-col items-center justify-center text-center border-2 border-dashed border-blue-500 bg-blue-50/30 rounded-xl cursor-pointer hover:bg-blue-50/50 hover:border-blue-600 transition-all py-4 sm:py-6 px-4 mb-0 flex-shrink-0 min-h-[80px] sm:min-h-[100px]"
               onClick={() => fileInputRef.current?.click()}
               role="button"
               tabIndex={0}
@@ -437,8 +435,8 @@ export default function PhotoUpload({
                 }
               }}
             >
-              <Camera className="w-12 h-12 sm:w-14 sm:h-14 text-blue-600 mb-3 sm:mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <span className="text-slate-800 text-sm sm:text-base font-medium mb-1.5 sm:mb-2 block">
+              <Camera className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 mb-2 sm:mb-3" strokeWidth={1.5} aria-hidden="true" />
+              <span className="text-slate-800 text-sm sm:text-base font-medium mb-1 sm:mb-1.5 block">
                 {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
               </span>
               <span className="text-xs text-slate-600 block">
