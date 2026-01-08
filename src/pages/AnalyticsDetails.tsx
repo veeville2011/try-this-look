@@ -87,10 +87,13 @@ const AnalyticsDetails = () => {
           link.href = url;
           link.download = filename;
           link.style.display = "none";
+          link.setAttribute("download", filename);
           document.body.appendChild(link);
           link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }, 100);
           toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
           return;
         }
@@ -103,7 +106,12 @@ const AnalyticsDetails = () => {
       img.crossOrigin = "anonymous";
       
       await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Image load timeout"));
+        }, 10000); // 10 second timeout
+        
         img.onload = () => {
+          clearTimeout(timeout);
           try {
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
@@ -119,10 +127,13 @@ const AnalyticsDetails = () => {
                   downloadLink.href = url;
                   downloadLink.download = filename;
                   downloadLink.style.display = "none";
+                  downloadLink.setAttribute("download", filename);
                   document.body.appendChild(downloadLink);
                   downloadLink.click();
-                  document.body.removeChild(downloadLink);
-                  URL.revokeObjectURL(url);
+                  setTimeout(() => {
+                    document.body.removeChild(downloadLink);
+                    URL.revokeObjectURL(url);
+                  }, 100);
                   toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
                   resolve();
                 } else {
@@ -138,46 +149,33 @@ const AnalyticsDetails = () => {
         };
         
         img.onerror = (error) => {
+          clearTimeout(timeout);
           reject(new Error("Image failed to load with CORS"));
         };
         
         img.src = imageUrl;
       });
     } catch (err) {
-      console.error("All download methods failed:", err);
+      console.error("Download methods failed, trying direct download:", err);
       
-      // Strategy 3: Force download using iframe (last resort)
+      // Strategy 3: Direct download link (works for same-origin or if server allows)
       try {
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = imageUrl;
-        document.body.appendChild(iframe);
-        
-        // Try to trigger download after iframe loads
+        const link = document.createElement("a");
+        link.href = imageUrl;
+        link.download = filename;
+        link.style.display = "none";
+        link.setAttribute("download", filename);
+        // Prevent navigation
+        link.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        document.body.appendChild(link);
+        link.click();
         setTimeout(() => {
-          try {
-            const link = document.createElement("a");
-            link.href = imageUrl;
-            link.download = filename;
-            link.style.display = "none";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            document.body.removeChild(iframe);
-            toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
-          } catch (iframeError) {
-            document.body.removeChild(iframe);
-            // Final fallback: create download link without target
-            const link = document.createElement("a");
-            link.href = imageUrl;
-            link.download = filename;
-            link.style.display = "none";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            toast.info(t("analytics.imageDownloadAttempt") || "Download initiated. If it doesn't work, the image may need to be saved manually.");
-          }
+          document.body.removeChild(link);
         }, 100);
+        toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
       } catch (finalError) {
         console.error("Final download attempt failed:", finalError);
         toast.error(t("analytics.imageDownloadError") || "Failed to download image. Please try right-clicking and saving the image.");

@@ -895,23 +895,20 @@ const Analytics = () => {
             </div>
 
             {/* Image container */}
-            <div className="flex-1 flex items-center justify-center p-4 overflow-auto bg-muted/30 min-h-0 w-full">
+            <div className="flex-1 flex items-center justify-center p-4 overflow-hidden bg-muted/30 min-h-0">
               {imageModal.imageUrl && (
-                <div className="flex items-center justify-center w-full h-full">
-                  <img
-                    src={imageModal.imageUrl}
-                    alt={imageModal.imageTitle}
-                    className="object-contain rounded-lg shadow-lg"
-                    style={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '100%',
-                      width: 'auto',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      display: 'block'
-                    }}
-                  />
-                </div>
+                <img
+                  src={imageModal.imageUrl}
+                  alt={imageModal.imageTitle}
+                  className="w-auto h-auto max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain'
+                  }}
+                />
               )}
             </div>
 
