@@ -2812,7 +2812,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 aria-labelledby="clothing-heading"
                 className={cn(
                   "flex flex-col items-start w-full min-h-0 max-w-full",
-                  layoutMode === "wide" ? "max-w-sm pt-3 flex-1" : "flex-1"
+                  layoutMode === "wide" ? "max-w-full px-2 pt-3 flex-1" : "flex-1"
                 )}
               >
                 {/* Header with back button and title side-by-side */}
