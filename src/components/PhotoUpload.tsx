@@ -275,16 +275,12 @@ export default function PhotoUpload({
             {/* Example Correct Box */}
             <div className="relative mb-4 p-3 border border-slate-200 rounded-xl bg-white flex-shrink-0 min-h-[200px] sm:min-h-[240px]">
               <div className="flex flex-col h-full">
-                {/* Heading for second slide - shown at the top, spacer for first slide */}
-                {currentExampleIndex === 1 ? (
-                  <div className="mb-2 sm:mb-3 flex-shrink-0">
-                    <span className="text-sm font-semibold text-slate-800">
-                      {t("tryOnWidget.photoUpload.correctExample") || "Correct example"}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mb-2 sm:mb-3 flex-shrink-0 h-[20px] sm:h-[24px]"></div>
-                )}
+                {/* Heading - shown for both slides */}
+                <div className="mb-2 sm:mb-3 flex-shrink-0">
+                  <span className="text-sm font-semibold text-slate-800">
+                    {t("tryOnWidget.photoUpload.correctExample") || "Correct example"}
+                  </span>
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start flex-1">
                   {/* Left Image - Always shown */}
