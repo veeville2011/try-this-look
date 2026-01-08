@@ -26,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
+import ExcelJS from "exceljs";
 
 const Analytics = () => {
   const { t, i18n } = useTranslation();
@@ -210,8 +211,63 @@ const Analytics = () => {
     }
   };
 
+  // Format date for table display in 3 lines (date, conjunction, time)
+  const formatDateForTable = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      
+      // Format date part (e.g., "6 janvier 2026")
+      const datePart = date.toLocaleDateString("fr-FR", {
+        timeZone: "Europe/Paris",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      
+      // Format time part (e.g., "07:57:08 AM")
+      const timePart = date.toLocaleTimeString("fr-FR", {
+        timeZone: "Europe/Paris",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+      
+      // Conjunction in French
+      const conjunction = "à";
+      
+      return {
+        date: datePart,
+        conjunction,
+        time: timePart,
+      };
+    } catch {
+      return {
+        date: dateString,
+        conjunction: "",
+        time: "",
+      };
+    }
+  };
 
-  // Export to CSV
+
+  // Get status color for Excel cells (ARGB format)
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "completed":
+        return "FFD1F2D1"; // Light green
+      case "failed":
+        return "FFFFE1E1"; // Light red
+      case "processing":
+        return "FFE1F2FF"; // Light blue
+      case "pending":
+        return "FFFFF8E1"; // Light yellow
+      default:
+        return "FFFFFFFF"; // White
+    }
+  };
+
+  // Export to Excel with professional formatting
   const handleExport = async () => {
     const loadingToast = toast.loading(t("analytics.export.exporting") || "Exporting data...");
     
@@ -224,7 +280,11 @@ const Analytics = () => {
         return;
       }
 
-      // Create CSV headers
+      // Create a new workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Analytics");
+
+      // Define headers
       const headers = [
         "ID",
         "Status",
@@ -234,28 +294,113 @@ const Analytics = () => {
         "Created At",
       ];
 
-      // Create CSV rows
-      const rows = allData.map((record) => [
-        record.id || "",
-        record.status || "",
-        record.personImageUrl || "",
-        record.clothingImageUrl || "",
-        record.generatedImageUrl || "",
-        formatDate(record.createdAt),
-      ]);
+      // Set column widths
+      worksheet.columns = [
+        { width: 30 }, // ID
+        { width: 15 }, // Status
+        { width: 50 }, // Person Image URL
+        { width: 50 }, // Clothing Image URL
+        { width: 50 }, // Generated Image URL
+        { width: 30 }, // Created At
+      ];
 
-      // Combine headers and rows
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
+      // Style header row
+      const headerRow = worksheet.addRow(headers);
+      headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFC96442" }, // Primary color
+      };
+      headerRow.alignment = { 
+        horizontal: "center", 
+        vertical: "middle", 
+        wrapText: true 
+      };
+      headerRow.border = {
+        top: { style: "thin", color: { argb: "FF000000" } },
+        bottom: { style: "thin", color: { argb: "FF000000" } },
+        left: { style: "thin", color: { argb: "FF000000" } },
+        right: { style: "thin", color: { argb: "FF000000" } },
+      };
+      headerRow.height = 25;
+
+      // Add data rows
+      allData.forEach((record) => {
+        const row = worksheet.addRow([
+          record.id || "",
+          record.status || "",
+          record.personImageUrl || "",
+          record.clothingImageUrl || "",
+          record.generatedImageUrl || "",
+          formatDate(record.createdAt),
+        ]);
+
+        // Apply base styling to all cells in the row
+        row.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFE5E5E5" } },
+            bottom: { style: "thin", color: { argb: "FFE5E5E5" } },
+            left: { style: "thin", color: { argb: "FFE5E5E5" } },
+            right: { style: "thin", color: { argb: "FFE5E5E5" } },
+          };
+          cell.alignment = { 
+            vertical: "middle", 
+            wrapText: true 
+          };
+
+          // Style status column (column 2)
+          if (colNumber === 2 && record.status) {
+            const statusColor = getStatusColor(record.status);
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: statusColor },
+            };
+            cell.font = { bold: true };
+            cell.alignment = { 
+              horizontal: "center", 
+              vertical: "middle", 
+              wrapText: true 
+            };
+          }
+
+          // Center align ID column (column 1)
+          if (colNumber === 1) {
+            cell.alignment = { 
+              horizontal: "center", 
+              vertical: "middle", 
+              wrapText: true 
+            };
+          }
+
+          // Left align URL columns (columns 3-5)
+          if (colNumber >= 3 && colNumber <= 5) {
+            cell.alignment = { 
+              horizontal: "left", 
+              vertical: "middle", 
+              wrapText: true 
+            };
+          }
+        });
+
+        row.height = 20;
+      });
+
+      // Freeze header row
+      worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+      // Generate Excel file buffer
+      const buffer = await workbook.xlsx.writeBuffer();
 
       // Create blob and download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([buffer], { 
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+      });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `analytics-export-${new Date().toISOString().split("T")[0]}.csv`);
+      link.setAttribute("download", `analytics-export-${new Date().toISOString().split("T")[0]}.xlsx`);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
@@ -265,6 +410,7 @@ const Analytics = () => {
       toast.dismiss(loadingToast);
       toast.success(t("analytics.export.success") || "Data exported successfully");
     } catch (err) {
+      console.error("Export error:", err);
       toast.dismiss(loadingToast);
       toast.error(t("analytics.export.error") || "Failed to export data");
     }
@@ -486,7 +632,16 @@ const Analytics = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {formatDate(record.createdAt)}
+                            {(() => {
+                              const dateParts = formatDateForTable(record.createdAt);
+                              return (
+                                <div className="flex flex-col leading-tight">
+                                  <span>{dateParts.date}</span>
+                                  <span className="text-center">{dateParts.conjunction}</span>
+                                  <span>{dateParts.time}</span>
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
                             <Button
