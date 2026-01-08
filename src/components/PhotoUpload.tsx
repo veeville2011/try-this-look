@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Camera, Info, User, ArrowLeft } from "lucide-react";
+import { X, Camera, User, ArrowLeft } from "lucide-react";
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
 import { cn } from "@/lib/utils";
 
@@ -145,12 +145,9 @@ export default function PhotoUpload({
               }}
             >
               <Camera className="w-12 h-12 text-slate-700 mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <div className="flex items-center gap-2">
-                <span className="text-black text-base font-medium">
-                  {t("tryOnWidget.photoUpload.choosePhoto") || "Choisir une photo"}
-                </span>
-                <Info className="w-4 h-4 text-slate-600" strokeWidth={2} aria-hidden="true" />
-              </div>
+              <span className="text-black text-base font-medium">
+                {t("tryOnWidget.photoUpload.choosePhoto") || "Choisir une photo"}
+              </span>
             </div>
 
             {/* Separator OU */}
@@ -242,7 +239,6 @@ export default function PhotoUpload({
               <span className={`text-sm text-slate-600 ${isMobile ? 'line-clamp-2 flex-1' : ''}`}>
                 {t("tryOnWidget.photoUpload.chooseClearPhoto") || "Choisissez une photo claire de vous"}
               </span>
-              <Info className="w-4 h-4 text-slate-600 flex-shrink-0 mt-0.5" strokeWidth={2} aria-hidden="true" />
             </div>
 
             {/* Upload Area - Takes full remaining space */}
@@ -260,12 +256,9 @@ export default function PhotoUpload({
               }}
             >
               <Camera className="w-16 h-16 text-blue-600 mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-slate-700 text-base font-medium text-center">
-                  {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
-                </span>
-                <Info className="w-4 h-4 text-slate-600 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-              </div>
+              <span className="text-slate-700 text-base font-medium text-center">
+                {t("tryOnWidget.photoUpload.clickToUpload") || "Cliquez pour télécharger votre photo"}
+              </span>
               <input
                 ref={fileInputRef}
                 type="file"
