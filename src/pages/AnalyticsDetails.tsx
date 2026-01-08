@@ -73,77 +73,115 @@ const AnalyticsDetails = () => {
   // Download image with CORS handling
   const handleDownloadImage = async (imageUrl: string, filename: string) => {
     try {
-      // Use canvas approach to handle CORS
+      // Strategy 1: Try fetch with blob (works if CORS allows)
+      try {
+        const response = await fetch(imageUrl, {
+          method: 'GET',
+          mode: 'cors',
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          link.style.display = "none";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
+          return;
+        }
+      } catch (fetchError) {
+        console.log("Fetch failed, trying canvas approach:", fetchError);
+      }
+
+      // Strategy 2: Try canvas approach (works if image allows crossOrigin)
       const img = new Image();
       img.crossOrigin = "anonymous";
       
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob((blob) => {
-              if (blob) {
-                const url = URL.createObjectURL(blob);
-                const downloadLink = document.createElement("a");
-                downloadLink.href = url;
-                downloadLink.download = filename;
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                URL.revokeObjectURL(url);
-                toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
-              } else {
-                throw new Error("Failed to create blob");
-              }
-            }, "image/png");
-          } else {
-            throw new Error("Failed to get canvas context");
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  const url = URL.createObjectURL(blob);
+                  const downloadLink = document.createElement("a");
+                  downloadLink.href = url;
+                  downloadLink.download = filename;
+                  downloadLink.style.display = "none";
+                  document.body.appendChild(downloadLink);
+                  downloadLink.click();
+                  document.body.removeChild(downloadLink);
+                  URL.revokeObjectURL(url);
+                  toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
+                  resolve();
+                } else {
+                  reject(new Error("Failed to create blob from canvas"));
+                }
+              }, "image/png");
+            } else {
+              reject(new Error("Failed to get canvas context"));
+            }
+          } catch (canvasError) {
+            reject(canvasError);
           }
-        } catch (canvasError) {
-          console.error("Canvas error:", canvasError);
-          // Fallback: try direct download
-          const link = document.createElement("a");
-          link.href = imageUrl;
-          link.download = filename;
-          link.target = "_blank";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.info(t("analytics.imageOpenInNewTab") || "Image opened in new tab. Please save it manually.");
-        }
-      };
-      
-      img.onerror = (error) => {
-        console.error("Image load error:", error);
-        // If CORS fails, try direct download as fallback
-        try {
-          const link = document.createElement("a");
-          link.href = imageUrl;
-          link.download = filename;
-          link.target = "_blank";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.info(t("analytics.imageOpenInNewTab") || "Image opened in new tab. Please save it manually.");
-        } catch (fallbackError) {
-          // Final fallback: open in new tab
-          window.open(imageUrl, "_blank");
-          toast.info(t("analytics.imageOpenInNewTab") || "Image opened in new tab. Please save it manually.");
-        }
-      };
-      
-      // Set src after setting up handlers
-      img.src = imageUrl;
+        };
+        
+        img.onerror = (error) => {
+          reject(new Error("Image failed to load with CORS"));
+        };
+        
+        img.src = imageUrl;
+      });
     } catch (err) {
-      console.error("Download error:", err);
-      // Final fallback: open in new tab
-      window.open(imageUrl, "_blank");
-      toast.error(t("analytics.imageDownloadError") || "Failed to download image. Opened in new tab instead.");
+      console.error("All download methods failed:", err);
+      
+      // Strategy 3: Force download using iframe (last resort)
+      try {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = imageUrl;
+        document.body.appendChild(iframe);
+        
+        // Try to trigger download after iframe loads
+        setTimeout(() => {
+          try {
+            const link = document.createElement("a");
+            link.href = imageUrl;
+            link.download = filename;
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            document.body.removeChild(iframe);
+            toast.success(t("analytics.imageDownloaded") || "Image downloaded successfully");
+          } catch (iframeError) {
+            document.body.removeChild(iframe);
+            // Final fallback: create download link without target
+            const link = document.createElement("a");
+            link.href = imageUrl;
+            link.download = filename;
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.info(t("analytics.imageDownloadAttempt") || "Download initiated. If it doesn't work, the image may need to be saved manually.");
+          }
+        }, 100);
+      } catch (finalError) {
+        console.error("Final download attempt failed:", finalError);
+        toast.error(t("analytics.imageDownloadError") || "Failed to download image. Please try right-clicking and saving the image.");
+      }
     }
   };
 
