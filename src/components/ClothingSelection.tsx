@@ -194,7 +194,7 @@ export default function ClothingSelection({
       {showFinalLayout ? (
         /* Final Layout - 2x2 Grid Layout with fixed height and scroll - shows exactly 4 items at a time, scrollable for more */
         <div 
-          className="h-[400px] max-h-[400px] overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+          className="h-[360px] max-h-[360px] overflow-y-auto pr-1 px-2 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
         >
           {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
@@ -242,7 +242,7 @@ export default function ClothingSelection({
       ) : (
         /* Original Layout - 2x2 Grid Layout with fixed height and scroll - shows exactly 4 items at a time, scrollable for more */
         <div 
-          className="h-[400px] max-h-[400px] overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+          className="h-[360px] max-h-[360px] overflow-y-auto pr-1 px-2 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
         >
           {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (

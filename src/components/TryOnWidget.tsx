@@ -2848,7 +2848,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {/* Clothing Selection Container - Minimum height for 2x2 grid, scrollable */}
                 <div className={cn(
                   "flex flex-col min-h-0 w-full",
-                  layoutMode !== "wide" ? "flex-1 min-h-[400px]" : "flex-1"
+                  layoutMode !== "wide" ? "flex-1 min-h-[360px]" : "flex-1"
                 )}>
                   <ClothingSelection
                     images={singleTabImages}
@@ -3457,7 +3457,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {/* Garment Selection Container */}
                 <div className={cn(
                   "flex flex-col min-h-0 w-full overflow-hidden",
-                  layoutMode !== "wide" ? "flex-1 min-h-[400px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
+                  layoutMode !== "wide" ? "flex-1 min-h-[360px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
                 )}>
                   <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                     {/* Garment Grid - Scrollable with fixed height */}
@@ -4113,7 +4113,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {/* Garment Selection Container */}
                 <div className={cn(
                   "flex flex-col min-h-0 w-full overflow-hidden",
-                  layoutMode !== "wide" ? "flex-1 min-h-[400px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
+                  layoutMode !== "wide" ? "flex-1 min-h-[360px] max-h-[600px]" : "flex-1 max-h-[calc(100vh-300px)]"
                 )}>
                   <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                     {/* Garment Grid - Scrollable with fixed height */}
