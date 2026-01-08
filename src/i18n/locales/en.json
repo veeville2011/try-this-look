@@ -1084,7 +1084,20 @@
       "alreadyGenerated": "Already generated",
       "previewAlt": "Preview of uploaded photo",
       "uploadSuccess": "Photo uploaded successfully!",
-      "nextStepHint": "Proceed to the next step to select a garment"
+      "nextStepHint": "Proceed to the next step to select a garment",
+      "correctExample": "Correct example",
+      "examplePhotoAlt": "Example of correct photo",
+      "previousExample": "Previous example",
+      "nextExample": "Next example",
+      "fileFormat": "JPG / PNG • Full body photo",
+      "invalidType": "Please upload an image file (jpg, jpeg, png, webp).",
+      "fileTooLarge": "The selected file is too large. Please choose an image under {{maxMB}}MB.",
+      "failedToLoadDemo": "Unable to load this demo photo. Please try another.",
+      "checklist": {
+        "visibleFace": "Visible face",
+        "fullBody": "Full body",
+        "simpleBackground": "Simple background"
+      }
     },
     "clothingSelection": {
       "recommendedProducts": "Recommended Products",

@@ -1084,7 +1084,20 @@
       "alreadyGenerated": "Déjà généré",
       "previewAlt": "Aperçu de la photo téléchargée",
       "uploadSuccess": "Photo téléchargée avec succès !",
-      "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement"
+      "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement",
+      "correctExample": "Exemple correct",
+      "examplePhotoAlt": "Exemple de photo correcte",
+      "previousExample": "Exemple précédent",
+      "nextExample": "Exemple suivant",
+      "fileFormat": "JPG / PNG • Photo entière du corps",
+      "invalidType": "Veuillez télécharger un fichier image (jpg, jpeg, png, webp).",
+      "fileTooLarge": "Le fichier sélectionné est trop volumineux. Veuillez choisir une image de moins de {{maxMB}} Mo.",
+      "failedToLoadDemo": "Impossible de charger cette photo de démonstration. Veuillez en essayer une autre.",
+      "checklist": {
+        "visibleFace": "Face visible",
+        "fullBody": "Corps entier",
+        "simpleBackground": "Fond simple"
+      }
     },
     "clothingSelection": {
       "recommendedProducts": "Produits recommandés",
