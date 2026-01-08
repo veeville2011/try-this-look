@@ -2485,8 +2485,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             }
                             className="max-h-full max-w-full w-auto h-auto object-contain"
                           />
-                          {/* Floating action buttons */}
-                          <div className="absolute top-3 right-3 flex gap-2 z-10">
+                          {/* Floating action buttons - Temporarily hidden */}
+                          {/* <div className="absolute top-3 right-3 flex gap-2 z-10">
                             <Button
                               onClick={() => handleDownload(generatedImage)}
                               disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
@@ -2515,7 +2515,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                 <Share2 className="w-5 h-5 text-slate-700" aria-hidden="true" />
                               )}
                             </Button>
-                          </div>
+                          </div> */}
                         </div>
                       ) : null}
                     </div>
@@ -2666,8 +2666,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       }
                       className="w-full h-auto max-h-[600px] object-contain"
                     />
-                    {/* Floating action buttons */}
-                    <div className="absolute top-3 right-3 flex gap-2 z-10">
+                    {/* Floating action buttons - Temporarily hidden */}
+                    {/* <div className="absolute top-3 right-3 flex gap-2 z-10">
                       <Button
                         onClick={() => handleDownload(generatedImage)}
                         disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading || !generatedImage}
@@ -2696,7 +2696,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           <Share2 className="w-5 h-5 text-slate-700" aria-hidden="true" />
                         )}
                       </Button>
-                    </div>
+                    </div> */}
                   </div>
                 ) : null}
               </div>
@@ -3092,8 +3092,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                   alt={t("tryOnWidget.resultDisplay.resultAlt") || "Résultat de l'essayage virtuel généré par intelligence artificielle"}
                                   className="max-h-full max-w-full w-auto h-auto object-contain"
                                 />
-                                {/* Floating action buttons */}
-                                <div className="absolute top-3 right-3 flex gap-2 z-10">
+                                {/* Floating action buttons - Temporarily hidden */}
+                                {/* <div className="absolute top-3 right-3 flex gap-2 z-10">
                                   <Button
                                     onClick={() => handleCartMultipleDownload(result.image, index)}
                                     disabled={downloadingIndex === index}
@@ -3108,7 +3108,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                       <Download className="w-5 h-5 text-slate-700" aria-hidden="true" />
                                     )}
                                   </Button>
-                                </div>
+                                </div> */}
                               </div>
                             ) : null
                           ))}
