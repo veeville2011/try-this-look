@@ -6876,6 +6876,64 @@ app.post("/api/tryon/generate", async (req, res) => {
   }
 });
 
+// Proxy endpoint to fetch images (bypasses CORS)
+app.get("/api/proxy-image", async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    
+    if (!imageUrl) {
+      return res.status(400).json({
+        error: "Missing url parameter",
+        message: "URL parameter is required",
+      });
+    }
+
+    // Validate URL
+    let url;
+    try {
+      url = new URL(imageUrl);
+    } catch (error) {
+      return res.status(400).json({
+        error: "Invalid URL",
+        message: "URL parameter must be a valid URL",
+      });
+    }
+
+    // Fetch image from URL
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: "Failed to fetch image",
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      });
+    }
+
+    // Get content type
+    const contentType = response.headers.get('content-type') || 'image/png';
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    
+    // Stream the image data
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    logger.error("[API] Proxy image fetch failed", error, req, {
+      url: req.query.url,
+    });
+    res.status(500).json({
+      error: "Failed to proxy image",
+      message: error.message,
+    });
+  }
+});
+
 // Get all store products with images (for Try Multiple and Try Look tabs)
 app.get("/api/products", async (req, res) => {
   try {

@@ -303,30 +303,53 @@ const Analytics = () => {
     return arrayBuffer as any as Buffer;
   };
 
+  // Helper function to get API base URL
+  const getApiBaseUrl = (): string => {
+    const apiUrl = import.meta.env.VITE_API_ENDPOINT;
+    if (!apiUrl) {
+      throw new Error("VITE_API_ENDPOINT environment variable is required");
+    }
+    return apiUrl.replace(/\/$/, "");
+  };
+
   // Helper function to fetch image as buffer with format detection
+  // Uses proxy endpoint if CORS fails
   const fetchImageAsBuffer = async (url: string): Promise<{ buffer: Buffer; extension: 'jpeg' | 'png' | 'gif' } | null> => {
     if (!url) return null;
     
     try {
-      // Try CORS-enabled fetch first, fallback to regular fetch
-      let response: Response;
+      // Strategy 1: Try direct fetch (works if CORS is configured)
       try {
-        response = await fetch(url, {
+        const response = await fetch(url, {
           mode: "cors",
           credentials: "omit",
         });
-      } catch (corsError) {
-        // Fallback to regular fetch if CORS fails
-        response = await fetch(url);
+        
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || undefined;
+          const arrayBuffer = await response.arrayBuffer();
+          const extension = getImageExtension(url, contentType);
+          const buffer = arrayBufferToBuffer(arrayBuffer);
+          return { buffer, extension };
+        }
+      } catch (fetchError) {
+        // CORS error - will use proxy
       }
+
+      // Strategy 2: Use proxy endpoint (bypasses CORS)
+      const apiBaseUrl = getApiBaseUrl();
+      const proxyUrl = `${apiBaseUrl}/api/proxy-image?url=${encodeURIComponent(url)}`;
       
-      if (!response.ok) return null;
+      const response = await fetch(proxyUrl);
+      
+      if (!response.ok) {
+        console.error(`Proxy failed to fetch image from ${url}: HTTP ${response.status}`);
+        return null;
+      }
       
       const contentType = response.headers.get('content-type') || undefined;
       const arrayBuffer = await response.arrayBuffer();
       const extension = getImageExtension(url, contentType);
-      
-      // Convert to Buffer for ExcelJS compatibility
       const buffer = arrayBufferToBuffer(arrayBuffer);
       
       return { buffer, extension };
