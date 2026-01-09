@@ -1329,7 +1329,7 @@ const Index = () => {
                           {/* Plan Price & Interval - Show when plan exists - Fixed height container */}
                           <div className="min-h-[48px] flex items-start">
                             <div className="pt-1 w-full">
-                              <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                              <div className={`flex items-baseline gap-2 flex-wrap ${subscription.plan && !subscription.isFree ? 'justify-between' : 'justify-start'}`}>
                                 {/* Price section - only show for paid plans */}
                                 {subscription.plan && !subscription.isFree ? (
                                   <div className="flex items-baseline gap-2">
@@ -1387,7 +1387,7 @@ const Index = () => {
                                           creditsSection.scrollIntoView({ behavior: "smooth", block: "start" });
                                         }
                                       }}
-                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRingColor} focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses} ${subscription.isFree ? 'ml-auto' : ''}`}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRingColor} focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses}`}
                                       aria-label={t("index.planCard.viewCredits") || "View credits"}
                                     >
                                       <Coins className="w-3 h-3" aria-hidden="true" />
