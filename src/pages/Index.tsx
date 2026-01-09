@@ -1328,9 +1328,10 @@ const Index = () => {
                           </div>
                           {/* Plan Price & Interval - Show when plan exists - Fixed height container */}
                           <div className="min-h-[48px] flex items-start">
-                            {subscription.plan && !subscription.isFree ? (
-                              <div className="pt-1 w-full">
-                                <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                            <div className="pt-1 w-full">
+                              <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                                {/* Price section - only show for paid plans */}
+                                {subscription.plan && !subscription.isFree ? (
                                   <div className="flex items-baseline gap-2">
                                     <p className="text-sm font-semibold text-foreground">
                                       {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
@@ -1343,65 +1344,66 @@ const Index = () => {
                                         : subscription.plan.interval}
                                     </p>
                                   </div>
-                                  {credits && !creditsLoading && (() => {
-                                    const creditBalance = credits.total_balance ?? credits.balance ?? 0;
-                                    const totalCredited = credits.total_credited ?? credits.included ?? 0;
-                                    const isOverage = credits.isOverage;
-                                    
-                                    // Calculate percentage of credits remaining
-                                    // If totalCredited is 0, default to success color (no credits used yet)
-                                    const creditPercentage = totalCredited > 0 
-                                      ? (creditBalance / totalCredited) * 100 
-                                      : 100;
-                                    
-                                    // Determine color scheme based on percentage thresholds
-                                    let colorClasses = "";
-                                    let focusRingColor = "";
-                                    
-                                    if (isOverage) {
-                                      // Overage mode - use warning color from design system
-                                      colorClasses = "bg-warning/10 hover:bg-warning/20 text-warning border-warning/20 hover:border-warning/30";
-                                      focusRingColor = "focus-visible:ring-warning";
-                                    } else if (creditPercentage < 10) {
-                                      // Less than 10% - error color from design system (red)
-                                      colorClasses = "bg-error/10 hover:bg-error/20 text-error border-error/20 hover:border-error/30";
-                                      focusRingColor = "focus-visible:ring-error";
-                                    } else if (creditPercentage < 20) {
-                                      // Less than 20% - warning color from design system (amber)
-                                      colorClasses = "bg-warning/10 hover:bg-warning/20 text-warning border-warning/20 hover:border-warning/30";
-                                      focusRingColor = "focus-visible:ring-warning";
-                                    } else {
-                                      // 20% or more - success color from design system (green)
-                                      colorClasses = "bg-success/10 hover:bg-success/20 text-success border-success/20 hover:border-success/30";
-                                      focusRingColor = "focus-visible:ring-success";
-                                    }
-                                    
-                                    return (
-                                      <button
-                                        onClick={() => {
-                                          const creditsSection = document.getElementById("credits-heading");
-                                          if (creditsSection) {
-                                            creditsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-                                          }
-                                        }}
-                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRingColor} focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses}`}
-                                        aria-label={t("index.planCard.viewCredits") || "View credits"}
-                                      >
-                                        <Coins className="w-3 h-3" aria-hidden="true" />
-                                        <span>
-                                          {isOverage 
-                                            ? t("index.planCard.overageActive") || "Overage active"
-                                            : creditBalance !== null && creditBalance !== undefined
-                                            ? t("index.planCard.creditsAvailable", { count: creditBalance }) || `${creditBalance} credits available`
-                                            : t("index.planCard.viewCredits") || "View credits"}
-                                        </span>
-                                        <ChevronRight className="w-3 h-3 opacity-60" aria-hidden="true" />
-                                      </button>
-                                    );
-                                  })()}
-                                </div>
+                                ) : null}
+                                {/* Credits button - show for all plans (including free) */}
+                                {credits && !creditsLoading && (() => {
+                                  const creditBalance = credits.total_balance ?? credits.balance ?? 0;
+                                  const totalCredited = credits.total_credited ?? credits.included ?? 0;
+                                  const isOverage = credits.isOverage;
+                                  
+                                  // Calculate percentage of credits remaining
+                                  // If totalCredited is 0, default to success color (no credits used yet)
+                                  const creditPercentage = totalCredited > 0 
+                                    ? (creditBalance / totalCredited) * 100 
+                                    : 100;
+                                  
+                                  // Determine color scheme based on percentage thresholds
+                                  let colorClasses = "";
+                                  let focusRingColor = "";
+                                  
+                                  if (isOverage) {
+                                    // Overage mode - use warning color from design system
+                                    colorClasses = "bg-warning/10 hover:bg-warning/20 text-warning border-warning/20 hover:border-warning/30";
+                                    focusRingColor = "focus-visible:ring-warning";
+                                  } else if (creditPercentage < 10) {
+                                    // Less than 10% - error color from design system (red)
+                                    colorClasses = "bg-error/10 hover:bg-error/20 text-error border-error/20 hover:border-error/30";
+                                    focusRingColor = "focus-visible:ring-error";
+                                  } else if (creditPercentage < 20) {
+                                    // Less than 20% - warning color from design system (amber)
+                                    colorClasses = "bg-warning/10 hover:bg-warning/20 text-warning border-warning/20 hover:border-warning/30";
+                                    focusRingColor = "focus-visible:ring-warning";
+                                  } else {
+                                    // 20% or more - success color from design system (green)
+                                    colorClasses = "bg-success/10 hover:bg-success/20 text-success border-success/20 hover:border-success/30";
+                                    focusRingColor = "focus-visible:ring-success";
+                                  }
+                                  
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        const creditsSection = document.getElementById("credits-heading");
+                                        if (creditsSection) {
+                                          creditsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        }
+                                      }}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRingColor} focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses} ${subscription.isFree ? 'ml-auto' : ''}`}
+                                      aria-label={t("index.planCard.viewCredits") || "View credits"}
+                                    >
+                                      <Coins className="w-3 h-3" aria-hidden="true" />
+                                      <span>
+                                        {isOverage 
+                                          ? t("index.planCard.overageActive") || "Overage active"
+                                          : creditBalance !== null && creditBalance !== undefined
+                                          ? t("index.planCard.creditsAvailable", { count: creditBalance }) || `${creditBalance} credits available`
+                                          : t("index.planCard.viewCredits") || "View credits"}
+                                      </span>
+                                      <ChevronRight className="w-3 h-3 opacity-60" aria-hidden="true" />
+                                    </button>
+                                  );
+                                })()}
                               </div>
-                            ) : null}
+                            </div>
                           </div>
                         </div>
 
