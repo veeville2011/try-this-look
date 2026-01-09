@@ -287,7 +287,6 @@ const Analytics = () => {
 
       // Define headers
       const headers = [
-        "ID",
         "Status",
         "Person Image",
         "Clothing Image",
@@ -297,7 +296,6 @@ const Analytics = () => {
 
       // Set column widths
       worksheet.columns = [
-        { width: 30 }, // ID
         { width: 15 }, // Status
         { width: 40 }, // Person Image (clickable chip)
         { width: 40 }, // Clothing Image (clickable chip)
@@ -332,7 +330,6 @@ const Analytics = () => {
         
         // Add row with data
         const row = worksheet.addRow([
-          record.id || "",
           record.status || "",
           record.personImageUrl ? "View Image" : "-",
           record.clothingImageUrl ? "View Image" : "-",
@@ -356,8 +353,8 @@ const Analytics = () => {
             wrapText: true 
           };
 
-          // Style status column (column 2)
-          if (colNumber === 2 && record.status) {
+          // Style status column (column 1)
+          if (colNumber === 1 && record.status) {
             const statusColor = getStatusColor(record.status);
             cell.fill = {
               type: "pattern",
@@ -372,20 +369,11 @@ const Analytics = () => {
             };
           }
 
-          // Center align ID column (column 1)
-          if (colNumber === 1) {
-            cell.alignment = { 
-              horizontal: "center", 
-              vertical: "middle", 
-              wrapText: true 
-            };
-          }
-
-          // Style image columns (columns 3-5) as clickable chips
-          if (colNumber >= 3 && colNumber <= 5) {
+          // Style image columns (columns 2-4) as clickable chips
+          if (colNumber >= 2 && colNumber <= 4) {
             const imageUrl = 
-              colNumber === 3 ? record.personImageUrl :
-              colNumber === 4 ? record.clothingImageUrl :
+              colNumber === 2 ? record.personImageUrl :
+              colNumber === 3 ? record.clothingImageUrl :
               record.generatedImageUrl;
             
             if (imageUrl) {
