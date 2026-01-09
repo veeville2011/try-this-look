@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Camera, User, ArrowLeft, CheckCircle, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Camera, User, ArrowLeft, CheckCircle, Check } from "lucide-react";
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
 import { cn } from "@/lib/utils";
 
@@ -30,10 +30,8 @@ export default function PhotoUpload({
   const [showDemoModel, setShowDemoModel] = useState(initialView === "demo");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // Carousel state - use first 3 demo photos for examples (3rd photo used in 2nd slide)
-  const examplePhotos = DEMO_PHOTOS_ARRAY.slice(0, 3);
-  const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
-  const NUM_SLIDES = 2; // Only 2 slides in carousel
+  // Use first demo photo for example
+  const examplePhotos = DEMO_PHOTOS_ARRAY.slice(0, 1);
 
   const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -87,8 +85,6 @@ export default function PhotoUpload({
   const handleFilePickerClick = () => {
     setShowFilePicker(true);
     resetError();
-    // Reset carousel to first image when opening file picker
-    setCurrentExampleIndex(0);
   };
 
   const handleDemoPhotoSelect = async (url: string) => {
@@ -116,34 +112,6 @@ export default function PhotoUpload({
   const handleDemoModelClick = () => {
     setShowDemoModel(true);
   };
-
-  // Carousel navigation functions - limit to 2 slides (indices 0 and 1)
-  const handlePreviousExample = () => {
-    setCurrentExampleIndex((prev) => (prev > 0 ? prev - 1 : NUM_SLIDES - 1));
-  };
-
-  const handleNextExample = () => {
-    setCurrentExampleIndex((prev) => (prev < NUM_SLIDES - 1 ? prev + 1 : 0));
-  };
-
-  const handleDotClick = (index: number) => {
-    if (index < NUM_SLIDES) {
-      setCurrentExampleIndex(index);
-    }
-  };
-
-  // Auto-advance carousel every 5 seconds
-  useEffect(() => {
-    // Only auto-advance if there's more than one slide
-    if (NUM_SLIDES <= 1) return;
-
-    const interval = setInterval(() => {
-      setCurrentExampleIndex((prev) => (prev < NUM_SLIDES - 1 ? prev + 1 : 0));
-    }, 5000); // 5 seconds
-
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, [NUM_SLIDES]);
 
   return (
     <>
@@ -286,21 +254,20 @@ export default function PhotoUpload({
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start flex-1">
-                  {/* Left Image - Conditionally show 1st or 2nd picture */}
+                  {/* Left Image - Show first example photo */}
                   <div className="relative flex-shrink-0 flex flex-col">
                     <div className="relative w-[140px]">
                       {examplePhotos.length > 0 && (
                         <div className="relative w-full">
                           <img
-                            src={currentExampleIndex === 0 ? examplePhotos[0].url : examplePhotos[1].url}
+                            src={examplePhotos[0].url}
                             alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
                             className="w-full h-auto object-contain rounded-lg border border-slate-200 bg-white max-h-[140px] sm:max-h-[170px]"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              // Try fallback to appropriate demo photo if current fails
-                              const fallbackIndex = currentExampleIndex === 0 ? 0 : 1;
-                              if (DEMO_PHOTOS_ARRAY.length > fallbackIndex && target.src !== DEMO_PHOTOS_ARRAY[fallbackIndex].url) {
-                                target.src = DEMO_PHOTOS_ARRAY[fallbackIndex].url;
+                              // Try fallback to first demo photo if current fails
+                              if (DEMO_PHOTOS_ARRAY.length > 0 && target.src !== DEMO_PHOTOS_ARRAY[0].url) {
+                                target.src = DEMO_PHOTOS_ARRAY[0].url;
                               } else {
                                 target.style.display = 'none';
                               }
@@ -315,109 +282,38 @@ export default function PhotoUpload({
                     </div>
                   </div>
 
-                  {/* Right side content - Conditionally render checklist or second image */}
-                  {currentExampleIndex === 0 ? (
-                    /* First slide: Show checklist with "Make sure" heading and pointers */
-                    <div className="flex flex-col min-w-0 flex-1 justify-start">
-                      {/* Heading for checklist */}
-                      <div className="mb-2 sm:mb-3 flex-shrink-0">
-                        <span className="text-sm font-semibold text-slate-800">
-                          {t("tryOnWidget.photoUpload.makeSure") || "Make sure your photo has:"}
+                  {/* Right side content - Show checklist with "Make sure" heading and pointers */}
+                  <div className="flex flex-col min-w-0 flex-1 justify-start">
+                    {/* Heading for checklist */}
+                    <div className="mb-2 sm:mb-3 flex-shrink-0">
+                      <span className="text-sm font-semibold text-slate-800">
+                        {t("tryOnWidget.photoUpload.makeSure") || "Make sure your photo has:"}
+                      </span>
+                    </div>
+                    
+                    {/* Checklist items */}
+                    <div className="flex flex-col gap-2 sm:gap-2.5 flex-shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                        <span className="text-sm text-slate-800">
+                          {t("tryOnWidget.photoUpload.checklist.visibleFace") || "Face visible"}
                         </span>
                       </div>
-                      
-                      {/* Checklist items */}
-                      <div className="flex flex-col gap-2 sm:gap-2.5 flex-shrink-0">
-                        <div className="flex items-center gap-2.5">
-                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
-                          <span className="text-sm text-slate-800">
-                            {t("tryOnWidget.photoUpload.checklist.visibleFace") || "Face visible"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
-                          <span className="text-sm text-slate-800">
-                            {t("tryOnWidget.photoUpload.checklist.fullBody") || "Full body"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
-                          <span className="text-sm text-slate-800">
-                            {t("tryOnWidget.photoUpload.checklist.simpleBackground") || "Simple background"}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                        <span className="text-sm text-slate-800">
+                          {t("tryOnWidget.photoUpload.checklist.fullBody") || "Full body"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                        <span className="text-sm text-slate-800">
+                          {t("tryOnWidget.photoUpload.checklist.simpleBackground") || "Simple background"}
+                        </span>
                       </div>
                     </div>
-                  ) : (
-                    /* Second slide: Show 3rd picture on the right */
-                    examplePhotos.length >= 3 && (
-                      <div className="relative flex-shrink-0 flex flex-col">
-                        <div className="relative w-[140px]">
-                          <div className="relative w-full">
-                            <img
-                              src={examplePhotos[2].url}
-                              alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
-                              className="w-full h-auto max-h-[140px] sm:max-h-[170px] object-contain rounded-lg border border-slate-200 bg-white"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                // Try fallback to third demo photo if current fails
-                                if (DEMO_PHOTOS_ARRAY.length > 2 && target.src !== DEMO_PHOTOS_ARRAY[2].url) {
-                                  target.src = DEMO_PHOTOS_ARRAY[2].url;
-                                } else {
-                                  target.style.display = 'none';
-                                }
-                              }}
-                            />
-                            {/* Green checkmark overlay on top-left corner */}
-                            <div className="absolute top-0 left-0 bg-green-600 rounded-full p-1 shadow-sm">
-                              <Check className="w-4 h-4 text-white" strokeWidth={3} aria-hidden="true" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-
-                {/* Carousel navigation - dots with arrows on sides */}
-                {NUM_SLIDES > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-3">
-                    {/* Left arrow */}
-                    <button
-                      onClick={handlePreviousExample}
-                      className="p-1.5 rounded-full bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:shadow-md active:bg-slate-100 active:shadow-sm transition-all duration-200 flex-shrink-0"
-                      aria-label={t("tryOnWidget.photoUpload.previousExample") || "Exemple précédent"}
-                      type="button"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-slate-800" aria-hidden="true" />
-                    </button>
-                    
-                    {/* Carousel dots - only show 2 dots */}
-                    <div className="flex items-center gap-1.5">
-                      {Array.from({ length: NUM_SLIDES }).map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleDotClick(index)}
-                          className={`w-2 h-2 rounded-full transition-colors ${
-                            index === currentExampleIndex ? 'bg-primary' : 'bg-slate-300'
-                          }`}
-                          aria-label={`${t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple"} ${index + 1}`}
-                          type="button"
-                        />
-                      ))}
-                    </div>
-                    
-                    {/* Right arrow */}
-                    <button
-                      onClick={handleNextExample}
-                      className="p-1.5 rounded-full bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:shadow-md active:bg-slate-100 active:shadow-sm transition-all duration-200 flex-shrink-0"
-                      aria-label={t("tryOnWidget.photoUpload.nextExample") || "Exemple suivant"}
-                      type="button"
-                    >
-                      <ChevronRight className="w-4 h-4 text-slate-800" aria-hidden="true" />
-                    </button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
