@@ -302,13 +302,25 @@ export default function PhotoUpload({
                       <div className="flex items-center gap-2.5">
                         <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
                         <span className="text-sm text-slate-800">
-                          {t("tryOnWidget.photoUpload.checklist.fullBody") || "Full body"}
+                          {t("tryOnWidget.photoUpload.checklist.wellFramed") || "Well framed"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2.5">
                         <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
                         <span className="text-sm text-slate-800">
-                          {t("tryOnWidget.photoUpload.checklist.simpleBackground") || "Simple background"}
+                          {t("tryOnWidget.photoUpload.checklist.frontFacing") || "Front-facing"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                        <span className="text-sm text-slate-800">
+                          {t("tryOnWidget.photoUpload.checklist.armsVisible") || "Arms visible"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
+                        <span className="text-sm text-slate-800">
+                          {t("tryOnWidget.photoUpload.checklist.simpleOutfit") || "Simple outfit"}
                         </span>
                       </div>
                     </div>

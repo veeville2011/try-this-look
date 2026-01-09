@@ -1098,9 +1098,11 @@
       "fileTooLarge": "The selected file is too large. Please choose an image under {{maxMB}}MB.",
       "failedToLoadDemo": "Unable to load this demo photo. Please try another.",
       "checklist": {
-        "visibleFace": "Visible face",
-        "fullBody": "Full body",
-        "simpleBackground": "Simple background"
+        "visibleFace": "Face visible",
+        "wellFramed": "Well framed",
+        "frontFacing": "Front-facing",
+        "armsVisible": "Arms visible",
+        "simpleOutfit": "Simple outfit"
       }
     },
     "clothingSelection": {

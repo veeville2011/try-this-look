@@ -1098,9 +1098,11 @@
       "fileTooLarge": "Le fichier sélectionné est trop volumineux. Veuillez choisir une image de moins de {{maxMB}} Mo.",
       "failedToLoadDemo": "Impossible de charger cette photo de démonstration. Veuillez en essayer une autre.",
       "checklist": {
-        "visibleFace": "Face visible",
-        "fullBody": "Corps entier",
-        "simpleBackground": "Fond simple"
+        "visibleFace": "Visage visible",
+        "wellFramed": "Bien cadré",
+        "frontFacing": "De face",
+        "armsVisible": "Bras visibles",
+        "simpleOutfit": "Tenue simple"
       }
     },
     "clothingSelection": {
