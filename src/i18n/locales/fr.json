@@ -281,7 +281,7 @@
       "showFeatures": "Afficher toutes les fonctionnalités du plan",
       "hideFeatures": "Masquer les fonctionnalités du plan",
       "viewCredits": "Voir les crédits",
-      "creditsAvailable": "{{count}} crédits disponibles",
+      "creditsAvailable": "Solde total: {{count}}",
       "overageActive": "Dépassement actif"
     },
     "coupon": {
