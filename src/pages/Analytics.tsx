@@ -267,7 +267,76 @@ const Analytics = () => {
     }
   };
 
-  // Export to Excel with professional formatting
+  // Helper function to detect image extension from URL or Content-Type
+  // ExcelJS supports: 'jpeg' | 'png' | 'gif'
+  const getImageExtension = (url: string, contentType?: string): 'jpeg' | 'png' | 'gif' => {
+    // Try to get extension from Content-Type header first
+    if (contentType) {
+      if (contentType.includes('jpeg') || contentType.includes('jpg')) return 'jpeg';
+      if (contentType.includes('png')) return 'png';
+      if (contentType.includes('gif')) return 'gif';
+      // WebP not supported by ExcelJS, convert to png
+      if (contentType.includes('webp')) return 'png';
+    }
+    
+    // Fallback to URL extension
+    const urlLower = url.toLowerCase();
+    if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) return 'jpeg';
+    if (urlLower.includes('.png')) return 'png';
+    if (urlLower.includes('.gif')) return 'gif';
+    // WebP not supported by ExcelJS, convert to png
+    if (urlLower.includes('.webp')) return 'png';
+    
+    // Default to png if unknown
+    return 'png';
+  };
+
+  // Helper function to convert ArrayBuffer to Buffer (for ExcelJS compatibility)
+  const arrayBufferToBuffer = (arrayBuffer: ArrayBuffer): Buffer => {
+    // Check if Buffer is available (Node.js environment)
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(arrayBuffer);
+    }
+    // In browser, create a Buffer-like object from Uint8Array
+    // ExcelJS accepts Buffer or ArrayBuffer in browser environments
+    // We'll use ArrayBuffer directly as ExcelJS supports it
+    return arrayBuffer as any as Buffer;
+  };
+
+  // Helper function to fetch image as buffer with format detection
+  const fetchImageAsBuffer = async (url: string): Promise<{ buffer: Buffer; extension: 'jpeg' | 'png' | 'gif' } | null> => {
+    if (!url) return null;
+    
+    try {
+      // Try CORS-enabled fetch first, fallback to regular fetch
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          mode: "cors",
+          credentials: "omit",
+        });
+      } catch (corsError) {
+        // Fallback to regular fetch if CORS fails
+        response = await fetch(url);
+      }
+      
+      if (!response.ok) return null;
+      
+      const contentType = response.headers.get('content-type') || undefined;
+      const arrayBuffer = await response.arrayBuffer();
+      const extension = getImageExtension(url, contentType);
+      
+      // Convert to Buffer for ExcelJS compatibility
+      const buffer = arrayBufferToBuffer(arrayBuffer);
+      
+      return { buffer, extension };
+    } catch (error) {
+      console.error(`Failed to fetch image from ${url}:`, error);
+      return null;
+    }
+  };
+
+  // Export to Excel with professional formatting and embedded images
   const handleExport = async () => {
     const loadingToast = toast.loading(t("analytics.export.exporting") || "Exporting data...");
     
@@ -288,19 +357,19 @@ const Analytics = () => {
       const headers = [
         "ID",
         "Status",
-        "Person Image URL",
-        "Clothing Image URL",
-        "Generated Image URL",
+        "Person Image",
+        "Clothing Image",
+        "Generated Image",
         "Created At",
       ];
 
-      // Set column widths
+      // Set column widths - wider for image columns
       worksheet.columns = [
         { width: 30 }, // ID
         { width: 15 }, // Status
-        { width: 50 }, // Person Image URL
-        { width: 50 }, // Clothing Image URL
-        { width: 50 }, // Generated Image URL
+        { width: 25 }, // Person Image (will show preview)
+        { width: 25 }, // Clothing Image (will show preview)
+        { width: 25 }, // Generated Image (will show preview)
         { width: 30 }, // Created At
       ];
 
@@ -325,16 +394,26 @@ const Analytics = () => {
       };
       headerRow.height = 25;
 
-      // Add data rows
-      allData.forEach((record) => {
+      // Set row height for image rows (taller to accommodate images)
+      const imageRowHeight = 120;
+
+      // Add data rows with images
+      for (let i = 0; i < allData.length; i++) {
+        const record = allData[i];
+        const rowIndex = i + 2; // +2 because row 1 is header, rows start at 2
+        
+        // Add row with data (images will be added separately)
         const row = worksheet.addRow([
           record.id || "",
           record.status || "",
-          record.personImageUrl || "",
-          record.clothingImageUrl || "",
-          record.generatedImageUrl || "",
+          "", // Person Image - will be replaced with image
+          "", // Clothing Image - will be replaced with image
+          "", // Generated Image - will be replaced with image
           formatDate(record.createdAt),
         ]);
+
+        // Set row height for images
+        row.height = imageRowHeight;
 
         // Apply base styling to all cells in the row
         row.eachCell((cell, colNumber) => {
@@ -374,18 +453,75 @@ const Analytics = () => {
             };
           }
 
-          // Left align URL columns (columns 3-5)
+          // Center align image columns (columns 3-5)
           if (colNumber >= 3 && colNumber <= 5) {
             cell.alignment = { 
-              horizontal: "left", 
+              horizontal: "center", 
               vertical: "middle", 
               wrapText: true 
             };
           }
         });
 
-        row.height = 20;
-      });
+        // Fetch and add images
+        const imageSize = 100; // Size in pixels for Excel images
+        
+        // Person Image (column C = 3)
+        if (record.personImageUrl) {
+          const imageData = await fetchImageAsBuffer(record.personImageUrl);
+          if (imageData) {
+            const imageId = workbook.addImage({
+              buffer: imageData.buffer as any, // Type assertion for browser compatibility
+              extension: imageData.extension,
+            });
+            
+            worksheet.addImage(imageId, {
+              tl: { col: 2, row: rowIndex - 1 }, // Column C (0-indexed: 2), row (0-indexed)
+              ext: { width: imageSize, height: imageSize },
+            });
+          }
+        }
+
+        // Clothing Image (column D = 4)
+        if (record.clothingImageUrl) {
+          const imageData = await fetchImageAsBuffer(record.clothingImageUrl);
+          if (imageData) {
+            const imageId = workbook.addImage({
+              buffer: imageData.buffer as any, // Type assertion for browser compatibility
+              extension: imageData.extension,
+            });
+            
+            worksheet.addImage(imageId, {
+              tl: { col: 3, row: rowIndex - 1 }, // Column D (0-indexed: 3)
+              ext: { width: imageSize, height: imageSize },
+            });
+          }
+        }
+
+        // Generated Image (column E = 5)
+        if (record.generatedImageUrl) {
+          const imageData = await fetchImageAsBuffer(record.generatedImageUrl);
+          if (imageData) {
+            const imageId = workbook.addImage({
+              buffer: imageData.buffer as any, // Type assertion for browser compatibility
+              extension: imageData.extension,
+            });
+            
+            worksheet.addImage(imageId, {
+              tl: { col: 4, row: rowIndex - 1 }, // Column E (0-indexed: 4)
+              ext: { width: imageSize, height: imageSize },
+            });
+          }
+        }
+
+        // Update progress for large exports
+        if ((i + 1) % 10 === 0) {
+          toast.loading(
+            `${t("analytics.export.exporting") || "Exporting data..."} (${i + 1}/${allData.length})`,
+            { id: loadingToast }
+          );
+        }
+      }
 
       // Freeze header row
       worksheet.views = [{ state: "frozen", ySplit: 1 }];
