@@ -303,22 +303,13 @@ const Analytics = () => {
     return arrayBuffer as any as Buffer;
   };
 
-  // Helper function to get API base URL
-  const getApiBaseUrl = (): string => {
-    const apiUrl = import.meta.env.VITE_API_ENDPOINT;
-    if (!apiUrl) {
-      throw new Error("VITE_API_ENDPOINT environment variable is required");
-    }
-    return apiUrl.replace(/\/$/, "");
-  };
-
-  // Helper function to fetch image as buffer with format detection
-  // Uses proxy endpoint if CORS fails
+  // Helper function to fetch image as buffer using canvas (works without CORS)
+  // This approach loads image via img tag and converts via canvas - proven to work
   const fetchImageAsBuffer = async (url: string): Promise<{ buffer: Buffer; extension: 'jpeg' | 'png' | 'gif' } | null> => {
     if (!url) return null;
     
     try {
-      // Strategy 1: Try direct fetch (works if CORS is configured)
+      // Try direct fetch first (works if CORS is configured)
       try {
         const response = await fetch(url, {
           mode: "cors",
@@ -333,26 +324,61 @@ const Analytics = () => {
           return { buffer, extension };
         }
       } catch (fetchError) {
-        // CORS error - will use proxy
+        // CORS error - will use canvas approach
       }
 
-      // Strategy 2: Use proxy endpoint (bypasses CORS)
-      const apiBaseUrl = getApiBaseUrl();
-      const proxyUrl = `${apiBaseUrl}/api/proxy-image?url=${encodeURIComponent(url)}`;
-      
-      const response = await fetch(proxyUrl);
-      
-      if (!response.ok) {
-        console.error(`Proxy failed to fetch image from ${url}: HTTP ${response.status}`);
-        return null;
-      }
-      
-      const contentType = response.headers.get('content-type') || undefined;
-      const arrayBuffer = await response.arrayBuffer();
-      const extension = getImageExtension(url, contentType);
-      const buffer = arrayBufferToBuffer(arrayBuffer);
-      
-      return { buffer, extension };
+      // Canvas approach: Load image via img tag and convert via canvas
+      // This works even without CORS headers
+      return await new Promise((resolve) => {
+        const img = new Image();
+        // Don't set crossOrigin - allows image to load even without CORS
+        
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext("2d");
+            
+            if (!ctx) {
+              resolve(null);
+              return;
+            }
+            
+            // Draw image to canvas
+            ctx.drawImage(img, 0, 0);
+            
+            // Convert canvas to blob, then to buffer
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                resolve(null);
+                return;
+              }
+              
+              // Convert blob to ArrayBuffer
+              blob.arrayBuffer().then((arrayBuffer) => {
+                const extension = getImageExtension(url, blob.type);
+                const buffer = arrayBufferToBuffer(arrayBuffer);
+                resolve({ buffer, extension });
+              }).catch((error) => {
+                console.error(`Failed to convert blob to ArrayBuffer from ${url}:`, error);
+                resolve(null);
+              });
+            }, "image/png"); // Convert to PNG for ExcelJS compatibility
+          } catch (error) {
+            console.error(`Failed to convert image via canvas from ${url}:`, error);
+            resolve(null);
+          }
+        };
+        
+        img.onerror = () => {
+          console.error(`Failed to load image from ${url}`);
+          resolve(null);
+        };
+        
+        // Set src after setting up handlers
+        img.src = url;
+      });
     } catch (error) {
       console.error(`Failed to fetch image from ${url}:`, error);
       return null;
