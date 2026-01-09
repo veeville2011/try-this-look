@@ -132,35 +132,6 @@ export default function PhotoUpload({
 
         {!showFilePicker && !showDemoModel ? (
           <div className="flex flex-col bg-white w-full py-3.5 px-4 gap-4 rounded-2xl">
-            {/* "Choisir une photo" Section - File Picker */}
-            <div
-              className="flex flex-col items-center self-stretch bg-slate-50 py-[63px] rounded-2xl border border-solid border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
-              onClick={handleFilePickerClick}
-              role="button"
-              tabIndex={0}
-              aria-label={t("tryOnWidget.photoUpload.uploadAreaAriaLabel") || "Choisir une photo - Cliquez ou appuyez sur Entrée pour sélectionner une image"}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleFilePickerClick();
-                }
-              }}
-            >
-              <Camera className="w-12 h-12 text-slate-700 mb-4" strokeWidth={1.5} aria-hidden="true" />
-              <span className="text-black text-base font-medium">
-                {t("tryOnWidget.photoUpload.choosePhoto") || "Choisir une photo"}
-              </span>
-            </div>
-
-            {/* Separator OU */}
-            <div className="flex items-center self-stretch">
-              <div className="bg-slate-200 flex-1 h-[1px] mr-2.5"></div>
-              <span className="text-slate-800 text-base font-bold mr-[13px]">
-                {t("tryOnWidget.photoUpload.or") || "OU"}
-              </span>
-              <div className="bg-slate-200 flex-1 h-[1px]"></div>
-            </div>
-
             {/* "Choisir un modèle de démonstration" Section - Demo Photo Selection */}
             <div
               className="flex flex-col items-center self-stretch bg-white rounded-2xl border border-solid border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors relative overflow-hidden"
@@ -217,6 +188,35 @@ export default function PhotoUpload({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Separator OU */}
+            <div className="flex items-center self-stretch">
+              <div className="bg-slate-200 flex-1 h-[1px] mr-2.5"></div>
+              <span className="text-slate-800 text-base font-bold mr-[13px]">
+                {t("tryOnWidget.photoUpload.or") || "OU"}
+              </span>
+              <div className="bg-slate-200 flex-1 h-[1px]"></div>
+            </div>
+
+            {/* "Choisir une photo" Section - File Picker */}
+            <div
+              className="flex flex-col items-center self-stretch bg-slate-50 py-[63px] rounded-2xl border border-solid border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+              onClick={handleFilePickerClick}
+              role="button"
+              tabIndex={0}
+              aria-label={t("tryOnWidget.photoUpload.uploadAreaAriaLabel") || "Choisir une photo - Cliquez ou appuyez sur Entrée pour sélectionner une image"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleFilePickerClick();
+                }
+              }}
+            >
+              <Camera className="w-12 h-12 text-slate-700 mb-4" strokeWidth={1.5} aria-hidden="true" />
+              <span className="text-black text-base font-medium">
+                {t("tryOnWidget.photoUpload.choosePhoto") || "Choisir une photo"}
+              </span>
             </div>
           </div>
         ) : showFilePicker ? (
