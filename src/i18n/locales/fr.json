@@ -1099,10 +1099,12 @@
       "failedToLoadDemo": "Impossible de charger cette photo de démonstration. Veuillez en essayer une autre.",
       "checklist": {
         "visibleFace": "Visage visible",
-        "wellFramed": "Bien cadré",
-        "frontFacing": "De face",
+        "bodyWellFramed": "Corps bien cadré",
+        "frontFacingPose": "Pose de face",
         "armsVisible": "Bras visibles",
-        "simpleOutfit": "Tenue simple"
+        "simpleOutfit": "Tenue simple",
+        "goodLighting": "Bonne lumière",
+        "cleanBackground": "Fond simple"
       }
     },
     "clothingSelection": {

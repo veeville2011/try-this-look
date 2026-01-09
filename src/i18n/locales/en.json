@@ -1099,10 +1099,12 @@
       "failedToLoadDemo": "Unable to load this demo photo. Please try another.",
       "checklist": {
         "visibleFace": "Face visible",
-        "wellFramed": "Well framed",
-        "frontFacing": "Front-facing",
+        "bodyWellFramed": "Body well framed",
+        "frontFacingPose": "Front-facing pose",
         "armsVisible": "Arms visible",
-        "simpleOutfit": "Simple outfit"
+        "simpleOutfit": "Simple outfit",
+        "goodLighting": "Good lighting",
+        "cleanBackground": "Clean background"
       }
     },
     "clothingSelection": {
