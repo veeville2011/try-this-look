@@ -3,12 +3,12 @@
 
 export const DEMO_PHOTOS_ARRAY = [
   {
-    "url": "/assets/demo_pics/f2.jpg",
-    "id": "demo_person_f2"
-  },
-  {
     "url": "/assets/demo_pics/f1.jpg",
     "id": "demo_person_f1"
+  },
+  {
+    "url": "/assets/demo_pics/f2.jpg",
+    "id": "demo_person_f2"
   },
   {
     "url": "/assets/demo_pics/f3.jpg",
