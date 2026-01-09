@@ -279,7 +279,10 @@
       "creditsAvailableAfterUpgrade": "Credits available after upgrade",
       "loadingCredits": "Loading credits...",
       "showFeatures": "Show all plan features",
-      "hideFeatures": "Hide plan features"
+      "hideFeatures": "Hide plan features",
+      "viewCredits": "View credits",
+      "creditsAvailable": "{{count}} credits available",
+      "overageActive": "Overage active"
     },
     "coupon": {
       "label": "Promo Code",

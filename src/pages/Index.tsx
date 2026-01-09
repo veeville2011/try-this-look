@@ -1328,17 +1328,41 @@ const Index = () => {
                           {/* Plan Price & Interval - Show when plan exists - Fixed height container */}
                           <div className="min-h-[48px] flex items-start">
                             {subscription.plan && !subscription.isFree ? (
-                              <div className="pt-1">
-                                <p className="text-sm font-semibold text-foreground">
-                                  {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {subscription.plan.interval === "EVERY_30_DAYS" 
-                                    ? t("planSelection.monthly") || "Monthly"
-                                    : subscription.plan.interval === "ANNUAL"
-                                    ? t("planSelection.annual") || "Annual"
-                                    : subscription.plan.interval}
-                                </p>
+                              <div className="pt-1 w-full">
+                                <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                                  <div className="flex items-baseline gap-2">
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {subscription.plan.interval === "EVERY_30_DAYS" 
+                                        ? t("planSelection.monthly") || "Monthly"
+                                        : subscription.plan.interval === "ANNUAL"
+                                        ? t("planSelection.annual") || "Annual"
+                                        : subscription.plan.interval}
+                                    </p>
+                                  </div>
+                                  {credits && !creditsLoading && (
+                                    <button
+                                      onClick={() => {
+                                        const creditsSection = document.getElementById("credits-heading");
+                                        if (creditsSection) {
+                                          creditsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        }
+                                      }}
+                                      className="text-xs text-primary hover:text-primary/80 underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                                      aria-label={t("index.planCard.viewCredits") || "View credits"}
+                                    >
+                                      {credits.isOverage 
+                                        ? t("index.planCard.overageActive") || "Overage active"
+                                        : credits.total_balance !== undefined && credits.total_balance !== null
+                                        ? t("index.planCard.creditsAvailable", { count: credits.total_balance }) || `${credits.total_balance} credits available`
+                                        : credits.balance !== undefined && credits.balance !== null
+                                        ? t("index.planCard.creditsAvailable", { count: credits.balance }) || `${credits.balance} credits available`
+                                        : t("index.planCard.viewCredits") || "View credits"}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             ) : null}
                           </div>

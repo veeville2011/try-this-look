@@ -279,7 +279,10 @@
       "creditsAvailableAfterUpgrade": "Crédits disponibles après la mise à niveau",
       "loadingCredits": "Chargement des crédits...",
       "showFeatures": "Afficher toutes les fonctionnalités du plan",
-      "hideFeatures": "Masquer les fonctionnalités du plan"
+      "hideFeatures": "Masquer les fonctionnalités du plan",
+      "viewCredits": "Voir les crédits",
+      "creditsAvailable": "{{count}} crédits disponibles",
+      "overageActive": "Dépassement actif"
     },
     "coupon": {
       "label": "Code promo",
