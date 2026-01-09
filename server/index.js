@@ -1228,6 +1228,7 @@ const verifySessionToken = async (req, res, next) => {
     // Skip verification for webhooks, app proxy, billing return, and public routes
     // /api/billing/return is a public endpoint called by Shopify after payment approval
     // It doesn't have a JWT session token because it's a redirect from Shopify, not from the embedded app
+    // /api/proxy-image is a public endpoint for proxying images (bypasses CORS)
     if (
       req.path.startsWith("/webhooks/") ||
       req.path.startsWith("/auth") ||
@@ -1235,7 +1236,8 @@ const verifySessionToken = async (req, res, next) => {
       req.path.startsWith("/widget") ||
       req.path.startsWith("/demo") ||
       req.path === "/api/billing/return" ||
-      req.path.startsWith("/payment-success")
+      req.path.startsWith("/payment-success") ||
+      req.path === "/api/proxy-image"
     ) {
       return next();
     }
