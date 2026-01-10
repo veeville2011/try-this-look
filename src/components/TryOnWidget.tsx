@@ -2518,8 +2518,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
           {/* Authentication Gate - Image Collage Design */}
           {!customerInfo?.id && (
-            <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-hidden">
-              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden">
+            <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto md:overflow-hidden">
+              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-visible md:overflow-hidden">
                 {/* Animated Tutorial Demo Panel - Left Side (Desktop only, hidden on mobile) */}
                 <section
                   aria-label={t("tryOnWidget.authGate.demoAriaLabel") || "Virtual try-on tutorial demonstration"}
@@ -2654,7 +2654,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   aria-labelledby="auth-heading"
                   className="flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3"
                 >
-                  <div className="flex flex-col items-start bg-white w-full py-6 px-5 md:px-8 rounded-xl border border-border min-h-0 flex-1 justify-between">
+                  <div className="flex flex-col items-start bg-white w-full py-6 px-5 md:px-8 rounded-xl border border-border min-h-0 flex-1 md:justify-between">
                     {/* Top Section: Title and Content */}
                     <div className="w-full space-y-6 flex-shrink-0">
                       {/* Title Section */}
@@ -2702,8 +2702,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </div>
                     </div>
 
-                    {/* Bottom Section: Actions - Pushed to bottom */}
-                    <div className="w-full space-y-3 flex-shrink-0 mt-auto">
+                    {/* Bottom Section: Actions - Pushed to bottom on desktop, normal spacing on mobile */}
+                    <div className="w-full space-y-3 flex-shrink-0 mt-6 md:mt-auto">
                       <Button
                         onClick={handleLoginClick}
                         disabled={isRedirecting}
