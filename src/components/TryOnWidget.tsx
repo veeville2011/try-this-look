@@ -2500,12 +2500,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           {/* Authentication Gate - Premium Design with Video Panel */}
           {!customerInfo?.id && (
             <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-hidden">
-              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] grid grid-cols-1 md:grid-cols-[1.2fr_1fr] bg-white rounded-2xl sm:rounded-[24px] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] grid grid-cols-1 md:grid-cols-[1.2fr_1fr] bg-white rounded overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
                 {/* Video Panel - Left Side (Desktop) / Top (Mobile) */}
-                <div className="relative w-full h-[220px] sm:h-auto bg-slate-900 overflow-hidden">
-                  {/* YouTube Video Embed - Autoplay, Loop, Muted */}
+                <div className="relative w-full h-[220px] sm:h-auto bg-[#564646] overflow-hidden">
+                  {/* Google Drive Video Embed - Autoplay, Loop, Muted */}
                   <iframe
-                    src="https://www.youtube.com/embed/GE5_EDknSL8?autoplay=1&loop=1&playlist=GE5_EDknSL8&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1"
+                    src="https://drive.google.com/file/d/1DUbUpU6U6Cb7hSAh66XTfUbHegES6XKX/preview?autoplay=1&mute=1&loop=1"
                     title="Virtual Try-On Demonstration"
                     className="absolute inset-0 w-full h-full object-cover"
                     allow="autoplay; encrypted-media; picture-in-picture"
@@ -2531,44 +2531,44 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   <div className="w-full max-w-md mx-auto space-y-6 sm:space-y-7">
                     {/* Title Section */}
                     <div className="space-y-3 text-center md:text-left">
-                      <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-[#564646] leading-tight">
                         {t("tryOnWidget.authGate.title") || "Continue to Virtual Try-On"}
                       </h2>
-                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                      <p className="text-sm sm:text-base text-[#564646]/80 leading-relaxed">
                         {t("tryOnWidget.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
                       </p>
                       {/* Trust Badge */}
                       <div className="flex items-center justify-center md:justify-start gap-2 pt-1">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" aria-hidden="true" />
-                        <span className="text-xs text-slate-500">
+                        <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                        <span className="text-xs text-[#564646]/60">
                           {t("tryOnWidget.authGate.trustBadge") || "Secure login • Privacy protected"}
                         </span>
                       </div>
                     </div>
 
                     {/* Benefits - Clean Icons */}
-                    <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-slate-200/60">
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-[#564646]/20">
                       <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 border border-slate-200/60">
-                          <CheckCircle className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#564646]/10 border border-[#564646]/20">
+                          <CheckCircle className="w-5 h-5 text-[#564646]" aria-hidden="true" />
                         </div>
-                        <p className="text-xs font-medium text-slate-700 leading-tight">
+                        <p className="text-xs font-medium text-[#564646] leading-tight">
                           {t("tryOnWidget.authGate.benefit1") || "Saved Looks"}
                         </p>
                       </div>
                       <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 border border-slate-200/60">
-                          <CheckCircle className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#564646]/10 border border-[#564646]/20">
+                          <CheckCircle className="w-5 h-5 text-[#564646]" aria-hidden="true" />
                         </div>
-                        <p className="text-xs font-medium text-slate-700 leading-tight">
+                        <p className="text-xs font-medium text-[#564646] leading-tight">
                           {t("tryOnWidget.authGate.benefit2") || "Try-On History"}
                         </p>
                       </div>
                       <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 border border-slate-200/60">
-                          <CheckCircle className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#564646]/10 border border-[#564646]/20">
+                          <CheckCircle className="w-5 h-5 text-[#564646]" aria-hidden="true" />
                         </div>
-                        <p className="text-xs font-medium text-slate-700 leading-tight">
+                        <p className="text-xs font-medium text-[#564646] leading-tight">
                           {t("tryOnWidget.authGate.benefit3") || "Smart Recommendations"}
                         </p>
                       </div>
@@ -2579,7 +2579,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       <Button
                         onClick={handleLoginClick}
                         disabled={isRedirecting}
-                        className="w-full h-12 sm:h-13 bg-slate-900 hover:bg-slate-800 text-white text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full h-12 sm:h-13 bg-[#564646] hover:bg-[#453939] text-white text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
                         aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}
                       >
                         {isRedirecting ? (
@@ -2596,12 +2596,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </Button>
 
                       {/* Redirect Notice */}
-                      <p className="text-xs text-center text-slate-500">
+                      <p className="text-xs text-center text-[#564646]/60">
                         {t("tryOnWidget.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
                       </p>
 
                       {/* Sign Up Link */}
-                      <p className="text-center text-xs sm:text-sm text-slate-600 pt-2">
+                      <p className="text-center text-xs sm:text-sm text-[#564646]/80 pt-2">
                         {t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}{" "}
                         <a
                           href="#"
@@ -2641,7 +2641,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                               window.location.href = signUpUrl;
                             }
                           }}
-                          className="text-slate-900 hover:text-slate-700 font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 rounded-sm transition-colors"
+                          className="text-[#564646] hover:text-[#453939] font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#564646] focus-visible:ring-offset-2 rounded-sm transition-colors"
                           aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Create a new account"}
                         >
                           {t("tryOnWidget.authGate.signUpLink") || "Create one"}
