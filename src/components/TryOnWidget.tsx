@@ -2464,94 +2464,100 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       )}
 
     
-        {/* Content Container - Fit content */}
-        <div className="bg-white w-full max-w-full py-6 px-6 rounded-xl overflow-x-hidden">
-          {/* Header - Aligned with content container */}
-          <header className="sticky top-0 z-10 bg-white">
-            <div className="flex justify-between items-center py-3 mb-3">
-              <div className="flex flex-col items-start gap-1">
+        {/* Content Container - Fit content with proper overflow handling */}
+        <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 py-3 sm:py-4 px-4 sm:px-6 rounded-xl overflow-x-hidden">
+          {/* Header - Compact when auth gate is shown */}
+          <header className={`${!customerInfo?.id ? 'pb-2' : 'pb-3 mb-3'} flex-shrink-0`}>
+            <div className="flex justify-between items-center py-2 sm:py-2.5">
+              <div className="flex flex-col items-start gap-0.5 sm:gap-1">
                 <img
                   src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/k7k24vtq_expires_30_days.png"
-                  className="w-32 h-5 sm:w-40 sm:h-6 object-contain"
+                  className={`${!customerInfo?.id ? 'w-28 h-4 sm:w-32 sm:h-5' : 'w-32 h-5 sm:w-40 sm:h-6'} object-contain transition-all duration-200`}
                   alt={t("tryOnWidget.brand.name") || "NUSENSE"}
                   aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
                 />
-                <span className="text-slate-800 text-xs sm:text-sm whitespace-nowrap">
-                  {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
-                </span>
+                {customerInfo?.id && (
+                  <span className="text-slate-800 text-xs sm:text-sm whitespace-nowrap">
+                    {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
+                  </span>
+                )}
               </div>
               <button
                 onClick={handleClose}
-                className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex-shrink-0"
                 aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
                 title={t("tryOnWidget.buttons.close") || "Fermer"}
                 type="button"
               >
-                <X className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" aria-hidden="true" />
               </button>
             </div>
           </header>
 
           {/* Authentication Gate - Check if customer is logged in */}
           {!customerInfo?.id && (
-            <div className="w-full py-8 px-4 sm:px-6">
-              <Card className="p-6 sm:p-8 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-                <div className="flex flex-col items-center text-center space-y-6">
-                  {/* Icon */}
-                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/30">
-                    <Shield className="w-8 h-8 text-primary" aria-hidden="true" />
-                  </div>
-
-                  {/* Title and Description */}
-                  <div className="space-y-2">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                      {t("tryOnWidget.authGate.title") || "Login Required"}
-                    </h2>
-                    <p className="text-base sm:text-lg text-slate-600 max-w-md mx-auto">
-                      {t("tryOnWidget.authGate.description") || "Please log in to your account to use the virtual try-on feature."}
+            <div className="w-full flex-1 flex items-center justify-center min-h-0 px-4 sm:px-6 py-4 sm:py-6">
+              <Card className="w-full max-w-md border border-slate-200/60 bg-white shadow-lg overflow-hidden">
+                <div className="flex flex-col p-5 sm:p-6 space-y-5 sm:space-y-6">
+                  {/* Icon and Title Section - Compact */}
+                  <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
+                    <div className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-primary/10 border border-primary/20">
+                      <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-primary" aria-hidden="true" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">
+                        {t("tryOnWidget.authGate.title") || "Sign In Required"}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                        {t("tryOnWidget.authGate.subtitle") || "To continue with virtual try-on"}
+                      </p>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-sm">
+                      {t("tryOnWidget.authGate.description") || "Please sign in to your account to access the virtual try-on feature and save your results."}
                     </p>
                   </div>
 
-                  {/* Benefits List */}
-                  <div className="w-full max-w-md space-y-3">
-                    <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                      {t("tryOnWidget.authGate.benefitsTitle") || "Benefits of logging in:"}
-                    </h3>
-                    <ul className="space-y-2.5 text-left">
-                      <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
-                        </div>
-                        <span>{t("tryOnWidget.authGate.benefit1") || "Save your generated try-on images"}</span>
-                      </li>
-                      <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
-                        </div>
-                        <span>{t("tryOnWidget.authGate.benefit2") || "Access your try-on history"}</span>
-                      </li>
-                      <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
-                        </div>
-                        <span>{t("tryOnWidget.authGate.benefit3") || "Enjoy a personalized shopping experience"}</span>
-                      </li>
-                    </ul>
+                  {/* Benefits - Horizontal Compact Layout */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-2 border-t border-slate-100">
+                    <div className="flex flex-col items-center text-center space-y-1.5 px-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                        <CheckCircle className="w-4 h-4 text-primary" aria-hidden="true" />
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium leading-tight">
+                        {t("tryOnWidget.authGate.benefit1") || "Save results"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center text-center space-y-1.5 px-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                        <CheckCircle className="w-4 h-4 text-primary" aria-hidden="true" />
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium leading-tight">
+                        {t("tryOnWidget.authGate.benefit2") || "View history"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center text-center space-y-1.5 px-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                        <CheckCircle className="w-4 h-4 text-primary" aria-hidden="true" />
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium leading-tight">
+                        {t("tryOnWidget.authGate.benefit3") || "Personalized"}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Login Button */}
-                  <div className="w-full max-w-md space-y-3 pt-2">
+                  {/* Action Buttons */}
+                  <div className="space-y-3 pt-1">
                     <Button
                       onClick={handleLoginClick}
-                      className="w-full h-12 sm:h-14 bg-primary hover:bg-primary/90 text-primary-foreground text-base sm:text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-                      aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Log in to continue using virtual try-on"}
+                      className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg"
+                      aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}
                     >
-                      <LogIn className="w-5 h-5 sm:w-6 sm:h-6 mr-2" aria-hidden="true" />
-                      {t("tryOnWidget.authGate.loginButton") || "Log In to Continue"}
+                      <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
+                      {t("tryOnWidget.authGate.loginButton") || "Sign In"}
                     </Button>
 
-                    {/* Sign Up Link */}
-                    <p className="text-sm text-slate-600">
+                    {/* Sign Up Link - Compact */}
+                    <p className="text-center text-xs sm:text-sm text-slate-600">
                       {t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}{" "}
                       <a
                         href="#"
@@ -2593,10 +2599,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             window.location.href = signUpUrl;
                           }
                         }}
-                        className="text-primary hover:text-primary/80 font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
-                        aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Sign up for a new account"}
+                        className="text-primary hover:text-primary/80 font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm transition-colors"
+                        aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Create a new account"}
                       >
-                        {t("tryOnWidget.authGate.signUpLink") || "Sign up here"}
+                        {t("tryOnWidget.authGate.signUpLink") || "Create one"}
                       </a>
                     </p>
                   </div>

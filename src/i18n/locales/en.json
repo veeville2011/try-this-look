@@ -1069,17 +1069,17 @@
       "description": "Select the model version to use for generation"
     },
     "authGate": {
-      "title": "Login Required",
-      "description": "Please log in to your account to use the virtual try-on feature.",
-      "benefitsTitle": "Benefits of logging in:",
-      "benefit1": "Save your generated try-on images",
-      "benefit2": "Access your try-on history",
-      "benefit3": "Enjoy a personalized shopping experience",
-      "loginButton": "Log In to Continue",
-      "loginButtonAriaLabel": "Log in to continue using virtual try-on",
+      "title": "Sign In Required",
+      "subtitle": "To continue with virtual try-on",
+      "description": "Please sign in to your account to access the virtual try-on feature and save your results.",
+      "benefit1": "Save your try-on results",
+      "benefit2": "Access your history",
+      "benefit3": "Personalized experience",
+      "loginButton": "Sign In",
+      "loginButtonAriaLabel": "Sign in to continue using virtual try-on",
       "accountLink": "Don't have an account?",
-      "signUpLink": "Sign up here",
-      "signUpLinkAriaLabel": "Sign up for a new account"
+      "signUpLink": "Create one",
+      "signUpLinkAriaLabel": "Create a new account"
     },
     "photoUpload": {
       "srOnlyText": "Upload your photo or use a demo photo",

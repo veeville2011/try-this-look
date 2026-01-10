@@ -1070,16 +1070,16 @@
     },
     "authGate": {
       "title": "Connexion Requise",
-      "description": "Veuillez vous connecter à votre compte pour utiliser la fonctionnalité d'essayage virtuel.",
-      "benefitsTitle": "Avantages de la connexion :",
-      "benefit1": "Enregistrer vos images d'essayage générées",
-      "benefit2": "Accéder à votre historique d'essayage",
-      "benefit3": "Profiter d'une expérience d'achat personnalisée",
-      "loginButton": "Se Connecter pour Continuer",
+      "subtitle": "Pour continuer avec l'essayage virtuel",
+      "description": "Veuillez vous connecter à votre compte pour accéder à l'essayage virtuel et enregistrer vos résultats.",
+      "benefit1": "Enregistrer vos résultats",
+      "benefit2": "Accéder à votre historique",
+      "benefit3": "Expérience personnalisée",
+      "loginButton": "Se Connecter",
       "loginButtonAriaLabel": "Se connecter pour continuer à utiliser l'essayage virtuel",
       "accountLink": "Vous n'avez pas de compte ?",
-      "signUpLink": "Inscrivez-vous ici",
-      "signUpLinkAriaLabel": "S'inscrire pour un nouveau compte"
+      "signUpLink": "Créer un compte",
+      "signUpLinkAriaLabel": "Créer un nouveau compte"
     },
     "photoUpload": {
       "srOnlyText": "Téléchargez votre photo ou utilisez une photo de démonstration",
