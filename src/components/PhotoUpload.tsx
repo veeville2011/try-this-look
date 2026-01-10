@@ -253,16 +253,17 @@ export default function PhotoUpload({
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start flex-1">
+                <div className="flex flex-row gap-2 sm:gap-3 items-stretch flex-1 min-h-0">
                   {/* Left Image - Show first example photo */}
-                  <div className="relative flex-shrink-0 flex flex-col">
-                    <div className="relative w-[140px]">
+                  <div className="relative flex-shrink-0 flex items-stretch">
+                    <div className="relative w-[100px] sm:w-[140px] flex items-center justify-center">
                       {examplePhotos.length > 0 && (
-                        <div className="relative w-full">
+                        <div className="relative w-full h-full flex items-center justify-center">
                           <img
                             src={examplePhotos[0].url}
                             alt={t("tryOnWidget.photoUpload.examplePhotoAlt") || "Exemple de photo correcte"}
-                            className="w-full h-auto object-contain rounded-lg border border-slate-200 bg-white max-h-[140px] sm:max-h-[170px]"
+                            className="w-full h-auto object-contain rounded-lg border border-slate-200 bg-white max-h-full"
+                            style={{ maxWidth: '100%', maxHeight: '100%' }}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               // Try fallback to first demo photo if current fails
@@ -285,7 +286,7 @@ export default function PhotoUpload({
                   {/* Right side content - Show checklist with pointers */}
                   <div className="flex flex-col min-w-0 flex-1 justify-start">
                     {/* Checklist items */}
-                    <div className="flex flex-col gap-2 sm:gap-2.5 flex-shrink-0">
+                    <div className="flex flex-col gap-1.5 sm:gap-2.5 flex-shrink-0">
                       <div className="flex items-center gap-2.5">
                         <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />
                         <span className="text-sm text-slate-800">
