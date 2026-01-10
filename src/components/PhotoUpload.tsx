@@ -256,7 +256,7 @@ export default function PhotoUpload({
                 <div className="flex flex-row gap-2 sm:gap-3 items-stretch flex-1 min-h-0">
                   {/* Left Image - Show first example photo */}
                   <div className="relative flex-shrink-0 flex items-stretch">
-                    <div className="relative w-[100px] sm:w-[140px] flex items-center justify-center">
+                    <div className="relative w-[100px] sm:w-[130px] flex items-center justify-center">
                       {examplePhotos.length > 0 && (
                         <div className="relative w-full h-full flex items-center justify-center">
                           <img
