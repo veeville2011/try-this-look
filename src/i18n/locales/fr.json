@@ -1069,17 +1069,21 @@
       "description": "Sélectionnez la version du modèle à utiliser pour la génération"
     },
     "authGate": {
-      "title": "Connexion Requise",
-      "subtitle": "Pour continuer avec l'essayage virtuel",
-      "description": "Veuillez vous connecter à votre compte pour accéder à l'essayage virtuel et enregistrer vos résultats.",
-      "benefit1": "Enregistrer vos résultats",
-      "benefit2": "Accéder à votre historique",
-      "benefit3": "Expérience personnalisée",
-      "loginButton": "Se Connecter",
+      "title": "Continuer avec l'Essayage Virtuel",
+      "subtitle": "Connectez-vous pour enregistrer vos résultats et y accéder à tout moment",
+      "videoOverlayText1": "Découvrez comment ça vous va",
+      "videoOverlayText2": "Essayez différentes tenues instantanément",
+      "benefit1": "Tenues Enregistrées",
+      "benefit2": "Historique d'Essayage",
+      "benefit3": "Recommandations Intelligentes",
+      "trustBadge": "Connexion sécurisée • Vie privée protégée",
+      "loginButton": "Continuer avec Shopify",
+      "loginButtonLoading": "Redirection...",
       "loginButtonAriaLabel": "Se connecter pour continuer à utiliser l'essayage virtuel",
       "accountLink": "Vous n'avez pas de compte ?",
       "signUpLink": "Créer un compte",
-      "signUpLinkAriaLabel": "Créer un nouveau compte"
+      "signUpLinkAriaLabel": "Créer un nouveau compte",
+      "redirectNotice": "Nous vous redirigerons vers une connexion sécurisée"
     },
     "photoUpload": {
       "srOnlyText": "Téléchargez votre photo ou utilisez une photo de démonstration",

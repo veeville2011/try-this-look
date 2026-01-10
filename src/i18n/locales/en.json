@@ -1069,17 +1069,21 @@
       "description": "Select the model version to use for generation"
     },
     "authGate": {
-      "title": "Sign In Required",
-      "subtitle": "To continue with virtual try-on",
-      "description": "Please sign in to your account to access the virtual try-on feature and save your results.",
-      "benefit1": "Save your try-on results",
-      "benefit2": "Access your history",
-      "benefit3": "Personalized experience",
-      "loginButton": "Sign In",
+      "title": "Continue to Virtual Try-On",
+      "subtitle": "Sign in to save your try-on results and access them anytime",
+      "videoOverlayText1": "See how it looks on you",
+      "videoOverlayText2": "Try different outfits instantly",
+      "benefit1": "Saved Looks",
+      "benefit2": "Try-On History",
+      "benefit3": "Smart Recommendations",
+      "trustBadge": "Secure login • Privacy protected",
+      "loginButton": "Continue with Shopify",
+      "loginButtonLoading": "Redirecting...",
       "loginButtonAriaLabel": "Sign in to continue using virtual try-on",
       "accountLink": "Don't have an account?",
       "signUpLink": "Create one",
-      "signUpLinkAriaLabel": "Create a new account"
+      "signUpLinkAriaLabel": "Create a new account",
+      "redirectNotice": "We'll redirect you to secure sign-in"
     },
     "photoUpload": {
       "srOnlyText": "Upload your photo or use a demo photo",

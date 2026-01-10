@@ -2374,7 +2374,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     }
   };
 
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
   const handleLoginClick = () => {
+    setIsRedirecting(true);
     const loginUrl = getLoginUrl();
     // If in iframe, redirect parent window to login
     if (isInIframe && window.parent !== window) {
@@ -2436,7 +2439,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     <div
       data-nusense-widget="true"
       ref={widgetContainerRef}
-      className="w-full h-full flex flex-col bg-white max-w-full overflow-x-hidden"
+      className="w-full h-full flex flex-col bg-white max-w-full overflow-x-hidden overscroll-contain"
       style={{ fontFamily: "'Montserrat', 'Inter', 'system-ui', sans-serif" }}
       role="main"
       aria-label={t("tryOnWidget.ariaLabels.mainApplication") || "Application d'essayage virtuel"}
@@ -2494,120 +2497,160 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             </div>
           </header>
 
-          {/* Authentication Gate - Check if customer is logged in */}
+          {/* Authentication Gate - Premium Design with Video Panel */}
           {!customerInfo?.id && (
-            <div className="w-full flex-1 flex items-center justify-center min-h-0 px-4 sm:px-6 py-4 sm:py-6">
-              <Card className="w-full max-w-md border border-slate-200/60 bg-white shadow-lg overflow-hidden">
-                <div className="flex flex-col p-5 sm:p-6 space-y-5 sm:space-y-6">
-                  {/* Icon and Title Section - Compact */}
-                  <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
-                    <div className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-primary/10 border border-primary/20">
-                      <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-primary" aria-hidden="true" />
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">
-                        {t("tryOnWidget.authGate.title") || "Sign In Required"}
-                      </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                        {t("tryOnWidget.authGate.subtitle") || "To continue with virtual try-on"}
-                      </p>
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-sm">
-                      {t("tryOnWidget.authGate.description") || "Please sign in to your account to access the virtual try-on feature and save your results."}
+            <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] grid grid-cols-1 md:grid-cols-[1.2fr_1fr] bg-white rounded-2xl sm:rounded-[24px] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+                {/* Video Panel - Left Side (Desktop) / Top (Mobile) */}
+                <div className="relative w-full h-[220px] sm:h-auto bg-slate-900 overflow-hidden">
+                  {/* YouTube Video Embed - Autoplay, Loop, Muted */}
+                  <iframe
+                    src="https://www.youtube.com/embed/GE5_EDknSL8?autoplay=1&loop=1&playlist=GE5_EDknSL8&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1"
+                    title="Virtual Try-On Demonstration"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    aria-label="Virtual try-on demonstration video"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                  {/* Gradient Overlay for better text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
+                  {/* Overlay Text */}
+                  <div className="absolute bottom-6 left-6 right-6 text-white z-10">
+                    <p className="text-lg sm:text-xl font-semibold mb-1 drop-shadow-lg">
+                      {t("tryOnWidget.authGate.videoOverlayText1") || "See how it looks on you"}
                     </p>
-                  </div>
-
-                  {/* Benefits - Horizontal Compact Layout */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-2 border-t border-slate-100">
-                    <div className="flex flex-col items-center text-center space-y-1.5 px-2">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                        <CheckCircle className="w-4 h-4 text-primary" aria-hidden="true" />
-                      </div>
-                      <p className="text-xs text-slate-700 font-medium leading-tight">
-                        {t("tryOnWidget.authGate.benefit1") || "Save results"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center text-center space-y-1.5 px-2">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                        <CheckCircle className="w-4 h-4 text-primary" aria-hidden="true" />
-                      </div>
-                      <p className="text-xs text-slate-700 font-medium leading-tight">
-                        {t("tryOnWidget.authGate.benefit2") || "View history"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center text-center space-y-1.5 px-2">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                        <CheckCircle className="w-4 h-4 text-primary" aria-hidden="true" />
-                      </div>
-                      <p className="text-xs text-slate-700 font-medium leading-tight">
-                        {t("tryOnWidget.authGate.benefit3") || "Personalized"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="space-y-3 pt-1">
-                    <Button
-                      onClick={handleLoginClick}
-                      className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg"
-                      aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}
-                    >
-                      <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
-                      {t("tryOnWidget.authGate.loginButton") || "Sign In"}
-                    </Button>
-
-                    {/* Sign Up Link - Compact */}
-                    <p className="text-center text-xs sm:text-sm text-slate-600">
-                      {t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}{" "}
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          // Get register URL from Liquid-injected data if available (universal compatibility)
-                          try {
-                            const loginUrlScript = document.getElementById('nusense-login-url-info');
-                            if (loginUrlScript && loginUrlScript.textContent) {
-                              const loginUrlData = JSON.parse(loginUrlScript.textContent);
-                              if (loginUrlData?.accountRegisterUrl) {
-                                const signUpUrl = loginUrlData.accountRegisterUrl;
-                                if (isInIframe && window.parent !== window) {
-                                  try {
-                                    window.parent.location.href = signUpUrl;
-                                  } catch {
-                                    window.open(signUpUrl, "_blank");
-                                  }
-                                } else {
-                                  window.location.href = signUpUrl;
-                                }
-                                return;
-                              }
-                            }
-                          } catch (error) {
-                            console.warn('[TryOnWidget] Error getting register URL:', error);
-                          }
-                          // Fallback: construct register URL manually
-                          const storeOriginInfo = detectStoreOrigin();
-                          const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
-                          const signUpUrl = `${storeOrigin}/account/register`;
-                          if (isInIframe && window.parent !== window) {
-                            try {
-                              window.parent.location.href = signUpUrl;
-                            } catch {
-                              window.open(signUpUrl, "_blank");
-                            }
-                          } else {
-                            window.location.href = signUpUrl;
-                          }
-                        }}
-                        className="text-primary hover:text-primary/80 font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm transition-colors"
-                        aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Create a new account"}
-                      >
-                        {t("tryOnWidget.authGate.signUpLink") || "Create one"}
-                      </a>
+                    <p className="text-sm sm:text-base opacity-90 drop-shadow-md">
+                      {t("tryOnWidget.authGate.videoOverlayText2") || "Try different outfits instantly"}
                     </p>
                   </div>
                 </div>
-              </Card>
+
+                {/* Login Panel - Right Side (Desktop) / Bottom (Mobile) */}
+                <div className="flex flex-col justify-center p-6 sm:p-8 md:p-10 overflow-y-auto overscroll-contain">
+                  <div className="w-full max-w-md mx-auto space-y-6 sm:space-y-7">
+                    {/* Title Section */}
+                    <div className="space-y-3 text-center md:text-left">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">
+                        {t("tryOnWidget.authGate.title") || "Continue to Virtual Try-On"}
+                      </h2>
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                        {t("tryOnWidget.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
+                      </p>
+                      {/* Trust Badge */}
+                      <div className="flex items-center justify-center md:justify-start gap-2 pt-1">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" aria-hidden="true" />
+                        <span className="text-xs text-slate-500">
+                          {t("tryOnWidget.authGate.trustBadge") || "Secure login • Privacy protected"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Benefits - Clean Icons */}
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-slate-200/60">
+                      <div className="flex flex-col items-center text-center space-y-2">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 border border-slate-200/60">
+                          <CheckCircle className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                        </div>
+                        <p className="text-xs font-medium text-slate-700 leading-tight">
+                          {t("tryOnWidget.authGate.benefit1") || "Saved Looks"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-center text-center space-y-2">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 border border-slate-200/60">
+                          <CheckCircle className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                        </div>
+                        <p className="text-xs font-medium text-slate-700 leading-tight">
+                          {t("tryOnWidget.authGate.benefit2") || "Try-On History"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-center text-center space-y-2">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 border border-slate-200/60">
+                          <CheckCircle className="w-5 h-5 text-slate-600" aria-hidden="true" />
+                        </div>
+                        <p className="text-xs font-medium text-slate-700 leading-tight">
+                          {t("tryOnWidget.authGate.benefit3") || "Smart Recommendations"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-4 pt-2">
+                      <Button
+                        onClick={handleLoginClick}
+                        disabled={isRedirecting}
+                        className="w-full h-12 sm:h-13 bg-slate-900 hover:bg-slate-800 text-white text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                        aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}
+                      >
+                        {isRedirecting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" aria-hidden="true" />
+                            {t("tryOnWidget.authGate.loginButtonLoading") || "Redirecting..."}
+                          </>
+                        ) : (
+                          <>
+                            <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
+                            {t("tryOnWidget.authGate.loginButton") || "Continue with Shopify"}
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Redirect Notice */}
+                      <p className="text-xs text-center text-slate-500">
+                        {t("tryOnWidget.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
+                      </p>
+
+                      {/* Sign Up Link */}
+                      <p className="text-center text-xs sm:text-sm text-slate-600 pt-2">
+                        {t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}{" "}
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            try {
+                              const loginUrlScript = document.getElementById('nusense-login-url-info');
+                              if (loginUrlScript && loginUrlScript.textContent) {
+                                const loginUrlData = JSON.parse(loginUrlScript.textContent);
+                                if (loginUrlData?.accountRegisterUrl) {
+                                  const signUpUrl = loginUrlData.accountRegisterUrl;
+                                  if (isInIframe && window.parent !== window) {
+                                    try {
+                                      window.parent.location.href = signUpUrl;
+                                    } catch {
+                                      window.open(signUpUrl, "_blank");
+                                    }
+                                  } else {
+                                    window.location.href = signUpUrl;
+                                  }
+                                  return;
+                                }
+                              }
+                            } catch (error) {
+                              console.warn('[TryOnWidget] Error getting register URL:', error);
+                            }
+                            const storeOriginInfo = detectStoreOrigin();
+                            const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
+                            const signUpUrl = `${storeOrigin}/account/register`;
+                            if (isInIframe && window.parent !== window) {
+                              try {
+                                window.parent.location.href = signUpUrl;
+                              } catch {
+                                window.open(signUpUrl, "_blank");
+                              }
+                            } else {
+                              window.location.href = signUpUrl;
+                            }
+                          }}
+                          className="text-slate-900 hover:text-slate-700 font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 rounded-sm transition-colors"
+                          aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Create a new account"}
+                        >
+                          {t("tryOnWidget.authGate.signUpLink") || "Create one"}
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
