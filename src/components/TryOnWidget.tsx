@@ -385,6 +385,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   // Debug: Log customer info on component load
   useEffect(() => {
     console.log("[TryOnWidget] Customer info:", customerInfo);
+    if (customerInfo?.id) {
+      console.log("[TryOnWidget] Customer ID:", customerInfo.id);
+    }
+    if (customerInfo?.email) {
+      console.log("[TryOnWidget] Customer Email:", customerInfo.email);
+    }
   }, [customerInfo]);
 
   // Set initial status message
