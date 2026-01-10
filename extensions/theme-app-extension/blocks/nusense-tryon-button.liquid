@@ -12,6 +12,17 @@
   </script>
 {% endif %}
 
+{% comment %} Output storefront login URL for universal compatibility across all stores {% endcomment %}
+{% if shop.customer_accounts_enabled %}
+  <script type="application/json" id="nusense-login-url-info">
+    {
+      "storefrontLoginUrl": {{ routes.storefront_login_url | json }},
+      "accountLoginUrl": {{ routes.account_login_url | json }},
+      "accountRegisterUrl": {{ routes.account_register_url | json }}
+    }
+  </script>
+{% endif %}
+
 {% assign button_text = block.settings.button_text | default: 'TryOn' %}
 {% assign button_style = block.settings.button_style | default: 'primary' %}
 {% assign button_icon = block.settings.button_icon | default: '✨' %}

@@ -37,7 +37,7 @@ import {
 } from "@/services/cartOutfitApi";
 import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
-import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, ArrowLeft, Info, Share2 } from "lucide-react";
+import { Sparkles, X, RotateCcw, XCircle, CheckCircle, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, Filter, Grid3x3, Package, ArrowLeft, Info, Share2, LogIn, Shield } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -2286,6 +2286,110 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setShowTabSwitchConfirm(false);
   };
 
+  // Get login URL - Universal compatibility for ALL stores
+  // Uses Shopify's routes.storefront_login_url (injected via Liquid) when available
+  // Falls back to /customer_authentication/login for legacy stores
+  // This works for: legacy customer accounts, new Customer Account API, all themes
+  const getLoginUrl = (): string => {
+    try {
+      // First, try to get the universal login URL from Liquid-injected JSON script tag
+      // This works for ALL stores regardless of customer account type
+      try {
+        const loginUrlScript = document.getElementById('nusense-login-url-info');
+        if (loginUrlScript && loginUrlScript.textContent) {
+          const loginUrlData = JSON.parse(loginUrlScript.textContent);
+          // routes.storefront_login_url automatically returns to the page where login originated
+          // This is the recommended Shopify approach for universal compatibility
+          if (loginUrlData?.storefrontLoginUrl) {
+            return loginUrlData.storefrontLoginUrl;
+          }
+          // Fallback to account_login_url if storefront_login_url not available
+          if (loginUrlData?.accountLoginUrl) {
+            return loginUrlData.accountLoginUrl;
+          }
+        }
+      } catch (parseError) {
+        console.warn('[TryOnWidget] Error parsing login URL from Liquid:', parseError);
+      }
+      
+      // Fallback: Construct login URL manually using storefront login path
+      // This works for legacy customer accounts (most common scenario)
+      const storeOriginInfo = detectStoreOrigin();
+      const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl;
+      
+      // Get the page where widget is embedded (parent if in iframe, current if not)
+      let returnPagePath = window.location.pathname;
+      
+      if (window.parent !== window) {
+        // In iframe: try to get parent page path
+        try {
+          const referrer = document.referrer;
+          if (referrer) {
+            try {
+              const referrerUrl = new URL(referrer);
+              returnPagePath = referrerUrl.pathname + referrerUrl.search;
+            } catch {
+              // Invalid referrer URL, use current path
+            }
+          }
+        } catch {
+          // Cannot access parent, use current path
+        }
+      }
+      
+      // Ensure return_to is relative (starts with /) as required by Shopify
+      const returnTo = returnPagePath.startsWith('/') ? returnPagePath : `/${returnPagePath}`;
+      
+      if (storeOrigin) {
+        // Use /customer_authentication/login for storefront login (works for legacy accounts)
+        // This path works on ALL Shopify stores with customer accounts enabled
+        const loginUrl = new URL("/customer_authentication/login", storeOrigin);
+        loginUrl.searchParams.set("return_to", returnTo);
+        return loginUrl.toString();
+      }
+      
+      // Fallback: try to detect from parent window or referrer
+      if (window.parent !== window) {
+        try {
+          const referrer = document.referrer;
+          if (referrer) {
+            const referrerUrl = new URL(referrer);
+            const loginUrl = new URL("/customer_authentication/login", referrerUrl.origin);
+            loginUrl.searchParams.set("return_to", returnTo);
+            return loginUrl.toString();
+          }
+        } catch {
+          // Cannot access parent
+        }
+      }
+      
+      // Final fallback: relative path (will work if on same domain)
+      const loginUrl = new URL("/customer_authentication/login", window.location.origin);
+      loginUrl.searchParams.set("return_to", returnTo);
+      return loginUrl.toString();
+    } catch (error) {
+      console.error("[TryOnWidget] Error constructing login URL:", error);
+      // Final fallback to relative path
+      return "/customer_authentication/login";
+    }
+  };
+
+  const handleLoginClick = () => {
+    const loginUrl = getLoginUrl();
+    // If in iframe, redirect parent window to login
+    if (isInIframe && window.parent !== window) {
+      try {
+        window.parent.location.href = loginUrl;
+      } catch (error) {
+        // Cross-origin issue, open in new tab
+        window.open(loginUrl, "_blank");
+      }
+    } else {
+      // Redirect current window
+      window.location.href = loginUrl;
+    }
+  };
+
   const handleClose = (e?: React.MouseEvent) => {
     // Prevent event propagation to avoid double-triggering or step navigation
     if (e) {
@@ -2387,7 +2491,122 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               </button>
             </div>
           </header>
-          {/* Tabs Navigation and Content */}
+
+          {/* Authentication Gate - Check if customer is logged in */}
+          {!customerInfo?.id && (
+            <div className="w-full py-8 px-4 sm:px-6">
+              <Card className="p-6 sm:p-8 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                <div className="flex flex-col items-center text-center space-y-6">
+                  {/* Icon */}
+                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/30">
+                    <Shield className="w-8 h-8 text-primary" aria-hidden="true" />
+                  </div>
+
+                  {/* Title and Description */}
+                  <div className="space-y-2">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
+                      {t("tryOnWidget.authGate.title") || "Login Required"}
+                    </h2>
+                    <p className="text-base sm:text-lg text-slate-600 max-w-md mx-auto">
+                      {t("tryOnWidget.authGate.description") || "Please log in to your account to use the virtual try-on feature."}
+                    </p>
+                  </div>
+
+                  {/* Benefits List */}
+                  <div className="w-full max-w-md space-y-3">
+                    <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                      {t("tryOnWidget.authGate.benefitsTitle") || "Benefits of logging in:"}
+                    </h3>
+                    <ul className="space-y-2.5 text-left">
+                      <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
+                        </div>
+                        <span>{t("tryOnWidget.authGate.benefit1") || "Save your generated try-on images"}</span>
+                      </li>
+                      <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
+                        </div>
+                        <span>{t("tryOnWidget.authGate.benefit2") || "Access your try-on history"}</span>
+                      </li>
+                      <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
+                        </div>
+                        <span>{t("tryOnWidget.authGate.benefit3") || "Enjoy a personalized shopping experience"}</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Login Button */}
+                  <div className="w-full max-w-md space-y-3 pt-2">
+                    <Button
+                      onClick={handleLoginClick}
+                      className="w-full h-12 sm:h-14 bg-primary hover:bg-primary/90 text-primary-foreground text-base sm:text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                      aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Log in to continue using virtual try-on"}
+                    >
+                      <LogIn className="w-5 h-5 sm:w-6 sm:h-6 mr-2" aria-hidden="true" />
+                      {t("tryOnWidget.authGate.loginButton") || "Log In to Continue"}
+                    </Button>
+
+                    {/* Sign Up Link */}
+                    <p className="text-sm text-slate-600">
+                      {t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}{" "}
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Get register URL from Liquid-injected data if available (universal compatibility)
+                          try {
+                            const loginUrlScript = document.getElementById('nusense-login-url-info');
+                            if (loginUrlScript && loginUrlScript.textContent) {
+                              const loginUrlData = JSON.parse(loginUrlScript.textContent);
+                              if (loginUrlData?.accountRegisterUrl) {
+                                const signUpUrl = loginUrlData.accountRegisterUrl;
+                                if (isInIframe && window.parent !== window) {
+                                  try {
+                                    window.parent.location.href = signUpUrl;
+                                  } catch {
+                                    window.open(signUpUrl, "_blank");
+                                  }
+                                } else {
+                                  window.location.href = signUpUrl;
+                                }
+                                return;
+                              }
+                            }
+                          } catch (error) {
+                            console.warn('[TryOnWidget] Error getting register URL:', error);
+                          }
+                          // Fallback: construct register URL manually
+                          const storeOriginInfo = detectStoreOrigin();
+                          const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
+                          const signUpUrl = `${storeOrigin}/account/register`;
+                          if (isInIframe && window.parent !== window) {
+                            try {
+                              window.parent.location.href = signUpUrl;
+                            } catch {
+                              window.open(signUpUrl, "_blank");
+                            }
+                          } else {
+                            window.location.href = signUpUrl;
+                          }
+                        }}
+                        className="text-primary hover:text-primary/80 font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                        aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Sign up for a new account"}
+                      >
+                        {t("tryOnWidget.authGate.signUpLink") || "Sign up here"}
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Tabs Navigation and Content - Only show if customer is authenticated */}
+          {customerInfo?.id && (
           <Tabs
         value={activeTab}
         onValueChange={(value) => {
@@ -4367,6 +4586,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
           </TabsContent>
         </Tabs>
+        )}
         </div>
       
     </div>

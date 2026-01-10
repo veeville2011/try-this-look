@@ -1068,6 +1068,19 @@
       "placeholder": "Sélectionner une version (optionnel)",
       "description": "Sélectionnez la version du modèle à utiliser pour la génération"
     },
+    "authGate": {
+      "title": "Connexion Requise",
+      "description": "Veuillez vous connecter à votre compte pour utiliser la fonctionnalité d'essayage virtuel.",
+      "benefitsTitle": "Avantages de la connexion :",
+      "benefit1": "Enregistrer vos images d'essayage générées",
+      "benefit2": "Accéder à votre historique d'essayage",
+      "benefit3": "Profiter d'une expérience d'achat personnalisée",
+      "loginButton": "Se Connecter pour Continuer",
+      "loginButtonAriaLabel": "Se connecter pour continuer à utiliser l'essayage virtuel",
+      "accountLink": "Vous n'avez pas de compte ?",
+      "signUpLink": "Inscrivez-vous ici",
+      "signUpLinkAriaLabel": "S'inscrire pour un nouveau compte"
+    },
     "photoUpload": {
       "srOnlyText": "Téléchargez votre photo ou utilisez une photo de démonstration",
       "uploadAreaAriaLabel": "Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image",
