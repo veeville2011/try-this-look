@@ -2376,6 +2376,25 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Tutorial demo animation state - 4 steps
+  const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1); // 1: upload, 2: select, 3: generating, 4: result
+
+  // Infinite loop tutorial animation
+  useEffect(() => {
+    if (!customerInfo?.id) {
+      const interval = setInterval(() => {
+        setTutorialStep((prev) => {
+          if (prev === 1) return 2; // Upload → Select clothing
+          if (prev === 2) return 3; // Select → Generating
+          if (prev === 3) return 4; // Generating → Result
+          return 1; // Result → Loop back to Upload
+        });
+      }, 3000); // Change step every 3 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [customerInfo?.id]);
+
   const handleLoginClick = () => {
     setIsRedirecting(true);
     const loginUrl = getLoginUrl();
@@ -2497,85 +2516,194 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             </div>
           </header>
 
-          {/* Authentication Gate - Premium Design with Video Panel */}
+          {/* Authentication Gate - Image Collage Design */}
           {!customerInfo?.id && (
             <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-hidden">
-              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] grid grid-cols-1 md:grid-cols-[1.2fr_1fr] bg-white rounded overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-                {/* Video Panel - Left Side (Desktop) / Top (Mobile) */}
-                <div className="relative w-full h-[220px] sm:h-auto bg-[#564646] overflow-hidden">
-                  {/* Google Drive Video Embed - Autoplay, Loop, Muted */}
-                  <iframe
-                    src="https://drive.google.com/file/d/1DUbUpU6U6Cb7hSAh66XTfUbHegES6XKX/preview?autoplay=1&mute=1&loop=1"
-                    title="Virtual Try-On Demonstration"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    aria-label="Virtual try-on demonstration video"
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  {/* Gradient Overlay for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
-                  {/* Overlay Text */}
-                  <div className="absolute bottom-6 left-6 right-6 text-white z-10">
-                    <p className="text-lg sm:text-xl font-semibold mb-1 drop-shadow-lg">
-                      {t("tryOnWidget.authGate.videoOverlayText1") || "See how it looks on you"}
-                    </p>
-                    <p className="text-sm sm:text-base opacity-90 drop-shadow-md">
-                      {t("tryOnWidget.authGate.videoOverlayText2") || "Try different outfits instantly"}
-                    </p>
+              <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden">
+                {/* Animated Tutorial Demo Panel - Left Side (Desktop only, hidden on mobile) */}
+                <section
+                  aria-label={t("tryOnWidget.authGate.demoAriaLabel") || "Virtual try-on tutorial demonstration"}
+                  className="hidden md:flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3"
+                >
+                  <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-border min-h-0 flex-1 relative overflow-hidden">
+                    {/* Tutorial Demo - Step-by-Step Animated Flow */}
+                    <div className="w-full flex-1 flex flex-col gap-4 relative" style={{ minHeight: "450px" }}>
+                      {/* Step Indicator */}
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        {[1, 2, 3, 4].map((step) => (
+                          <div
+                            key={step}
+                            className={cn(
+                              "h-2 rounded-full transition-all duration-500",
+                              tutorialStep === step
+                                ? "w-8 bg-[#564646]"
+                                : tutorialStep > step
+                                ? "w-2 bg-[#564646]/40"
+                                : "w-2 bg-slate-200"
+                            )}
+                            aria-hidden="true"
+                          />
+                        ))}
+                      </div>
+
+                      {/* Step Text Explanation */}
+                      <div className="text-center mb-6 min-h-[72px] flex flex-col items-center justify-center gap-2">
+                        <p
+                          className={cn(
+                            "text-xs sm:text-sm font-medium text-[#564646]/70 uppercase tracking-wider transition-opacity duration-500",
+                            "opacity-100"
+                          )}
+                          key={`step-number-${tutorialStep}`}
+                        >
+                          {tutorialStep === 1 && (t("tryOnWidget.authGate.step1Number") || "Step 1")}
+                          {tutorialStep === 2 && (t("tryOnWidget.authGate.step2Number") || "Step 2")}
+                          {tutorialStep === 3 && (t("tryOnWidget.authGate.step3Number") || "Step 3")}
+                          {tutorialStep === 4 && (t("tryOnWidget.authGate.step4Number") || "Step 4")}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-lg sm:text-xl font-bold text-[#564646] leading-tight transition-opacity duration-500",
+                            "opacity-100"
+                          )}
+                          key={`step-text-${tutorialStep}`}
+                        >
+                          {tutorialStep === 1 && (t("tryOnWidget.authGate.step1Text") || "Upload Your Photo")}
+                          {tutorialStep === 2 && (t("tryOnWidget.authGate.step2Text") || "Select Your Clothing")}
+                          {tutorialStep === 3 && (t("tryOnWidget.authGate.step3Text") || "Generating Try-On Result")}
+                          {tutorialStep === 4 && (t("tryOnWidget.authGate.step4Text") || "View Your Result")}
+                        </p>
+                      </div>
+
+                      {/* Single Image Display Area - Shows in steps 1, 2, 3, 4 */}
+                      <div
+                        className={cn(
+                          "w-full rounded-lg bg-white border border-border overflow-hidden flex items-center justify-center transition-all duration-700 ease-in-out relative"
+                        )}
+                        style={{ aspectRatio: "1 / 1", minHeight: "300px" }}
+                      >
+                        {/* Person Image - Step 1 */}
+                        {tutorialStep === 1 && (
+                          <div className="w-full h-full relative">
+                            <img
+                              src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg"
+                              alt={t("tryOnWidget.authGate.personImageAlt") || "Example person photo"}
+                              className="w-full h-full object-contain"
+                            />
+                            <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                          </div>
+                        )}
+
+                        {/* Clothing Image - Step 2 */}
+                        {tutorialStep === 2 && (
+                          <div className="w-full h-full relative">
+                            <img
+                              src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg"
+                              alt={t("tryOnWidget.authGate.clothingImageAlt") || "Example clothing item"}
+                              className="w-full h-full object-contain"
+                            />
+                            <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                          </div>
+                        )}
+
+                        {/* Generation Loading - Step 3 */}
+                        {tutorialStep === 3 && (
+                          <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 border border-border rounded-lg">
+                            <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                            <div
+                              className="absolute inset-0 pointer-events-none"
+                              style={{
+                                background:
+                                  "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)",
+                                width: "100%",
+                                height: "100%",
+                                animation: "shimmer 2s infinite",
+                              }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#564646]/10 backdrop-blur-sm flex items-center justify-center border border-[#564646]/20">
+                                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-[#564646] animate-pulse" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Generated Result - Step 4 */}
+                        {tutorialStep === 4 && (
+                          <div className="w-full h-full relative">
+                            <img
+                              src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg"
+                              alt={t("tryOnWidget.authGate.generatedImageAlt") || "Example of generated virtual try-on result"}
+                              className="w-full h-full object-contain"
+                            />
+                            <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </section>
 
-                {/* Login Panel - Right Side (Desktop) / Bottom (Mobile) */}
-                <div className="flex flex-col justify-center p-6 sm:p-8 md:p-10 overflow-y-auto overscroll-contain">
-                  <div className="w-full max-w-md mx-auto space-y-6 sm:space-y-7">
-                    {/* Title Section */}
-                    <div className="space-y-3 text-center md:text-left">
-                      <h2 className="text-2xl sm:text-3xl font-bold text-[#564646] leading-tight">
-                        {t("tryOnWidget.authGate.title") || "Continue to Virtual Try-On"}
-                      </h2>
-                      <p className="text-sm sm:text-base text-[#564646]/80 leading-relaxed">
-                        {t("tryOnWidget.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
-                      </p>
-                      {/* Trust Badge */}
-                      <div className="flex items-center justify-center md:justify-start gap-2 pt-1">
-                        <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                        <span className="text-xs text-[#564646]/60">
-                          {t("tryOnWidget.authGate.trustBadge") || "Secure login • Privacy protected"}
-                        </span>
+                {/* Vertical Divider - Desktop only */}
+                <div
+                  className="hidden md:block w-px self-stretch flex-none bg-slate-200 mt-3"
+                  aria-hidden="true"
+                />
+
+                {/* Login Panel - Right Side (Desktop) / Full Width (Mobile) */}
+                <section
+                  aria-labelledby="auth-heading"
+                  className="flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3"
+                >
+                  <div className="flex flex-col items-start bg-white w-full py-6 px-5 md:px-8 rounded-xl border border-border min-h-0 flex-1 justify-between">
+                    {/* Top Section: Title and Content */}
+                    <div className="w-full space-y-6 flex-shrink-0">
+                      {/* Title Section */}
+                      <div className="space-y-4 text-left">
+                        <h2 id="auth-heading" className="text-2xl sm:text-3xl md:text-3xl font-bold text-[#564646] leading-tight tracking-tight">
+                          {t("tryOnWidget.authGate.title") || "Continue to Virtual Try-On"}
+                        </h2>
+                        <p className="text-sm sm:text-base text-[#564646]/75 leading-relaxed max-w-md">
+                          {t("tryOnWidget.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
+                        </p>
+                        
+                        {/* Virtual Try-On Benefits */}
+                        <div className="space-y-2.5 pt-3">
+                          <div className="flex items-center justify-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs text-[#564646]/60">
+                              {t("tryOnWidget.authGate.benefit1") || "See how it looks"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs text-[#564646]/60">
+                              {t("tryOnWidget.authGate.benefit2") || "Before you buy"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs text-[#564646]/60">
+                              {t("tryOnWidget.authGate.benefit3") || "Save time"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs text-[#564646]/60">
+                              {t("tryOnWidget.authGate.benefit4") || "Try multiple styles"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs text-[#564646]/60">
+                              {t("tryOnWidget.authGate.benefit5") || "AI-powered"}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Benefits - Clean Icons */}
-                    <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-[#564646]/20">
-                      <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#564646]/10 border border-[#564646]/20">
-                          <CheckCircle className="w-5 h-5 text-[#564646]" aria-hidden="true" />
-                        </div>
-                        <p className="text-xs font-medium text-[#564646] leading-tight">
-                          {t("tryOnWidget.authGate.benefit1") || "Saved Looks"}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#564646]/10 border border-[#564646]/20">
-                          <CheckCircle className="w-5 h-5 text-[#564646]" aria-hidden="true" />
-                        </div>
-                        <p className="text-xs font-medium text-[#564646] leading-tight">
-                          {t("tryOnWidget.authGate.benefit2") || "Try-On History"}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-center text-center space-y-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#564646]/10 border border-[#564646]/20">
-                          <CheckCircle className="w-5 h-5 text-[#564646]" aria-hidden="true" />
-                        </div>
-                        <p className="text-xs font-medium text-[#564646] leading-tight">
-                          {t("tryOnWidget.authGate.benefit3") || "Smart Recommendations"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="space-y-4 pt-2">
+                    {/* Bottom Section: Actions - Pushed to bottom */}
+                    <div className="w-full space-y-3 flex-shrink-0 mt-auto">
                       <Button
                         onClick={handleLoginClick}
                         disabled={isRedirecting}
@@ -2596,13 +2724,13 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </Button>
 
                       {/* Redirect Notice */}
-                      <p className="text-xs text-center text-[#564646]/60">
+                      <p className="text-xs text-left text-[#564646]/55 leading-relaxed">
                         {t("tryOnWidget.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
                       </p>
 
                       {/* Sign Up Link */}
-                      <p className="text-center text-xs sm:text-sm text-[#564646]/80 pt-2">
-                        {t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}{" "}
+                      <div className="text-left text-xs sm:text-sm text-[#564646]/75 space-y-1.5">
+                        <p className="leading-relaxed">{t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}</p>
                         <a
                           href="#"
                           onClick={(e) => {
@@ -2641,15 +2769,15 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                               window.location.href = signUpUrl;
                             }
                           }}
-                          className="text-[#564646] hover:text-[#453939] font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#564646] focus-visible:ring-offset-2 rounded-sm transition-colors"
+                          className="inline-block text-[#564646] hover:text-[#453939] font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#564646] focus-visible:ring-offset-2 rounded-sm transition-colors"
                           aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Create a new account"}
                         >
                           {t("tryOnWidget.authGate.signUpLink") || "Create one"}
                         </a>
-                      </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </section>
               </div>
             </div>
           )}
