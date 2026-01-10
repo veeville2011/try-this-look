@@ -2718,7 +2718,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         ) : (
                           <>
                             <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
-                            {t("tryOnWidget.authGate.loginButton") || "Continue with Shopify"}
+                            {t("tryOnWidget.authGate.loginButton") || "Sign In"}
                           </>
                         )}
                       </Button>
