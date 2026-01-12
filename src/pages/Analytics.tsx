@@ -534,7 +534,11 @@ const Analytics = () => {
 
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Date Range Filter - Compact Inline */}
-                <div className="flex items-center gap-1.5 border border-border rounded-md bg-card px-2 py-1">
+                <div className={`flex items-center gap-1.5 border rounded-md bg-card px-2 py-1 transition-all ${
+                  appliedDateRange 
+                    ? "border-primary/50 bg-primary/5 shadow-sm" 
+                    : "border-border hover:border-primary/30"
+                }`}>
                   <Popover>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -542,15 +546,28 @@ const Analytics = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className={`h-8 w-8 transition-colors ${
+                              appliedDateRange 
+                                ? "text-primary hover:bg-primary/10" 
+                                : "hover:bg-accent"
+                            }`}
                             aria-label={t("analytics.filters.dateRange") || "Date Range"}
                           >
-                            <CalendarIcon className="h-4 w-4" />
+                            <CalendarIcon className={`h-4 w-4 ${appliedDateRange ? "text-primary" : ""}`} />
                           </Button>
                         </PopoverTrigger>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {dateRange?.from ? (
+                        {appliedDateRange?.from ? (
+                          appliedDateRange.to ? (
+                            <>
+                              {format(appliedDateRange.from, "LLL dd, y")} -{" "}
+                              {format(appliedDateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(appliedDateRange.from, "LLL dd, y")
+                          )
+                        ) : dateRange?.from ? (
                           dateRange.to ? (
                             <>
                               {format(dateRange.from, "LLL dd, y")} -{" "}
@@ -568,7 +585,7 @@ const Analytics = () => {
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={dateRange?.from}
+                        defaultMonth={dateRange?.from || appliedDateRange?.from}
                         selected={dateRange}
                         onSelect={setDateRange}
                         numberOfMonths={2}
@@ -577,25 +594,31 @@ const Analytics = () => {
                     </PopoverContent>
                   </Popover>
                   
-                  {dateRange?.from && (
-                    <span className="text-xs text-muted-foreground px-1 max-w-[120px] truncate">
-                      {dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
-                        </>
-                      ) : (
-                        format(dateRange.from, "MMM dd")
+                  {(dateRange?.from || appliedDateRange?.from) && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded max-w-[140px] truncate font-medium transition-colors ${
+                      appliedDateRange
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground"
+                    }`}>
+                      {(dateRange?.from || appliedDateRange?.from) && (
+                        (dateRange?.to || appliedDateRange?.to) ? (
+                          <>
+                            {format((dateRange?.from || appliedDateRange?.from)!, "MMM dd")} - {format((dateRange?.to || appliedDateRange?.to)!, "MMM dd")}
+                          </>
+                        ) : (
+                          format((dateRange?.from || appliedDateRange?.from)!, "MMM dd")
+                        )
                       )}
                     </span>
                   )}
 
-                  {dateRange?.from && (
+                  {dateRange?.from && !appliedDateRange && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-7 w-7 hover:bg-primary/10 hover:text-primary transition-colors"
                           onClick={handleApplyDateFilter}
                           disabled={loading}
                           aria-label={t("analytics.filters.apply") || "Apply Filters"}
@@ -615,12 +638,12 @@ const Analytics = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive transition-colors"
                           onClick={handleClearDateFilter}
                           disabled={loading}
                           aria-label={t("analytics.filters.clear") || "Clear Filters"}
                         >
-                          <X className="h-3.5 w-3.5 text-muted-foreground" />
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -635,9 +658,10 @@ const Analytics = () => {
                   <TooltipTrigger asChild>
                     <Button
                       size="icon"
+                      variant="outline"
                       onClick={fetchData}
                       disabled={loading || !shopDomain}
-                      className="h-9 w-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-9 w-9 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label={t("analytics.refresh") || "Refresh"}
                     >
                       {loading ? (
@@ -658,7 +682,7 @@ const Analytics = () => {
                       size="icon"
                       onClick={handleExport}
                       disabled={loading || total === 0}
-                      className="h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                      className="h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:scale-105 transition-all"
                       aria-label={t("analytics.export.button") || "Export"}
                     >
                       <Download className="w-4 h-4" />
