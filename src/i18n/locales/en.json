@@ -214,7 +214,18 @@
       "purchaseCreditsMessage": "Please purchase more credits to continue using the service.",
       "contactSupportMessage": "Please contact support to add credits.",
       "lowCreditsRemaining": "Low credits remaining",
-      "lowCreditsMessage": "You have {{count}} credits left. Consider purchasing more credits to avoid interruption."
+      "lowCreditsMessage": "You have {{count}} credits left. Consider purchasing more credits to avoid interruption.",
+      "utilizationBanner": {
+        "title80": "Credits Utilization Alert",
+        "title90": "⚠️ Credits Running Low",
+        "title100": "⚠️ Credits Fully Utilized",
+        "message80": "You've used {{used}} of {{total}} credits ({{percentage}}%). {{remaining}} credits remaining.",
+        "message90": "You've used {{used}} of {{total}} credits ({{percentage}}%). Only {{remaining}} credits remaining. Consider purchasing more credits soon.",
+        "message100": "You've used all {{used}} of your {{total}} credits. Please purchase more credits to continue.",
+        "message100WithRemaining": "You've used all {{used}} of your {{total}} credits. You have {{remaining}} credits remaining from other sources.",
+        "utilization": "Credit Utilization",
+        "viewPricing": "View Pricing"
+      }
     }
   },
   "subscription": {

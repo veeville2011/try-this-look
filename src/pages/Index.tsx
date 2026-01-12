@@ -52,6 +52,7 @@ import PlanSelection from "@/components/PlanSelection";
 import { PlanConfirmation } from "@/components/PlanConfirmation";
 import NavigationBar from "@/components/NavigationBar";
 import CreditBalance from "@/components/CreditBalance";
+import CreditUtilizationBanner from "@/components/CreditUtilizationBanner";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -1017,6 +1018,19 @@ const Index = () => {
     };
   }, [shop, showPlanSelection]);
 
+  // Listen for pricing modal open event from CreditUtilizationBanner
+  useEffect(() => {
+    const handleOpenPricingModal = () => {
+      setShowPlanSelection(true);
+    };
+
+    window.addEventListener("openPricingModal", handleOpenPricingModal);
+
+    return () => {
+      window.removeEventListener("openPricingModal", handleOpenPricingModal);
+    };
+  }, []);
+
   // Clear waiting state immediately when subscription is found
   // OR if subscription fetch completes but subscription is still null (after a short delay)
   useEffect(() => {
@@ -1320,6 +1334,15 @@ const Index = () => {
 
       {/* Navigation Bar */}
       <NavigationBar />
+
+      {/* Credit Utilization Banner - Shows at 80%, 90%, 100% utilization */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <CreditUtilizationBanner 
+          onDismiss={() => {
+            // Optional: Handle dismiss if needed
+          }}
+        />
+      </div>
 
       {/* Main Content - Always visible */}
       {/* Hero Section - Shopify Style */}

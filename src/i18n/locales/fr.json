@@ -214,7 +214,18 @@
       "purchaseCreditsMessage": "Veuillez acheter plus de crédits pour continuer à utiliser le service.",
       "contactSupportMessage": "Veuillez contacter le support pour ajouter des crédits.",
       "lowCreditsRemaining": "Crédits restants faibles",
-      "lowCreditsMessage": "Il vous reste {{count}} crédits. Envisagez d'acheter plus de crédits pour éviter toute interruption."
+      "lowCreditsMessage": "Il vous reste {{count}} crédits. Envisagez d'acheter plus de crédits pour éviter toute interruption.",
+      "utilizationBanner": {
+        "title80": "Alerte d'utilisation des crédits",
+        "title90": "⚠️ Crédits en faible quantité",
+        "title100": "⚠️ Crédits entièrement utilisés",
+        "message80": "Vous avez utilisé {{used}} sur {{total}} crédits ({{percentage}}%). {{remaining}} crédits restants.",
+        "message90": "Vous avez utilisé {{used}} sur {{total}} crédits ({{percentage}}%). Seulement {{remaining}} crédits restants. Envisagez d'acheter plus de crédits bientôt.",
+        "message100": "Vous avez utilisé tous vos {{used}} crédits sur {{total}}. Veuillez acheter plus de crédits pour continuer.",
+        "message100WithRemaining": "Vous avez utilisé tous vos {{used}} crédits sur {{total}}. Vous avez {{remaining}} crédits restants provenant d'autres sources.",
+        "utilization": "Utilisation des crédits",
+        "viewPricing": "Voir les tarifs"
+      }
     }
   },
   "subscription": {
