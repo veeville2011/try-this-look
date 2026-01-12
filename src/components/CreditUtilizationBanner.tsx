@@ -91,39 +91,46 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
     ? "text-yellow-600 dark:text-yellow-400"
     : "text-blue-600 dark:text-blue-400";
 
+  // Overage price per credit (from billing configuration)
+  const overagePrice = "$0.15";
+
   const title = isUrgent
-    ? t("credits.utilizationBanner.title100", "⚠️ Credits Fully Utilized")
+    ? t("credits.utilizationBanner.title100", "Overage Billing Activated")
     : isWarning
-    ? t("credits.utilizationBanner.title90", "⚠️ Credits Running Low")
-    : t("credits.utilizationBanner.title80", "Credits Utilization Alert");
+    ? t("credits.utilizationBanner.title90", "Credit Usage Alert")
+    : t("credits.utilizationBanner.title80", "Credit Usage Warning");
 
   const message = isUrgent
     ? creditsRemaining > 0
       ? t("credits.utilizationBanner.message100WithRemaining", { 
-          used: creditsUsed, 
-          total: creditsTotal,
           remaining: creditsRemaining,
-          defaultValue: `You've used all ${creditsUsed} of your ${creditsTotal} credits. You have ${creditsRemaining} credits remaining from other sources.`
+          defaultValue: "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service. You have {{remaining}} credits remaining from other sources."
         })
       : t("credits.utilizationBanner.message100", { 
-          used: creditsUsed, 
-          total: creditsTotal,
-          defaultValue: `You've used all ${creditsUsed} of your ${creditsTotal} credits. Please purchase more credits to continue.`
+          defaultValue: "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service."
         })
     : isWarning
     ? t("credits.utilizationBanner.message90", { 
-        used: creditsUsed, 
-        total: creditsTotal,
         remaining: creditsRemaining,
         percentage: utilizationPercentage,
-        defaultValue: `You've used ${creditsUsed} of ${creditsTotal} credits (${utilizationPercentage}%). Only ${creditsRemaining} credits remaining. Consider purchasing more credits soon.`
+        defaultValue: "IMPORTANT: You have used {{percentage}}% of your allocated credits. You only have {{remaining}} credits remaining for this billing period."
       })
     : t("credits.utilizationBanner.message80", { 
-        used: creditsUsed, 
-        total: creditsTotal,
-        remaining: creditsRemaining,
         percentage: utilizationPercentage,
-        defaultValue: `You've used ${creditsUsed} of ${creditsTotal} credits (${utilizationPercentage}%). ${creditsRemaining} credits remaining.`
+        defaultValue: "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this billing period."
+      });
+
+  // Overage note for 80% and 90% thresholds
+  const overageNote = isUrgent
+    ? null
+    : isWarning
+    ? t("credits.utilizationBanner.overageNote90", {
+        overagePrice,
+        defaultValue: "When you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit. This ensures uninterrupted service."
+      })
+    : t("credits.utilizationBanner.overageNote80", {
+        overagePrice,
+        defaultValue: "If you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit."
       });
 
   return (
@@ -154,7 +161,12 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
               {title}
             </AlertTitle>
             <AlertDescription className="text-sm mb-4 leading-relaxed">
-              {message}
+              <p className="mb-2">{message}</p>
+              {overageNote && (
+                <p className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                  {overageNote}
+                </p>
+              )}
             </AlertDescription>
             
             {/* Radial Progress Indicator */}

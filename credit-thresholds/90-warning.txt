@@ -1,0 +1,24 @@
+ALERTE D'UTILISATION DES CRÉDITS
+
+Bonjour {storeName},
+
+IMPORTANT : Vous avez utilisé {usagePercentage}% de vos crédits alloués. Il ne vous reste que {creditsRemaining} crédits pour cette période de facturation.
+
+STATISTIQUES :
+- Crédits utilisés : {creditsUsed} / {totalCredits}
+- Crédits restants : {creditsRemaining}
+- Plan actuel : {planName}
+
+ACTION REQUISE :
+- Envisagez d'acheter des crédits supplémentaires si nécessaire
+- Réexaminez vos modèles d'utilisation et optimisez si possible
+- Passez à un plan supérieur si vous dépassez régulièrement votre allocation
+- Soyez conscient que la facturation des dépassements sera activée lorsque les crédits atteindront 100%
+
+FACTURATION DES DÉPASSEMENTS :
+Lorsque vous atteignez 100% de vos crédits, la facturation des dépassements sera automatiquement activée à {overagePrice} par crédit. Cela garantit un service sans interruption.
+
+---
+Ceci est une notification automatique. Si vous avez des questions, veuillez contacter notre équipe de support.
+
+© 2026 NUSENSE. Tous droits réservés.

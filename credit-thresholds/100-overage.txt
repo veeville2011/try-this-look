@@ -1,0 +1,29 @@
+FACTURATION DES DÉPASSEMENTS ACTIVÉE
+
+Bonjour {storeName},
+
+Tous vos crédits alloués ont été utilisés pour cette période de facturation. La facturation des dépassements a été automatiquement activée pour garantir un service sans interruption.
+
+STATISTIQUES :
+- Crédits utilisés : {creditsUsed} / {totalCredits}
+- Crédits restants : {creditsRemaining}
+- Plan actuel : {planName}
+
+DÉTAILS DE LA FACTURATION DES DÉPASSEMENTS :
+- Taux de dépassement : {overagePrice} par crédit
+- Les frais seront facturés automatiquement au fur et à mesure de votre utilisation des crédits
+- Les frais de dépassement sont plafonnés à un montant maximum par période de facturation
+- Vos crédits seront réinitialisés au début de votre prochaine période de facturation
+
+CE QUE CELA SIGNIFIE :
+- Votre service continue sans interruption
+- Les crédits supplémentaires sont facturés au taux de dépassement
+- Vous pouvez continuer à utiliser le service normalement
+- Envisagez de passer à un plan supérieur si l'utilisation des dépassements devient fréquente
+
+Merci d'utiliser notre service. Si vous avez des questions concernant votre utilisation ou votre facturation, veuillez contacter notre équipe de support.
+
+---
+Ceci est une notification automatique. Si vous avez des questions, veuillez contacter notre équipe de support.
+
+© 2026 NUSENSE. Tous droits réservés.

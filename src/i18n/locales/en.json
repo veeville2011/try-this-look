@@ -216,13 +216,15 @@
       "lowCreditsRemaining": "Low credits remaining",
       "lowCreditsMessage": "You have {{count}} credits left. Consider purchasing more credits to avoid interruption.",
       "utilizationBanner": {
-        "title80": "Credits Utilization Alert",
-        "title90": "⚠️ Credits Running Low",
-        "title100": "⚠️ Credits Fully Utilized",
-        "message80": "You've used {{used}} of {{total}} credits ({{percentage}}%). {{remaining}} credits remaining.",
-        "message90": "You've used {{used}} of {{total}} credits ({{percentage}}%). Only {{remaining}} credits remaining. Consider purchasing more credits soon.",
-        "message100": "You've used all {{used}} of your {{total}} credits. Please purchase more credits to continue.",
-        "message100WithRemaining": "You've used all {{used}} of your {{total}} credits. You have {{remaining}} credits remaining from other sources.",
+        "title80": "Credit Usage Warning",
+        "title90": "Credit Usage Alert",
+        "title100": "Overage Billing Activated",
+        "message80": "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this billing period.",
+        "message90": "IMPORTANT: You have used {{percentage}}% of your allocated credits. You only have {{remaining}} credits remaining for this billing period.",
+        "message100": "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service.",
+        "message100WithRemaining": "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service. You have {{remaining}} credits remaining from other sources.",
+        "overageNote80": "If you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit.",
+        "overageNote90": "When you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit. This ensures uninterrupted service.",
         "utilization": "Credit Utilization",
         "viewPricing": "View Pricing"
       }

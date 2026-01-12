@@ -1,0 +1,23 @@
+AVERTISSEMENT D'UTILISATION DES CRÉDITS
+
+Bonjour {storeName},
+
+Ceci est un rappel amical que vous avez utilisé {usagePercentage}% de vos crédits alloués pour cette période de facturation.
+
+STATISTIQUES :
+- Crédits utilisés : {creditsUsed} / {totalCredits}
+- Crédits restants : {creditsRemaining}
+- Plan actuel : {planName}
+
+ACTIONS RECOMMANDÉES :
+- Surveillez régulièrement votre utilisation des crédits
+- Envisagez d'optimiser vos modèles d'utilisation si possible
+- Planifiez les frais de dépassement potentiels si vous dépassez votre allocation
+- Passez à un plan supérieur si vous avez régulièrement besoin de plus de crédits
+
+Si vous atteignez 100% de vos crédits, la facturation des dépassements sera automatiquement activée à {overagePrice} par crédit.
+
+---
+Ceci est une notification automatique. Si vous avez des questions, veuillez contacter notre équipe de support.
+
+© 2026 NUSENSE. Tous droits réservés.

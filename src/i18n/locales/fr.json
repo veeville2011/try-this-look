@@ -216,13 +216,15 @@
       "lowCreditsRemaining": "Crédits restants faibles",
       "lowCreditsMessage": "Il vous reste {{count}} crédits. Envisagez d'acheter plus de crédits pour éviter toute interruption.",
       "utilizationBanner": {
-        "title80": "Alerte d'utilisation des crédits",
-        "title90": "⚠️ Crédits en faible quantité",
-        "title100": "⚠️ Crédits entièrement utilisés",
-        "message80": "Vous avez utilisé {{used}} sur {{total}} crédits ({{percentage}}%). {{remaining}} crédits restants.",
-        "message90": "Vous avez utilisé {{used}} sur {{total}} crédits ({{percentage}}%). Seulement {{remaining}} crédits restants. Envisagez d'acheter plus de crédits bientôt.",
-        "message100": "Vous avez utilisé tous vos {{used}} crédits sur {{total}}. Veuillez acheter plus de crédits pour continuer.",
-        "message100WithRemaining": "Vous avez utilisé tous vos {{used}} crédits sur {{total}}. Vous avez {{remaining}} crédits restants provenant d'autres sources.",
+        "title80": "Avertissement d'utilisation des crédits",
+        "title90": "Alerte d'utilisation des crédits",
+        "title100": "Facturation des dépassements activée",
+        "message80": "Ceci est un rappel amical que vous avez utilisé {{percentage}}% de vos crédits alloués pour cette période de facturation.",
+        "message90": "IMPORTANT : Vous avez utilisé {{percentage}}% de vos crédits alloués. Il ne vous reste que {{remaining}} crédits pour cette période de facturation.",
+        "message100": "Tous vos crédits alloués ont été utilisés pour cette période de facturation. La facturation des dépassements a été automatiquement activée pour garantir un service sans interruption.",
+        "message100WithRemaining": "Tous vos crédits alloués ont été utilisés pour cette période de facturation. La facturation des dépassements a été automatiquement activée pour garantir un service sans interruption. Vous avez {{remaining}} crédits restants provenant d'autres sources.",
+        "overageNote80": "Si vous atteignez 100% de vos crédits, la facturation des dépassements sera automatiquement activée à {{overagePrice}} par crédit.",
+        "overageNote90": "Lorsque vous atteignez 100% de vos crédits, la facturation des dépassements sera automatiquement activée à {{overagePrice}} par crédit. Cela garantit un service sans interruption.",
         "utilization": "Utilisation des crédits",
         "viewPricing": "Voir les tarifs"
       }
