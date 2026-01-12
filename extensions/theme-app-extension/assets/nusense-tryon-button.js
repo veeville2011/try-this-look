@@ -496,12 +496,6 @@
               email: customerInfo.email || null,
               firstName: customerInfo.firstName || null,
               lastName: customerInfo.lastName || null,
-              country: customerInfo.country || null,
-              countryCode: customerInfo.countryCode || null,
-              province: customerInfo.province || null,
-              provinceCode: customerInfo.provinceCode || null,
-              city: customerInfo.city || null,
-              zip: customerInfo.zip || null,
             };
           }
         } catch (parseError) {
@@ -544,24 +538,6 @@
         }
         if (customerInfo.lastName) {
           url.searchParams.set('customerLastName', customerInfo.lastName);
-        }
-        if (customerInfo.country) {
-          url.searchParams.set('customerCountry', customerInfo.country);
-        }
-        if (customerInfo.countryCode) {
-          url.searchParams.set('customerCountryCode', customerInfo.countryCode);
-        }
-        if (customerInfo.province) {
-          url.searchParams.set('customerProvince', customerInfo.province);
-        }
-        if (customerInfo.provinceCode) {
-          url.searchParams.set('customerProvinceCode', customerInfo.provinceCode);
-        }
-        if (customerInfo.city) {
-          url.searchParams.set('customerCity', customerInfo.city);
-        }
-        if (customerInfo.zip) {
-          url.searchParams.set('customerZip', customerInfo.zip);
         }
       }
       
