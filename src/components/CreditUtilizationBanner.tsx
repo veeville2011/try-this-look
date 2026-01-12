@@ -8,10 +8,11 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCredits } from "@/hooks/useCredits";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { RadialProgress } from "@/components/ui/radial-progress";
-import { AlertTriangle, X, CreditCard, TrendingUp } from "lucide-react";
+import { AlertTriangle, X, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CreditUtilizationBannerProps {
@@ -23,6 +24,7 @@ const UTILIZATION_THRESHOLDS = [80, 90, 100];
 const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) => {
   const { t } = useTranslation();
   const { credits, loading } = useCredits();
+  const { subscription } = useSubscription();
   const [dismissed, setDismissed] = useState(false);
 
   const utilizationInfo = useMemo(() => {
@@ -91,8 +93,14 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
     ? "text-yellow-600 dark:text-yellow-400"
     : "text-blue-600 dark:text-blue-400";
 
-  // Overage price per credit (from billing configuration)
-  const overagePrice = "$0.15";
+  // Get overage price from subscription plan (varies by plan: Free $0.50, Starter $0.40, Growth $0.35, Pro $0.30)
+  const getOveragePrice = () => {
+    if (!subscription?.plan?.limits?.costPerGeneration) {
+      return "$0.50"; // Default to Free plan price
+    }
+    return `$${subscription.plan.limits.costPerGeneration.toFixed(2)}`;
+  };
+  const overagePrice = getOveragePrice();
 
   const title = isUrgent
     ? t("credits.utilizationBanner.title100", "Overage Billing Activated")
@@ -160,58 +168,44 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
             <AlertTitle className="font-semibold mb-2 text-base">
               {title}
             </AlertTitle>
-            <AlertDescription className="text-sm mb-4 leading-relaxed">
-              <p className="mb-2">{message}</p>
+            <AlertDescription className="text-sm mb-3 leading-relaxed">
+              <p>{message}</p>
               {overageNote && (
-                <p className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {overageNote}
                 </p>
               )}
             </AlertDescription>
             
-            {/* Radial Progress Indicator */}
-            <div className="mb-4 flex items-center gap-4">
-              <div className="flex-shrink-0">
-                <RadialProgress
-                  value={utilizationPercentage}
-                  max={100}
-                  size="md"
-                  color={isUrgent ? "destructive" : isWarning ? "warning" : "primary"}
-                  showLabel={true}
-                  aria-label={`${utilizationPercentage}% credit utilization`}
-                />
-              </div>
-              <div className="flex-1 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    {t("credits.utilizationBanner.utilization", "Credit Utilization")}
-                  </span>
-                  <span className={cn(
-                    "font-bold",
-                    isUrgent ? "text-red-600 dark:text-red-400" : isWarning ? "text-yellow-600 dark:text-yellow-400" : "text-blue-600 dark:text-blue-400"
-                  )}>
-                    {utilizationPercentage}%
-                  </span>
+            {/* Simplified Progress and Stats */}
+            <div className="mb-3 flex items-center gap-3">
+              <RadialProgress
+                value={utilizationPercentage}
+                max={100}
+                size="sm"
+                color={isUrgent ? "destructive" : isWarning ? "warning" : "primary"}
+                showLabel={true}
+                aria-label={`${utilizationPercentage}% utilisation`}
+              />
+              <div className="flex-1 flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">{t("credits.balanceCard.used", "Utilisé")}</span>
+                  <span className="font-semibold">{creditsUsed.toLocaleString()}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="flex flex-col items-center justify-center p-2 rounded-md bg-muted/50">
-                    <span className="text-muted-foreground mb-1">{t("credits.balanceCard.totalCredited", "Credited")}</span>
-                    <span className="font-semibold text-foreground">{creditsTotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-2 rounded-md bg-muted/50">
-                    <span className="text-muted-foreground mb-1">{t("credits.balanceCard.used", "Used")}</span>
-                    <span className="font-semibold text-foreground">{creditsUsed.toLocaleString()}</span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-2 rounded-md bg-muted/50">
-                    <span className="text-muted-foreground mb-1">{t("credits.balanceCard.balance", "Remaining")}</span>
-                    <span className={cn(
-                      "font-semibold",
-                      creditsRemaining === 0 ? "text-destructive" : creditsRemaining <= 20 ? "text-yellow-600 dark:text-yellow-400" : "text-success"
-                    )}>
-                      {creditsRemaining.toLocaleString()}
-                    </span>
-                  </div>
+                <span className="text-muted-foreground">/</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">{t("credits.balanceCard.totalCredited", "Crédité")}</span>
+                  <span className="font-semibold">{creditsTotal.toLocaleString()}</span>
+                </div>
+                <span className="text-muted-foreground">•</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">{t("credits.balanceCard.balance", "Restant")}</span>
+                  <span className={cn(
+                    "font-semibold",
+                    creditsRemaining === 0 ? "text-destructive" : creditsRemaining <= 20 ? "text-yellow-600 dark:text-yellow-400" : "text-success"
+                  )}>
+                    {creditsRemaining.toLocaleString()}
+                  </span>
                 </div>
               </div>
             </div>
