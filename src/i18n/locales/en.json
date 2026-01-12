@@ -845,6 +845,10 @@
       "storeNamePlaceholder": "Filter by store name",
       "user": "IP Address",
       "userPlaceholder": "Filter by IP address",
+      "dateRange": "Date Range",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "datePlaceholder": "Select date range",
       "apply": "Apply Filters",
       "clear": "Clear Filters"
     },

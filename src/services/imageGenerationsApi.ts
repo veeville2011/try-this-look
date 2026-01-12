@@ -44,6 +44,8 @@ export const fetchImageGenerations = async (
     orderDirection = "DESC",
     user,
     storeName,
+    startDate,
+    endDate,
   } = params;
 
   const queryParams = new URLSearchParams({
@@ -64,6 +66,12 @@ export const fetchImageGenerations = async (
     // Normalize store name to ensure consistent format
     const normalizedStoreName = normalizeShopDomain(storeName);
     queryParams.append("storeName", normalizedStoreName);
+  }
+  if (startDate) {
+    queryParams.append("start_date", startDate);
+  }
+  if (endDate) {
+    queryParams.append("end_date", endDate);
   }
 
   const baseUrl = getApiBaseUrl();

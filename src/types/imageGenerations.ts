@@ -49,5 +49,7 @@ export interface FetchImageGenerationsParams {
   orderDirection?: "ASC" | "DESC";
   user?: string;
   storeName?: string;
+  startDate?: string;
+  endDate?: string;
 }
 

@@ -845,6 +845,10 @@
       "storeNamePlaceholder": "Filtrer par nom de magasin",
       "user": "Adresse IP",
       "userPlaceholder": "Filtrer par adresse IP",
+      "dateRange": "Plage de dates",
+      "dateFrom": "De",
+      "dateTo": "À",
+      "datePlaceholder": "Sélectionner une plage de dates",
       "apply": "Appliquer les filtres",
       "clear": "Effacer les filtres"
     },

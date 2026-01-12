@@ -16,17 +16,22 @@ import {
   Image as ImageIcon,
   Maximize2,
   Eye,
-  Download
+  Download,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
 import ExcelJS from "exceljs";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 const Analytics = () => {
   const { t, i18n } = useTranslation();
@@ -43,6 +48,8 @@ const Analytics = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>(undefined);
 
 
   // Normalize shop domain - same way as billingApi
@@ -73,6 +80,16 @@ const Analytics = () => {
         orderDirection: "DESC",
         storeName: shopDomain,
       };
+
+      // Add date range filters if applied
+      if (appliedDateRange?.from) {
+        // Format date as YYYY-MM-DD for API
+        params.startDate = format(appliedDateRange.from, "yyyy-MM-dd");
+      }
+      if (appliedDateRange?.to) {
+        // Format date as YYYY-MM-DD for API
+        params.endDate = format(appliedDateRange.to, "yyyy-MM-dd");
+      }
 
       const response = await fetchImageGenerations(params);
       
@@ -112,6 +129,14 @@ const Analytics = () => {
           storeName: shopDomain,
         };
 
+        // Add date range filters if applied
+        if (appliedDateRange?.from) {
+          params.startDate = format(appliedDateRange.from, "yyyy-MM-dd");
+        }
+        if (appliedDateRange?.to) {
+          params.endDate = format(appliedDateRange.to, "yyyy-MM-dd");
+        }
+
         const response = await fetchImageGenerations(params);
         
         if (response.status === "success" && response.data) {
@@ -135,7 +160,7 @@ const Analytics = () => {
       fetchData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, shopDomain]);
+  }, [page, shopDomain, appliedDateRange]);
 
   // Pagination handlers
   const handlePreviousPage = () => {
@@ -461,6 +486,25 @@ const Analytics = () => {
     navigate(`/analytics/${record.id}`, { state: { record } });
   };
 
+  // Handle date range filter
+  const handleApplyDateFilter = () => {
+    if (dateRange?.from) {
+      // Reset to first page when applying filter
+      setPage(1);
+      setAppliedDateRange(dateRange);
+      // fetchData will be called automatically via useEffect
+    } else {
+      toast.error(t("analytics.filters.dateRange") || "Please select a date range");
+    }
+  };
+
+  const handleClearDateFilter = () => {
+    setDateRange(undefined);
+    setAppliedDateRange(undefined);
+    setPage(1);
+    // fetchData will be called automatically via useEffect
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -508,6 +552,77 @@ const Analytics = () => {
                 </Button>
               </div>
             </div>
+
+            {/* Date Range Filter */}
+            <Card className="mb-6 border-border bg-card">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">
+                      {t("analytics.filters.dateRange") || "Date Range"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-[280px] justify-start text-left font-normal h-9"
+                          aria-label={t("analytics.filters.datePlaceholder") || "Select date range"}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(dateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {t("analytics.filters.datePlaceholder") || "Select date range"}
+                            </span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={dateRange?.from}
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          numberOfMonths={2}
+                          className="rounded-md border"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleApplyDateFilter}
+                        disabled={!dateRange?.from || loading}
+                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={t("analytics.filters.apply") || "Apply Filters"}
+                      >
+                        {t("analytics.filters.apply") || "Apply Filters"}
+                      </Button>
+                      <Button
+                        onClick={handleClearDateFilter}
+                        disabled={!appliedDateRange || loading}
+                        variant="outline"
+                        className="h-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={t("analytics.filters.clear") || "Clear Filters"}
+                      >
+                        {t("analytics.filters.clear") || "Clear Filters"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Error Display */}
             {error && (
