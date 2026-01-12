@@ -54,6 +54,7 @@ const Analytics = () => {
   const [hasPrev, setHasPrev] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>(undefined);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
 
   // Normalize shop domain - same way as billingApi
@@ -534,54 +535,41 @@ const Analytics = () => {
 
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Date Range Filter - Compact Inline */}
-                <div className={`flex items-center gap-1.5 border rounded-md bg-card px-2 py-1 transition-all ${
-                  appliedDateRange 
-                    ? "border-primary/50 bg-primary/5 shadow-sm" 
-                    : "border-border hover:border-primary/30"
-                }`}>
-                  <Popover>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-8 w-8 transition-colors ${
-                              appliedDateRange 
-                                ? "text-primary hover:bg-primary/10" 
-                                : "hover:bg-accent"
-                            }`}
-                            aria-label={t("analytics.filters.dateRange") || "Date Range"}
-                          >
-                            <CalendarIcon className={`h-4 w-4 ${appliedDateRange ? "text-primary" : ""}`} />
-                          </Button>
-                        </PopoverTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {appliedDateRange?.from ? (
-                          appliedDateRange.to ? (
-                            <>
-                              {format(appliedDateRange.from, "LLL dd, y")} -{" "}
-                              {format(appliedDateRange.to, "LLL dd, y")}
-                            </>
-                          ) : (
-                            format(appliedDateRange.from, "LLL dd, y")
-                          )
-                        ) : dateRange?.from ? (
-                          dateRange.to ? (
-                            <>
-                              {format(dateRange.from, "LLL dd, y")} -{" "}
-                              {format(dateRange.to, "LLL dd, y")}
-                            </>
-                          ) : (
-                            format(dateRange.from, "LLL dd, y")
-                          )
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className={`h-9 w-9 transition-all hover:scale-105 ${
+                            appliedDateRange 
+                              ? "border-primary/50 bg-primary/5 text-primary hover:bg-primary/10" 
+                              : ""
+                          }`}
+                          aria-label={t("analytics.filters.dateRange") || "Date Range"}
+                        >
+                          <Filter className={`h-4 w-4 ${appliedDateRange ? "text-primary" : ""}`} />
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {appliedDateRange?.from ? (
+                        appliedDateRange.to ? (
+                          <>
+                            {format(appliedDateRange.from, "LLL dd, y")} -{" "}
+                            {format(appliedDateRange.to, "LLL dd, y")}
+                          </>
                         ) : (
-                          <span>{t("analytics.filters.datePlaceholder") || "Select date range"}</span>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                    <PopoverContent className="w-auto p-0" align="end">
+                          format(appliedDateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>{t("analytics.filters.datePlaceholder") || "Select date range"}</span>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <div className="flex flex-col">
                       <Calendar
                         initialFocus
                         mode="range"
@@ -589,69 +577,83 @@ const Analytics = () => {
                         selected={dateRange}
                         onSelect={setDateRange}
                         numberOfMonths={2}
-                        className="rounded-md border"
+                        className="rounded-md border-0"
                       />
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {(dateRange?.from || appliedDateRange?.from) && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded max-w-[140px] truncate font-medium transition-colors ${
-                      appliedDateRange
-                        ? "text-primary bg-primary/10"
-                        : "text-muted-foreground"
-                    }`}>
-                      {(dateRange?.from || appliedDateRange?.from) && (
-                        (dateRange?.to || appliedDateRange?.to) ? (
-                          <>
-                            {format((dateRange?.from || appliedDateRange?.from)!, "MMM dd")} - {format((dateRange?.to || appliedDateRange?.to)!, "MMM dd")}
-                          </>
-                        ) : (
-                          format((dateRange?.from || appliedDateRange?.from)!, "MMM dd")
-                        )
-                      )}
-                    </span>
-                  )}
+                      <div className="flex items-center justify-between gap-2 p-3 border-t bg-muted/30">
+                        <div className="flex-1 min-w-0">
+                          {dateRange?.from ? (
+                            <span className="text-sm text-muted-foreground">
+                              {dateRange.to ? (
+                                <>
+                                  {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
+                                </>
+                              ) : (
+                                <>
+                                  {format(dateRange.from, "MMM dd, yyyy")} - {t("analytics.filters.dateTo") || "To"}
+                                </>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              {t("analytics.filters.datePlaceholder") || "Select date range"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setDateRange(undefined);
+                            }}
+                            disabled={!dateRange?.from}
+                            className="h-8 px-3"
+                            aria-label={t("analytics.filters.clear") || "Clear"}
+                          >
+                            <X className="h-3.5 w-3.5 mr-1.5" />
+                            {t("analytics.filters.clear") || "Clear"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (dateRange?.from) {
+                                handleApplyDateFilter();
+                                setIsPopoverOpen(false);
+                              }
+                            }}
+                            disabled={!dateRange?.from || loading}
+                            className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                            aria-label={t("analytics.filters.apply") || "Apply Filters"}
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1.5" />
+                            {t("analytics.filters.apply") || "Apply"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
-                  {dateRange?.from && !appliedDateRange && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 hover:bg-primary/10 hover:text-primary transition-colors"
-                          onClick={handleApplyDateFilter}
-                          disabled={loading}
-                          aria-label={t("analytics.filters.apply") || "Apply Filters"}
-                        >
-                          <Check className="h-3.5 w-3.5 text-primary" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {t("analytics.filters.apply") || "Apply Filters"}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-
-                  {appliedDateRange && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          onClick={handleClearDateFilter}
-                          disabled={loading}
-                          aria-label={t("analytics.filters.clear") || "Clear Filters"}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {t("analytics.filters.clear") || "Clear Filters"}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
+                {/* Clear Applied Filter Button - Only show when filter is applied */}
+                {appliedDateRange && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-all"
+                        onClick={handleClearDateFilter}
+                        disabled={loading}
+                        aria-label={t("analytics.filters.clear") || "Clear Filters"}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t("analytics.filters.clear") || "Clear Filters"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
                 {/* Action Buttons */}
                 <Tooltip>
