@@ -10,7 +10,8 @@ import { useTranslation } from "react-i18next";
 import { useCredits } from "@/hooks/useCredits";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, X, CreditCard } from "lucide-react";
+import { RadialProgress } from "@/components/ui/radial-progress";
+import { AlertTriangle, X, CreditCard, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CreditUtilizationBannerProps {
@@ -124,7 +125,7 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
   return (
     <Alert
       className={cn(
-        "mb-6 border-l-4 shadow-sm",
+        "mb-6 border-l-4 shadow-md rounded-lg",
         borderColor
       )}
       role="alert"
@@ -132,11 +133,18 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
       aria-atomic="true"
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <AlertTriangle
-            className={cn("h-5 w-5 mt-0.5 flex-shrink-0", iconColor)}
-            aria-hidden="true"
-          />
+        <div className="flex items-start gap-4 flex-1 min-w-0">
+          <div className="flex-shrink-0 mt-0.5">
+            <div className={cn(
+              "rounded-full p-2",
+              isUrgent ? "bg-red-100 dark:bg-red-950/30" : isWarning ? "bg-yellow-100 dark:bg-yellow-950/30" : "bg-blue-100 dark:bg-blue-950/30"
+            )}>
+              <AlertTriangle
+                className={cn("h-5 w-5", iconColor)}
+                aria-hidden="true"
+              />
+            </div>
+          </div>
           <div className="flex-1 min-w-0">
             <AlertTitle className="font-semibold mb-2 text-base">
               {title}
@@ -145,29 +153,46 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
               {message}
             </AlertDescription>
             
-            {/* Progress indicator */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                <span>{t("credits.utilizationBanner.utilization") || "Credit Utilization"}</span>
-                <span className="font-semibold">{utilizationPercentage}%</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full transition-all duration-300 ease-out",
-                    isUrgent
-                      ? "bg-red-500"
-                      : isWarning
-                      ? "bg-yellow-500"
-                      : "bg-blue-500"
-                  )}
-                  style={{ width: `${utilizationPercentage}%` }}
-                  role="progressbar"
-                  aria-valuenow={utilizationPercentage}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
+            {/* Radial Progress Indicator */}
+            <div className="mb-4 flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <RadialProgress
+                  value={utilizationPercentage}
+                  max={100}
+                  size="md"
+                  color={isUrgent ? "destructive" : isWarning ? "warning" : "primary"}
+                  showLabel={true}
                   aria-label={`${utilizationPercentage}% credit utilization`}
                 />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    {t("credits.utilizationBanner.utilization") || "Credit Utilization"}
+                  </span>
+                  <span className={cn(
+                    "font-bold",
+                    isUrgent ? "text-red-600 dark:text-red-400" : isWarning ? "text-yellow-600 dark:text-yellow-400" : "text-blue-600 dark:text-blue-400"
+                  )}>
+                    {utilizationPercentage}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                    <span className="text-muted-foreground">{t("credits.balanceCard.used") || "Used"}</span>
+                    <span className="font-semibold text-foreground">{creditsUsed.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                    <span className="text-muted-foreground">{t("credits.balanceCard.balance") || "Remaining"}</span>
+                    <span className={cn(
+                      "font-semibold",
+                      creditsRemaining === 0 ? "text-destructive" : creditsRemaining <= 20 ? "text-yellow-600 dark:text-yellow-400" : "text-success"
+                    )}>
+                      {creditsRemaining.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

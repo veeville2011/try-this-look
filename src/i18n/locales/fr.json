@@ -396,7 +396,13 @@
   },
   "trialNotification": {
     "approving": "Approbation...",
-    "approvalInitiated": "Approbation de l'abonnement initiée avec succès"
+    "approvalInitiated": "Approbation de l'abonnement initiée avec succès",
+    "banner": {
+      "dismiss": "Fermer",
+      "utilization": "Utilisation des crédits d'essai",
+      "creditsUsed": "Crédits utilisés",
+      "creditsRemaining": "Crédits restants"
+    }
   },
   "nulight": {
     "title": "Produits Nulight",
