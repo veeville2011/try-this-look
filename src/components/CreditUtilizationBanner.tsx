@@ -5,7 +5,7 @@
  * Uses the same logic as email notifications for credit utilization warnings
  */
 
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCredits } from "@/hooks/useCredits";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -17,16 +17,9 @@ import { cn } from "@/lib/utils";
 const UTILIZATION_THRESHOLDS = [80, 90, 100];
 
 const CreditUtilizationBanner = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { credits, loading } = useCredits();
   const { subscription } = useSubscription();
-  
-  // Ensure French language is used for this banner
-  useEffect(() => {
-    if (i18n.language !== "fr") {
-      i18n.changeLanguage("fr");
-    }
-  }, [i18n]);
 
   const utilizationInfo = useMemo(() => {
     if (!credits || loading) return null;
@@ -97,24 +90,29 @@ const CreditUtilizationBanner = () => {
   const overagePrice = getOveragePrice();
 
   const title = isUrgent
-    ? t("credits.utilizationBanner.title100")
+    ? t("credits.utilizationBanner.title100", "Overage Billing Activated")
     : isWarning
-    ? t("credits.utilizationBanner.title90")
-    : t("credits.utilizationBanner.title80");
+    ? t("credits.utilizationBanner.title90", "Credit Usage Alert")
+    : t("credits.utilizationBanner.title80", "Credit Usage Warning");
 
   const message = isUrgent
     ? creditsRemaining > 0
       ? t("credits.utilizationBanner.message100WithRemaining", { 
-          remaining: creditsRemaining
+          remaining: creditsRemaining,
+          defaultValue: "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service. You have {{remaining}} credits remaining from other sources."
         })
-      : t("credits.utilizationBanner.message100")
+      : t("credits.utilizationBanner.message100", { 
+          defaultValue: "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service."
+        })
     : isWarning
     ? t("credits.utilizationBanner.message90", { 
         remaining: creditsRemaining,
-        percentage: utilizationPercentage
+        percentage: utilizationPercentage,
+        defaultValue: "IMPORTANT: You have used {{percentage}}% of your allocated credits. You only have {{remaining}} credits remaining for this billing period."
       })
     : t("credits.utilizationBanner.message80", { 
-        percentage: utilizationPercentage
+        percentage: utilizationPercentage,
+        defaultValue: "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this billing period."
       });
 
   // Overage note for 80% and 90% thresholds
@@ -122,10 +120,12 @@ const CreditUtilizationBanner = () => {
     ? null
     : isWarning
     ? t("credits.utilizationBanner.overageNote90", {
-        overagePrice
+        overagePrice,
+        defaultValue: "When you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit. This ensures uninterrupted service."
       })
     : t("credits.utilizationBanner.overageNote80", {
-        overagePrice
+        overagePrice,
+        defaultValue: "If you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit."
       });
 
   return (
