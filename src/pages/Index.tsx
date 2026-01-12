@@ -629,16 +629,65 @@ const Index = () => {
   }, [shop, subscriptionLoading]);
 
   // Track if billing flow has been triggered to prevent infinite loops
-  const billingTriggeredRef = useRef(false);
+  // Use sessionStorage to persist across remounts (navigation between routes)
+  const getBillingTriggeredState = (): boolean => {
+    try {
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) return false;
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
+      const stored = sessionStorage.getItem(`billingTriggered_${normalizedShop}`);
+      return stored === "true";
+    } catch {
+      return false;
+    }
+  };
+
+  const setBillingTriggeredState = (value: boolean): void => {
+    try {
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) return;
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
+      if (value) {
+        sessionStorage.setItem(`billingTriggered_${normalizedShop}`, "true");
+      } else {
+        sessionStorage.removeItem(`billingTriggered_${normalizedShop}`);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const billingTriggeredRef = useRef(getBillingTriggeredState());
   const lastSubscriptionRef = useRef<typeof subscription>(null);
   const paymentSuccessTimeRef = useRef<number | null>(null);
   const paymentSuccessRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const componentMountTimeRef = useRef<number>(Date.now());
+  const initialLoadGracePeriodRef = useRef<boolean>(true);
 
   // State to track payment success for reactive UI updates
   const [isWaitingForPaymentSuccess, setIsWaitingForPaymentSuccess] =
     useState(false);
   const [paymentSuccessElapsedTime, setPaymentSuccessElapsedTime] = useState(0);
+
+  // Initialize component mount time and grace period on mount
+  useEffect(() => {
+    componentMountTimeRef.current = Date.now();
+    initialLoadGracePeriodRef.current = true;
+    
+    // Clear grace period after a short delay (300ms) to allow subscription hook to initialize
+    const gracePeriodTimeout = setTimeout(() => {
+      initialLoadGracePeriodRef.current = false;
+    }, 300);
+
+    return () => {
+      clearTimeout(gracePeriodTimeout);
+    };
+  }, []);
 
   // Check subscription and redirect to pricing page if subscription is null
   useEffect(() => {
@@ -648,6 +697,20 @@ const Index = () => {
       subscriptionLoading
     );
     console.log("🔍 [Redirect Debug] subscription:", subscription);
+    
+    // Apply grace period: don't trigger billing flow immediately after mount
+    // This prevents race conditions when component remounts and subscription hook is still initializing
+    const timeSinceMount = Date.now() - componentMountTimeRef.current;
+    const isInGracePeriod = initialLoadGracePeriodRef.current || timeSinceMount < 300;
+    
+    if (isInGracePeriod) {
+      console.log("🔍 [Redirect Debug] In grace period after mount, waiting...", {
+        timeSinceMount,
+        inGracePeriod: initialLoadGracePeriodRef.current,
+      });
+      // Don't trigger billing flow during grace period
+      // But allow other logic to run (like hiding plan selection if subscription exists)
+    }
 
     // Check if we're returning from payment success
     const urlParams = new URLSearchParams(window.location.search);
@@ -692,6 +755,7 @@ const Index = () => {
       );
       setShowPlanSelection(false);
       billingTriggeredRef.current = false;
+      setBillingTriggeredState(false);
       // Clear payment success tracking since we have subscription
       if (paymentSuccessTimeRef.current !== null) {
         paymentSuccessTimeRef.current = null;
@@ -757,6 +821,7 @@ const Index = () => {
       // Clear billing trigger if subscription changed
       if (subscriptionChanged) {
         billingTriggeredRef.current = false;
+        setBillingTriggeredState(false);
       }
 
       // Continue to normal flow - update plan state, etc.
@@ -810,6 +875,7 @@ const Index = () => {
     // Redirect to billing flow if no subscription is configured
     // BUT only if we're NOT waiting for payment success to process
     // AND only if loading is complete (to prevent showing plan selection while still loading)
+    // AND only if grace period has passed (to prevent race conditions on remount)
     // Also ensure we have a valid subscription object (even if null) to avoid undefined issues
     const hasNoSubscription =
       !subscription ||
@@ -819,23 +885,33 @@ const Index = () => {
     if (
       hasNoSubscription &&
       !subscriptionLoading &&
-      !isWaitingForPaymentSuccess
+      !isWaitingForPaymentSuccess &&
+      !isInGracePeriod
     ) {
-      // Only trigger billing flow once per subscription state
-      if (!billingTriggeredRef.current) {
+      // Only trigger billing flow once per subscription state (check both ref and sessionStorage)
+      const billingAlreadyTriggered = billingTriggeredRef.current || getBillingTriggeredState();
+      
+      if (!billingAlreadyTriggered) {
         console.log(
           "🚨 [Redirect Debug] Triggering billing flow - subscription is null and loading complete",
           {
             subscription: subscription ? "exists but null" : "does not exist",
             subscriptionLoading,
             isWaitingForPaymentSuccess,
+            timeSinceMount,
+            inGracePeriod: isInGracePeriod,
           }
         );
         billingTriggeredRef.current = true;
+        setBillingTriggeredState(true);
         handleRequireBilling();
       } else {
         console.log(
-          "🔍 [Redirect Debug] Billing flow already triggered, skipping"
+          "🔍 [Redirect Debug] Billing flow already triggered, skipping",
+          {
+            refValue: billingTriggeredRef.current,
+            storageValue: getBillingTriggeredState(),
+          }
         );
       }
       lastSubscriptionRef.current = subscription;
@@ -858,6 +934,7 @@ const Index = () => {
 
     // Reset billing trigger flag since we have a subscription
     billingTriggeredRef.current = false;
+    setBillingTriggeredState(false);
 
     // Update current plan state
     if (subscription.hasActiveSubscription && !subscription.isFree) {
@@ -913,6 +990,7 @@ const Index = () => {
         }
 
         billingTriggeredRef.current = false;
+        setBillingTriggeredState(false);
       }
     };
 
@@ -1007,6 +1085,7 @@ const Index = () => {
             );
             setShowPlanSelection(true);
             billingTriggeredRef.current = false; // Reset to allow retry
+            setBillingTriggeredState(false);
           }
         }
         loadingTimeoutRef.current = null;

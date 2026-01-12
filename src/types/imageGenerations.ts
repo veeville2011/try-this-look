@@ -17,6 +17,9 @@ export interface ImageGenerationRecord {
   storeName: string;
   clothingKey: string;
   personKey: string;
+  customerEmail: string | null;
+  customerFirstName: string | null;
+  customerLastName: string | null;
   createdAt: string;
   updatedAt: string;
 }

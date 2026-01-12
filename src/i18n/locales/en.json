@@ -851,6 +851,8 @@
       "userAgent": "User Agent",
       "name": "Name",
       "email": "Email",
+      "customerEmail": "Customer Email",
+      "customerName": "Customer Name",
       "errorMessage": "Error Message",
       "viewImage": "View Image",
       "viewDetails": "View Details",

@@ -463,8 +463,10 @@ export const useSubscription = (): UseSubscriptionReturn => {
         if (cachedData) {
           // Valid cache found - use it
           setSubscription(cachedData);
+          // Keep loading false only if we're truly skipping the fetch
+          // (fetchedShopRef indicates we already have fresh data)
           setLoading(false);
-          console.log("[useSubscription] Using cached subscription data", {
+          console.log("[useSubscription] Using cached subscription data (already fetched)", {
             shop: normalizedShop,
             hasSubscription: !!cachedData.subscription,
             subscriptionId: cachedData.subscription?.id,
@@ -493,14 +495,17 @@ export const useSubscription = (): UseSubscriptionReturn => {
     // This prevents race conditions if component re-renders before fetch completes
     
     // Don't use cache if payment_success is detected - always fetch fresh
-    // But if we have cached data, use it temporarily while we fetch fresh data (optimistic update)
-    // This provides immediate UI feedback while fetching fresh data
+    // When fetching fresh data, keep loading true to prevent premature UI decisions
+    // Only use cache for optimistic UI update, but keep loading state true until fetch completes
+    // This prevents race conditions where UI thinks loading is done but fresh data isn't loaded yet
     if (!isPaymentSuccess) {
       const cachedData = safeCacheOperations.get(storageKey);
       if (cachedData) {
+        // Use cache for optimistic UI update, but DON'T set loading to false
+        // Keep loading true until fresh data is fetched
         setSubscription(cachedData);
-        setLoading(false);
-        console.log("[useSubscription] Using cached subscription data while fetching fresh", {
+        // Keep loading as true - don't set to false here
+        console.log("[useSubscription] Using cached subscription data optimistically while fetching fresh", {
           shop: normalizedShop,
           hasSubscription: !!cachedData.subscription,
           subscriptionId: cachedData.subscription?.id,

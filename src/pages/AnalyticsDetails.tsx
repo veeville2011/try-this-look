@@ -492,6 +492,29 @@ const AnalyticsDetails = () => {
                       </div>
                     </div>
                   )}
+                  {record.customerEmail && (
+                    <div className="flex items-start gap-3">
+                      <Mail className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-1">{t("analytics.table.customerEmail") || "Customer Email"}</p>
+                        <p className="text-sm font-medium text-foreground">{record.customerEmail}</p>
+                      </div>
+                    </div>
+                  )}
+                  {(() => {
+                    const firstName = record.customerFirstName || "";
+                    const lastName = record.customerLastName || "";
+                    const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+                    return fullName ? (
+                      <div className="flex items-start gap-3">
+                        <User className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground mb-1">{t("analytics.table.customerName") || "Customer Name"}</p>
+                          <p className="text-sm font-medium text-foreground">{fullName}</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </CardContent>
               </Card>
             </div>

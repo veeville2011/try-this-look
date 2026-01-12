@@ -291,6 +291,9 @@ const Analytics = () => {
         "Person Image",
         "Clothing Image",
         "Generated Image",
+        "Customer Email",
+        "Customer First Name",
+        "Customer Last Name",
         "Created At",
       ];
 
@@ -300,6 +303,9 @@ const Analytics = () => {
         { width: 40 }, // Person Image (clickable chip)
         { width: 40 }, // Clothing Image (clickable chip)
         { width: 40 }, // Generated Image (clickable chip)
+        { width: 25 }, // Customer Email
+        { width: 20 }, // Customer First Name
+        { width: 20 }, // Customer Last Name
         { width: 30 }, // Created At
       ];
 
@@ -329,11 +335,17 @@ const Analytics = () => {
         const record = allData[i];
         
         // Add row with data
+        const firstName = record.customerFirstName || "";
+        const lastName = record.customerLastName || "";
+        const customerName = [firstName, lastName].filter(Boolean).join(" ").trim() || "-";
+        
         const row = worksheet.addRow([
           record.status || "",
           record.personImageUrl ? "View Image" : "-",
           record.clothingImageUrl ? "View Image" : "-",
           record.generatedImageUrl ? "View Image" : "-",
+          record.customerEmail || "-",
+          customerName,
           formatDate(record.createdAt),
         ]);
 
@@ -532,6 +544,9 @@ const Analytics = () => {
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         </TableRow>
                       ))}
@@ -550,6 +565,8 @@ const Analytics = () => {
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
+                        <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>
+                        <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
                         <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                       </TableRow>
@@ -658,6 +675,17 @@ const Analytics = () => {
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {record.customerEmail || "-"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {(() => {
+                              const firstName = record.customerFirstName || "";
+                              const lastName = record.customerLastName || "";
+                              const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+                              return fullName || "-";
+                            })()}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground text-center">
                             {(() => {
