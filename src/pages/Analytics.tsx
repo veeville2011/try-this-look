@@ -701,12 +701,12 @@ const Analytics = () => {
                           </TableCell>
                           <TableCell>
                             <Button
-                              size="sm"
+                              size="icon"
                               onClick={() => handleViewDetails(record)}
-                              className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                              className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                              aria-label={t("analytics.table.viewDetails") || "View Details"}
                             >
-                              <Eye className="w-4 h-4 mr-2" />
-                              {t("analytics.table.viewDetails") || "View Details"}
+                              <Eye className="w-4 h-4" />
                             </Button>
                           </TableCell>
                         </TableRow>

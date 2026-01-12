@@ -676,17 +676,23 @@ const Index = () => {
 
   // Initialize component mount time and grace period on mount
   useEffect(() => {
-    componentMountTimeRef.current = Date.now();
-    initialLoadGracePeriodRef.current = true;
-    
-    // Clear grace period after a short delay (300ms) to allow subscription hook to initialize
-    const gracePeriodTimeout = setTimeout(() => {
-      initialLoadGracePeriodRef.current = false;
-    }, 300);
+    try {
+      componentMountTimeRef.current = Date.now();
+      initialLoadGracePeriodRef.current = true;
+      
+      // Clear grace period after a short delay (300ms) to allow subscription hook to initialize
+      const gracePeriodTimeout = setTimeout(() => {
+        initialLoadGracePeriodRef.current = false;
+      }, 300);
 
-    return () => {
-      clearTimeout(gracePeriodTimeout);
-    };
+      return () => {
+        clearTimeout(gracePeriodTimeout);
+      };
+    } catch (error) {
+      console.error("[Index] Error in grace period initialization:", error);
+      // Ensure grace period is cleared even on error
+      initialLoadGracePeriodRef.current = false;
+    }
   }, []);
 
   // Check subscription and redirect to pricing page if subscription is null
@@ -918,40 +924,44 @@ const Index = () => {
       return;
     }
 
-    // Console log subscription status
-    console.log(
-      "✅ [Redirect Debug] NO REDIRECT - Subscription exists:",
-      subscription.subscription?.status
-    );
-    console.log(
-      "✅ [Redirect Debug] subscription.hasActiveSubscription:",
-      subscription.hasActiveSubscription
-    );
-    console.log(
-      "✅ [Redirect Debug] subscription.isFree:",
-      subscription.isFree
-    );
+    // Console log subscription status (with safe property access)
+    if (subscription) {
+      console.log(
+        "✅ [Redirect Debug] NO REDIRECT - Subscription exists:",
+        subscription.subscription?.status
+      );
+      console.log(
+        "✅ [Redirect Debug] subscription.hasActiveSubscription:",
+        subscription.hasActiveSubscription
+      );
+      console.log(
+        "✅ [Redirect Debug] subscription.isFree:",
+        subscription.isFree
+      );
+    }
 
     // Reset billing trigger flag since we have a subscription
     billingTriggeredRef.current = false;
     setBillingTriggeredState(false);
 
-    // Update current plan state
-    if (subscription.hasActiveSubscription && !subscription.isFree) {
-      console.log(
-        "✅ [Redirect Debug] Setting currentPlan to:",
-        subscription.plan?.name || "active"
-      );
-      setCurrentPlan(subscription.plan?.name || "active");
-    } else if (subscription.isFree) {
-      console.log("✅ [Redirect Debug] Setting currentPlan to: free");
-      setCurrentPlan("free");
-    } else {
-      console.log(
-        "✅ [Redirect Debug] Setting currentPlan to:",
-        subscription.plan?.name || "inactive"
-      );
-      setCurrentPlan(subscription.plan?.name || "inactive");
+    // Update current plan state (with safe property access)
+    if (subscription) {
+      if (subscription.hasActiveSubscription && !subscription.isFree) {
+        console.log(
+          "✅ [Redirect Debug] Setting currentPlan to:",
+          subscription.plan?.name || "active"
+        );
+        setCurrentPlan(subscription.plan?.name || "active");
+      } else if (subscription.isFree) {
+        console.log("✅ [Redirect Debug] Setting currentPlan to: free");
+        setCurrentPlan("free");
+      } else {
+        console.log(
+          "✅ [Redirect Debug] Setting currentPlan to:",
+          subscription.plan?.name || "inactive"
+        );
+        setCurrentPlan(subscription.plan?.name || "inactive");
+      }
     }
 
     lastSubscriptionRef.current = subscription;
