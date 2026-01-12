@@ -1337,11 +1337,7 @@ const Index = () => {
 
       {/* Credit Utilization Banner - Shows at 80%, 90%, 100% utilization */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <CreditUtilizationBanner 
-          onDismiss={() => {
-            // Optional: Handle dismiss if needed
-          }}
-        />
+        <CreditUtilizationBanner />
       </div>
 
       {/* Main Content - Always visible */}

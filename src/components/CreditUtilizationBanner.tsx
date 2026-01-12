@@ -5,27 +5,28 @@
  * Uses the same logic as email notifications for credit utilization warnings
  */
 
-import { useState, useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useCredits } from "@/hooks/useCredits";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { RadialProgress } from "@/components/ui/radial-progress";
-import { AlertTriangle, X, CreditCard } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface CreditUtilizationBannerProps {
-  onDismiss?: () => void;
-}
 
 const UTILIZATION_THRESHOLDS = [80, 90, 100];
 
-const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) => {
-  const { t } = useTranslation();
+const CreditUtilizationBanner = () => {
+  const { t, i18n } = useTranslation();
   const { credits, loading } = useCredits();
   const { subscription } = useSubscription();
-  const [dismissed, setDismissed] = useState(false);
+  
+  // Ensure French language is used for this banner
+  useEffect(() => {
+    if (i18n.language !== "fr") {
+      i18n.changeLanguage("fr");
+    }
+  }, [i18n]);
 
   const utilizationInfo = useMemo(() => {
     if (!credits || loading) return null;
@@ -66,15 +67,8 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
     };
   }, [credits, loading]);
 
-  const handleDismiss = () => {
-    setDismissed(true);
-    if (onDismiss) {
-      onDismiss();
-    }
-  };
-
-  // Don't show if loading, no credits, no utilization info, or dismissed
-  if (loading || !credits || !utilizationInfo || dismissed) {
+  // Don't show if loading, no credits, or no utilization info
+  if (loading || !credits || !utilizationInfo) {
     return null;
   }
 
@@ -103,29 +97,24 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
   const overagePrice = getOveragePrice();
 
   const title = isUrgent
-    ? t("credits.utilizationBanner.title100", "Overage Billing Activated")
+    ? t("credits.utilizationBanner.title100")
     : isWarning
-    ? t("credits.utilizationBanner.title90", "Credit Usage Alert")
-    : t("credits.utilizationBanner.title80", "Credit Usage Warning");
+    ? t("credits.utilizationBanner.title90")
+    : t("credits.utilizationBanner.title80");
 
   const message = isUrgent
     ? creditsRemaining > 0
       ? t("credits.utilizationBanner.message100WithRemaining", { 
-          remaining: creditsRemaining,
-          defaultValue: "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service. You have {{remaining}} credits remaining from other sources."
+          remaining: creditsRemaining
         })
-      : t("credits.utilizationBanner.message100", { 
-          defaultValue: "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service."
-        })
+      : t("credits.utilizationBanner.message100")
     : isWarning
     ? t("credits.utilizationBanner.message90", { 
         remaining: creditsRemaining,
-        percentage: utilizationPercentage,
-        defaultValue: "IMPORTANT: You have used {{percentage}}% of your allocated credits. You only have {{remaining}} credits remaining for this billing period."
+        percentage: utilizationPercentage
       })
     : t("credits.utilizationBanner.message80", { 
-        percentage: utilizationPercentage,
-        defaultValue: "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this billing period."
+        percentage: utilizationPercentage
       });
 
   // Overage note for 80% and 90% thresholds
@@ -133,12 +122,10 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
     ? null
     : isWarning
     ? t("credits.utilizationBanner.overageNote90", {
-        overagePrice,
-        defaultValue: "When you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit. This ensures uninterrupted service."
+        overagePrice
       })
     : t("credits.utilizationBanner.overageNote80", {
-        overagePrice,
-        defaultValue: "If you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit."
+        overagePrice
       });
 
   return (
@@ -210,37 +197,6 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                onClick={() => {
-                  // Trigger pricing modal by dispatching a custom event
-                  // The Index component will listen for this event
-                  window.dispatchEvent(new CustomEvent('openPricingModal'));
-                }}
-                size="sm"
-                className={cn(
-                  "text-white font-medium",
-                  isUrgent
-                    ? "bg-red-600 hover:bg-red-700 focus-visible:ring-red-500"
-                    : isWarning
-                    ? "bg-yellow-600 hover:bg-yellow-700 focus-visible:ring-yellow-500"
-                    : "bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-500"
-                )}
-                aria-label={t("credits.utilizationBanner.viewPricing", "View pricing options")}
-              >
-                <CreditCard className="h-4 w-4 mr-2" aria-hidden="true" />
-                {t("credits.utilizationBanner.viewPricing", "View Pricing")}
-              </Button>
-              <Button
-                onClick={handleDismiss}
-                size="sm"
-                className="bg-transparent hover:bg-accent text-muted-foreground hover:text-foreground border-0 shadow-none"
-                aria-label={t("common.close", "Dismiss banner")}
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
           </div>
         </div>
       </div>
