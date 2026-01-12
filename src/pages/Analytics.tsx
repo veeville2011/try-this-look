@@ -17,7 +17,10 @@ import {
   Maximize2,
   Eye,
   Download,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Filter,
+  Check,
+  X
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
 import type { ImageGenerationRecord } from "@/types/imageGenerations";
@@ -528,101 +532,144 @@ const Analytics = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={fetchData}
-                  disabled={loading || !shopDomain}
-                  className="h-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={t("analytics.refresh") || "Refresh"}
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4 mr-2" />
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Date Range Filter - Compact Inline */}
+                <div className="flex items-center gap-1.5 border border-border rounded-md bg-card px-2 py-1">
+                  <Popover>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={t("analytics.filters.dateRange") || "Date Range"}
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "LLL dd, y")} -{" "}
+                              {format(dateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>{t("analytics.filters.datePlaceholder") || "Select date range"}</span>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                        className="rounded-md border"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {dateRange?.from && (
+                    <span className="text-xs text-muted-foreground px-1 max-w-[120px] truncate">
+                      {dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "MMM dd")
+                      )}
+                    </span>
                   )}
-                  {t("analytics.refresh") || "Refresh"}
-                </Button>
-                <Button
-                  onClick={handleExport}
-                  disabled={loading || total === 0}
-                  className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {t("analytics.export.button") || "Export"}
-                </Button>
+
+                  {dateRange?.from && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={handleApplyDateFilter}
+                          disabled={loading}
+                          aria-label={t("analytics.filters.apply") || "Apply Filters"}
+                        >
+                          <Check className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t("analytics.filters.apply") || "Apply Filters"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {appliedDateRange && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={handleClearDateFilter}
+                          disabled={loading}
+                          aria-label={t("analytics.filters.clear") || "Clear Filters"}
+                        >
+                          <X className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t("analytics.filters.clear") || "Clear Filters"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      onClick={fetchData}
+                      disabled={loading || !shopDomain}
+                      className="h-9 w-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={t("analytics.refresh") || "Refresh"}
+                    >
+                      {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("analytics.refresh") || "Refresh"}
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      onClick={handleExport}
+                      disabled={loading || total === 0}
+                      className="h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                      aria-label={t("analytics.export.button") || "Export"}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("analytics.export.button") || "Export"}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
-
-            {/* Date Range Filter */}
-            <Card className="mb-6 border-border bg-card">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">
-                      {t("analytics.filters.dateRange") || "Date Range"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full sm:w-[280px] justify-start text-left font-normal h-9"
-                          aria-label={t("analytics.filters.datePlaceholder") || "Select date range"}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateRange?.from ? (
-                            dateRange.to ? (
-                              <>
-                                {format(dateRange.from, "LLL dd, y")} -{" "}
-                                {format(dateRange.to, "LLL dd, y")}
-                              </>
-                            ) : (
-                              format(dateRange.from, "LLL dd, y")
-                            )
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {t("analytics.filters.datePlaceholder") || "Select date range"}
-                            </span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          initialFocus
-                          mode="range"
-                          defaultMonth={dateRange?.from}
-                          selected={dateRange}
-                          onSelect={setDateRange}
-                          numberOfMonths={2}
-                          className="rounded-md border"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={handleApplyDateFilter}
-                        disabled={!dateRange?.from || loading}
-                        className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label={t("analytics.filters.apply") || "Apply Filters"}
-                      >
-                        {t("analytics.filters.apply") || "Apply Filters"}
-                      </Button>
-                      <Button
-                        onClick={handleClearDateFilter}
-                        disabled={!appliedDateRange || loading}
-                        variant="outline"
-                        className="h-9 border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label={t("analytics.filters.clear") || "Clear Filters"}
-                      >
-                        {t("analytics.filters.clear") || "Clear Filters"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Error Display */}
             {error && (
