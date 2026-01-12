@@ -219,7 +219,7 @@
         "title80": "Credit Usage Warning",
         "title90": "Credit Usage Alert",
         "title100": "Overage Billing Activated",
-        "message80": "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this billing period.",
+        "message80": "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this month.",
         "message90": "IMPORTANT: You have used {{percentage}}% of your allocated credits. You only have {{remaining}} credits remaining for this billing period.",
         "message100": "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service.",
         "message100WithRemaining": "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service. You have {{remaining}} credits remaining from other sources.",
