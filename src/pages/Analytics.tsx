@@ -527,8 +527,10 @@ const Analytics = () => {
                     <TableHeader>
                       <TableRow className="border-border hover:bg-transparent">
                         <TableHead className="bg-muted/50"><Skeleton className="h-4 w-16" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-24" /></TableHead>
                         <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
+                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-24" /></TableHead>
                         <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
                         <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
@@ -539,11 +541,10 @@ const Analytics = () => {
                       {[...Array(5)].map((_, i) => (
                         <TableRow key={i} className="border-border">
                           <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32" /></TableCell>
@@ -561,13 +562,13 @@ const Analytics = () => {
                     <TableHeader>
                       <TableRow className="border-border hover:bg-transparent">
                         <TableHead className="min-w-[80px] bg-muted/50 font-semibold text-foreground">#</TableHead>
+                        <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
+                        <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
+                        <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>
                         <TableHead className="min-w-[100px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.status") || "Status"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
-                        <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>
-                        <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
-                        <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -576,6 +577,29 @@ const Analytics = () => {
                         <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
                           <TableCell className="text-sm text-muted-foreground font-medium">
                             {(page - 1) * limit + index + 1}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground text-center">
+                            {(() => {
+                              const dateParts = formatDateForTable(record.createdAt);
+                              return (
+                                <div className="flex flex-col leading-tight items-center">
+                                  <span>{dateParts.date}</span>
+                                  <span>{dateParts.conjunction}</span>
+                                  <span>{dateParts.time}</span>
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {(() => {
+                              const firstName = record.customerFirstName || "";
+                              const lastName = record.customerLastName || "";
+                              const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+                              return fullName || "-";
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {record.customerEmail || "-"}
                           </TableCell>
                           <TableCell>
                             {getStatusBadge(record.status)}
@@ -675,29 +699,6 @@ const Analytics = () => {
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {record.customerEmail || "-"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {(() => {
-                              const firstName = record.customerFirstName || "";
-                              const lastName = record.customerLastName || "";
-                              const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-                              return fullName || "-";
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground text-center">
-                            {(() => {
-                              const dateParts = formatDateForTable(record.createdAt);
-                              return (
-                                <div className="flex flex-col leading-tight items-center">
-                                  <span>{dateParts.date}</span>
-                                  <span>{dateParts.conjunction}</span>
-                                  <span>{dateParts.time}</span>
-                                </div>
-                              );
-                            })()}
                           </TableCell>
                           <TableCell>
                             <Button
