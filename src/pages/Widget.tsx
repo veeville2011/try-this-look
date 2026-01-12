@@ -6,6 +6,12 @@ interface CustomerInfo {
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  province?: string | null;
+  provinceCode?: string | null;
+  city?: string | null;
+  zip?: string | null;
 }
 
 export default function Widget() {
@@ -76,6 +82,12 @@ export default function Widget() {
     const customerEmail = urlParams.get("customerEmail");
     const customerFirstName = urlParams.get("customerFirstName");
     const customerLastName = urlParams.get("customerLastName");
+    const customerCountry = urlParams.get("customerCountry");
+    const customerCountryCode = urlParams.get("customerCountryCode");
+    const customerProvince = urlParams.get("customerProvince");
+    const customerProvinceCode = urlParams.get("customerProvinceCode");
+    const customerCity = urlParams.get("customerCity");
+    const customerZip = urlParams.get("customerZip");
 
     if (customerId || customerEmail) {
       setCustomerInfo({
@@ -83,6 +95,12 @@ export default function Widget() {
         email: customerEmail ? decodeURIComponent(customerEmail) : null,
         firstName: customerFirstName ? decodeURIComponent(customerFirstName) : null,
         lastName: customerLastName ? decodeURIComponent(customerLastName) : null,
+        country: customerCountry ? decodeURIComponent(customerCountry) : null,
+        countryCode: customerCountryCode ? decodeURIComponent(customerCountryCode) : null,
+        province: customerProvince ? decodeURIComponent(customerProvince) : null,
+        provinceCode: customerProvinceCode ? decodeURIComponent(customerProvinceCode) : null,
+        city: customerCity ? decodeURIComponent(customerCity) : null,
+        zip: customerZip ? decodeURIComponent(customerZip) : null,
       });
     }
   }, []);

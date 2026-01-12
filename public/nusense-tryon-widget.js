@@ -81,6 +81,12 @@
               email: customerInfo.email || null,
               firstName: customerInfo.firstName || null,
               lastName: customerInfo.lastName || null,
+              country: customerInfo.country || null,
+              countryCode: customerInfo.countryCode || null,
+              province: customerInfo.province || null,
+              provinceCode: customerInfo.provinceCode || null,
+              city: customerInfo.city || null,
+              zip: customerInfo.zip || null,
             };
           }
         } catch (parseError) {

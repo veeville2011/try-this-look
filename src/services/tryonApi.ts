@@ -23,6 +23,12 @@ interface CustomerInfo {
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  province?: string | null;
+  provinceCode?: string | null;
+  city?: string | null;
+  zip?: string | null;
 }
 
 export async function generateTryOn(
@@ -82,6 +88,24 @@ export async function generateTryOn(
         }
         if (customerInfo.lastName) {
           formData.append("customerLastName", customerInfo.lastName);
+        }
+        if (customerInfo.country) {
+          formData.append("customerCountry", customerInfo.country);
+        }
+        if (customerInfo.countryCode) {
+          formData.append("customerCountryCode", customerInfo.countryCode);
+        }
+        if (customerInfo.province) {
+          formData.append("customerProvince", customerInfo.province);
+        }
+        if (customerInfo.provinceCode) {
+          formData.append("customerProvinceCode", customerInfo.provinceCode);
+        }
+        if (customerInfo.city) {
+          formData.append("customerCity", customerInfo.city);
+        }
+        if (customerInfo.zip) {
+          formData.append("customerZip", customerInfo.zip);
         }
       }
 

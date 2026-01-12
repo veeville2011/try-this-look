@@ -71,6 +71,12 @@ interface CustomerInfo {
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  province?: string | null;
+  provinceCode?: string | null;
+  city?: string | null;
+  zip?: string | null;
 }
 
 interface TryOnWidgetProps {

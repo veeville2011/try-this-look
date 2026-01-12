@@ -7,7 +7,13 @@
       "id": {{ customer.id | json }},
       "email": {{ customer.email | json }},
       "firstName": {% if customer.first_name %}{{ customer.first_name | json }}{% else %}null{% endif %},
-      "lastName": {% if customer.last_name %}{{ customer.last_name | json }}{% else %}null{% endif %}
+      "lastName": {% if customer.last_name %}{{ customer.last_name | json }}{% else %}null{% endif %},
+      "country": {% if customer.default_address.country %}{{ customer.default_address.country.name | json }}{% else %}null{% endif %},
+      "countryCode": {% if customer.default_address.country_code %}{{ customer.default_address.country_code | json }}{% else %}null{% endif %},
+      "province": {% if customer.default_address.province %}{{ customer.default_address.province | json }}{% else %}null{% endif %},
+      "provinceCode": {% if customer.default_address.province_code %}{{ customer.default_address.province_code | json }}{% else %}null{% endif %},
+      "city": {% if customer.default_address.city %}{{ customer.default_address.city | json }}{% else %}null{% endif %},
+      "zip": {% if customer.default_address.zip %}{{ customer.default_address.zip | json }}{% else %}null{% endif %}
     }
   </script>
 {% endif %}

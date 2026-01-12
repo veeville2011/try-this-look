@@ -6553,7 +6553,13 @@ app.post("/api/tryon/generate", async (req, res) => {
       customerId,
       customerEmail,
       customerFirstName,
-      customerLastName
+      customerLastName,
+      customerCountry,
+      customerCountryCode,
+      customerProvince,
+      customerProvinceCode,
+      customerCity,
+      customerZip
     } = req.body;
 
     // Get shop from query parameter first, then fall back to storeName in body
@@ -6567,6 +6573,12 @@ app.post("/api/tryon/generate", async (req, res) => {
       email: customerEmail || null,
       firstName: customerFirstName || null,
       lastName: customerLastName || null,
+      country: customerCountry || null,
+      countryCode: customerCountryCode || null,
+      province: customerProvince || null,
+      provinceCode: customerProvinceCode || null,
+      city: customerCity || null,
+      zip: customerZip || null,
     } : null;
 
     logger.info("[API] Try-on generation request received", {
@@ -6747,6 +6759,24 @@ app.post("/api/tryon/generate", async (req, res) => {
       }
       if (customerInfo.lastName) {
         formData.append("customerLastName", customerInfo.lastName);
+      }
+      if (customerInfo.country) {
+        formData.append("customerCountry", customerInfo.country);
+      }
+      if (customerInfo.countryCode) {
+        formData.append("customerCountryCode", customerInfo.countryCode);
+      }
+      if (customerInfo.province) {
+        formData.append("customerProvince", customerInfo.province);
+      }
+      if (customerInfo.provinceCode) {
+        formData.append("customerProvinceCode", customerInfo.provinceCode);
+      }
+      if (customerInfo.city) {
+        formData.append("customerCity", customerInfo.city);
+      }
+      if (customerInfo.zip) {
+        formData.append("customerZip", customerInfo.zip);
       }
     }
 
