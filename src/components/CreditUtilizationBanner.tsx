@@ -92,35 +92,39 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
     : "text-blue-600 dark:text-blue-400";
 
   const title = isUrgent
-    ? t("credits.utilizationBanner.title100") || "⚠️ Credits Fully Utilized"
+    ? t("credits.utilizationBanner.title100", "⚠️ Credits Fully Utilized")
     : isWarning
-    ? t("credits.utilizationBanner.title90") || "⚠️ Credits Running Low"
-    : t("credits.utilizationBanner.title80") || "Credits Utilization Alert";
+    ? t("credits.utilizationBanner.title90", "⚠️ Credits Running Low")
+    : t("credits.utilizationBanner.title80", "Credits Utilization Alert");
 
   const message = isUrgent
     ? creditsRemaining > 0
       ? t("credits.utilizationBanner.message100WithRemaining", { 
           used: creditsUsed, 
           total: creditsTotal,
-          remaining: creditsRemaining 
-        }) || `You've used all ${creditsUsed} of your ${creditsTotal} credits. You have ${creditsRemaining} credits remaining from other sources.`
+          remaining: creditsRemaining,
+          defaultValue: `You've used all ${creditsUsed} of your ${creditsTotal} credits. You have ${creditsRemaining} credits remaining from other sources.`
+        })
       : t("credits.utilizationBanner.message100", { 
           used: creditsUsed, 
-          total: creditsTotal
-        }) || `You've used all ${creditsUsed} of your ${creditsTotal} credits. Please purchase more credits to continue.`
+          total: creditsTotal,
+          defaultValue: `You've used all ${creditsUsed} of your ${creditsTotal} credits. Please purchase more credits to continue.`
+        })
     : isWarning
     ? t("credits.utilizationBanner.message90", { 
         used: creditsUsed, 
         total: creditsTotal,
         remaining: creditsRemaining,
-        percentage: utilizationPercentage 
-      }) || `You've used ${creditsUsed} of ${creditsTotal} credits (${utilizationPercentage}%). Only ${creditsRemaining} credits remaining. Consider purchasing more credits soon.`
+        percentage: utilizationPercentage,
+        defaultValue: `You've used ${creditsUsed} of ${creditsTotal} credits (${utilizationPercentage}%). Only ${creditsRemaining} credits remaining. Consider purchasing more credits soon.`
+      })
     : t("credits.utilizationBanner.message80", { 
         used: creditsUsed, 
         total: creditsTotal,
         remaining: creditsRemaining,
-        percentage: utilizationPercentage 
-      }) || `You've used ${creditsUsed} of ${creditsTotal} credits (${utilizationPercentage}%). ${creditsRemaining} credits remaining.`;
+        percentage: utilizationPercentage,
+        defaultValue: `You've used ${creditsUsed} of ${creditsTotal} credits (${utilizationPercentage}%). ${creditsRemaining} credits remaining.`
+      });
 
   return (
     <Alert
@@ -169,7 +173,7 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <TrendingUp className="h-3.5 w-3.5" />
-                    {t("credits.utilizationBanner.utilization") || "Credit Utilization"}
+                    {t("credits.utilizationBanner.utilization", "Credit Utilization")}
                   </span>
                   <span className={cn(
                     "font-bold",
@@ -178,13 +182,17 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
                     {utilizationPercentage}%
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                    <span className="text-muted-foreground">{t("credits.balanceCard.used") || "Used"}</span>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="flex flex-col items-center justify-center p-2 rounded-md bg-muted/50">
+                    <span className="text-muted-foreground mb-1">{t("credits.balanceCard.totalCredited", "Credited")}</span>
+                    <span className="font-semibold text-foreground">{creditsTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-2 rounded-md bg-muted/50">
+                    <span className="text-muted-foreground mb-1">{t("credits.balanceCard.used", "Used")}</span>
                     <span className="font-semibold text-foreground">{creditsUsed.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                    <span className="text-muted-foreground">{t("credits.balanceCard.balance") || "Remaining"}</span>
+                  <div className="flex flex-col items-center justify-center p-2 rounded-md bg-muted/50">
+                    <span className="text-muted-foreground mb-1">{t("credits.balanceCard.balance", "Remaining")}</span>
                     <span className={cn(
                       "font-semibold",
                       creditsRemaining === 0 ? "text-destructive" : creditsRemaining <= 20 ? "text-yellow-600 dark:text-yellow-400" : "text-success"
@@ -213,16 +221,16 @@ const CreditUtilizationBanner = ({ onDismiss }: CreditUtilizationBannerProps) =>
                     ? "bg-yellow-600 hover:bg-yellow-700 focus-visible:ring-yellow-500"
                     : "bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-500"
                 )}
-                aria-label={t("credits.utilizationBanner.viewPricing") || "View pricing options"}
+                aria-label={t("credits.utilizationBanner.viewPricing", "View pricing options")}
               >
                 <CreditCard className="h-4 w-4 mr-2" aria-hidden="true" />
-                {t("credits.utilizationBanner.viewPricing") || "View Pricing"}
+                {t("credits.utilizationBanner.viewPricing", "View Pricing")}
               </Button>
               <Button
                 onClick={handleDismiss}
                 size="sm"
                 className="bg-transparent hover:bg-accent text-muted-foreground hover:text-foreground border-0 shadow-none"
-                aria-label={t("common.close") || "Dismiss banner"}
+                aria-label={t("common.close", "Dismiss banner")}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </Button>

@@ -396,13 +396,7 @@
   },
   "trialNotification": {
     "approving": "Approving...",
-    "approvalInitiated": "Subscription approval initiated successfully",
-    "banner": {
-      "dismiss": "Dismiss",
-      "utilization": "Trial Credit Utilization",
-      "creditsUsed": "Credits Used",
-      "creditsRemaining": "Credits Remaining"
-    }
+    "approvalInitiated": "Subscription approval initiated successfully"
   },
   "nulight": {
     "title": "Nulight Products",
