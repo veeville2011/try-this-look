@@ -261,32 +261,31 @@ export default function ResultDisplay({
       const isInIframe = window.parent !== window;
       const productData = getProductData();
 
-      // Track buy now event
-      try {
-        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-        if (shopDomain) {
-          // Get customer info from window if available
-          const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
-            ? (window as any).NUSENSE_CUSTOMER_INFO 
-            : null;
+      // Track buy now event (non-blocking, fire-and-forget)
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+      if (shopDomain) {
+        // Get customer info from window if available
+        const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+          ? (window as any).NUSENSE_CUSTOMER_INFO 
+          : null;
 
-          await trackAddToCartEvent({
-            storeName: shopDomain,
-            actionType: "buy_now",
-            productId: productData?.id || null,
-            productTitle: productData?.title || null,
-            productUrl: productData?.url || null,
-            customerEmail: customerInfo?.email || null,
-            customerFirstName: customerInfo?.firstName || null,
-            customerLastName: customerInfo?.lastName || null,
-            generatedImageUrl: generatedImage || null,
-            personImageUrl: personImage || null,
-            clothingImageUrl: clothingImage || null,
-          });
-        }
-      } catch (trackingError) {
-        // Don't show error to user for tracking failures - just log
-        console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+        // Fire tracking request without awaiting - don't block checkout flow
+        trackAddToCartEvent({
+          storeName: shopDomain,
+          actionType: "buy_now",
+          productId: productData?.id || null,
+          productTitle: productData?.title || null,
+          productUrl: productData?.url || null,
+          customerEmail: customerInfo?.email || null,
+          customerFirstName: customerInfo?.firstName || null,
+          customerLastName: customerInfo?.lastName || null,
+          generatedImageUrl: generatedImage || null,
+          personImageUrl: personImage || null,
+          clothingImageUrl: clothingImage || null,
+        }).catch((trackingError) => {
+          // Silently handle tracking errors - don't affect user experience
+          console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+        });
       }
 
       if (isInIframe) {
@@ -339,32 +338,31 @@ export default function ResultDisplay({
       const isInIframe = window.parent !== window;
       const productData = getProductData();
 
-      // Track add to cart event
-      try {
-        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-        if (shopDomain) {
-          // Get customer info from window if available
-          const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
-            ? (window as any).NUSENSE_CUSTOMER_INFO 
-            : null;
+      // Track add to cart event (non-blocking, fire-and-forget)
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+      if (shopDomain) {
+        // Get customer info from window if available
+        const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+          ? (window as any).NUSENSE_CUSTOMER_INFO 
+          : null;
 
-          await trackAddToCartEvent({
-            storeName: shopDomain,
-            actionType: "add_to_cart",
-            productId: productData?.id || null,
-            productTitle: productData?.title || null,
-            productUrl: productData?.url || null,
-            customerEmail: customerInfo?.email || null,
-            customerFirstName: customerInfo?.firstName || null,
-            customerLastName: customerInfo?.lastName || null,
-            generatedImageUrl: generatedImage || null,
-            personImageUrl: personImage || null,
-            clothingImageUrl: clothingImage || null,
-          });
-        }
-      } catch (trackingError) {
-        // Don't show error to user for tracking failures - just log
-        console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
+        // Fire tracking request without awaiting - don't block cart flow
+        trackAddToCartEvent({
+          storeName: shopDomain,
+          actionType: "add_to_cart",
+          productId: productData?.id || null,
+          productTitle: productData?.title || null,
+          productUrl: productData?.url || null,
+          customerEmail: customerInfo?.email || null,
+          customerFirstName: customerInfo?.firstName || null,
+          customerLastName: customerInfo?.lastName || null,
+          generatedImageUrl: generatedImage || null,
+          personImageUrl: personImage || null,
+          clothingImageUrl: clothingImage || null,
+        }).catch((trackingError) => {
+          // Silently handle tracking errors - don't affect user experience
+          console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
+        });
       }
 
       if (isInIframe) {
