@@ -120,6 +120,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     fetchCategorizedProducts: fetchCategorizedProductsFromRedux,
   } = useCategorizedProducts();
 
+  // State to store product data (received via postMessage or accessed directly)
+  const [storedProductData, setStoredProductData] = useState<any>(null);
+
 
   // Memoize the set of generated clothing keys to avoid recreating on every render
   const generatedClothingKeys = useMemo(() => {
@@ -694,6 +697,14 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         });
       }
 
+      // Handle product data messages
+      if (event.data && event.data.type === "NUSENSE_PRODUCT_DATA") {
+        console.log("[TryOnWidget] Received NUSENSE_PRODUCT_DATA:", event.data.productData);
+        if (event.data.productData) {
+          setStoredProductData(event.data.productData);
+        }
+      }
+
       // Only process messages from parent window
       if (event.data && event.data.type === "NUSENSE_PRODUCT_IMAGES") {
         const parentImages = event.data.images || [];
@@ -1033,7 +1044,33 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length, storeInfo, reduxStoreInfo, generatedImage, uploadedImage, selectedClothing, customerInfo, t]); // Include all dependencies
+  }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length, storeInfo, reduxStoreInfo, generatedImage, uploadedImage, selectedClothing, customerInfo, t, storedProductData]); // Include all dependencies
+
+  // Request product data on mount if in iframe and we don't have it
+  useEffect(() => {
+    const isInIframe = typeof window !== "undefined" && window.parent !== window;
+    if (isInIframe && !storedProductData) {
+      // Try direct access first
+      try {
+        const productData = (window.parent as any)?.NUSENSE_PRODUCT_DATA;
+        if (productData) {
+          console.log("[TRYON_WIDGET] Found product data on mount:", productData);
+          setStoredProductData(productData);
+          return;
+        }
+      } catch (e) {
+        // Cross-origin, will request via postMessage
+      }
+      
+      // Request via postMessage
+      try {
+        window.parent.postMessage({ type: "NUSENSE_REQUEST_PRODUCT_DATA" }, "*");
+        console.log("[TRYON_WIDGET] Requested product data via postMessage on mount");
+      } catch (error) {
+        console.warn("[TRYON_WIDGET] Failed to request product data on mount:", error);
+      }
+    }
+  }, [storedProductData]);
 
   // Request images from parent window when in iframe mode and on single tab
   // This runs:
@@ -1514,19 +1551,53 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         : undefined;
 
       // Get product information if available (non-mandatory)
-      // Access NUSENSE_PRODUCT_DATA directly to get all available fields
+      // Try multiple sources: stored data, direct access, or request via postMessage
       let productData: any = null;
-      try {
-        if (typeof window !== "undefined") {
-          if (window.parent !== window && (window.parent as any)?.NUSENSE_PRODUCT_DATA) {
-            productData = (window.parent as any).NUSENSE_PRODUCT_DATA;
-          } else if ((window as any)?.NUSENSE_PRODUCT_DATA) {
-            productData = (window as any).NUSENSE_PRODUCT_DATA;
+      
+      // Priority 1: Use stored product data (from postMessage)
+      if (storedProductData) {
+        productData = storedProductData;
+        console.log("[TRYON_WIDGET] Using stored product data:", productData);
+      } else {
+        // Priority 2: Try to access NUSENSE_PRODUCT_DATA directly
+        try {
+          if (typeof window !== "undefined") {
+            if (window.parent !== window) {
+              try {
+                productData = (window.parent as any)?.NUSENSE_PRODUCT_DATA;
+                if (productData) {
+                  console.log("[TRYON_WIDGET] Accessed product data from parent window:", productData);
+                  setStoredProductData(productData); // Cache it for future use
+                }
+              } catch (e) {
+                // Cross-origin access failed, request via postMessage
+                console.log("[TRYON_WIDGET] Cross-origin access failed, requesting product data via postMessage");
+                try {
+                  window.parent.postMessage({ type: "NUSENSE_REQUEST_PRODUCT_DATA" }, "*");
+                } catch (postError) {
+                  console.warn("[TRYON_WIDGET] Failed to request product data:", postError);
+                }
+              }
+            }
+            
+            // Priority 3: Check current window
+            if (!productData && (window as any)?.NUSENSE_PRODUCT_DATA) {
+              productData = (window as any).NUSENSE_PRODUCT_DATA;
+              console.log("[TRYON_WIDGET] Accessed product data from current window:", productData);
+              setStoredProductData(productData); // Cache it
+            }
+          }
+        } catch (error) {
+          console.warn("[TRYON_WIDGET] Could not access product data:", error);
+          // Request via postMessage as fallback
+          try {
+            if (typeof window !== "undefined" && window.parent !== window) {
+              window.parent.postMessage({ type: "NUSENSE_REQUEST_PRODUCT_DATA" }, "*");
+            }
+          } catch (postError) {
+            console.warn("[TRYON_WIDGET] Failed to request product data via postMessage:", postError);
           }
         }
-      } catch (error) {
-        // Cross-origin access might fail, that's okay
-        console.warn("[TRYON_WIDGET] Could not access product data:", error);
       }
 
       // Try to get selected variant ID from URL or other sources
@@ -1538,31 +1609,41 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           const variantParam = urlParams.get("variant");
           if (variantParam) {
             selectedVariantId = variantParam;
+            console.log("[TRYON_WIDGET] Found variantId from current URL:", selectedVariantId);
           }
         }
-        // If in iframe, also check parent window URL
+        // If in iframe, also check parent window URL (via postMessage request)
         if (!selectedVariantId && typeof window !== "undefined" && window.parent !== window) {
           try {
+            // Try direct access first
             const parentUrl = window.parent.location.href;
             const parentUrlObj = new URL(parentUrl);
             const parentVariantParam = parentUrlObj.searchParams.get("variant");
             if (parentVariantParam) {
               selectedVariantId = parentVariantParam;
+              console.log("[TRYON_WIDGET] Found variantId from parent URL (direct):", selectedVariantId);
             }
           } catch (e) {
-            // Cross-origin access might fail, that's okay
+            // Cross-origin access failed, that's okay - we'll check productData
           }
         }
-        // Also check if variantId is in productData
+        // Also check if variantId is directly in productData
         if (!selectedVariantId && productData) {
-          selectedVariantId = productData.variantId ?? productData.variant_id ?? null;
+          selectedVariantId = productData.variantId ?? productData.variant_id ?? productData.selectedVariantId ?? null;
+          if (selectedVariantId) {
+            console.log("[TRYON_WIDGET] Found variantId in productData:", selectedVariantId);
+          }
         }
         // Check if there's a selected variant in productData.variants array
         if (!selectedVariantId && productData?.variants && Array.isArray(productData.variants)) {
-          // Try to find a selected variant (if there's a selection mechanism)
-          // For now, we'll just take the first variant if only one exists
-          if (productData.variants.length === 1) {
-            selectedVariantId = productData.variants[0]?.id ?? null;
+          // Try to find the first available variant, or the first one if all are available
+          const availableVariant = productData.variants.find((v: any) => v?.available !== false);
+          if (availableVariant?.id) {
+            selectedVariantId = availableVariant.id;
+            console.log("[TRYON_WIDGET] Using first available variant from productData:", selectedVariantId);
+          } else if (productData.variants.length > 0 && productData.variants[0]?.id) {
+            selectedVariantId = productData.variants[0].id;
+            console.log("[TRYON_WIDGET] Using first variant from productData:", selectedVariantId);
           }
         }
       } catch (error) {

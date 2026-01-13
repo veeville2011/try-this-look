@@ -430,6 +430,33 @@
         return;
       }
 
+      if (type === 'NUSENSE_REQUEST_PRODUCT_DATA') {
+        const productData = window?.NUSENSE_PRODUCT_DATA || null;
+        if (productData) {
+          event.source.postMessage(
+            {
+              type: 'NUSENSE_PRODUCT_DATA',
+              productData: {
+                id: productData.id || null,
+                title: productData.title || null,
+                url: productData.url || null,
+                variants: productData.variants || null,
+              },
+            },
+            event.origin,
+          );
+          log('[NUSENSE] Sent product data to iframe:', {
+            id: productData.id,
+            title: productData.title,
+            hasUrl: !!productData.url,
+            variantsCount: Array.isArray(productData.variants) ? productData.variants.length : 0,
+          });
+        } else {
+          warn('[NUSENSE] NUSENSE_PRODUCT_DATA not available');
+        }
+        return;
+      }
+
       if (type === 'NUSENSE_REQUEST_IMAGES') {
         const images = getProductImages();
         const mainUrls = images.map((img) => img?.url).filter(Boolean);
