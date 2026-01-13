@@ -199,6 +199,35 @@ export default function ResultDisplay({
               ? t("tryOnWidget.resultDisplay.addToCartToastDescription", { title: productData.title }) || `${productData.title} a été ajouté à votre panier.`
               : t("tryOnWidget.resultDisplay.addToCartToastDescriptionFallback") || "L'article a été ajouté à votre panier.",
           });
+
+          // Track add to cart event ONLY after successful cart addition
+          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+          if (shopDomain) {
+            // Get customer info from window if available
+            const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+              ? (window as any).NUSENSE_CUSTOMER_INFO 
+              : null;
+
+            trackAddToCartEvent({
+              storeName: shopDomain,
+              actionType: "add_to_cart",
+              productId: productData?.id || null,
+              productTitle: productData?.title || null,
+              productUrl: productData?.url || null,
+              customerEmail: customerInfo?.email || null,
+              customerFirstName: customerInfo?.firstName || null,
+              customerLastName: customerInfo?.lastName || null,
+              generatedImageUrl: generatedImage || null,
+              personImageUrl: personImage || null,
+              clothingImageUrl: clothingImage || null,
+            }).catch((trackingError) => {
+              // Show error toast if tracking fails
+              console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
+              toast.error(t("tryOnWidget.resultDisplay.trackingError") || "Erreur de suivi", {
+                description: t("tryOnWidget.resultDisplay.trackingErrorDescription") || "Impossible d'enregistrer l'événement. L'article a été ajouté au panier.",
+              });
+            });
+          }
         } else if (event.data.action === "NUSENSE_BUY_NOW") {
           // Clear timeout if it exists
           if (buyNowTimeoutRef.current) {
@@ -206,7 +235,9 @@ export default function ResultDisplay({
             buyNowTimeoutRef.current = null;
           }
           setIsBuyNowLoading(false);
-          // Buy now will redirect, so we don't need to show a toast
+          // Note: For buy now, tracking happens BEFORE redirect (in handleBuyNow)
+          // because the redirect happens immediately and this message may not be received
+          // No need to track here as redirect already happened
         }
       } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
@@ -250,7 +281,8 @@ export default function ResultDisplay({
         addToCartTimeoutRef.current = null;
       }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeInfo, reduxStoreInfo, generatedImage, personImage, clothingImage, t]);
 
   const handleBuyNow = async () => {
     if (isBuyNowLoading) return;
@@ -261,35 +293,37 @@ export default function ResultDisplay({
       const isInIframe = window.parent !== window;
       const productData = getProductData();
 
-      // Track buy now event (non-blocking, fire-and-forget)
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-      if (shopDomain) {
-        // Get customer info from window if available
-        const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
-          ? (window as any).NUSENSE_CUSTOMER_INFO 
-          : null;
-
-        // Fire tracking request without awaiting - don't block checkout flow
-        trackAddToCartEvent({
-          storeName: shopDomain,
-          actionType: "buy_now",
-          productId: productData?.id || null,
-          productTitle: productData?.title || null,
-          productUrl: productData?.url || null,
-          customerEmail: customerInfo?.email || null,
-          customerFirstName: customerInfo?.firstName || null,
-          customerLastName: customerInfo?.lastName || null,
-          generatedImageUrl: generatedImage || null,
-          personImageUrl: personImage || null,
-          clothingImageUrl: clothingImage || null,
-        }).catch((trackingError) => {
-          // Silently handle tracking errors - don't affect user experience
-          console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
-        });
-      }
-
       if (isInIframe) {
+        // Track buy now event BEFORE redirect (since redirect happens immediately and we won't receive success message)
+        // This is fire-and-forget - doesn't block navigation
+        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+        if (shopDomain) {
+          // Get customer info from window if available
+          const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+            ? (window as any).NUSENSE_CUSTOMER_INFO 
+            : null;
+
+          // Fire tracking request without awaiting - don't block checkout redirect
+          trackAddToCartEvent({
+            storeName: shopDomain,
+            actionType: "buy_now",
+            productId: productData?.id || null,
+            productTitle: productData?.title || null,
+            productUrl: productData?.url || null,
+            customerEmail: customerInfo?.email || null,
+            customerFirstName: customerInfo?.firstName || null,
+            customerLastName: customerInfo?.lastName || null,
+            generatedImageUrl: generatedImage || null,
+            personImageUrl: personImage || null,
+            clothingImageUrl: clothingImage || null,
+          }).catch((trackingError) => {
+            // Silently handle tracking errors - don't affect checkout flow
+            console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+          });
+        }
+
         // Send message to parent window (Shopify page) to trigger buy now
+        // This will immediately redirect to checkout - navigation happens here
         const message = {
           type: "NUSENSE_BUY_NOW",
           ...(productData && { product: productData }),
@@ -297,20 +331,18 @@ export default function ResultDisplay({
 
         window.parent.postMessage(message, "*");
 
-        // Show loading message - parent will handle redirect or error
+        // Show loading message - parent will handle redirect immediately
         toast.info(t("tryOnWidget.resultDisplay.addingToCart") || "Ajout au panier...", {
           description: t("tryOnWidget.resultDisplay.redirectingToCheckout") || "Redirection vers la page de paiement en cours.",
         });
 
         // Set a timeout to reset loading state if no response received (10 seconds)
+        // Note: For buy now, redirect happens immediately, so this timeout is just a safety
         if (buyNowTimeoutRef.current) {
           clearTimeout(buyNowTimeoutRef.current);
         }
         buyNowTimeoutRef.current = setTimeout(() => {
           setIsBuyNowLoading(false);
-          toast.error(t("tryOnWidget.resultDisplay.timeout") || "Timeout", {
-            description: t("tryOnWidget.resultDisplay.timeoutDescription") || "La requête a pris trop de temps. Veuillez réessayer.",
-          });
           buyNowTimeoutRef.current = null;
         }, 10000);
       } else {
@@ -337,33 +369,6 @@ export default function ResultDisplay({
     try {
       const isInIframe = window.parent !== window;
       const productData = getProductData();
-
-      // Track add to cart event (non-blocking, fire-and-forget)
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-      if (shopDomain) {
-        // Get customer info from window if available
-        const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
-          ? (window as any).NUSENSE_CUSTOMER_INFO 
-          : null;
-
-        // Fire tracking request without awaiting - don't block cart flow
-        trackAddToCartEvent({
-          storeName: shopDomain,
-          actionType: "add_to_cart",
-          productId: productData?.id || null,
-          productTitle: productData?.title || null,
-          productUrl: productData?.url || null,
-          customerEmail: customerInfo?.email || null,
-          customerFirstName: customerInfo?.firstName || null,
-          customerLastName: customerInfo?.lastName || null,
-          generatedImageUrl: generatedImage || null,
-          personImageUrl: personImage || null,
-          clothingImageUrl: clothingImage || null,
-        }).catch((trackingError) => {
-          // Silently handle tracking errors - don't affect user experience
-          console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
-        });
-      }
 
       if (isInIframe) {
         // Send message to parent window (Shopify page) to trigger add to cart

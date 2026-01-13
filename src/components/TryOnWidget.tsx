@@ -838,11 +838,64 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           setLookTabImagesWithIds(idMap);
         }
       }
+
+      // Handle cart action success/error messages from parent window
+      if (event.data && event.data.type === "NUSENSE_ACTION_SUCCESS") {
+        if (event.data.action === "NUSENSE_ADD_TO_CART") {
+          setIsAddToCartLoading(false);
+          const productData = getProductData();
+          
+          // Track add to cart event ONLY after successful cart addition
+          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+          if (shopDomain) {
+            trackAddToCartEvent({
+              storeName: shopDomain,
+              actionType: "add_to_cart",
+              productId: productData?.id || null,
+              productTitle: productData?.title || null,
+              productUrl: productData?.url || null,
+              customerEmail: customerInfo?.email || null,
+              customerFirstName: customerInfo?.firstName || null,
+              customerLastName: customerInfo?.lastName || null,
+              generatedImageUrl: generatedImage || null,
+              personImageUrl: uploadedImage || null,
+              clothingImageUrl: selectedClothing || null,
+            }).catch((trackingError) => {
+              // Show error toast if tracking fails
+              console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
+              toast.error(t("tryOnWidget.resultDisplay.trackingError") || "Erreur de suivi", {
+                description: t("tryOnWidget.resultDisplay.trackingErrorDescription") || "Impossible d'enregistrer l'événement. L'article a été ajouté au panier.",
+              });
+            });
+          }
+        } else if (event.data.action === "NUSENSE_BUY_NOW") {
+          setIsBuyNowLoading(false);
+          // Note: For buy now, tracking happens BEFORE redirect (in handleBuyNow)
+          // because the redirect happens immediately and this message may not be received
+          // No need to track here as redirect already happened
+        }
+      } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {
+        if (event.data.action === "NUSENSE_ADD_TO_CART") {
+          setIsAddToCartLoading(false);
+          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+            description:
+              event.data.error ||
+              t("tryOnWidget.resultDisplay.addToCartError") || "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
+          });
+        } else if (event.data.action === "NUSENSE_BUY_NOW") {
+          setIsBuyNowLoading(false);
+          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+            description:
+              event.data.error ||
+              t("tryOnWidget.resultDisplay.buyNowError") || "Impossible de procéder à l'achat. Veuillez réessayer.",
+          });
+        }
+      }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length]); // Include fetchStoreInfoFromRedux in dependencies
+  }, [fetchStoreInfoFromRedux, activeTab, multipleTabImages.length, lookTabImages.length, storeInfo, reduxStoreInfo, generatedImage, uploadedImage, selectedClothing, customerInfo, t]); // Include all dependencies
 
   // Request images from parent window when in iframe mode and on single tab
   // This runs:
@@ -1537,29 +1590,32 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       const isInIframe = window.parent !== window;
       const productData = getProductData();
 
-      // Track buy now event (non-blocking, fire-and-forget)
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-      if (shopDomain) {
-        // Fire tracking request without awaiting - don't block checkout flow
-        trackAddToCartEvent({
-          storeName: shopDomain,
-          actionType: "buy_now",
-          productId: productData?.id || null,
-          productTitle: productData?.title || null,
-          productUrl: productData?.url || null,
-          customerEmail: customerInfo?.email || null,
-          customerFirstName: customerInfo?.firstName || null,
-          customerLastName: customerInfo?.lastName || null,
-          generatedImageUrl: generatedImage || null,
-          personImageUrl: uploadedImage || null,
-          clothingImageUrl: selectedClothing || null,
-        }).catch((trackingError) => {
-          // Silently handle tracking errors - don't affect user experience
-          console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
-        });
-      }
-
       if (isInIframe) {
+        // Track buy now event BEFORE redirect (since redirect happens immediately and we won't receive success message)
+        // This is fire-and-forget - doesn't block navigation
+        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+        if (shopDomain) {
+          // Fire tracking request without awaiting - don't block checkout redirect
+          trackAddToCartEvent({
+            storeName: shopDomain,
+            actionType: "buy_now",
+            productId: productData?.id || null,
+            productTitle: productData?.title || null,
+            productUrl: productData?.url || null,
+            customerEmail: customerInfo?.email || null,
+            customerFirstName: customerInfo?.firstName || null,
+            customerLastName: customerInfo?.lastName || null,
+            generatedImageUrl: generatedImage || null,
+            personImageUrl: uploadedImage || null,
+            clothingImageUrl: selectedClothing || null,
+          }).catch((trackingError) => {
+            // Silently handle tracking errors - don't affect checkout flow
+            console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+          });
+        }
+
+        // Send message to parent window (Shopify page) to trigger buy now
+        // This will immediately redirect to checkout - navigation happens here
         const message = {
           type: "NUSENSE_BUY_NOW",
           ...(productData && { product: productData }),
@@ -1570,6 +1626,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           description: t("tryOnWidget.resultDisplay.redirectingToCheckout") || "Redirection vers la page de paiement en cours.",
         });
 
+        // Note: For buy now, redirect happens immediately, so this timeout is just a safety
         setTimeout(() => {
           setIsBuyNowLoading(false);
         }, 10000);
@@ -1595,28 +1652,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     try {
       const isInIframe = window.parent !== window;
       const productData = getProductData();
-
-      // Track add to cart event (non-blocking, fire-and-forget)
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-      if (shopDomain) {
-        // Fire tracking request without awaiting - don't block cart flow
-        trackAddToCartEvent({
-          storeName: shopDomain,
-          actionType: "add_to_cart",
-          productId: productData?.id || null,
-          productTitle: productData?.title || null,
-          productUrl: productData?.url || null,
-          customerEmail: customerInfo?.email || null,
-          customerFirstName: customerInfo?.firstName || null,
-          customerLastName: customerInfo?.lastName || null,
-          generatedImageUrl: generatedImage || null,
-          personImageUrl: uploadedImage || null,
-          clothingImageUrl: selectedClothing || null,
-        }).catch((trackingError) => {
-          // Silently handle tracking errors - don't affect user experience
-          console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
-        });
-      }
 
       if (isInIframe) {
         const message = {
