@@ -52,7 +52,8 @@ const Analytics = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>(undefined);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
@@ -493,22 +494,42 @@ const Analytics = () => {
 
   // Handle date range filter
   const handleApplyDateFilter = () => {
-    if (dateRange?.from) {
+    if (startDate) {
       // Reset to first page when applying filter
       setPage(1);
-      setAppliedDateRange(dateRange);
+      setAppliedDateRange({
+        from: startDate,
+        to: endDate,
+      });
       // fetchData will be called automatically via useEffect
+      setIsPopoverOpen(false);
     } else {
-      toast.error(t("analytics.filters.dateRange") || "Please select a date range");
+      toast.error(t("analytics.filters.dateRange") || "Please select a start date");
     }
   };
 
   const handleClearDateFilter = () => {
-    setDateRange(undefined);
+    setStartDate(undefined);
+    setEndDate(undefined);
     setAppliedDateRange(undefined);
     setPage(1);
     // fetchData will be called automatically via useEffect
   };
+
+  // Initialize startDate and endDate from appliedDateRange when popover opens
+  useEffect(() => {
+    if (isPopoverOpen) {
+      if (appliedDateRange) {
+        setStartDate(appliedDateRange.from);
+        setEndDate(appliedDateRange.to);
+      } else {
+        // Reset to undefined if no applied date range
+        setStartDate(undefined);
+        setEndDate(undefined);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPopoverOpen]);
 
 
   return (
@@ -570,26 +591,87 @@ const Analytics = () => {
                   </Tooltip>
                   <PopoverContent className="w-auto p-0" align="end">
                     <div className="flex flex-col">
-                      <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from || appliedDateRange?.from}
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
-                        className="rounded-md border-0"
-                      />
+                      <div className="flex flex-col sm:flex-row gap-4 p-4">
+                        {/* Start Date Calendar */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium text-foreground px-1">
+                            {t("analytics.filters.startDate") || "Start Date"}
+                          </label>
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => {
+                              setStartDate(date);
+                              // Auto-set end date to start date if end date is before start date
+                              if (date && endDate && date > endDate) {
+                                setEndDate(undefined);
+                              }
+                            }}
+                            defaultMonth={startDate || appliedDateRange?.from}
+                            className="rounded-md border-0"
+                            disabled={(date) => {
+                              // Disable dates after end date if end date is set
+                              if (endDate) {
+                                return date > endDate;
+                              }
+                              return false;
+                            }}
+                          />
+                          {startDate && (
+                            <div className="px-1">
+                              <span className="text-xs text-muted-foreground">
+                                {format(startDate, "MMM dd, yyyy")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Divider */}
+                        <div className="hidden sm:block w-px bg-border self-stretch my-4" />
+
+                        {/* End Date Calendar */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium text-foreground px-1">
+                            {t("analytics.filters.endDate") || "End Date"}
+                          </label>
+                          <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={(date) => {
+                              setEndDate(date);
+                            }}
+                            defaultMonth={endDate || startDate || appliedDateRange?.to}
+                            className="rounded-md border-0"
+                            disabled={(date) => {
+                              // Disable dates before start date if start date is set
+                              if (startDate) {
+                                return date < startDate;
+                              }
+                              return false;
+                            }}
+                          />
+                          {endDate && (
+                            <div className="px-1">
+                              <span className="text-xs text-muted-foreground">
+                                {format(endDate, "MMM dd, yyyy")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer with buttons */}
                       <div className="flex flex-col gap-3 p-3 border-t bg-muted/30">
-                        <div className="flex items-center justify-center">
-                          {dateRange?.from ? (
+                        <div className="flex items-center justify-center min-h-[20px]">
+                          {startDate ? (
                             <span className="text-sm font-medium text-foreground">
-                              {dateRange.to ? (
+                              {endDate ? (
                                 <>
-                                  {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
+                                  {format(startDate, "MMM dd, yyyy")} - {format(endDate, "MMM dd, yyyy")}
                                 </>
                               ) : (
                                 <>
-                                  {format(dateRange.from, "MMM dd, yyyy")} - {t("analytics.filters.dateTo") || "To"}
+                                  {format(startDate, "MMM dd, yyyy")} - {t("analytics.filters.dateTo") || "To"}
                                 </>
                               )}
                             </span>
@@ -604,9 +686,10 @@ const Analytics = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              setDateRange(undefined);
+                              setStartDate(undefined);
+                              setEndDate(undefined);
                             }}
-                            disabled={!dateRange?.from}
+                            disabled={!startDate && !endDate}
                             className="h-8 px-3"
                             aria-label={t("analytics.filters.clear") || "Clear"}
                           >
@@ -615,13 +698,8 @@ const Analytics = () => {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => {
-                              if (dateRange?.from) {
-                                handleApplyDateFilter();
-                                setIsPopoverOpen(false);
-                              }
-                            }}
-                            disabled={!dateRange?.from || loading}
+                            onClick={handleApplyDateFilter}
+                            disabled={!startDate || loading}
                             className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                             aria-label={t("analytics.filters.apply") || "Apply Filters"}
                           >
