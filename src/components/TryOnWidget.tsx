@@ -1551,51 +1551,40 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         : undefined;
 
       // Get product information if available (non-mandatory)
-      // Try multiple sources: stored data, direct access, or request via postMessage
+      // Priority 1: Use stored product data (from postMessage) - most reliable
+      // Priority 2: Use getProductData() function - tries direct access
       let productData: any = null;
       
-      // Priority 1: Use stored product data (from postMessage)
       if (storedProductData) {
         productData = storedProductData;
-        console.log("[TRYON_WIDGET] Using stored product data:", productData);
+        console.log("[TRYON_WIDGET] [GENERATION] Using stored product data:", {
+          id: productData.id,
+          title: productData.title,
+          url: productData.url,
+          hasVariants: !!productData.variants,
+        });
       } else {
-        // Priority 2: Try to access NUSENSE_PRODUCT_DATA directly
-        try {
-          if (typeof window !== "undefined") {
-            if (window.parent !== window) {
-              try {
-                productData = (window.parent as any)?.NUSENSE_PRODUCT_DATA;
-                if (productData) {
-                  console.log("[TRYON_WIDGET] Accessed product data from parent window:", productData);
-                  setStoredProductData(productData); // Cache it for future use
-                }
-              } catch (e) {
-                // Cross-origin access failed, request via postMessage
-                console.log("[TRYON_WIDGET] Cross-origin access failed, requesting product data via postMessage");
-                try {
-                  window.parent.postMessage({ type: "NUSENSE_REQUEST_PRODUCT_DATA" }, "*");
-                } catch (postError) {
-                  console.warn("[TRYON_WIDGET] Failed to request product data:", postError);
-                }
-              }
-            }
-            
-            // Priority 3: Check current window
-            if (!productData && (window as any)?.NUSENSE_PRODUCT_DATA) {
-              productData = (window as any).NUSENSE_PRODUCT_DATA;
-              console.log("[TRYON_WIDGET] Accessed product data from current window:", productData);
-              setStoredProductData(productData); // Cache it
-            }
-          }
-        } catch (error) {
-          console.warn("[TRYON_WIDGET] Could not access product data:", error);
-          // Request via postMessage as fallback
+        // Try the existing getProductData function
+        productData = getProductData();
+        if (productData) {
+          console.log("[TRYON_WIDGET] [GENERATION] Got product data from getProductData():", {
+            id: productData.id,
+            title: productData.title,
+            url: productData.url,
+            hasVariants: !!productData.variants,
+          });
+          // Cache it for future use
+          setStoredProductData(productData);
+        } else {
+          console.warn("[TRYON_WIDGET] [GENERATION] No product data available from any source");
+          // Request via postMessage as fallback (async, won't block generation)
           try {
             if (typeof window !== "undefined" && window.parent !== window) {
               window.parent.postMessage({ type: "NUSENSE_REQUEST_PRODUCT_DATA" }, "*");
+              console.log("[TRYON_WIDGET] [GENERATION] Requested product data via postMessage");
             }
           } catch (postError) {
-            console.warn("[TRYON_WIDGET] Failed to request product data via postMessage:", postError);
+            console.warn("[TRYON_WIDGET] [GENERATION] Failed to request product data:", postError);
           }
         }
       }
@@ -1663,17 +1652,35 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         variantId: selectedVariantId,
       } : null;
 
-      // Debug logging for product info
-      console.log("[TRYON_WIDGET] Product data extracted:", {
-        hasProductData: !!productData,
-        productData,
-        productId,
-        productTitle,
-        productUrl,
-        selectedVariantId,
-        productInfo,
-        willSendProductInfo: !!productInfo,
-      });
+      // Debug logging for product info - COMPREHENSIVE
+      console.log("[TRYON_WIDGET] [GENERATION] ===== PRODUCT DATA EXTRACTION DEBUG =====");
+      console.log("[TRYON_WIDGET] [GENERATION] storedProductData:", storedProductData);
+      console.log("[TRYON_WIDGET] [GENERATION] productData (final):", productData);
+      console.log("[TRYON_WIDGET] [GENERATION] productData type:", typeof productData);
+      console.log("[TRYON_WIDGET] [GENERATION] productData keys:", productData ? Object.keys(productData) : "null");
+      console.log("[TRYON_WIDGET] [GENERATION] productId:", productId, "type:", typeof productId);
+      console.log("[TRYON_WIDGET] [GENERATION] productTitle:", productTitle, "type:", typeof productTitle);
+      console.log("[TRYON_WIDGET] [GENERATION] productUrl:", productUrl, "type:", typeof productUrl);
+      console.log("[TRYON_WIDGET] [GENERATION] selectedVariantId:", selectedVariantId, "type:", typeof selectedVariantId);
+      console.log("[TRYON_WIDGET] [GENERATION] productInfo:", productInfo);
+      console.log("[TRYON_WIDGET] [GENERATION] willSendProductInfo:", !!productInfo);
+      
+      // Also check window objects directly
+      try {
+        if (typeof window !== "undefined") {
+          console.log("[TRYON_WIDGET] [GENERATION] window.NUSENSE_PRODUCT_DATA:", (window as any)?.NUSENSE_PRODUCT_DATA);
+          if (window.parent !== window) {
+            try {
+              console.log("[TRYON_WIDGET] [GENERATION] window.parent.NUSENSE_PRODUCT_DATA:", (window.parent as any)?.NUSENSE_PRODUCT_DATA);
+            } catch (e) {
+              console.log("[TRYON_WIDGET] [GENERATION] Cannot access window.parent (cross-origin):", e);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[TRYON_WIDGET] [GENERATION] Error checking window objects:", e);
+      }
+      console.log("[TRYON_WIDGET] [GENERATION] ==========================================");
 
       // Both clothingKey and personKey are sent to the API when available
       // - clothingKey: sent when product image has an ID
