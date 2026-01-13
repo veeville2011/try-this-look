@@ -1513,11 +1513,21 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined
         : undefined;
 
+      // Get product information if available (non-mandatory)
+      const productData = getProductData();
+      const productInfo = productData ? {
+        productId: productData.id || null,
+        productTitle: productData.title || null,
+        productUrl: productData.url || null,
+        variantId: (productData as any).variantId || (productData as any).variant_id || null,
+      } : null;
+
       // Both clothingKey and personKey are sent to the API when available
       // - clothingKey: sent when product image has an ID
       // - personKey: sent when a demo picture is used (fixed IDs: demo_person_1, demo_person_2, etc.)
       // - version: optional version parameter (1 or 2)
       // - customerInfo: optional customer information if customer is logged in
+      // - productInfo: optional product information (productId, productTitle, productUrl, variantId)
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
@@ -1525,7 +1535,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         clothingKey, // Non-mandatory: sent when product image has ID
         personKey, // Non-mandatory: sent when demo picture is used
         selectedVersion, // Non-mandatory: sent when version is selected
-        customerInfo // Non-mandatory: sent when customer is logged in
+        customerInfo, // Non-mandatory: sent when customer is logged in
+        productInfo // Non-mandatory: sent when product data is available
       );
 
       setProgress(100);

@@ -6553,7 +6553,11 @@ app.post("/api/tryon/generate", async (req, res) => {
       customerId,
       customerEmail,
       customerFirstName,
-      customerLastName
+      customerLastName,
+      productId,
+      productTitle,
+      productUrl,
+      variantId
     } = req.body;
 
     // Get shop from query parameter first, then fall back to storeName in body
@@ -6580,6 +6584,10 @@ app.post("/api/tryon/generate", async (req, res) => {
       hasPersonKey: !!personKey,
       hasCustomerInfo: !!customerInfo,
       customerId: customerInfo?.id || null,
+      hasProductId: !!productId,
+      hasProductTitle: !!productTitle,
+      hasProductUrl: !!productUrl,
+      hasVariantId: !!variantId,
     });
 
     if (!personImage || !clothingImage) {
@@ -6748,6 +6756,20 @@ app.post("/api/tryon/generate", async (req, res) => {
       if (customerInfo.lastName) {
         formData.append("customerLastName", customerInfo.lastName);
       }
+    }
+
+    // Add product information if available (non-mandatory, for tracking/analytics)
+    if (productId) {
+      formData.append("productId", String(productId));
+    }
+    if (productTitle) {
+      formData.append("productTitle", productTitle);
+    }
+    if (productUrl) {
+      formData.append("productUrl", productUrl);
+    }
+    if (variantId) {
+      formData.append("variantId", String(variantId));
     }
 
     const startTime = Date.now();

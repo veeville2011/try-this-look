@@ -25,6 +25,13 @@ interface CustomerInfo {
   lastName?: string | null;
 }
 
+interface ProductInfo {
+  productId?: number | string | null;
+  productTitle?: string | null;
+  productUrl?: string | null;
+  variantId?: number | string | null;
+}
+
 export async function generateTryOn(
   personImage: File | Blob,
   clothingImage: Blob,
@@ -32,7 +39,8 @@ export async function generateTryOn(
   clothingKey?: string | null,
   personKey?: string | null,
   version?: number | null,
-  customerInfo?: CustomerInfo | null
+  customerInfo?: CustomerInfo | null,
+  productInfo?: ProductInfo | null
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -85,6 +93,22 @@ export async function generateTryOn(
         }
       }
 
+      // Add product information if available (non-mandatory)
+      if (productInfo) {
+        if (productInfo.productId) {
+          formData.append("productId", String(productInfo.productId));
+        }
+        if (productInfo.productTitle) {
+          formData.append("productTitle", productInfo.productTitle);
+        }
+        if (productInfo.productUrl) {
+          formData.append("productUrl", productInfo.productUrl);
+        }
+        if (productInfo.variantId) {
+          formData.append("variantId", String(productInfo.variantId));
+        }
+      }
+
       // Request Instagram-compatible square (1:1) aspect ratio
       formData.append("aspectRatio", "1:1");
       
@@ -96,6 +120,7 @@ export async function generateTryOn(
         hasClothingKey: !!clothingKey,
         hasPersonKey: !!personKey,
         hasCustomerInfo: !!customerInfo,
+        hasProductInfo: !!productInfo,
       });
     } catch (formError) {
       logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {
