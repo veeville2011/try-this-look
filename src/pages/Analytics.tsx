@@ -708,39 +708,71 @@ const Analytics = () => {
             )}
 
             {/* Table */}
-            {loading && records.length === 0 ? (
+            {loading ? (
               <Card className="border-border bg-card">
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border hover:bg-transparent">
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-16" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-24" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-32" /></TableHead>
-                        <TableHead className="bg-muted/50"><Skeleton className="h-4 w-24" /></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...Array(5)].map((_, i) => (
-                        <TableRow key={i} className="border-border">
-                          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-border hover:bg-transparent">
+                          <TableHead className="min-w-[80px] bg-muted/50 font-semibold text-foreground">#</TableHead>
+                          <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
+                          <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
+                          <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>
+                          <TableHead className="min-w-[100px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.status") || "Status"}</TableHead>
+                          <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
+                          <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
+                          <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
+                          <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {[...Array(5)].map((_, i) => (
+                          <TableRow key={i} className="border-border">
+                            <TableCell className="text-sm">
+                              <Skeleton className="h-4 w-8" />
+                            </TableCell>
+                            <TableCell className="text-sm text-center">
+                              <div className="flex flex-col items-center gap-1">
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="h-3 w-16" />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <Skeleton className="h-4 w-24" />
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <Skeleton className="h-4 w-32" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-5 w-16 rounded-full" />
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              <div className="flex items-center justify-center">
+                                <Skeleton className="w-20 h-20 rounded border border-border" />
+                              </div>
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              <div className="flex items-center justify-center">
+                                <Skeleton className="w-20 h-20 rounded border border-border" />
+                              </div>
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              <div className="flex items-center justify-center">
+                                <Skeleton className="w-20 h-20 rounded border border-border" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center">
+                                <Skeleton className="h-8 w-8 rounded" />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             ) : records.length > 0 ? (
