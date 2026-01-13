@@ -20,6 +20,7 @@ import {
   detectStoreOrigin,
   type StoreInfo,
 } from "@/utils/shopifyIntegration";
+import { trackAddToCartEvent } from "@/services/cartTrackingApi";
 
 interface ResultDisplayProps {
   generatedImage?: string | null;
@@ -38,6 +39,8 @@ interface ProductData {
 
 export default function ResultDisplay({
   generatedImage,
+  personImage,
+  clothingImage,
   isGenerating = false,
 }: ResultDisplayProps) {
   const { t } = useTranslation();
@@ -258,6 +261,34 @@ export default function ResultDisplay({
       const isInIframe = window.parent !== window;
       const productData = getProductData();
 
+      // Track buy now event
+      try {
+        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+        if (shopDomain) {
+          // Get customer info from window if available
+          const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+            ? (window as any).NUSENSE_CUSTOMER_INFO 
+            : null;
+
+          await trackAddToCartEvent({
+            storeName: shopDomain,
+            actionType: "buy_now",
+            productId: productData?.id || null,
+            productTitle: productData?.title || null,
+            productUrl: productData?.url || null,
+            customerEmail: customerInfo?.email || null,
+            customerFirstName: customerInfo?.firstName || null,
+            customerLastName: customerInfo?.lastName || null,
+            generatedImageUrl: generatedImage || null,
+            personImageUrl: personImage || null,
+            clothingImageUrl: clothingImage || null,
+          });
+        }
+      } catch (trackingError) {
+        // Don't show error to user for tracking failures - just log
+        console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+      }
+
       if (isInIframe) {
         // Send message to parent window (Shopify page) to trigger buy now
         const message = {
@@ -307,6 +338,34 @@ export default function ResultDisplay({
     try {
       const isInIframe = window.parent !== window;
       const productData = getProductData();
+
+      // Track add to cart event
+      try {
+        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+        if (shopDomain) {
+          // Get customer info from window if available
+          const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+            ? (window as any).NUSENSE_CUSTOMER_INFO 
+            : null;
+
+          await trackAddToCartEvent({
+            storeName: shopDomain,
+            actionType: "add_to_cart",
+            productId: productData?.id || null,
+            productTitle: productData?.title || null,
+            productUrl: productData?.url || null,
+            customerEmail: customerInfo?.email || null,
+            customerFirstName: customerInfo?.firstName || null,
+            customerLastName: customerInfo?.lastName || null,
+            generatedImageUrl: generatedImage || null,
+            personImageUrl: personImage || null,
+            clothingImageUrl: clothingImage || null,
+          });
+        }
+      } catch (trackingError) {
+        // Don't show error to user for tracking failures - just log
+        console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
+      }
 
       if (isInIframe) {
         // Send message to parent window (Shopify page) to trigger add to cart
