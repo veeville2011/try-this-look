@@ -295,8 +295,51 @@
         return;
       }
 
+      // Extract product and variant data from cart response
+      // Cart API returns items array with variant_id, product_id, product_title, url
+      const firstItem = Array.isArray(data?.items) && data.items.length > 0 ? data.items[0] : null;
+      const productData = window?.NUSENSE_PRODUCT_DATA || {};
+      
+      // Normalize product URL - cart API may return relative URL, convert to absolute
+      const normalizeProductUrl = (url) => {
+        if (!url) return null;
+        if (typeof url !== 'string') return null;
+        // If already absolute URL, return as is
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        // If relative URL, make it absolute
+        if (url.startsWith('/')) {
+          const origin = window.location.origin;
+          return origin + url;
+        }
+        return url;
+      };
+      
+      // Build product info from cart response (most reliable) with fallback to NUSENSE_PRODUCT_DATA
+      const productInfo = {
+        productId: firstItem?.product_id || productData?.id || null,
+        productTitle: firstItem?.product_title || productData?.title || null,
+        productUrl: normalizeProductUrl(firstItem?.url) || productData?.url || null,
+        variantId: firstItem?.variant_id || variantId || null,
+      };
+
       if (actionType === 'NUSENSE_BUY_NOW') {
-        window.location.href = getCheckoutUrl();
+        // Send success message before redirect so tracking can happen
+        // Use setTimeout to ensure message is sent before page redirects
+        if (event?.source && event.source !== window) {
+          event.source.postMessage(
+            { 
+              type: 'NUSENSE_ACTION_SUCCESS', 
+              action: actionType, 
+              cart: data,
+              product: productInfo
+            },
+            event.origin,
+          );
+        }
+        // Small delay to ensure message is sent before redirect
+        setTimeout(() => {
+          window.location.href = getCheckoutUrl();
+        }, 50);
         return;
       }
 
@@ -314,7 +357,12 @@
 
       if (event?.source && event.source !== window) {
         event.source.postMessage(
-          { type: 'NUSENSE_ACTION_SUCCESS', action: actionType, cart: data },
+          { 
+            type: 'NUSENSE_ACTION_SUCCESS', 
+            action: actionType, 
+            cart: data,
+            product: productInfo
+          },
           event.origin,
         );
       }

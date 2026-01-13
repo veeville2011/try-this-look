@@ -208,12 +208,32 @@ export default function ResultDisplay({
               ? (window as any).NUSENSE_CUSTOMER_INFO 
               : null;
 
+            // Prioritize product data from success message (from cart API response) over local data
+            const successProductData = event.data?.product || {};
+            const finalProductData = {
+              id: successProductData?.productId || productData?.id || null,
+              title: successProductData?.productTitle || productData?.title || null,
+              url: successProductData?.productUrl || productData?.url || null,
+              variantId: successProductData?.variantId || null,
+            };
+
+            // Validate that we have required product and variant IDs
+            if (!finalProductData.id || !finalProductData.variantId) {
+              console.warn("[CART_TRACKING] Missing required product or variant ID", {
+                productId: finalProductData.id,
+                variantId: finalProductData.variantId,
+                successProductData,
+                localProductData: productData,
+              });
+            }
+
             trackAddToCartEvent({
               storeName: shopDomain,
               actionType: "add_to_cart",
-              productId: productData?.id || null,
-              productTitle: productData?.title || null,
-              productUrl: productData?.url || null,
+              productId: finalProductData.id,
+              productTitle: finalProductData.title,
+              productUrl: finalProductData.url,
+              variantId: finalProductData.variantId,
               customerEmail: customerInfo?.email || null,
               customerFirstName: customerInfo?.firstName || null,
               customerLastName: customerInfo?.lastName || null,
@@ -235,9 +255,55 @@ export default function ResultDisplay({
             buyNowTimeoutRef.current = null;
           }
           setIsBuyNowLoading(false);
-          // Note: For buy now, tracking happens BEFORE redirect (in handleBuyNow)
-          // because the redirect happens immediately and this message may not be received
-          // No need to track here as redirect already happened
+          // Buy now will redirect, so we don't need to show a toast
+
+          // Track buy now event ONLY after successful checkout initiation
+          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+          if (shopDomain) {
+            // Get customer info from window if available
+            const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
+              ? (window as any).NUSENSE_CUSTOMER_INFO 
+              : null;
+
+            // Prioritize product data from success message (from cart API response) over local data
+            const successProductData = event.data?.product || {};
+            const localProductData = getProductDataLocal();
+            const finalProductData = {
+              id: successProductData?.productId || localProductData?.id || null,
+              title: successProductData?.productTitle || localProductData?.title || null,
+              url: successProductData?.productUrl || localProductData?.url || null,
+              variantId: successProductData?.variantId || null,
+            };
+
+            // Validate that we have required product and variant IDs
+            if (!finalProductData.id || !finalProductData.variantId) {
+              console.warn("[CART_TRACKING] Missing required product or variant ID", {
+                productId: finalProductData.id,
+                variantId: finalProductData.variantId,
+                successProductData,
+                localProductData,
+              });
+            }
+
+            // Fire tracking request without awaiting - don't block checkout redirect
+            trackAddToCartEvent({
+              storeName: shopDomain,
+              actionType: "buy_now",
+              productId: finalProductData.id,
+              productTitle: finalProductData.title,
+              productUrl: finalProductData.url,
+              variantId: finalProductData.variantId,
+              customerEmail: customerInfo?.email || null,
+              customerFirstName: customerInfo?.firstName || null,
+              customerLastName: customerInfo?.lastName || null,
+              generatedImageUrl: generatedImage || null,
+              personImageUrl: personImage || null,
+              clothingImageUrl: clothingImage || null,
+            }).catch((trackingError) => {
+              // Silently handle tracking errors - don't affect checkout flow
+              console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+            });
+          }
         }
       } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
@@ -294,34 +360,6 @@ export default function ResultDisplay({
       const productData = getProductData();
 
       if (isInIframe) {
-        // Track buy now event BEFORE redirect (since redirect happens immediately and we won't receive success message)
-        // This is fire-and-forget - doesn't block navigation
-        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-        if (shopDomain) {
-          // Get customer info from window if available
-          const customerInfo = typeof window !== "undefined" && (window as any).NUSENSE_CUSTOMER_INFO 
-            ? (window as any).NUSENSE_CUSTOMER_INFO 
-            : null;
-
-          // Fire tracking request without awaiting - don't block checkout redirect
-          trackAddToCartEvent({
-            storeName: shopDomain,
-            actionType: "buy_now",
-            productId: productData?.id || null,
-            productTitle: productData?.title || null,
-            productUrl: productData?.url || null,
-            customerEmail: customerInfo?.email || null,
-            customerFirstName: customerInfo?.firstName || null,
-            customerLastName: customerInfo?.lastName || null,
-            generatedImageUrl: generatedImage || null,
-            personImageUrl: personImage || null,
-            clothingImageUrl: clothingImage || null,
-          }).catch((trackingError) => {
-            // Silently handle tracking errors - don't affect checkout flow
-            console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
-          });
-        }
-
         // Send message to parent window (Shopify page) to trigger buy now
         // This will immediately redirect to checkout - navigation happens here
         const message = {
