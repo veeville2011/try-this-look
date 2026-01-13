@@ -579,10 +579,10 @@ const Analytics = () => {
                         numberOfMonths={2}
                         className="rounded-md border-0"
                       />
-                      <div className="flex items-center justify-between gap-2 p-3 border-t bg-muted/30">
-                        <div className="flex-1 min-w-0">
+                      <div className="flex flex-col gap-3 p-3 border-t bg-muted/30">
+                        <div className="flex items-center justify-center">
                           {dateRange?.from ? (
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-sm font-medium text-foreground">
                               {dateRange.to ? (
                                 <>
                                   {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
@@ -599,7 +599,7 @@ const Analytics = () => {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
