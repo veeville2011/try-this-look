@@ -269,26 +269,23 @@ export default function ResultDisplay({
               });
             }
 
-            trackAddToCartEvent({
-              storeName: shopDomain,
-              actionType: "add_to_cart",
-              productId: finalProductData.id,
-              productTitle: finalProductData.title,
-              productUrl: finalProductData.url,
-              variantId: finalProductData.variantId,
-              customerEmail: customerInfo?.email ?? null,
-              customerFirstName: customerInfo?.firstName ?? null,
-              customerLastName: customerInfo?.lastName ?? null,
-              generatedImageUrl: generatedImage ?? null,
-              personImageUrl: personImage ?? null,
-              clothingImageUrl: clothingImage ?? null,
-            }).catch((trackingError) => {
+            if (customerInfo?.id) {
+              trackAddToCartEvent({
+                storeName: shopDomain,
+                actionType: "add_to_cart",
+                productId: finalProductData.id,
+                productTitle: finalProductData.title,
+                productUrl: finalProductData.url,
+                variantId: finalProductData.variantId,
+                customerId: customerInfo.id,
+              }).catch((trackingError) => {
               // Show error toast if tracking fails
               console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
-              toast.error(t("tryOnWidget.resultDisplay.trackingError") || "Erreur de suivi", {
-                description: t("tryOnWidget.resultDisplay.trackingErrorDescription") || "Impossible d'enregistrer l'événement. L'article a été ajouté au panier.",
+                toast.error(t("tryOnWidget.resultDisplay.trackingError") || "Erreur de suivi", {
+                  description: t("tryOnWidget.resultDisplay.trackingErrorDescription") || "Impossible d'enregistrer l'événement. L'article a été ajouté au panier.",
+                });
               });
-            });
+            }
           }
         } else if (event.data.action === "NUSENSE_BUY_NOW") {
           // Clear timeout if it exists
@@ -370,23 +367,20 @@ export default function ResultDisplay({
             }
 
             // Fire tracking request without awaiting - don't block checkout redirect
-            trackAddToCartEvent({
-              storeName: shopDomain,
-              actionType: "buy_now",
-              productId: finalProductData.id,
-              productTitle: finalProductData.title,
-              productUrl: finalProductData.url,
-              variantId: finalProductData.variantId,
-              customerEmail: customerInfo?.email || null,
-              customerFirstName: customerInfo?.firstName || null,
-              customerLastName: customerInfo?.lastName || null,
-              generatedImageUrl: generatedImage || null,
-              personImageUrl: personImage || null,
-              clothingImageUrl: clothingImage || null,
-            }).catch((trackingError) => {
-              // Silently handle tracking errors - don't affect checkout flow
-              console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
-            });
+            if (customerInfo?.id) {
+              trackAddToCartEvent({
+                storeName: shopDomain,
+                actionType: "buy_now",
+                productId: finalProductData.id,
+                productTitle: finalProductData.title,
+                productUrl: finalProductData.url,
+                variantId: finalProductData.variantId,
+                customerId: customerInfo.id,
+              }).catch((trackingError) => {
+                // Silently handle tracking errors - don't affect checkout flow
+                console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+              });
+            }
           }
         }
       } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {

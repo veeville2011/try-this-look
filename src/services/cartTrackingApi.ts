@@ -46,12 +46,7 @@ export const trackAddToCartEvent = async (
     productTitle,
     productUrl,
     variantId,
-    customerEmail,
-    customerFirstName,
-    customerLastName,
-    generatedImageUrl,
-    personImageUrl,
-    clothingImageUrl,
+    customerId,
   } = params;
 
   if (!storeName) {
@@ -62,23 +57,16 @@ export const trackAddToCartEvent = async (
     };
   }
 
+  if (!customerId) {
+    return {
+      status: "error",
+      error: "Customer ID is required",
+      message: "Customer ID is required to track cart events",
+    };
+  }
+
   // Normalize store name
   const normalizedStoreName = normalizeShopDomain(storeName);
-
-  // Get user agent and IP if available
-  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
-  
-  // Get session ID from sessionStorage if available
-  let sessionId: string | null = null;
-  try {
-    if (typeof window !== "undefined" && window.sessionStorage) {
-      sessionId = sessionStorage.getItem("sessionId") || 
-                  `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem("sessionId", sessionId);
-    }
-  } catch (error) {
-    // SessionStorage might not be available, that's okay
-  }
 
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}/api/cart-tracking/track`;
@@ -90,14 +78,7 @@ export const trackAddToCartEvent = async (
     productTitle: productTitle || null,
     productUrl: productUrl || null,
     variantId: variantId || null,
-    customerEmail: customerEmail || null,
-    customerFirstName: customerFirstName || null,
-    customerLastName: customerLastName || null,
-    generatedImageUrl: generatedImageUrl || null,
-    personImageUrl: personImageUrl || null,
-    clothingImageUrl: clothingImageUrl || null,
-    userAgent,
-    sessionId,
+    customerId,
   };
 
   try {

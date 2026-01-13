@@ -25,12 +25,7 @@ export interface TrackCartEventParams {
   productTitle?: string | null;
   productUrl?: string | null;
   variantId?: number | string | null;
-  customerEmail?: string | null;
-  customerFirstName?: string | null;
-  customerLastName?: string | null;
-  generatedImageUrl?: string | null;
-  personImageUrl?: string | null;
-  clothingImageUrl?: string | null;
+  customerId: string | number;
 }
 
 export interface TrackCartEventResponse {
