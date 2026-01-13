@@ -55,6 +55,8 @@ export async function generateTryOn(
       personKey: personKey || "not provided",
       hasCustomerInfo: !!customerInfo,
       customerId: customerInfo?.id || "not provided",
+      hasProductInfo: !!productInfo,
+      productInfo: productInfo || "not provided",
       timestamp: new Date().toISOString(),
     });
 
@@ -95,18 +97,24 @@ export async function generateTryOn(
 
       // Add product information if available (non-mandatory)
       if (productInfo) {
-        if (productInfo.productId) {
+        if (productInfo.productId != null && productInfo.productId !== "") {
           formData.append("productId", String(productInfo.productId));
+          console.log("[FRONTEND] [TRYON] Added productId to FormData:", productInfo.productId);
         }
-        if (productInfo.productTitle) {
+        if (productInfo.productTitle != null && productInfo.productTitle !== "") {
           formData.append("productTitle", productInfo.productTitle);
+          console.log("[FRONTEND] [TRYON] Added productTitle to FormData:", productInfo.productTitle);
         }
-        if (productInfo.productUrl) {
+        if (productInfo.productUrl != null && productInfo.productUrl !== "") {
           formData.append("productUrl", productInfo.productUrl);
+          console.log("[FRONTEND] [TRYON] Added productUrl to FormData:", productInfo.productUrl);
         }
-        if (productInfo.variantId) {
+        if (productInfo.variantId != null && productInfo.variantId !== "") {
           formData.append("variantId", String(productInfo.variantId));
+          console.log("[FRONTEND] [TRYON] Added variantId to FormData:", productInfo.variantId);
         }
+      } else {
+        console.log("[FRONTEND] [TRYON] No productInfo provided");
       }
 
       // Request Instagram-compatible square (1:1) aspect ratio
@@ -114,6 +122,28 @@ export async function generateTryOn(
       
       // Version parameter removed - not sent to fashion-photo API
       
+      // Log all FormData entries for debugging
+      const formDataEntries: Record<string, string> = {};
+      try {
+        // Note: FormData.entries() is not available in all environments, so we log what we know
+        formDataEntries.personImage = "[File/Blob]";
+        formDataEntries.clothingImage = "[File/Blob]";
+        if (storeName) formDataEntries.storeName = storeName;
+        if (clothingKey) formDataEntries.clothingKey = clothingKey;
+        if (personKey) formDataEntries.personKey = personKey;
+        if (customerInfo?.id) formDataEntries.customerId = String(customerInfo.id);
+        if (customerInfo?.email) formDataEntries.customerEmail = customerInfo.email;
+        if (customerInfo?.firstName) formDataEntries.customerFirstName = customerInfo.firstName;
+        if (customerInfo?.lastName) formDataEntries.customerLastName = customerInfo.lastName;
+        if (productInfo?.productId) formDataEntries.productId = String(productInfo.productId);
+        if (productInfo?.productTitle) formDataEntries.productTitle = productInfo.productTitle;
+        if (productInfo?.productUrl) formDataEntries.productUrl = productInfo.productUrl;
+        if (productInfo?.variantId) formDataEntries.variantId = String(productInfo.variantId);
+        formDataEntries.aspectRatio = "1:1";
+      } catch (e) {
+        // Ignore
+      }
+
       console.log("[FRONTEND] [TRYON] FormData prepared", {
         requestId,
         hasStoreName: !!storeName,
@@ -121,6 +151,8 @@ export async function generateTryOn(
         hasPersonKey: !!personKey,
         hasCustomerInfo: !!customerInfo,
         hasProductInfo: !!productInfo,
+        productInfo: productInfo || null,
+        formDataEntries,
       });
     } catch (formError) {
       logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {

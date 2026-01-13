@@ -1514,13 +1514,85 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         : undefined;
 
       // Get product information if available (non-mandatory)
-      const productData = getProductData();
-      const productInfo = productData ? {
-        productId: productData.id || null,
-        productTitle: productData.title || null,
-        productUrl: productData.url || null,
-        variantId: (productData as any).variantId || (productData as any).variant_id || null,
+      // Access NUSENSE_PRODUCT_DATA directly to get all available fields
+      let productData: any = null;
+      try {
+        if (typeof window !== "undefined") {
+          if (window.parent !== window && (window.parent as any)?.NUSENSE_PRODUCT_DATA) {
+            productData = (window.parent as any).NUSENSE_PRODUCT_DATA;
+          } else if ((window as any)?.NUSENSE_PRODUCT_DATA) {
+            productData = (window as any).NUSENSE_PRODUCT_DATA;
+          }
+        }
+      } catch (error) {
+        // Cross-origin access might fail, that's okay
+        console.warn("[TRYON_WIDGET] Could not access product data:", error);
+      }
+
+      // Try to get selected variant ID from URL or other sources
+      let selectedVariantId: number | string | null = null;
+      try {
+        // First check current window URL
+        if (typeof window !== "undefined" && window.location) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const variantParam = urlParams.get("variant");
+          if (variantParam) {
+            selectedVariantId = variantParam;
+          }
+        }
+        // If in iframe, also check parent window URL
+        if (!selectedVariantId && typeof window !== "undefined" && window.parent !== window) {
+          try {
+            const parentUrl = window.parent.location.href;
+            const parentUrlObj = new URL(parentUrl);
+            const parentVariantParam = parentUrlObj.searchParams.get("variant");
+            if (parentVariantParam) {
+              selectedVariantId = parentVariantParam;
+            }
+          } catch (e) {
+            // Cross-origin access might fail, that's okay
+          }
+        }
+        // Also check if variantId is in productData
+        if (!selectedVariantId && productData) {
+          selectedVariantId = productData.variantId ?? productData.variant_id ?? null;
+        }
+        // Check if there's a selected variant in productData.variants array
+        if (!selectedVariantId && productData?.variants && Array.isArray(productData.variants)) {
+          // Try to find a selected variant (if there's a selection mechanism)
+          // For now, we'll just take the first variant if only one exists
+          if (productData.variants.length === 1) {
+            selectedVariantId = productData.variants[0]?.id ?? null;
+          }
+        }
+      } catch (error) {
+        // Ignore errors
+        console.warn("[TRYON_WIDGET] Error extracting variantId:", error);
+      }
+
+      // Only create productInfo if we have at least one valid field
+      const productId = productData?.id ?? null;
+      const productTitle = productData?.title ?? null;
+      const productUrl = productData?.url ?? null;
+      
+      const productInfo = (productId != null || productTitle != null || productUrl != null || selectedVariantId != null) ? {
+        productId: productId != null ? productId : null,
+        productTitle: productTitle != null ? productTitle : null,
+        productUrl: productUrl != null ? productUrl : null,
+        variantId: selectedVariantId,
       } : null;
+
+      // Debug logging for product info
+      console.log("[TRYON_WIDGET] Product data extracted:", {
+        hasProductData: !!productData,
+        productData,
+        productId,
+        productTitle,
+        productUrl,
+        selectedVariantId,
+        productInfo,
+        willSendProductInfo: !!productInfo,
+      });
 
       // Both clothingKey and personKey are sent to the API when available
       // - clothingKey: sent when product image has an ID
