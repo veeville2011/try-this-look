@@ -857,13 +857,22 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               variantId: successProductData?.variantId || null,
             };
 
+            // Debug logging
+            console.log("[CART_TRACKING] Tracking Add to Cart Event:", {
+              successProductData,
+              localProductData: productData,
+              finalProductData,
+              eventData: event.data,
+            });
+
             // Validate that we have required product and variant IDs
             if (!finalProductData.id || !finalProductData.variantId) {
-              console.warn("[CART_TRACKING] Missing required product or variant ID", {
+              console.error("[CART_TRACKING] Missing required product or variant ID", {
                 productId: finalProductData.id,
                 variantId: finalProductData.variantId,
                 successProductData,
                 localProductData: productData,
+                eventData: event.data,
               });
             }
 
@@ -904,13 +913,22 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               variantId: successProductData?.variantId || null,
             };
 
+            // Debug logging
+            console.log("[CART_TRACKING] Tracking Buy Now Event:", {
+              successProductData,
+              localProductData,
+              finalProductData,
+              eventData: event.data,
+            });
+
             // Validate that we have required product and variant IDs
             if (!finalProductData.id || !finalProductData.variantId) {
-              console.warn("[CART_TRACKING] Missing required product or variant ID", {
+              console.error("[CART_TRACKING] Missing required product or variant ID", {
                 productId: finalProductData.id,
                 variantId: finalProductData.variantId,
                 successProductData,
                 localProductData,
+                eventData: event.data,
               });
             }
 
