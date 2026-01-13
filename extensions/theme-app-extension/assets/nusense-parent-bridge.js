@@ -202,8 +202,8 @@
   const getSelectedVariantId = () => {
     try {
       const variantSelector =
-        document.querySelector('[name="id"]') ||
-        document.querySelector('input[name="id"]') ||
+        document.querySelector('[name="id"]') ??
+        document.querySelector('input[name="id"]') ??
         document.querySelector('select[name="id"]');
       const value = variantSelector?.value;
       if (value) return value;
@@ -215,7 +215,7 @@
       const variants = window?.NUSENSE_PRODUCT_DATA?.variants;
       if (Array.isArray(variants) && variants.length > 0) {
         const availableVariant = variants.find((v) => v?.available !== false);
-        return String((availableVariant || variants[0])?.id || '');
+        return String((availableVariant ?? variants[0])?.id ?? '');
       }
     } catch {
       // ignore
@@ -226,14 +226,12 @@
 
   const getCartAddUrl = () => {
     const root = window?.Shopify?.routes?.root;
-    if (root) return `${root}cart/add.js`;
-    return '/cart/add.js';
+    return root ? `${root}cart/add.js` : '/cart/add.js';
   };
 
   const getCheckoutUrl = () => {
     const root = window?.Shopify?.routes?.root;
-    if (root) return `${root}checkout`;
-    return '/checkout';
+    return root ? `${root}checkout` : '/checkout';
   };
 
   const handleCartAction = async ({ actionType, event }) => {
@@ -298,10 +296,10 @@
       // Extract product and variant data from cart response
       // Cart API returns items array with variant_id, product_id, product_title, url
       const firstItem = Array.isArray(data?.items) && data.items.length > 0 ? data.items[0] : null;
-      const productData = window?.NUSENSE_PRODUCT_DATA || {};
+      const productData = window?.NUSENSE_PRODUCT_DATA ?? {};
       
       // Debug logging to understand response structure
-      if (typeof console !== 'undefined' && console.log) {
+      if (typeof console !== 'undefined' && console?.log) {
         console.log('[NUSENSE] Cart API Response:', {
           hasItems: Array.isArray(data?.items),
           itemsLength: data?.items?.length,
@@ -313,23 +311,22 @@
       
       // Normalize product URL - cart API may return relative URL, convert to absolute
       const normalizeProductUrl = (url) => {
-        if (!url) return null;
-        if (typeof url !== 'string') return null;
+        if (!url || typeof url !== 'string') return null;
         // If already absolute URL, return as is
         if (url.startsWith('http://') || url.startsWith('https://')) return url;
         // If relative URL, make it absolute
         if (url.startsWith('/')) {
-          const origin = window.location.origin;
-          return origin + url;
+          const origin = window?.location?.origin;
+          return origin ? origin + url : url;
         }
         return url;
       };
       
       // Extract from cart response - use snake_case fields from Shopify API
-      const cartProductId = firstItem?.product_id || null;
-      const cartVariantId = firstItem?.variant_id || null;
-      const cartProductTitle = firstItem?.product_title || null;
-      const cartProductUrl = normalizeProductUrl(firstItem?.url) || null;
+      const cartProductId = firstItem?.product_id ?? null;
+      const cartVariantId = firstItem?.variant_id ?? null;
+      const cartProductTitle = firstItem?.product_title ?? null;
+      const cartProductUrl = normalizeProductUrl(firstItem?.url) ?? null;
       
       // Get variant ID from NUSENSE_PRODUCT_DATA if cart response doesn't have it
       let fallbackVariantId = variantId; // Use the variant ID we sent in the request
@@ -339,16 +336,16 @@
           ? productData.variants.find(v => String(v?.id) === String(variantId))
           : null;
         if (variant) {
-          fallbackVariantId = variant.id;
+          fallbackVariantId = variant?.id ?? variantId;
         }
       }
       
       // Build product info with priority: cart response > NUSENSE_PRODUCT_DATA > variantId from request
       const productInfo = {
-        productId: cartProductId || productData?.id || null,
-        productTitle: cartProductTitle || productData?.title || null,
-        productUrl: cartProductUrl || productData?.url || null,
-        variantId: cartVariantId || fallbackVariantId || null,
+        productId: cartProductId ?? productData?.id ?? null,
+        productTitle: cartProductTitle ?? productData?.title ?? null,
+        productUrl: cartProductUrl ?? productData?.url ?? null,
+        variantId: cartVariantId ?? fallbackVariantId ?? null,
       };
       
       // Debug logging for final product info

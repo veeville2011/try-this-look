@@ -846,23 +846,56 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           const productData = getProductData();
           
           // Track add to cart event ONLY after successful cart addition
-          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+          const shopDomain = storeInfo?.shopDomain ?? storeInfo?.domain ?? reduxStoreInfo?.shop;
           if (shopDomain) {
-            // Prioritize product data from success message (from cart API response) over local data
-            const successProductData = event.data?.product || {};
+            // Extract product data from multiple sources with priority:
+            // 1. event.data.product (from bridge script extraction)
+            // 2. event.data.cart.items[0] (direct from cart API response)
+            // 3. localProductData (from NUSENSE_PRODUCT_DATA)
+            const successProductData = event.data?.product ?? {};
+            const cartItem = Array.isArray(event.data?.cart?.items) && (event.data.cart.items.length ?? 0) > 0 
+              ? event.data.cart.items[0] 
+              : null;
+            
+            // Normalize product URL from cart response (may be relative)
+            const normalizeProductUrl = (url: string | null | undefined): string | null => {
+              if (!url || typeof url !== 'string') return null;
+              if (url.startsWith('http://') || url.startsWith('https://')) return url;
+              if (url.startsWith('/')) {
+                try {
+                  return window?.location?.origin ? window.location.origin + url : url;
+                } catch {
+                  return url;
+                }
+              }
+              return url;
+            };
+            
+            // Build final product data with priority: successProductData > cartItem > localProductData
             const finalProductData = {
-              id: successProductData?.productId || productData?.id || null,
-              title: successProductData?.productTitle || productData?.title || null,
-              url: successProductData?.productUrl || productData?.url || null,
-              variantId: successProductData?.variantId || null,
+              id: successProductData?.productId 
+                ?? cartItem?.product_id 
+                ?? productData?.id 
+                ?? null,
+              title: successProductData?.productTitle 
+                ?? cartItem?.product_title 
+                ?? productData?.title 
+                ?? null,
+              url: normalizeProductUrl(successProductData?.productUrl) 
+                ?? normalizeProductUrl(cartItem?.url) 
+                ?? productData?.url 
+                ?? null,
+              variantId: successProductData?.variantId 
+                ?? cartItem?.variant_id 
+                ?? null,
             };
 
             // Debug logging
             console.log("[CART_TRACKING] Tracking Add to Cart Event:", {
               successProductData,
+              cartItem,
               localProductData: productData,
               finalProductData,
-              eventData: event.data,
             });
 
             // Validate that we have required product and variant IDs
@@ -871,8 +904,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 productId: finalProductData.id,
                 variantId: finalProductData.variantId,
                 successProductData,
+                cartItem,
                 localProductData: productData,
-                eventData: event.data,
               });
             }
 
@@ -883,12 +916,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               productTitle: finalProductData.title,
               productUrl: finalProductData.url,
               variantId: finalProductData.variantId,
-              customerEmail: customerInfo?.email || null,
-              customerFirstName: customerInfo?.firstName || null,
-              customerLastName: customerInfo?.lastName || null,
-              generatedImageUrl: generatedImage || null,
-              personImageUrl: uploadedImage || null,
-              clothingImageUrl: selectedClothing || null,
+              customerEmail: customerInfo?.email ?? null,
+              customerFirstName: customerInfo?.firstName ?? null,
+              customerLastName: customerInfo?.lastName ?? null,
+              generatedImageUrl: generatedImage ?? null,
+              personImageUrl: uploadedImage ?? null,
+              clothingImageUrl: selectedClothing ?? null,
             }).catch((trackingError) => {
               // Show error toast if tracking fails
               console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
@@ -901,24 +934,57 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           setIsBuyNowLoading(false);
           
           // Track buy now event ONLY after successful checkout initiation
-          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+          const shopDomain = storeInfo?.shopDomain ?? storeInfo?.domain ?? reduxStoreInfo?.shop;
           if (shopDomain) {
-            // Prioritize product data from success message (from cart API response) over local data
-            const successProductData = event.data?.product || {};
+            // Extract product data from multiple sources with priority:
+            // 1. event.data.product (from bridge script extraction)
+            // 2. event.data.cart.items[0] (direct from cart API response)
+            // 3. localProductData (from NUSENSE_PRODUCT_DATA)
+            const successProductData = event.data?.product ?? {};
+            const cartItem = Array.isArray(event.data?.cart?.items) && (event.data.cart.items.length ?? 0) > 0 
+              ? event.data.cart.items[0] 
+              : null;
             const localProductData = getProductData();
+            
+            // Normalize product URL from cart response (may be relative)
+            const normalizeProductUrl = (url: string | null | undefined): string | null => {
+              if (!url || typeof url !== 'string') return null;
+              if (url.startsWith('http://') || url.startsWith('https://')) return url;
+              if (url.startsWith('/')) {
+                try {
+                  return window?.location?.origin ? window.location.origin + url : url;
+                } catch {
+                  return url;
+                }
+              }
+              return url;
+            };
+            
+            // Build final product data with priority: successProductData > cartItem > localProductData
             const finalProductData = {
-              id: successProductData?.productId || localProductData?.id || null,
-              title: successProductData?.productTitle || localProductData?.title || null,
-              url: successProductData?.productUrl || localProductData?.url || null,
-              variantId: successProductData?.variantId || null,
+              id: successProductData?.productId 
+                ?? cartItem?.product_id 
+                ?? localProductData?.id 
+                ?? null,
+              title: successProductData?.productTitle 
+                ?? cartItem?.product_title 
+                ?? localProductData?.title 
+                ?? null,
+              url: normalizeProductUrl(successProductData?.productUrl) 
+                ?? normalizeProductUrl(cartItem?.url) 
+                ?? localProductData?.url 
+                ?? null,
+              variantId: successProductData?.variantId 
+                ?? cartItem?.variant_id 
+                ?? null,
             };
 
             // Debug logging
             console.log("[CART_TRACKING] Tracking Buy Now Event:", {
               successProductData,
+              cartItem,
               localProductData,
               finalProductData,
-              eventData: event.data,
             });
 
             // Validate that we have required product and variant IDs
@@ -927,8 +993,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 productId: finalProductData.id,
                 variantId: finalProductData.variantId,
                 successProductData,
+                cartItem,
                 localProductData,
-                eventData: event.data,
               });
             }
 
@@ -940,12 +1006,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               productTitle: finalProductData.title,
               productUrl: finalProductData.url,
               variantId: finalProductData.variantId,
-              customerEmail: customerInfo?.email || null,
-              customerFirstName: customerInfo?.firstName || null,
-              customerLastName: customerInfo?.lastName || null,
-              generatedImageUrl: generatedImage || null,
-              personImageUrl: uploadedImage || null,
-              clothingImageUrl: selectedClothing || null,
+              customerEmail: customerInfo?.email ?? null,
+              customerFirstName: customerInfo?.firstName ?? null,
+              customerLastName: customerInfo?.lastName ?? null,
+              generatedImageUrl: generatedImage ?? null,
+              personImageUrl: uploadedImage ?? null,
+              clothingImageUrl: selectedClothing ?? null,
             }).catch((trackingError) => {
               // Silently handle tracking errors - don't affect checkout flow
               console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
