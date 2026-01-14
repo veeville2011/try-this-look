@@ -879,7 +879,28 @@
     "details": {
       "basicInfo": "Basic Information",
       "userInfo": "User Information",
-      "technicalInfo": "Technical Information"
+      "technicalInfo": "Technical Information",
+      "productInfo": "Product Information",
+      "productInfoDescription": "Product details for this generation",
+      "productTitle": "Product Title",
+      "productId": "Product ID",
+      "variantId": "Variant ID",
+      "aspectRatio": "Aspect Ratio",
+      "viewProduct": "View Product",
+      "addToCartInfo": "Add to Cart Information",
+      "addToCartInfoDescription": "Cart events and activity for this product",
+      "addedToCart": "Added to Cart",
+      "totalEvents": "Total Events",
+      "firstEvent": "First Event",
+      "lastEvent": "Last Event",
+      "actionTypes": "Action Types",
+      "cartEventsTimeline": "Cart Events Timeline",
+      "otherProductsAddedToCart": "Other Products Added to Cart",
+      "otherProductsDescription": "Additional products added to cart during this session",
+      "product": "Product",
+      "events": "Events",
+      "actions": "Actions",
+      "added": "Added"
     },
     "search": {
       "placeholder": "Search by ID, status, or date..."

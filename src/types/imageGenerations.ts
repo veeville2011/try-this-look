@@ -14,6 +14,24 @@ export interface AddToCartInfo {
   variantId?: string;
 }
 
+export interface OtherProductCartInfo {
+  productId: string;
+  variantId: string;
+  productTitle: string;
+  productUrl: string;
+  hasCartEvents: boolean;
+  totalEvents: number;
+  firstEventAt: string;
+  lastEventAt: string;
+  actionTypes: string[];
+  actionTypeCounts: Record<string, number>;
+  events: Array<{
+    cartEventId: string;
+    actionType: string;
+    addedAt: string;
+  }>;
+}
+
 export interface ImageGenerationRecord {
   id: string;
   requestId: string;
@@ -36,9 +54,16 @@ export interface ImageGenerationRecord {
   customerEmail: string | null;
   customerFirstName: string | null;
   customerLastName: string | null;
+  customerId?: string;
+  productId?: string;
+  productTitle?: string;
+  productUrl?: string;
+  variantId?: string;
+  aspectRatio?: string;
   createdAt: string;
   updatedAt: string;
   addToCartInfo?: AddToCartInfo;
+  otherProductsAddedToCart?: OtherProductCartInfo[];
 }
 
 export interface PaginationInfo {

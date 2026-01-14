@@ -879,7 +879,28 @@
     "details": {
       "basicInfo": "Informations de base",
       "userInfo": "Informations utilisateur",
-      "technicalInfo": "Informations techniques"
+      "technicalInfo": "Informations techniques",
+      "productInfo": "Informations sur le produit",
+      "productInfoDescription": "Détails du produit pour cette génération",
+      "productTitle": "Titre du produit",
+      "productId": "ID du produit",
+      "variantId": "ID de la variante",
+      "aspectRatio": "Ratio d'aspect",
+      "viewProduct": "Voir le produit",
+      "addToCartInfo": "Informations d'ajout au panier",
+      "addToCartInfoDescription": "Événements et activité du panier pour ce produit",
+      "addedToCart": "Ajouté au panier",
+      "totalEvents": "Total des événements",
+      "firstEvent": "Premier événement",
+      "lastEvent": "Dernier événement",
+      "actionTypes": "Types d'action",
+      "cartEventsTimeline": "Chronologie des événements du panier",
+      "otherProductsAddedToCart": "Autres produits ajoutés au panier",
+      "otherProductsDescription": "Produits supplémentaires ajoutés au panier pendant cette session",
+      "product": "Produit",
+      "events": "Événements",
+      "actions": "Actions",
+      "added": "Ajouté"
     },
     "search": {
       "placeholder": "Rechercher par ID, statut ou date..."
