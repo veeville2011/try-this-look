@@ -152,42 +152,6 @@ export default function PhotoUpload({
                   {t("tryOnWidget.photoUpload.chooseDemoModel") || "Choisir un modèle de démonstration"}
                 </span>
               </div>
-              <div className="flex items-center">
-                <div className="flex flex-col items-start w-[73px] relative mr-[1px]">
-                  <img
-                    src="/assets/demo_pics/p4.jpg"
-                    className="w-[73px] h-[49px] object-contain"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                  <img
-                    src="/assets/demo_pics/f1.jpg"
-                    className="w-[88px] h-[26px] absolute bottom-0 right-[51px] object-contain"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </div>
-                <img
-                  src="/assets/demo_pics/m1.jpg"
-                  className="w-[53px] h-[52px] object-contain"
-                  alt=""
-                  aria-hidden="true"
-                />
-                <div className="flex flex-col items-start w-[73px] relative">
-                  <img
-                    src="/assets/demo_pics/p1.jpg"
-                    className="w-[73px] h-[49px] object-contain"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                  <img
-                    src="/assets/demo_pics/p4.jpg"
-                    className="w-[88px] h-[26px] absolute bottom-0 left-[52px] object-contain"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Separator OU */}

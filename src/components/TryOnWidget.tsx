@@ -2859,16 +2859,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             <div className="flex justify-between items-center py-2 sm:py-2.5">
               <div className="flex flex-col items-start gap-0.5 sm:gap-1">
                 <img
-                  src="/assets/NUSENSE_LOGO.svg"
-                  className={`${!customerInfo?.id ? 'w-28 h-4 sm:w-32 sm:h-5' : 'w-32 h-5 sm:w-40 sm:h-6'} object-contain transition-all duration-200`}
+                  src="/assets/NUSENSE_LOGO_v1.png"
+                  className={` object-contain h-auto transition-all duration-200`}
                   alt={t("tryOnWidget.brand.name") || "NUSENSE"}
                   aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
                 />
-                {customerInfo?.id && (
-                  <span className="text-slate-800 text-xs sm:text-sm whitespace-nowrap">
-                    {t("tryOnWidget.brand.subtitle") || "Essayage Virtuel Alimenté par IA"}
-                  </span>
-                )}
               </div>
               <button
                 onClick={handleClose}
