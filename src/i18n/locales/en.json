@@ -873,6 +873,7 @@
       "errorMessage": "Error Message",
       "viewImage": "View Image",
       "viewDetails": "View Details",
+      "productAddedToCart": "Product Added to Cart",
       "actions": "Actions"
     },
     "details": {

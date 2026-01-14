@@ -715,7 +715,7 @@ const Analytics = () => {
                     <Table>
                       <TableHeader>
                         <TableRow className="border-border hover:bg-transparent">
-                          <TableHead className="min-w-[80px] bg-muted/50 font-semibold text-foreground">#</TableHead>
+                          <TableHead className="min-w-[50px] bg-muted/50 font-semibold text-foreground">#</TableHead>
                           <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                           <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
                           <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>

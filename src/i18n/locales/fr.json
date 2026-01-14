@@ -873,6 +873,7 @@
       "errorMessage": "Message d'erreur",
       "viewImage": "Voir l'image",
       "viewDetails": "Voir les détails",
+      "productAddedToCart": "Produit ajouté au panier",
       "actions": "Actions"
     },
     "details": {
