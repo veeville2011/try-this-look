@@ -903,6 +903,13 @@
       "next": "Next",
       "goToPage": "Go to page"
     },
+    "summary": {
+      "totalGenerations": "Total Generations",
+      "customers": "Customers",
+      "products": "Products",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
     "stats": {
       "total": "Total Generations",
       "completed": "Completed",
