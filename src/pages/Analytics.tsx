@@ -716,18 +716,6 @@ const Analytics = () => {
 
             {/* Summary Stats Section */}
             <div className="mb-8">
-              {/* Section Header */}
-              {(summary || (loading && !summary)) && (
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    {t("analytics.summary.title") || "Overview"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t("analytics.summary.description") || "Key metrics at a glance"}
-                  </p>
-                </div>
-              )}
-
               {/* Summary Stats Cards */}
               {summary && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -859,20 +847,6 @@ const Analytics = () => {
 
             {/* Table Section */}
             <div>
-              {/* Table Header */}
-              {(records.length > 0 || loading) && (
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">
-                      {t("analytics.table.title") || "Generation Records"}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {t("analytics.table.description") || "Detailed list of all image generations"}
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {/* Table */}
               {loading ? (
               <Card className="border-border bg-card">
