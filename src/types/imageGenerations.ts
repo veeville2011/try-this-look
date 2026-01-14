@@ -1,3 +1,19 @@
+export interface AddToCartInfo {
+  hasCartEvents: boolean;
+  totalEvents?: number;
+  firstEventAt?: string;
+  lastEventAt?: string;
+  actionTypes?: string[];
+  actionTypeCounts?: Record<string, number>;
+  events?: Array<{
+    cartEventId: string;
+    actionType: string;
+    addedAt: string;
+  }>;
+  productId?: string;
+  variantId?: string;
+}
+
 export interface ImageGenerationRecord {
   id: string;
   requestId: string;
@@ -22,6 +38,7 @@ export interface ImageGenerationRecord {
   customerLastName: string | null;
   createdAt: string;
   updatedAt: string;
+  addToCartInfo?: AddToCartInfo;
 }
 
 export interface PaginationInfo {

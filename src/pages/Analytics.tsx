@@ -723,6 +723,7 @@ const Analytics = () => {
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
+                          <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.productAddedToCart") || "Product Added to Cart"}</TableHead>
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -763,6 +764,11 @@ const Analytics = () => {
                                 <Skeleton className="w-20 h-20 rounded border border-border" />
                               </div>
                             </TableCell>
+                            <TableCell className="text-center align-middle">
+                              <div className="flex items-center justify-center">
+                                <Skeleton className="h-6 w-6 rounded-full" />
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center justify-center">
                                 <Skeleton className="h-8 w-8 rounded" />
@@ -789,149 +795,162 @@ const Analytics = () => {
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
+                        <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.productAddedToCart") || "Product Added to Cart"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {records.map((record, index) => (
-                        <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
-                          <TableCell className="text-sm text-muted-foreground font-medium">
-                            {(page - 1) * limit + index + 1}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground text-center">
-                            {(() => {
-                              const dateParts = formatDateForTable(record.createdAt);
-                              return (
-                                <div className="flex flex-col leading-tight items-center">
-                                  <span>{dateParts.date}</span>
-                                  <span>{dateParts.conjunction}</span>
-                                  <span>{dateParts.time}</span>
-                                </div>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {(() => {
-                              const firstName = record.customerFirstName || "";
-                              const lastName = record.customerLastName || "";
-                              const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-                              return fullName || "-";
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {record.customerEmail || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(record.status)}
-                          </TableCell>
-                          <TableCell className="align-middle">
-                            {record.personImageUrl ? (
-                              <div className="flex items-center justify-center">
-                                <div className="relative group">
-                                  <div
-                                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => window.open(record.personImageUrl, "_blank")}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        window.open(record.personImageUrl, "_blank");
-                                      }
-                                    }}
-                                    tabIndex={0}
-                                    role="button"
-                                    aria-label={t("analytics.table.personImage") || "Person Image"}
-                                  >
-                                    <img
-                                      src={record.personImageUrl}
-                                      alt={t("analytics.table.personImage") || "Person Image"}
-                                      className="w-20 h-auto object-contain rounded border border-border bg-muted"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                                      <Maximize2 className="w-6 h-6 text-white" />
+                      {records.map((record, index) => {
+                        const isAddedToCart = record.addToCartInfo?.hasCartEvents ?? false;
+                        return (
+                          <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
+                            <TableCell className="text-sm text-muted-foreground font-medium">
+                              {(page - 1) * limit + index + 1}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground text-center">
+                              {(() => {
+                                const dateParts = formatDateForTable(record.createdAt);
+                                return (
+                                  <div className="flex flex-col leading-tight items-center">
+                                    <span>{dateParts.date}</span>
+                                    <span>{dateParts.conjunction}</span>
+                                    <span>{dateParts.time}</span>
+                                  </div>
+                                );
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {(() => {
+                                const firstName = record.customerFirstName || "";
+                                const lastName = record.customerLastName || "";
+                                const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+                                return fullName || "-";
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {record.customerEmail || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(record.status)}
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              {record.personImageUrl ? (
+                                <div className="flex items-center justify-center">
+                                  <div className="relative group">
+                                    <div
+                                      className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                      onClick={() => window.open(record.personImageUrl, "_blank")}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          window.open(record.personImageUrl, "_blank");
+                                        }
+                                      }}
+                                      tabIndex={0}
+                                      role="button"
+                                      aria-label={t("analytics.table.personImage") || "Person Image"}
+                                    >
+                                      <img
+                                        src={record.personImageUrl}
+                                        alt={t("analytics.table.personImage") || "Person Image"}
+                                        className="w-20 h-auto object-contain rounded border border-border bg-muted"
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                        <Maximize2 className="w-6 h-6 text-white" />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="align-middle">
-                            {record.clothingImageUrl ? (
-                              <div className="flex items-center justify-center">
-                                <div className="relative group">
-                                  <div
-                                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => window.open(record.clothingImageUrl, "_blank")}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        window.open(record.clothingImageUrl, "_blank");
-                                      }
-                                    }}
-                                    tabIndex={0}
-                                    role="button"
-                                    aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
-                                  >
-                                    <img
-                                      src={record.clothingImageUrl}
-                                      alt={t("analytics.table.clothingImage") || "Clothing Image"}
-                                      className="w-20 h-auto object-contain rounded border border-border bg-muted"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                                      <Maximize2 className="w-6 h-6 text-white" />
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              {record.clothingImageUrl ? (
+                                <div className="flex items-center justify-center">
+                                  <div className="relative group">
+                                    <div
+                                      className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                      onClick={() => window.open(record.clothingImageUrl, "_blank")}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          window.open(record.clothingImageUrl, "_blank");
+                                        }
+                                      }}
+                                      tabIndex={0}
+                                      role="button"
+                                      aria-label={t("analytics.table.clothingImage") || "Clothing Image"}
+                                    >
+                                      <img
+                                        src={record.clothingImageUrl}
+                                        alt={t("analytics.table.clothingImage") || "Clothing Image"}
+                                        className="w-20 h-auto object-contain rounded border border-border bg-muted"
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                        <Maximize2 className="w-6 h-6 text-white" />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="align-middle">
-                            {record.generatedImageUrl ? (
-                              <div className="flex items-center justify-center">
-                                <div className="relative group">
-                                  <div
-                                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                                    onClick={() => window.open(record.generatedImageUrl, "_blank")}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        window.open(record.generatedImageUrl, "_blank");
-                                      }
-                                    }}
-                                    tabIndex={0}
-                                    role="button"
-                                    aria-label={t("analytics.table.generatedImage") || "Generated Image"}
-                                  >
-                                    <img
-                                      src={record.generatedImageUrl}
-                                      alt={t("analytics.table.generatedImage") || "Generated Image"}
-                                      className="w-20 h-auto object-contain rounded border border-border bg-muted"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                                      <Maximize2 className="w-6 h-6 text-white" />
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              {record.generatedImageUrl ? (
+                                <div className="flex items-center justify-center">
+                                  <div className="relative group">
+                                    <div
+                                      className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                                      onClick={() => window.open(record.generatedImageUrl, "_blank")}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          window.open(record.generatedImageUrl, "_blank");
+                                        }
+                                      }}
+                                      tabIndex={0}
+                                      role="button"
+                                      aria-label={t("analytics.table.generatedImage") || "Generated Image"}
+                                    >
+                                      <img
+                                        src={record.generatedImageUrl}
+                                        alt={t("analytics.table.generatedImage") || "Generated Image"}
+                                        className="w-20 h-auto object-contain rounded border border-border bg-muted"
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                        <Maximize2 className="w-6 h-6 text-white" />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center align-middle">
+                              <div className="flex items-center justify-center">
+                                {isAddedToCart ? (
+                                  <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" aria-label="Product added to cart" />
+                                ) : (
+                                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" aria-label="Product not added to cart" />
+                                )}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              onClick={() => handleViewDetails(record)}
-                              className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-                              aria-label={t("analytics.table.viewDetails") || "View Details"}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="icon"
+                                onClick={() => handleViewDetails(record)}
+                                className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+                                aria-label={t("analytics.table.viewDetails") || "View Details"}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
