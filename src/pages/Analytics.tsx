@@ -929,7 +929,6 @@ const Analytics = () => {
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
-                        <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.productAddedToCart") || "Product Added to Cart"}</TableHead>
                         <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                       </TableRow>
                     </TableHeader>
