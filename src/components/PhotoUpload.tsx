@@ -155,33 +155,33 @@ export default function PhotoUpload({
               <div className="flex items-center">
                 <div className="flex flex-col items-start w-[73px] relative mr-[1px]">
                   <img
-                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/bibq0aat_expires_30_days.png"
+                    src="/assets/demo_pics/p4.jpg"
                     className="w-[73px] h-[49px] object-contain"
                     alt=""
                     aria-hidden="true"
                   />
                   <img
-                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/op2kgj0f_expires_30_days.png"
+                    src="/assets/demo_pics/f1.jpg"
                     className="w-[88px] h-[26px] absolute bottom-0 right-[51px] object-contain"
                     alt=""
                     aria-hidden="true"
                   />
                 </div>
                 <img
-                  src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/h6ofmzgz_expires_30_days.png"
+                  src="/assets/demo_pics/m1.jpg"
                   className="w-[53px] h-[52px] object-contain"
                   alt=""
                   aria-hidden="true"
                 />
                 <div className="flex flex-col items-start w-[73px] relative">
                   <img
-                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/nueaxiav_expires_30_days.png"
+                    src="/assets/demo_pics/p1.jpg"
                     className="w-[73px] h-[49px] object-contain"
                     alt=""
                     aria-hidden="true"
                   />
                   <img
-                    src="https://storage.googleapis.com/tagjs-prod.appspot.com/v1/S4uA0usHIb/hz00w8ly_expires_30_days.png"
+                    src="/assets/demo_pics/p4.jpg"
                     className="w-[88px] h-[26px] absolute bottom-0 left-[52px] object-contain"
                     alt=""
                     aria-hidden="true"
