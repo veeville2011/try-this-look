@@ -50,11 +50,26 @@ export interface PaginationInfo {
   hasPrev: boolean;
 }
 
+export interface StatusBreakdown {
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+}
+
+export interface SummaryInfo {
+  generationsCount: number;
+  customersCount: number;
+  productsCount: number;
+  statusBreakdown: StatusBreakdown;
+}
+
 export interface ImageGenerationsResponse {
   status: string;
   data: {
     records: ImageGenerationRecord[];
     pagination: PaginationInfo;
+    summary?: SummaryInfo;
   };
 }
 

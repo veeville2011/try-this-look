@@ -20,7 +20,10 @@ import {
   Calendar as CalendarIcon,
   Filter,
   Check,
-  X
+  X,
+  Users,
+  Package,
+  TrendingUp
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +35,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { fetchImageGenerations } from "@/services/imageGenerationsApi";
-import type { ImageGenerationRecord } from "@/types/imageGenerations";
+import type { ImageGenerationRecord, SummaryInfo } from "@/types/imageGenerations";
 import ExcelJS from "exceljs";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
@@ -52,6 +55,7 @@ const Analytics = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
+  const [summary, setSummary] = useState<SummaryInfo | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>(undefined);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -104,6 +108,9 @@ const Analytics = () => {
         setTotalPages(response.data.pagination.totalPages);
         setHasNext(response.data.pagination.hasNext);
         setHasPrev(response.data.pagination.hasPrev);
+        if (response.data.summary) {
+          setSummary(response.data.summary);
+        }
       } else {
         throw new Error("Invalid response format");
       }
@@ -707,8 +714,167 @@ const Analytics = () => {
               </Card>
             )}
 
-            {/* Table */}
-            {loading ? (
+            {/* Summary Stats Section */}
+            <div className="mb-8">
+              {/* Section Header */}
+              {(summary || (loading && !summary)) && (
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {t("analytics.summary.title") || "Overview"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("analytics.summary.description") || "Key metrics at a glance"}
+                  </p>
+                </div>
+              )}
+
+              {/* Summary Stats Cards */}
+              {summary && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* Total Generations */}
+                  <Card className="border-border bg-card hover:shadow-lg hover:border-primary/20 transition-all duration-200 group">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                            {t("analytics.summary.totalGenerations") || "Total Generations"}
+                          </p>
+                          <p className="text-3xl font-bold text-foreground tabular-nums">
+                            {summary.generationsCount.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors duration-200 flex-shrink-0 ml-3">
+                          <TrendingUp className="h-6 w-6 text-primary" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Customers Count */}
+                  <Card className="border-border bg-card hover:shadow-lg hover:border-blue-500/20 transition-all duration-200 group">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                            {t("analytics.summary.customers") || "Customers"}
+                          </p>
+                          <p className="text-3xl font-bold text-foreground tabular-nums">
+                            {summary.customersCount.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 flex items-center justify-center transition-colors duration-200 flex-shrink-0 ml-3">
+                          <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Products Count */}
+                  <Card className="border-border bg-card hover:shadow-lg hover:border-purple-500/20 transition-all duration-200 group">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                            {t("analytics.summary.products") || "Products"}
+                          </p>
+                          <p className="text-3xl font-bold text-foreground tabular-nums">
+                            {summary.productsCount.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 flex items-center justify-center transition-colors duration-200 flex-shrink-0 ml-3">
+                          <Package className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Completed Count */}
+                  <Card className="border-border bg-card hover:shadow-lg hover:border-green-500/20 transition-all duration-200 group">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                            {t("analytics.summary.completed") || "Completed"}
+                          </p>
+                          <p className="text-3xl font-bold text-green-600 dark:text-green-400 tabular-nums">
+                            {summary.statusBreakdown.completed.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-xl bg-green-500/10 group-hover:bg-green-500/20 flex items-center justify-center transition-colors duration-200 flex-shrink-0 ml-3">
+                          <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Failed Count (including pending and processing) */}
+                  <Card className="border-border bg-card hover:shadow-lg hover:border-red-500/20 transition-all duration-200 group">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                            {t("analytics.summary.failed") || "Failed"}
+                          </p>
+                          <p className="text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums">
+                            {(
+                              summary.statusBreakdown.failed +
+                              summary.statusBreakdown.pending +
+                              summary.statusBreakdown.processing
+                            ).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 flex items-center justify-center transition-colors duration-200 flex-shrink-0 ml-3">
+                          <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Loading Skeleton for Stats */}
+              {loading && !summary && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Card key={i} className="border-border bg-card">
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between">
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <Skeleton className="h-3 w-20 mb-3" />
+                            <Skeleton className="h-9 w-16" />
+                          </div>
+                          <Skeleton className="h-12 w-12 rounded-xl flex-shrink-0 ml-3" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            {(summary || records.length > 0 || loading) && (
+              <div className="mb-6 border-t border-border" />
+            )}
+
+            {/* Table Section */}
+            <div>
+              {/* Table Header */}
+              {(records.length > 0 || loading) && (
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">
+                      {t("analytics.table.title") || "Generation Records"}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {t("analytics.table.description") || "Detailed list of all image generations"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Table */}
+              {loading ? (
               <Card className="border-border bg-card">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
@@ -968,6 +1134,7 @@ const Analytics = () => {
                 </CardContent>
               </Card>
             )}
+            </div>
 
             {/* Pagination */}
             {records.length > 0 && (
