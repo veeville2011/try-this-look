@@ -863,7 +863,6 @@ const Analytics = () => {
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.personImage") || "Person Image"}</TableHead>
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.clothingImage") || "Clothing Image"}</TableHead>
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.generatedImage") || "Generated Image"}</TableHead>
-                          <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.productAddedToCart") || "Product Added to Cart"}</TableHead>
                           <TableHead className="min-w-[120px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.actions") || "Actions"}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -904,11 +903,6 @@ const Analytics = () => {
                                 <Skeleton className="w-20 h-20 rounded border border-border" />
                               </div>
                             </TableCell>
-                            <TableCell className="text-center align-middle">
-                              <div className="flex items-center justify-center">
-                                <Skeleton className="h-6 w-6 rounded-full" />
-                              </div>
-                            </TableCell>
                             <TableCell>
                               <div className="flex items-center justify-center">
                                 <Skeleton className="h-8 w-8 rounded" />
@@ -941,7 +935,6 @@ const Analytics = () => {
                     </TableHeader>
                     <TableBody>
                       {records.map((record, index) => {
-                        const isAddedToCart = record.addToCartInfo?.hasCartEvents ?? false;
                         return (
                           <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
                             <TableCell className="w-[50px] max-w-[50px] text-sm text-muted-foreground font-medium text-center">
@@ -1068,15 +1061,6 @@ const Analytics = () => {
                               ) : (
                                 <span className="text-muted-foreground text-sm">-</span>
                               )}
-                            </TableCell>
-                            <TableCell className="text-center align-middle">
-                              <div className="flex items-center justify-center">
-                                {isAddedToCart ? (
-                                  <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" aria-label="Product added to cart" />
-                                ) : (
-                                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" aria-label="Product not added to cart" />
-                                )}
-                              </div>
                             </TableCell>
                             <TableCell>
                               <Button
