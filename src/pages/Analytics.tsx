@@ -715,7 +715,7 @@ const Analytics = () => {
                     <Table>
                       <TableHeader>
                         <TableRow className="border-border hover:bg-transparent">
-                          <TableHead className="min-w-[50px] max-w-[50px] bg-muted/50 font-semibold text-foreground">#</TableHead>
+                          <TableHead className="w-[50px] max-w-[50px] bg-muted/50 font-semibold text-foreground text-center">#</TableHead>
                           <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                           <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
                           <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>
@@ -730,8 +730,8 @@ const Analytics = () => {
                       <TableBody>
                         {[...Array(5)].map((_, i) => (
                           <TableRow key={i} className="border-border">
-                            <TableCell className="text-sm">
-                              <Skeleton className="h-4 w-8" />
+                            <TableCell className="w-[50px] max-w-[50px] text-sm text-center">
+                              <Skeleton className="h-4 w-8 mx-auto" />
                             </TableCell>
                             <TableCell className="text-sm text-center">
                               <div className="flex flex-col items-center gap-1">
@@ -785,9 +785,9 @@ const Analytics = () => {
               <Card className="border-border bg-card">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
-                      <TableRow className="border-border hover:bg-transparent">
-                        <TableHead className="min-w-[80px] bg-muted/50 font-semibold text-foreground">#</TableHead>
+                      <TableHeader>
+                        <TableRow className="border-border hover:bg-transparent">
+                          <TableHead className="w-[50px] max-w-[50px] bg-muted/50 font-semibold text-foreground text-center">#</TableHead>
                         <TableHead className="min-w-[180px] bg-muted/50 font-semibold text-foreground text-center">{t("analytics.table.createdAt") || "Created At"}</TableHead>
                         <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerName") || "Customer Name"}</TableHead>
                         <TableHead className="min-w-[150px] bg-muted/50 font-semibold text-foreground">{t("analytics.table.customerEmail") || "Customer Email"}</TableHead>
@@ -804,7 +804,7 @@ const Analytics = () => {
                         const isAddedToCart = record.addToCartInfo?.hasCartEvents ?? false;
                         return (
                           <TableRow key={record.id} className="border-border hover:bg-muted/30 transition-colors">
-                            <TableCell className="text-sm text-muted-foreground font-medium">
+                            <TableCell className="w-[50px] max-w-[50px] text-sm text-muted-foreground font-medium text-center">
                               {(page - 1) * limit + index + 1}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground text-center">
