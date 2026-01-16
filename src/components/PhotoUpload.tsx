@@ -318,7 +318,6 @@ export default function PhotoUpload({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/jpg,image/png"
-                capture="user"
                 onChange={handleFileSelect}
                 className="hidden"
                 aria-label={t("tryOnWidget.photoUpload.selectFileAriaLabel") || "Sélectionner un fichier image"}
