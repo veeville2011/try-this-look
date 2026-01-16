@@ -23,7 +23,8 @@ import * as creditPurchase from "./utils/creditPurchase.js";
 import * as trialManager from "./utils/trialManager.js";
 import * as subscriptionReplacement from "./utils/subscriptionReplacement.js";
 import * as trialNotificationService from "./utils/trialNotificationService.js";
-// No database - using no-op session storage (sessions not persisted)
+import { CookieSessionStorage, createCookieSessionMiddleware } from "./utils/cookieSessionStorage.js";
+// Using cookie-based session storage for OAuth state persistence across serverless invocations
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,36 +70,27 @@ if (appUrl) {
   }
 }
 
-// No-op session storage - required by Shopify API but does nothing
-// Sessions are not stored. Billing API uses JWT tokens from embedded UI.
-class NoOpSessionStorage {
-  async storeSession(session) {
-    // No-op - sessions not persisted
-  }
+// Cookie-based session storage for OAuth state persistence
+// This is critical for serverless environments where in-memory storage doesn't persist
+// between different function invocations. OAuth state is stored in signed HTTP cookies.
+// 
+// Why cookies? 
+// 1. State travels with the request through the OAuth redirect chain
+// 2. Works reliably across Vercel serverless function invocations
+// 3. Each function instance can read the state from the cookie header
+//
+// Note: This is ONLY for OAuth state. Access tokens after OAuth are handled via
+// JWT token exchange (session tokens from App Bridge embedded UI).
 
-  async loadSession(sessionId) {
-    return undefined;
-  }
+// Use API secret for signing OAuth state cookies (already validated for Shopify API)
+const cookieSecret = apiSecret || crypto.randomBytes(32).toString("hex");
 
-  async deleteSession(sessionId) {
-    // No-op
-  }
+const sessionStorage = new CookieSessionStorage(cookieSecret);
 
-  async deleteSessionsByShop(shop) {
-    // No-op
-  }
-
-  async findSessionsByShop(shop) {
-    return [];
-  }
-}
-
-logger.info("[INIT] Using no-op session storage", {
-  storageType: "NoOpSessionStorage",
-  note: "Sessions not stored. Billing API uses JWT from embedded UI.",
+logger.info("[INIT] Using cookie-based session storage for OAuth", {
+  storageType: "CookieSessionStorage",
+  note: "OAuth state stored in signed cookies. Access tokens use JWT token exchange.",
 });
-
-const sessionStorage = new NoOpSessionStorage();
 
 const shopify = shopifyApi({
   apiKey: apiKey || "",
@@ -117,7 +109,8 @@ const shopify = shopifyApi({
 if (shopify.session) {
   shopify.session.storage = sessionStorage;
   logger.info("[INIT] Session storage configured on shopify instance", {
-    storageType: "NoOpSessionStorage",
+    storageType: "CookieSessionStorage",
+    note: "OAuth state persisted in signed cookies for serverless compatibility",
   });
 } else {
   logger.warn(
@@ -1129,6 +1122,10 @@ const app = express();
 // Request logging middleware (before other middleware)
 app.use(logger.requestLogger);
 
+// Cookie session storage middleware - MUST be early in middleware chain
+// This sets the request context on the session storage for OAuth state handling
+app.use(createCookieSessionMiddleware(sessionStorage));
+
 // For webhooks, we need raw body for HMAC verification
 app.use((req, res, next) => {
   if (req.path.startsWith("/webhooks/")) {
@@ -1628,9 +1625,8 @@ app.get("/health/detailed", async (req, res) => {
       },
     },
     sessionStorage: {
-      type: "NoOpSessionStorage",
-      sessionCount: 0,
-      note: "Sessions are not stored. Billing API uses JWT from embedded UI.",
+      type: "CookieSessionStorage",
+      note: "OAuth state stored in signed cookies. Access tokens use JWT token exchange.",
     },
   };
 
