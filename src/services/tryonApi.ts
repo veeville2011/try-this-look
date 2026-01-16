@@ -334,8 +334,8 @@ export async function generateTryOn(
 async function pollJobStatus(
   jobId: string,
   requestId: string,
-  maxAttempts: number = 120, // 10 minutes max (5s interval)
-  pollInterval: number = 5000 // 5 seconds
+  maxAttempts: number = 200, // 10 minutes max (3s interval)
+  pollInterval: number = 3000 // 3 seconds
 ): Promise<TryOnResponse> {
   const statusEndpoint = `${API_ENDPOINT}/status/${jobId}`;
   let attempts = 0;

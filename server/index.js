@@ -6539,7 +6539,7 @@ app.get("/api/referrals/stats", async (req, res) => {
 /**
  * Poll job status until completion or failure
  */
-async function pollJobStatusUntilComplete(jobId, tryonId, storeName, maxAttempts = 120, pollInterval = 5000) {
+async function pollJobStatusUntilComplete(jobId, tryonId, storeName, maxAttempts = 200, pollInterval = 3000) {
   const statusEndpoint = `https://try-on-server-v1.onrender.com/api/fashion-photo/status/${jobId}`;
   let attempts = 0;
 
