@@ -1,4 +1,4 @@
-import { TryOnResponse } from "@/types/tryon";
+import { TryOnResponse, JobSubmissionResponse, JobStatusResponse } from "@/types/tryon";
 import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
 
@@ -167,8 +167,9 @@ export async function generateTryOn(
       };
     }
 
-    // Send request
+    // Step 1: Submit job
     let response: Response;
+    let jobId: string;
     try {
       // Build URL with shop query parameter if storeName is provided
       let url = API_ENDPOINT;
@@ -179,7 +180,7 @@ export async function generateTryOn(
         url = urlObj.toString();
       }
 
-      console.log("[FRONTEND] [TRYON] Sending request", {
+      console.log("[FRONTEND] [TRYON] Submitting job", {
         requestId,
         endpoint: url,
         method: "POST",
@@ -197,7 +198,7 @@ export async function generateTryOn(
       });
 
       const requestDuration = Date.now() - startTime;
-      console.log("[FRONTEND] [TRYON] Response received", {
+      console.log("[FRONTEND] [TRYON] Job submission response", {
         requestId,
         status: response.status,
         statusText: response.statusText,
@@ -206,7 +207,7 @@ export async function generateTryOn(
       });
     } catch (fetchError) {
       const duration = Date.now() - startTime;
-      logError("[FRONTEND] [TRYON] Fetch request failed", fetchError, {
+      logError("[FRONTEND] [TRYON] Job submission failed", fetchError, {
         requestId,
         duration: `${duration}ms`,
       });
@@ -219,7 +220,7 @@ export async function generateTryOn(
       };
     }
 
-    // Handle error response
+    // Handle error response for job submission
     if (!response.ok) {
       const errorDetails = await logApiError(
         "[FRONTEND] [TRYON]",
@@ -231,32 +232,45 @@ export async function generateTryOn(
         status: "error",
         error_message: {
           code: errorDetails.code || `HTTP_${response.status}`,
-          message: errorDetails.message || "Une erreur s'est produite lors de la génération.",
+          message: errorDetails.message || "Une erreur s'est produite lors de la soumission du job.",
         },
       };
     }
 
-    // Parse successful response
-    let data: TryOnResponse;
+    // Parse job submission response (202 Accepted)
+    let jobSubmissionData: JobSubmissionResponse;
     try {
       const responseText = await response.text();
       if (!responseText) {
         throw new Error("Empty response body");
       }
-      data = JSON.parse(responseText);
+
+      if (response.status !== 202) {
+        // Handle non-202 success responses (backward compatibility)
+        const data = JSON.parse(responseText);
+        
+        // If response already contains image, return directly (backward compatibility)
+        if (data.status === 'success' && data.image) {
+          return data;
+        }
+        
+        throw new Error(`Unexpected status code: ${response.status}`);
+      }
+
+      // Handle 202 Accepted response
+      jobSubmissionData = JSON.parse(responseText);
       
-      const totalDuration = Date.now() - startTime;
-      console.log("[FRONTEND] [TRYON] Response parsed successfully", {
+      if (!jobSubmissionData.jobId) {
+        throw new Error("Job ID not found in response");
+      }
+      
+      jobId = jobSubmissionData.jobId;
+      console.log("[FRONTEND] [TRYON] Job submitted successfully", {
         requestId,
-        status: data.status,
-        hasImage: !!data.image,
-        hasError: !!data.error_message,
-        duration: `${totalDuration}ms`,
+        jobId,
       });
-      
-      return data;
     } catch (parseError) {
-      logError("[FRONTEND] [TRYON] Response parsing failed", parseError, {
+      logError("[FRONTEND] [TRYON] Job submission response parsing failed", parseError, {
         requestId,
         status: response.status,
       });
@@ -264,7 +278,36 @@ export async function generateTryOn(
         status: "error",
         error_message: {
           code: "PARSE_ERROR",
-          message: "Failed to parse server response",
+          message: "Failed to parse job submission response",
+        },
+      };
+    }
+
+    // Step 2: Poll job status until completion
+    try {
+      const statusResponse = await pollJobStatus(jobId, requestId);
+      const totalDuration = Date.now() - startTime;
+      
+      console.log("[FRONTEND] [TRYON] Job completed", {
+        requestId,
+        jobId,
+        status: statusResponse.status,
+        hasImage: !!statusResponse.image,
+        hasError: !!statusResponse.error_message,
+        duration: `${totalDuration}ms`,
+      });
+      
+      return statusResponse;
+    } catch (pollError) {
+      logError("[FRONTEND] [TRYON] Job polling failed", pollError, {
+        requestId,
+        jobId,
+      });
+      return {
+        status: "error",
+        error_message: {
+          code: "POLLING_ERROR",
+          message: pollError instanceof Error ? pollError.message : "Une erreur s'est produite lors de la vérification du statut du job.",
         },
       };
     }
@@ -283,6 +326,114 @@ export async function generateTryOn(
       },
     };
   }
+}
+
+/**
+ * Poll job status until completion or failure
+ */
+async function pollJobStatus(
+  jobId: string,
+  requestId: string,
+  maxAttempts: number = 120, // 10 minutes max (5s interval)
+  pollInterval: number = 5000 // 5 seconds
+): Promise<TryOnResponse> {
+  const statusEndpoint = `${API_ENDPOINT}/status/${jobId}`;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = await authenticatedFetch(statusEndpoint, {
+        method: "GET",
+        headers: {
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Job not found");
+        }
+        const errorText = await response.text().catch(() => "Unknown error");
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const statusData: JobStatusResponse = await response.json();
+      
+      console.log("[FRONTEND] [TRYON] Job status check", {
+        requestId,
+        jobId,
+        status: statusData.status,
+        attempt: attempts + 1,
+      });
+
+      if (statusData.status === 'completed') {
+        if (!statusData.imageUrl) {
+          throw new Error("Job completed but imageUrl is missing");
+        }
+
+        // Download image from S3 URL and convert to base64
+        try {
+          const imageBlob = await fetchImageWithCorsHandling(statusData.imageUrl);
+          const imageDataUrl = await blobToDataURL(imageBlob);
+          
+          return {
+            status: "success",
+            image: imageDataUrl,
+          };
+        } catch (imageError) {
+          logError("[FRONTEND] [TRYON] Failed to download image", imageError, {
+            requestId,
+            jobId,
+            imageUrl: statusData.imageUrl,
+          });
+          throw new Error("Failed to download generated image");
+        }
+      } else if (statusData.status === 'failed') {
+        return {
+          status: "error",
+          error_message: {
+            code: statusData.error?.code || "PROCESSING_FAILURE",
+            message: statusData.error?.message || "Job processing failed",
+          },
+        };
+      } else if (statusData.status === 'pending' || statusData.status === 'processing') {
+        // Continue polling
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        } else {
+          throw new Error("Job is taking longer than expected. Please check back later.");
+        }
+      } else {
+        throw new Error(`Unknown job status: ${statusData.status}`);
+      }
+    } catch (pollError) {
+      // If it's a terminal error (completed/failed), throw it
+      if (pollError instanceof Error && (
+        pollError.message.includes("Job completed") ||
+        pollError.message.includes("Job processing failed")
+      )) {
+        throw pollError;
+      }
+
+      // For other errors, retry after delay
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw pollError;
+      }
+      
+      console.warn("[FRONTEND] [TRYON] Status check failed, retrying", {
+        requestId,
+        jobId,
+        attempt: attempts,
+        error: pollError instanceof Error ? pollError.message : String(pollError),
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  throw new Error("Job processing timeout");
 }
 
 export const getHealthStatus = async (): Promise<void> => {

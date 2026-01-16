@@ -6536,6 +6536,116 @@ app.get("/api/referrals/stats", async (req, res) => {
   }
 });
 
+/**
+ * Poll job status until completion or failure
+ */
+async function pollJobStatusUntilComplete(jobId, tryonId, storeName, maxAttempts = 120, pollInterval = 5000) {
+  const statusEndpoint = `https://try-on-server-v1.onrender.com/api/fashion-photo/status/${jobId}`;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = await fetch(statusEndpoint, {
+        method: "GET",
+        headers: {
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Job not found");
+        }
+        const errorText = await response.text().catch(() => "Unknown error");
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const statusData = await response.json();
+      
+      logger.info("[API] Job status check", {
+        tryonId,
+        jobId,
+        status: statusData.status,
+        attempt: attempts + 1,
+      });
+
+      if (statusData.status === 'completed') {
+        if (!statusData.imageUrl) {
+          throw new Error("Job completed but imageUrl is missing");
+        }
+
+        // Download image from S3 URL and convert to base64
+        try {
+          const imageResponse = await fetch(statusData.imageUrl);
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to download image: HTTP ${imageResponse.status}`);
+          }
+          
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+          const imageMimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          const imageDataUrl = `data:${imageMimeType};base64,${imageBase64}`;
+          
+          return {
+            status: "success",
+            image: imageDataUrl,
+          };
+        } catch (imageError) {
+          logger.error("[API] Failed to download image", imageError, null, {
+            tryonId,
+            jobId,
+            imageUrl: statusData.imageUrl,
+          });
+          throw new Error("Failed to download generated image");
+        }
+      } else if (statusData.status === 'failed') {
+        return {
+          status: "error",
+          error_message: {
+            code: statusData.error?.code || "PROCESSING_FAILURE",
+            message: statusData.error?.message || "Job processing failed",
+          },
+        };
+      } else if (statusData.status === 'pending' || statusData.status === 'processing') {
+        // Continue polling
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        } else {
+          throw new Error("Job is taking longer than expected. Please check back later.");
+        }
+      } else {
+        throw new Error(`Unknown job status: ${statusData.status}`);
+      }
+    } catch (pollError) {
+      // If it's a terminal error (completed/failed), throw it
+      if (pollError instanceof Error && (
+        pollError.message.includes("Job completed") ||
+        pollError.message.includes("Job processing failed")
+      )) {
+        throw pollError;
+      }
+
+      // For other errors, retry after delay
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw pollError;
+      }
+      
+      logger.warn("[API] Status check failed, retrying", {
+        tryonId,
+        jobId,
+        attempt: attempts,
+        error: pollError.message,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  throw new Error("Job processing timeout");
+}
+
 // API Routes
 app.post("/api/tryon/generate", async (req, res) => {
   const startTime = Date.now();
@@ -6777,19 +6887,21 @@ app.post("/api/tryon/generate", async (req, res) => {
       storeName,
     });
 
-    // Forward to your existing API
-    const response = await fetch(
-      "https://try-on-server-v1.onrender.com/api/fashion-photo",
-      {
-        method: "POST",
-        headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-          "Content-Language": "fr",
-        },
-        body: formData,
-      }
-    );
+    // Step 1: Submit job to external API
+    const apiUrl = shopDomain 
+      ? `https://try-on-server-v1.onrender.com/api/fashion-photo?shop=${encodeURIComponent(shopDomain)}`
+      : "https://try-on-server-v1.onrender.com/api/fashion-photo";
 
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        "Content-Language": "fr",
+      },
+      body: formData,
+    });
+
+    // Handle error responses
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
       logger.error("[API] External API returned error", null, req, {
@@ -6798,30 +6910,96 @@ app.post("/api/tryon/generate", async (req, res) => {
         errorText: errorText.substring(0, 500), // Limit error text length
         storeName,
       });
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      
+      // Try to parse error response
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: { message: errorText } };
+      }
+      
+      return res.status(response.status).json({
+        status: "error",
+        error_message: {
+          code: errorData.error?.code || `HTTP_${response.status}`,
+          message: errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`,
+        },
+        creditInfo: creditDeductionResult
+          ? {
+              source: creditDeductionResult.source,
+              creditsRemaining: creditDeductionResult.creditsRemaining,
+            }
+          : null,
+      });
     }
 
-    const data = await response.json();
-    const duration = Date.now() - startTime;
+    // Step 2: Handle job submission response (202 Accepted)
+    let jobId;
+    let jobSubmissionData;
+    
+    if (response.status === 202) {
+      // Async job-based flow
+      jobSubmissionData = await response.json();
+      jobId = jobSubmissionData.jobId;
+      
+      if (!jobId) {
+        throw new Error("Job ID not found in response");
+      }
 
-    logger.info("[API] Try-on generation completed successfully", {
-      storeName: shopDomain || storeName,
-      tryonId,
-      duration: `${duration}ms`,
-      hasResult: !!data,
-      creditDeducted: !!creditDeductionResult,
-    });
+      logger.info("[API] Job submitted successfully, polling for status", {
+        storeName: shopDomain || storeName,
+        tryonId,
+        jobId,
+      });
 
-    // Return result with credit information
-    res.json({
-      ...data,
-      creditInfo: creditDeductionResult
-        ? {
-            source: creditDeductionResult.source,
-            creditsRemaining: creditDeductionResult.creditsRemaining,
-          }
-        : null,
-    });
+      // Step 3: Poll job status until completion
+      const pollResult = await pollJobStatusUntilComplete(jobId, tryonId, storeName);
+      
+      const duration = Date.now() - startTime;
+      logger.info("[API] Try-on generation completed successfully", {
+        storeName: shopDomain || storeName,
+        tryonId,
+        jobId,
+        duration: `${duration}ms`,
+        hasResult: !!pollResult.image,
+        creditDeducted: !!creditDeductionResult,
+      });
+
+      // Return result with credit information
+      return res.json({
+        ...pollResult,
+        creditInfo: creditDeductionResult
+          ? {
+              source: creditDeductionResult.source,
+              creditsRemaining: creditDeductionResult.creditsRemaining,
+            }
+          : null,
+      });
+    } else {
+      // Backward compatibility: handle synchronous response
+      const data = await response.json();
+      const duration = Date.now() - startTime;
+
+      logger.info("[API] Try-on generation completed successfully", {
+        storeName: shopDomain || storeName,
+        tryonId,
+        duration: `${duration}ms`,
+        hasResult: !!data,
+        creditDeducted: !!creditDeductionResult,
+      });
+
+      // Return result with credit information
+      return res.json({
+        ...data,
+        creditInfo: creditDeductionResult
+          ? {
+              source: creditDeductionResult.source,
+              creditsRemaining: creditDeductionResult.creditsRemaining,
+            }
+          : null,
+      });
+    }
   } catch (error) {
     const duration = Date.now() - startTime;
     logger.error("[API] Try-on generation failed", error, req, {
