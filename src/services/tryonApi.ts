@@ -367,13 +367,33 @@ async function pollJobStatus(
       });
 
       if (statusData.status === 'completed') {
+        // Job is completed - stop polling regardless of image download result
         if (!statusData.imageUrl) {
-          throw new Error("Job completed but imageUrl is missing");
+          return {
+            status: "error",
+            error_message: {
+              code: "MISSING_IMAGE_URL",
+              message: "Job completed but imageUrl is missing",
+            },
+          };
         }
 
-        // Download image from S3 URL and convert to base64
+        // Download image using proxy endpoint to avoid CORS issues
         try {
-          const imageBlob = await fetchImageWithCorsHandling(statusData.imageUrl);
+          // Use proxy endpoint to fetch image
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(statusData.imageUrl)}`;
+          const imageResponse = await authenticatedFetch(proxyUrl, {
+            method: "GET",
+            headers: {
+              "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+            },
+          });
+
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch image via proxy: HTTP ${imageResponse.status}`);
+          }
+
+          const imageBlob = await imageResponse.blob();
           const imageDataUrl = await blobToDataURL(imageBlob);
           
           return {
@@ -386,7 +406,14 @@ async function pollJobStatus(
             jobId,
             imageUrl: statusData.imageUrl,
           });
-          throw new Error("Failed to download generated image");
+          // Return error response instead of throwing to stop polling
+          return {
+            status: "error",
+            error_message: {
+              code: "IMAGE_DOWNLOAD_FAILED",
+              message: "Job completed but failed to download image. Please try again.",
+            },
+          };
         }
       } else if (statusData.status === 'failed') {
         return {
@@ -408,18 +435,13 @@ async function pollJobStatus(
         throw new Error(`Unknown job status: ${statusData.status}`);
       }
     } catch (pollError) {
-      // If it's a terminal error (completed/failed), throw it
-      if (pollError instanceof Error && (
-        pollError.message.includes("Job completed") ||
-        pollError.message.includes("Job processing failed")
-      )) {
-        throw pollError;
-      }
-
-      // For other errors, retry after delay
+      // If status is completed or failed, we should have returned already
+      // This catch is only for network/parsing errors during status checks
+      
+      // For network errors, retry after delay
       attempts++;
       if (attempts >= maxAttempts) {
-        throw pollError;
+        throw new Error(`Job status polling failed after ${maxAttempts} attempts: ${pollError instanceof Error ? pollError.message : String(pollError)}`);
       }
       
       console.warn("[FRONTEND] [TRYON] Status check failed, retrying", {
