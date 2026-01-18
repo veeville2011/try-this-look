@@ -2851,33 +2851,32 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         </div>
       )}
 
-    
-        {/* Content Container - Fit content with proper overflow handling */}
-        <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 py-3 sm:py-4 px-4 sm:px-6 rounded-xl overflow-x-hidden">
-          {/* Header - Compact when auth gate is shown */}
-          <header className={`${!customerInfo?.id ? 'pb-2' : 'pb-3 mb-3'} flex-shrink-0`}>
-            <div className="flex justify-between items-center py-2 sm:py-2.5">
-              <div className="flex flex-col items-start gap-0.5 sm:gap-1">
-                <img
-                  src="/assets/NUSENSE_LOGO_v1.png"
-                  className={` object-contain h-auto transition-all duration-200`}
-                  alt={t("tryOnWidget.brand.name") || "NUSENSE"}
-                  aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
-                />
-              </div>
-              <button
-                onClick={handleClose}
-                className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex-shrink-0"
-                aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
-                title={t("tryOnWidget.buttons.close") || "Fermer"}
-                type="button"
-              >
-                <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" aria-hidden="true" />
-              </button>
-            </div>
-          </header>
+      {/* Fixed Header - Always visible at the top */}
+      <header className="sticky top-0 z-50 bg-white flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b border-slate-100/80 shadow-sm">
+        <div className="flex justify-between items-center py-2 sm:py-2.5">
+          <div className="flex flex-col items-start gap-0.5 sm:gap-1">
+            <img
+              src="/assets/NUSENSE_LOGO_v1.png"
+              className="object-contain h-auto transition-all duration-200"
+              alt={t("tryOnWidget.brand.name") || "NUSENSE"}
+              aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
+            />
+          </div>
+          <button
+            onClick={handleClose}
+            className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-md hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex-shrink-0"
+            aria-label={t("tryOnWidget.buttons.close") || "Fermer l'application"}
+            title={t("tryOnWidget.buttons.close") || "Fermer"}
+            type="button"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" aria-hidden="true" />
+          </button>
+        </div>
+      </header>
 
-          {/* Authentication Gate - Image Collage Design */}
+      {/* Content Container - Below fixed header, inner sections handle their own scrolling */}
+      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 py-3 sm:py-4 px-4 sm:px-6 overflow-hidden">
+        {/* Authentication Gate - Image Collage Design */}
           {!customerInfo?.id && (
             <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto md:overflow-hidden">
               <div className="w-full max-w-[980px] h-full max-h-[calc(100vh-64px)] sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-visible md:overflow-hidden">
@@ -3199,7 +3198,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         )}
 
         {/* Try Single Tab - Current UI */}
-        <TabsContent value="single" className="mt-0 flex-1 flex flex-col min-h-0">
+        <TabsContent value="single" className="mt-0 flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-300/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/60">
           {/* Content */}
           {(isGenerating || generatedImage) ? (
             /* Result Layout: Container-responsive (popover-safe) */
@@ -3807,7 +3806,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         </TabsContent>
 
         {/* Try Multiple Tab - Cart Mode */}
-        <TabsContent value="multiple" className="mt-0 flex-1 flex flex-col min-h-0">
+        <TabsContent value="multiple" className="mt-0 flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-300/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/60">
           {/* Content */}
           {(isGeneratingMultiple || cartResults) ? (
             /* Result Layout: Container-responsive (popover-safe) */
@@ -4469,7 +4468,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           </TabsContent>
 
           {/* Try Look Tab - Outfit Mode */}
-          <TabsContent value="look" className="mt-0 flex-1 flex flex-col min-h-0">
+          <TabsContent value="look" className="mt-0 flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-300/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/60">
             {/* Content */}
             {(isGeneratingMultiple || outfitResult) ? (
               /* Result Layout: Container-responsive (popover-safe) */

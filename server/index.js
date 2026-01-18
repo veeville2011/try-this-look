@@ -6536,7 +6536,7 @@ app.get("/api/referrals/stats", async (req, res) => {
  * Poll job status until completion or failure
  */
 async function pollJobStatusUntilComplete(jobId, tryonId, storeName, maxAttempts = 200, pollInterval = 3000) {
-  const statusEndpoint = `https://try-on-server-v1.onrender.com/api/fashion-photo/status/${jobId}`;
+  const statusEndpoint = `https://ai.nusense.ddns.net/api/fashion-photo/status/${jobId}`;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
@@ -6885,8 +6885,8 @@ app.post("/api/tryon/generate", async (req, res) => {
 
     // Step 1: Submit job to external API
     const apiUrl = shopDomain 
-      ? `https://try-on-server-v1.onrender.com/api/fashion-photo?shop=${encodeURIComponent(shopDomain)}`
-      : "https://try-on-server-v1.onrender.com/api/fashion-photo";
+      ? `https://ai.nusense.ddns.net/api/fashion-photo?shop=${encodeURIComponent(shopDomain)}`
+      : "https://ai.nusense.ddns.net/api/fashion-photo";
 
     const response = await fetch(apiUrl, {
       method: "POST",

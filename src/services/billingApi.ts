@@ -137,11 +137,11 @@ export const getSubscriptionStatus = async (shop: string): Promise<any> => {
 
 /**
  * Get Credits Balance
- * GET https://try-on-server-v1.onrender.com/api/credits/balance?shop={shop}
+ * GET https://ai.nusense.ddns.net/api/credits/balance?shop={shop}
  */
 export const getCreditsBalance = async (shop: string): Promise<any> => {
   const normalizedShop = normalizeShopDomain(shop);
-  const url = `https://try-on-server-v1.onrender.com/api/credits/balance?shop=${encodeURIComponent(normalizedShop)}`;
+  const url = `https://ai.nusense.ddns.net/api/credits/balance?shop=${encodeURIComponent(normalizedShop)}`;
   
   // Use regular fetch for external API (not authenticated)
   const response = await fetch(url, {

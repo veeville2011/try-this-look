@@ -2,8 +2,8 @@ import { TryOnResponse, JobSubmissionResponse, JobStatusResponse } from "@/types
 import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
 
-const API_ENDPOINT = "https://try-on-server-v1.onrender.com/api/fashion-photo";
-const HEALTH_ENDPOINT = "https://try-on-server-v1.onrender.com/api/health";
+const API_ENDPOINT = "https://ai.nusense.ddns.net/api/fashion-photo";
+const HEALTH_ENDPOINT = "https://ai.nusense.ddns.net/api/health";
 
 /**
  * Normalize shop domain
