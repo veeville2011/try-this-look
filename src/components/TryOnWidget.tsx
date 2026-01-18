@@ -2177,7 +2177,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center shadow-sm"
                           role="status"
                           aria-live="polite"
-                          aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                          aria-label={t("tryOnWidget.status.generating") || "Génération…"}
                           aria-busy="true"
                           style={{ aspectRatio: "1 / 1" }}
                         >
@@ -2201,17 +2201,14 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                               </div>
                               <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
                             </div>
-                            <div className="text-center space-y-1">
+                            <div className="text-center">
                               <p className="text-sm sm:text-base font-medium text-slate-700">
-                                {t("tryOnWidget.status.generating") || "Génération en cours"}
-                              </p>
-                              <p className="text-xs text-slate-500 hidden sm:block">
-                                {t("tryOnWidget.status.pleaseWait") || "Veuillez patienter…"}
+                                {t("tryOnWidget.status.generating") || "Génération…"}
                               </p>
                             </div>
                           </div>
                           <span className="sr-only">
-                            {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                            {t("tryOnWidget.status.generating") || "Génération…"}
                           </span>
                         </div>
                       ) : error ? (
@@ -2310,7 +2307,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   <div className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
                     <div className="flex items-stretch gap-4 w-full flex-1 min-h-0">
                       {uploadedImage && (
-                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[532px]">
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[17rem]">
                           <img
                             src={uploadedImage}
                             alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
@@ -2319,7 +2316,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </div>
                       )}
                       {selectedClothing && (
-                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[532px]">
+                        <div className="flex-1 rounded-xl bg-white border border-border overflow-hidden p-4 flex items-center justify-center min-h-0 max-h-[17rem]">
                           <img
                             src={selectedClothing}
                             alt={
@@ -2439,17 +2436,14 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </div>
                         <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
                       </div>
-                      <div className="text-center space-y-1.5 px-4">
+                      <div className="text-center px-4">
                         <p className="text-base sm:text-lg font-semibold text-slate-700">
-                          {t("tryOnWidget.status.generating") || "Génération en cours"}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          {t("tryOnWidget.status.pleaseWait") || "Veuillez patienter…"}
+                          {t("tryOnWidget.status.generating") || "Génération…"}
                         </p>
                       </div>
                     </div>
                     <span className="sr-only">
-                      {t("tryOnWidget.status.generating") || "Génération en cours…"}
+                      {t("tryOnWidget.status.generating") || "Génération…"}
                     </span>
                   </div>
                 ) : error ? (
