@@ -1944,7 +1944,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       </header>
 
       {/* Content Container - Below fixed header, inner sections handle their own scrolling */}
-      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[80px] sm:pt-[86px] pb-3 sm:pb-4 px-4 sm:px-6 overflow-hidden">
+      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[88px] sm:pt-[94px] pb-3 sm:pb-4 px-4 sm:px-6 overflow-hidden">
         {/* Initial Loading Skeleton - Show only during widget opening */}
         {isInitializing ? (
           <div className="w-full flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
@@ -2262,7 +2262,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       <p className="text-slate-800 text-sm">
                         {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
                       </p>
-                      <Info className="w-4 h-4 text-slate-800 flex-shrink-0" aria-hidden="true" />
                     </div>
                     <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                       {isGenerating ? (
@@ -2500,7 +2499,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       {t("tryOnWidget.resultDisplay.virtualTryOnWithAI") || "Essayage virtuel avec IA"}
                     </p>
                   </div>
-                  <Info className="w-5 h-5 sm:w-6 sm:h-6 text-slate-800 flex-shrink-0" aria-hidden="true" />
                 </div>
 
                 {/* Context Section: Person Image + Clothing Image (Mobile only) - Show during generation, after result, and during error */}
