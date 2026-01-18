@@ -1127,13 +1127,17 @@ app.use(logger.requestLogger);
 app.use(createCookieSessionMiddleware(sessionStorage));
 
 // For webhooks, we need raw body for HMAC verification
+// For other routes, we need larger body size limit for image uploads (base64 encoded)
 app.use((req, res, next) => {
   if (req.path.startsWith("/webhooks/")) {
     express.raw({ type: "application/json" })(req, res, next);
   } else {
-    express.json()(req, res, next);
+    express.json({ limit: '50mb' })(req, res, next);
   }
 });
+
+// URL-encoded body parser with increased limit
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // HMAC signature verification middleware for webhooks
 // This middleware MUST return HTTP 401 for invalid signatures to comply with Shopify requirements
