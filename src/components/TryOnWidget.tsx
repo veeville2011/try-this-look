@@ -159,6 +159,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const setCurrentTabImagesWithIds = (idMap: Map<string, string | number>) => {
     setSingleTabImagesWithIds(idMap);
   };
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
@@ -356,28 +357,65 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       });
   }, [generatedImage, storeInfo, reduxStoreInfo, getShopName]);
 
+  // Set initializing to false after component has mounted and initial setup is done
+  useEffect(() => {
+    // Wait for initial mount and setup to complete
+    const initTimer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 300); // Short delay to ensure skeleton shows briefly during opening
+
+    return () => clearTimeout(initTimer);
+  }, []);
+
+  // Restore saved data from storage when component mounts or when widget opens
+  // This ensures the image persists when the widget is closed and reopened
+  useEffect(() => {
+    // Only restore if widget is open (or undefined, meaning always visible)
+    if (isOpen !== false) {
+      const savedImage = storage.getUploadedImage();
+      const savedClothing = storage.getClothingUrl();
+      const savedResult = storage.getGeneratedImage();
+      
+      // Use functional setState to get current state value and avoid stale closures
+      // Only restore if we don't already have the data in state
+      // Update related state within the same effect for proper coordination
+      setUploadedImage((currentImage) => {
+        if (savedImage && !currentImage) {
+          // Use requestAnimationFrame to ensure state update happens after render
+          requestAnimationFrame(() => {
+            setCurrentStep(2);
+            setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
+            setMobileStep("clothing");
+          });
+          return savedImage;
+        }
+        return currentImage;
+      });
+      
+      setSelectedClothing((currentClothing) => {
+        if (savedClothing && !currentClothing) {
+          requestAnimationFrame(() => {
+            setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
+          });
+          return savedClothing;
+        }
+        return currentClothing;
+      });
+      
+      setGeneratedImage((currentResult) => {
+        if (savedResult && !currentResult) {
+          requestAnimationFrame(() => {
+            setCurrentStep(4);
+            setStatusMessage(t("tryOnWidget.status.resultReady") || "Résultat prêt. Utilisez les actions ci-dessous.");
+          });
+          return savedResult;
+        }
+        return currentResult;
+      });
+    }
+  }, [isOpen, t]); // Depend on isOpen and t - restore when widget opens
 
   useEffect(() => {
-    const savedImage = storage.getUploadedImage();
-    const savedClothing = storage.getClothingUrl();
-    const savedResult = storage.getGeneratedImage();
-    if (savedImage) {
-      setUploadedImage(savedImage);
-      setCurrentStep(2);
-      setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
-      // Move to clothing selection step on mobile when image is restored
-      setMobileStep("clothing");
-    }
-    if (savedClothing) {
-      setSelectedClothing(savedClothing);
-      setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
-      // Note: clothingKey will be restored when images are loaded (see useEffect below)
-    }
-    if (savedResult) {
-      setGeneratedImage(savedResult);
-      setCurrentStep(4);
-      setStatusMessage(t("tryOnWidget.status.resultReady") || "Résultat prêt. Utilisez les actions ci-dessous.");
-    }
 
     const isInIframe = window.parent !== window;
     let imagesFound = false;
@@ -481,7 +519,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         imagesFound = true;
       }
     }
-  }, []);
+  }, [isOpen, uploadedImage, selectedClothing, generatedImage, t]);
 
   // No longer needed - using fixed 185px width
 
@@ -920,7 +958,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setCurrentStep(3);
     setStatusVariant("info");
     setStatusMessage(
-      t("tryOnWidget.status.generating") || "Génération en cours. Cela peut prendre 15 à 20 secondes…"
+      t("tryOnWidget.status.generating") || "Génération…"
     );
     try {
       localStorage.setItem(INFLIGHT_KEY, "1");
@@ -1880,6 +1918,34 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
       {/* Content Container - Below fixed header, inner sections handle their own scrolling */}
       <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 py-3 sm:py-4 px-4 sm:px-6 overflow-hidden">
+        {/* Initial Loading Skeleton - Show only during widget opening */}
+        {isInitializing ? (
+          <div className="w-full flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+            <div className="w-full max-w-[980px] flex flex-col gap-6">
+              {/* Skeleton for main content area */}
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Left panel skeleton */}
+                <div className="flex-1 space-y-4">
+                  <Skeleton className="h-8 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                  <Skeleton className="h-[400px] w-full rounded-xl" />
+                </div>
+                {/* Right panel skeleton */}
+                <div className="flex-1 space-y-4">
+                  <Skeleton className="h-8 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-[200px] w-full rounded-xl" />
+                    <Skeleton className="h-[200px] w-full rounded-xl" />
+                    <Skeleton className="h-[200px] w-full rounded-xl" />
+                    <Skeleton className="h-[200px] w-full rounded-xl" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Authentication Gate - Image Collage Design */}
           {!customerInfo?.id && (
             <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
@@ -2413,7 +2479,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-sm"
                     role="status"
                     aria-live="polite"
-                    aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
+                    aria-label={t("tryOnWidget.status.generating") || "Génération…"}
                     aria-busy="true"
                   >
                     {/* Animated Skeleton with shimmer effect */}
@@ -2797,6 +2863,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           )}
 
         </div>
+        )}
+        </>
         )}
         </div>
       
