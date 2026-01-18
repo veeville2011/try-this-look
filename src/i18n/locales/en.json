@@ -970,6 +970,7 @@
       "resultReadyActions": "Result ready. You can purchase or download.",
       "photoCleared": "Photo cleared. Upload your photo.",
       "generating": "Generating in progress. This may take 15 to 20 seconds…",
+      "pleaseWait": "Please wait…",
       "generatingOutfit": "Generating complete outfit...",
       "generatingOutfitTime": "Complete outfit generation may take 10 to 15 seconds..."
     },

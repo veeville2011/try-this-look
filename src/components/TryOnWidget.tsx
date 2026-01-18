@@ -25,7 +25,7 @@ import {
 import { TryOnResponse, ProductImage } from "@/types/tryon";
 import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
 import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -1630,16 +1630,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     );
     // Reset mobile step to photo selection
     setMobileStep("photo");
-    
-    // Reset cart/outfit state
-    setCartMultipleImage(null);
-    setCartMultipleDemoPhotoUrl(null);
-    setSelectedGarments([]);
-    setCartResults(null);
-    setOutfitResult(null);
-    setErrorMultiple(null);
-    setProgressMultiple(0);
-    setBatchProgress(null);
   };
   
   const handleResetClick = () => {
@@ -2450,15 +2440,42 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                       {isGenerating ? (
                         <div
-                          className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-border bg-white flex items-center justify-center"
+                          className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center shadow-sm"
                           role="status"
                           aria-live="polite"
                           aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
                           aria-busy="true"
                           style={{ aspectRatio: "1 / 1" }}
                         >
-                          {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
-                          <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                          {/* Animated Skeleton with shimmer effect */}
+                          <div className="absolute inset-0 rounded-lg overflow-hidden">
+                            <Skeleton className="absolute inset-0 rounded-lg" />
+                            {/* Subtle animated shimmer overlay */}
+                            <div 
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                              style={{
+                                transform: 'translateX(-100%)',
+                                animation: 'shimmer 2s ease-in-out infinite',
+                              }}
+                            />
+                          </div>
+                          {/* Loading indicator with subtle animation */}
+                          <div className="relative z-10 flex flex-col items-center justify-center space-y-3">
+                            <div className="relative">
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm">
+                                <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-primary animate-pulse" aria-hidden="true" />
+                              </div>
+                              <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
+                            </div>
+                            <div className="text-center space-y-1">
+                              <p className="text-sm sm:text-base font-medium text-slate-700">
+                                {t("tryOnWidget.status.generating") || "Génération en cours"}
+                              </p>
+                              <p className="text-xs text-slate-500 hidden sm:block">
+                                {t("tryOnWidget.status.pleaseWait") || "Veuillez patienter…"}
+                              </p>
+                            </div>
+                          </div>
                           <span className="sr-only">
                             {t("tryOnWidget.status.generating") || "Génération en cours…"}
                           </span>
@@ -2587,7 +2604,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="flex items-start gap-4 w-full justify-end flex-wrap">
                       <Button
                         onClick={handleResetClick}
-                        variant={"outline" as const}
+                        variant="outline"
                         disabled={isGenerating}
                         className="min-w-[160px] h-11"
                         aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
@@ -2599,7 +2616,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
                       <Button
                         onClick={handleRetryGeneration}
-                        variant={"outline" as const}
+                        variant="outline"
                         disabled={!selectedClothing || !uploadedImage || isGenerating}
                         className="min-w-[160px] h-11"
                         aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
@@ -2612,7 +2629,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       <Button
                         onClick={handleBuyNow}
                         disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                        variant={"outline" as const}
+                        variant="outline"
                         className="min-w-[220px] h-11"
                         aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
                         aria-busy={isBuyNowLoading}
@@ -2662,14 +2679,41 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {/* Generated Image or Error State */}
                 {isGenerating ? (
                   <div
-                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-border bg-white"
+                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-sm"
                     role="status"
                     aria-live="polite"
                     aria-label={t("tryOnWidget.status.generating") || "Génération en cours"}
                     aria-busy="true"
                   >
-                    {/* ChatGPT/Gemini-like: pure shimmer placeholder (no visible copy) */}
-                    <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                    {/* Animated Skeleton with shimmer effect */}
+                    <div className="absolute inset-0 rounded-xl overflow-hidden">
+                      <Skeleton className="absolute inset-0 rounded-xl" />
+                      {/* Subtle animated shimmer overlay */}
+                      <div 
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                        style={{
+                          transform: 'translateX(-100%)',
+                          animation: 'shimmer 2s ease-in-out infinite',
+                        }}
+                      />
+                    </div>
+                    {/* Loading indicator with subtle animation */}
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-4">
+                      <div className="relative">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm">
+                          <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-primary animate-pulse" aria-hidden="true" />
+                        </div>
+                        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
+                      </div>
+                      <div className="text-center space-y-1.5 px-4">
+                        <p className="text-base sm:text-lg font-semibold text-slate-700">
+                          {t("tryOnWidget.status.generating") || "Génération en cours"}
+                        </p>
+                        <p className="text-sm text-slate-500">
+                          {t("tryOnWidget.status.pleaseWait") || "Veuillez patienter…"}
+                        </p>
+                      </div>
+                    </div>
                     <span className="sr-only">
                       {t("tryOnWidget.status.generating") || "Génération en cours…"}
                     </span>
@@ -2815,7 +2859,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 <div className="flex flex-col self-stretch mb-6 mt-0 gap-4">
                   <Button
                     onClick={handleResetClick}
-                    variant={"outline" as const}
+                    variant="outline"
                     className="w-full h-11"
                     aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                   >
@@ -2927,7 +2971,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="flex items-start gap-4 w-full justify-end flex-wrap">
                       <Button
                         onClick={handleResetClick}
-                        variant={"outline" as const}
+                        variant="outline"
                         className="min-w-[160px] h-11"
                         aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                       >
@@ -2967,7 +3011,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             <div className="flex flex-col self-stretch mb-8 gap-4">
               <Button
                 onClick={handleRetryGeneration}
-                variant={"outline" as const}
+                variant="outline"
                 disabled={!selectedClothing || !uploadedImage || isGenerating}
                 className="w-full h-11"
                 aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
@@ -2979,7 +3023,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
               <Button
                 onClick={handleResetClick}
-                variant={"outline" as const}
+                variant="outline"
                 disabled={isGenerating}
                 className="w-full h-11"
                 aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
@@ -2992,7 +3036,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               <Button
                 onClick={handleBuyNow}
                 disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                variant={"outline" as const}
+                variant="outline"
                 className="w-full h-11"
                 aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
                 aria-busy={isBuyNowLoading}
