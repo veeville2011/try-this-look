@@ -23,8 +23,6 @@ import {
   getHealthStatus,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { fetchAllStoreProducts, type Category, type CategorizedProduct } from "@/services/productsApi";
-import { fetchCategorizedProductsThunk } from "@/store/slices/categorizedProductsSlice";
 import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -36,9 +34,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useImageGenerations } from "@/hooks/useImageGenerations";
-import { useKeyMappings } from "@/hooks/useKeyMappings";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
-import { useCategorizedProducts } from "@/hooks/useCategorizedProducts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { addWatermarkToImage } from "@/utils/imageWatermark";
@@ -72,30 +68,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   // Redux state for image generations
   const { fetchGenerations, records } = useImageGenerations();
 
-  // Redux state for key mappings
-  const {
-    setSelectedClothingKey: setReduxClothingKey,
-    setSelectedPersonKey: setReduxPersonKey,
-    resetSelections: resetKeyMappings,
-    clothingKeys,
-    personKeys,
-  } = useKeyMappings();
-
   // Redux state for store info
   const { fetchStoreInfo: fetchStoreInfoFromRedux, storeInfo: reduxStoreInfo } =
     useStoreInfo();
-
-  // Redux state for categorized products
-  const {
-    categories: reduxCategories,
-    uncategorized: reduxUncategorized,
-    categoryMethod: reduxCategoryMethod,
-    statistics: reduxStatistics,
-    loading: isLoadingCategoriesRedux,
-    error: categorizedProductsError,
-    lastFetchedShop: reduxLastFetchedShop,
-    fetchCategorizedProducts: fetchCategorizedProductsFromRedux,
-  } = useCategorizedProducts();
 
   // State to store product data (received via postMessage or accessed directly)
   const [storedProductData, setStoredProductData] = useState<any>(null);
@@ -167,18 +142,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     Map<string, string | number>
   >(new Map());
   
-  const [recommendedImages, setRecommendedImages] = useState<string[]>([]);
-  const [recommendedImagesWithIds, setRecommendedImagesWithIds] = useState<
-    Map<string, string | number>
-  >(new Map());
-  
   const singleTabAvailableImagesWithIds = useMemo(() => {
-    // Ensure selecting a "recommended" product can resolve an ID (used for key mappings/cache).
     return new Map<string, string | number>([
       ...singleTabImagesWithIds.entries(),
-      ...recommendedImagesWithIds.entries(),
     ]);
-  }, [singleTabImagesWithIds, recommendedImagesWithIds]);
+  }, [singleTabImagesWithIds]);
   
   // Helper functions for single tab images
   const getCurrentTabImages = (): string[] => singleTabImages;
@@ -227,29 +195,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [selectedVersion, setSelectedVersion] = useState<number | null>(1);
   
   
-  // Derive store_products from Redux state for backward compatibility
-  const store_products = reduxCategories.length > 0 || reduxUncategorized
-    ? {
-        categories: reduxCategories,
-        uncategorized: reduxUncategorized || {
-          categoryName: t("tryOnWidget.filters.uncategorized") || "Non catégorisé",
-          productCount: 0,
-          products: [],
-        },
-        categoryMethod: reduxCategoryMethod || "category",
-        statistics: reduxStatistics,
-      }
-    : null;
-  
-  // Use Redux loading state
-  const isLoadingCategories = isLoadingCategoriesRedux;
-  
   const INFLIGHT_KEY = "nusense_tryon_inflight";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
   // Track if we're currently closing to prevent double-close
   const isClosingRef = useRef<boolean>(false);
-  const storeRecommendedLoadedForShopRef = useRef<string | null>(null);
   console.log({ storeInfo });
 
   // Helper function to get shop name with fallbacks
@@ -343,36 +293,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only fetch once on mount
-
-  // Fetch products with ACTIVE status and Apparel productType when component opens
-  useEffect(() => {
-    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-    
-    if (shopDomain) {
-      // Normalize shop domain (remove .myshopify.com if present, API will handle it)
-      const normalizedShop = shopDomain.replace(".myshopify.com", "");
-      
-      fetchAllStoreProducts(normalizedShop, {
-        status: "ACTIVE",
-        productType: "Apparel",
-      })
-        .then((response) => {
-          if (response.success) {
-            console.log("[TryOnWidget] Products loaded on mount:", {
-              count: response.count,
-              shop: normalizedShop,
-            });
-          } else {
-            console.warn("[TryOnWidget] Failed to load products on mount:", {
-              shop: normalizedShop,
-            });
-          }
-        })
-        .catch((error) => {
-          console.error("[TryOnWidget] Error loading products on mount:", error);
-        });
-    }
-  }, [storeInfo, reduxStoreInfo]); // Call when store info is available
 
   // Expose store info globally for access
   useEffect(() => {
@@ -610,14 +530,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       // Only process messages from parent window
       if (event.data && event.data.type === "NUSENSE_PRODUCT_IMAGES") {
         const parentImages = event.data.images || [];
-        const parentRecommendedImages = event.data.recommendedImages || [];
 
         console.log(
           "[TryOnWidget] Received NUSENSE_PRODUCT_IMAGES:",
           parentImages.length,
-          "images,",
-          parentRecommendedImages.length,
-          "recommended"
+          "images"
         );
 
         if (parentImages.length > 0) {
@@ -657,39 +574,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         } else {
           // If parent sends empty array, log it for debugging
           console.log("[TryOnWidget] Parent sent empty images array");
-        }
-
-        // Recommended rail (iframe): use parent-provided recommended images.
-        // If parent can't find other product images on the page, fall back to main product images.
-        const recommendedSource =
-          parentRecommendedImages.length > 0 ? parentRecommendedImages : parentImages;
-
-        if (recommendedSource.length > 0) {
-          const recommendedUrls: string[] = [];
-          const recommendedIdMap = new Map<string, string | number>();
-
-          recommendedSource.forEach((img: string | ProductImage) => {
-            if (typeof img === "string") {
-              recommendedUrls.push(img);
-              return;
-            }
-            if (img && typeof img === "object" && "url" in img && img.url) {
-              recommendedUrls.push(img.url);
-              if (img.id !== undefined) {
-                recommendedIdMap.set(img.url, img.id);
-              }
-            }
-          });
-
-          const uniqueUrls = Array.from(new Set(recommendedUrls.filter(Boolean)));
-          setRecommendedImages(uniqueUrls);
-          setRecommendedImagesWithIds(recommendedIdMap);
-
-          console.log("[TryOnWidget] Recommended images loaded:", uniqueUrls.length);
-        } else {
-          // If none are available, clear the rail so it doesn't repeat main images.
-          setRecommendedImages([]);
-          setRecommendedImagesWithIds(new Map());
         }
       }
 
@@ -993,105 +877,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     }
   }, [storeInfo, reduxStoreInfo, fetchStoreInfoFromRedux]);
 
-  // Fetch categorized products when component loads (for Try Multiple and Try Look tabs)
-  useEffect(() => {
-    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-    
-    if (shopDomain && !store_products && reduxLastFetchedShop !== shopDomain.replace(".myshopify.com", "")) {
-      // Normalize shop domain
-      const normalizedShop = shopDomain.replace(".myshopify.com", "");
-      
-      // Fetch categorized products using Redux (default: by category)
-      fetchCategorizedProductsFromRedux(normalizedShop, {
-        categoryBy: "title",
-      })
-        .then((result) => {
-          if (fetchCategorizedProductsThunk.fulfilled.match(result)) {
-            console.log("[TryOnWidget] Loaded categorized products via Redux", {
-              totalCategories: result.payload?.statistics?.totalCategories || 0,
-              totalProducts: result.payload?.statistics?.totalProducts || 0,
-              categoryMethod: result.payload?.categoryMethod || "category",
-            });
-          } else {
-            console.warn("[TryOnWidget] Failed to fetch categorized products:", result.payload);
-          }
-        })
-        .catch((error) => {
-          console.error("[TryOnWidget] Error fetching categorized products:", error);
-        });
-    }
-  }, [storeInfo, reduxStoreInfo, store_products, reduxLastFetchedShop, fetchCategorizedProductsFromRedux]);
-
-  // Populate "Recommended products" with ALL store products
-  useEffect(() => {
-    // In iframe mode, the parent page is the source of truth (no API).
-    // If parent images are available, they already populate recommendedImages via postMessage.
-    const isInIframe = typeof window !== "undefined" && window.parent !== window;
-    if (isInIframe) return;
-
-    const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
-    if (!shopDomain) return;
-
-    const normalizedShop = shopDomain.replace(".myshopify.com", "");
-
-    const toNumericId = (gid: string): string => {
-      const match = gid.match(/\/(\d+)$/);
-      return match?.[1] || gid;
-    };
-
-    if (store_products) {
-      const productsToShow: CategorizedProduct[] = [];
-      store_products.categories.forEach((category) => {
-        productsToShow.push(...category.products);
-      });
-      if (store_products.uncategorized.products.length > 0) {
-        productsToShow.push(...store_products.uncategorized.products);
-      }
-
-      const imageUrls: string[] = [];
-      const idMap = new Map<string, string | number>();
-
-      productsToShow.forEach((product) => {
-        const firstImage = product.media?.nodes?.[0]?.image;
-        if (!firstImage?.url) return;
-
-        imageUrls.push(firstImage.url);
-        if (product.id) {
-          idMap.set(firstImage.url, toNumericId(product.id));
-        }
-      });
-
-      setRecommendedImages(imageUrls);
-      setRecommendedImagesWithIds(idMap);
-      storeRecommendedLoadedForShopRef.current = normalizedShop;
-      return;
-    }
-
-    // If categorized products aren't available yet, fetch all store products as the source of truth.
-    if (isLoadingCategories) return;
-    if (storeRecommendedLoadedForShopRef.current === normalizedShop) return;
-
-    storeRecommendedLoadedForShopRef.current = normalizedShop;
-    fetchAllStoreProducts(normalizedShop)
-      .then((response) => {
-        if (!response.success || response.products.length === 0) return;
-
-        const imageUrls = response.products.map((p) => p.imageUrl).filter(Boolean);
-        const idMap = new Map<string, string | number>();
-
-        response.products.forEach((p) => {
-          if (!p.imageUrl) return;
-          idMap.set(p.imageUrl, p.imageId || p.productId);
-        });
-
-        setRecommendedImages(imageUrls);
-        setRecommendedImagesWithIds(idMap);
-      })
-      .catch((error) => {
-        console.error("[TryOnWidget] Failed to load store products for recommended rail:", error);
-      });
-  }, [storeInfo, reduxStoreInfo, store_products, isLoadingCategories]);
-
   const handlePhotoUpload = (
     dataURL: string,
     isDemoPhoto?: boolean,
@@ -1103,14 +888,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     if (isDemoPhoto && demoPhotoUrl) {
       setPhotoSelectionMethod("demo");
       setSelectedDemoPhotoUrl(demoPhotoUrl);
-      // Set personKey in Redux for key mappings
-      const personKey = DEMO_PHOTO_ID_MAP.get(demoPhotoUrl);
-      setReduxPersonKey(personKey || null);
     } else {
       setPhotoSelectionMethod("file");
       setSelectedDemoPhotoUrl(null);
-      // Clear personKey in Redux when custom photo is uploaded
-      setReduxPersonKey(null);
     }
     setStatusVariant("info");
     setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
@@ -1128,16 +908,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       const clothingId = singleTabAvailableImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
 
-      // Set clothingKey in Redux for key mappings
-      const clothingKey = clothingId ? String(clothingId).trim() : null;
-      setReduxClothingKey(clothingKey);
-
       setStatusVariant("info");
       setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
     } else {
       setSelectedClothingKey(null);
-      // Clear clothingKey in Redux
-      setReduxClothingKey(null);
       setStatusVariant("info");
       setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
     }
@@ -1506,8 +1280,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setUploadedImage(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null); // Clear selection method to reset to default view
-    // Clear personKey in Redux
-    setReduxPersonKey(null);
     try {
       storage.clearUploadedImage();
     } catch {}
@@ -1621,8 +1393,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setError(null);
     setProgress(0);
     setSelectedVersion(1); // Reset version selection to default
-    // Reset key mappings in Redux
-    resetKeyMappings();
     storage.clearSession();
     setStatusVariant("info");
     setStatusMessage(
@@ -1906,21 +1676,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
   const isSingleTabImagesLoading =
     isInIframe && singleTabImages.length === 0;
-
-  const isSingleTabRecommendedLoading = (() => {
-    if (!normalizedShopDomain) return false;
-
-    // In iframe mode, recommended images come from the parent page (no API).
-    if (isInIframe) return false;
-
-    if (recommendedImages.length > 0) return false;
-
-    return (
-      isLoadingCategories ||
-      !store_products ||
-      storeRecommendedLoadedForShopRef.current === normalizedShopDomain
-    );
-  })();
 
   // Get login URL - Universal compatibility for ALL stores
   // Uses Shopify's routes.storefront_login_url (injected via Liquid) when available
@@ -2815,7 +2570,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   <PhotoUpload
                     onPhotoUpload={handlePhotoUpload}
                     generatedPersonKeys={generatedPersonKeys}
-                    matchingPersonKeys={personKeys}
                     initialView={photoSelectionMethod}
                     showDemoPhotoStatusIndicator={false}
                     isMobile={layoutMode !== "wide"}
@@ -2952,7 +2706,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     generatedKeyCombinations={generatedKeyCombinations}
                     selectedDemoPhotoUrl={selectedDemoPhotoUrl}
                     demoPhotoIdMap={DEMO_PHOTO_ID_MAP}
-                    matchingClothingKeys={clothingKeys}
                     showFinalLayout={!!uploadedImage && !!selectedClothing}
                     isLoadingImages={isSingleTabImagesLoading}
                     isLoadingRecommended={false}

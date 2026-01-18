@@ -11,7 +11,6 @@ interface PhotoUploadProps {
     demoPhotoUrl?: string
   ) => void;
   generatedPersonKeys?: Set<string>;
-  matchingPersonKeys?: string[];
   initialView?: "file" | "demo" | null; // Control which view to show initially
   showDemoPhotoStatusIndicator?: boolean; // Controls the small top-right dot overlay on demo photos
   isMobile?: boolean; // Used for mobile-specific styling only
@@ -20,7 +19,6 @@ interface PhotoUploadProps {
 export default function PhotoUpload({
   onPhotoUpload,
   generatedPersonKeys = new Set(),
-  matchingPersonKeys = [],
   initialView = null,
   showDemoPhotoStatusIndicator = true,
   isMobile = false,
@@ -42,13 +40,6 @@ export default function PhotoUpload({
     const personKey = DEMO_PHOTO_ID_MAP.get(photoUrl);
     if (!personKey) return false;
     return generatedPersonKeys.has(String(personKey));
-  };
-
-  // Check if a demo photo matches the selected clothing (from key mappings API)
-  const isMatching = (photoUrl: string): boolean => {
-    const personKey = DEMO_PHOTO_ID_MAP.get(photoUrl);
-    if (!personKey || matchingPersonKeys.length === 0) return false;
-    return matchingPersonKeys.includes(String(personKey));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,7 +106,7 @@ export default function PhotoUpload({
 
   return (
     <>
-      <div className="flex flex-col bg-white w-full h-full min-h-[456px] rounded-2xl max-w-full overflow-x-hidden">
+      <div className="flex flex-col bg-white w-full h-full min-h-[360px] rounded-2xl max-w-full overflow-x-hidden">
         <div className="sr-only">
           {t("tryOnWidget.photoUpload.srOnlyText") || "Téléchargez votre photo ou utilisez une photo de démonstration"}
         </div>
@@ -343,14 +334,9 @@ export default function PhotoUpload({
               </div>
             </div>
 
-            {/* Demo Photos Grid - Mobile: 3 columns (3x4), Desktop: 4 columns */}
-            {/* Mobile: Fixed height for 3.5 rows (3 full + 1 half) with scrollbar */}
-            {/* Desktop: Flexible height with scrollbar (unchanged) */}
-            <div className={cn(
-              isMobile 
-                ? "flex-shrink-0 h-[456px] overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
-                : "flex-1 overflow-y-auto pr-1 -mr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
-            )}>
+            {/* Demo Photos Grid - Consistent height and scrollbar with ClothingSelection */}
+            {/* Fixed height for 2x2 grid equivalent, scrollable for more */}
+            <div className="h-[360px] max-h-[360px] overflow-y-auto pr-1 px-2 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
               <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2'} sm:grid-cols-3 md:grid-cols-4 gap-3`}>
                 {DEMO_PHOTOS_ARRAY.map((photo) => (
                   <div
@@ -379,7 +365,7 @@ export default function PhotoUpload({
                           target.style.display = 'none';
                         }}
                       />
-                      {showDemoPhotoStatusIndicator && (isGenerated(photo.url) || isMatching(photo.url)) && (
+                      {showDemoPhotoStatusIndicator && isGenerated(photo.url) && (
                         <div className="absolute top-2 right-2">
                           <div className="w-5 h-5 rounded-full bg-white/90 flex items-center justify-center shadow-sm">
                             <div className={`w-3 h-3 rounded-full ${
