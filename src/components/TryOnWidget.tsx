@@ -2506,55 +2506,38 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {/* Context Section: Person Image + Clothing Image (Mobile only) - Show during generation, after result, and during error */}
                 {(isGenerating || generatedImage || error) && uploadedImage && selectedClothing && (
                   <div className="flex flex-col gap-2 mb-4">
-                    {/* Section Label */}
-                    <p className="text-xs text-slate-600 font-medium">
-                      {isGenerating 
-                        ? (t("tryOnWidget.resultDisplay.generatingFrom") || "Génération à partir de:")
-                        : (t("tryOnWidget.resultDisplay.generatedFrom") || "Généré à partir de:")
-                      }
-                    </p>
-                    {/* Context Images with Labels */}
-                    <div className="flex items-stretch gap-2 sm:gap-3 self-stretch">
-                      {/* Person Image with Label */}
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <p className="text-xs text-slate-500 text-center font-medium" role="text">
-                          {t("tryOnWidget.resultDisplay.yourPhoto") || "Votre photo"}
-                        </p>
-                        <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center min-h-[120px] sm:min-h-[160px] max-h-[180px] sm:max-h-[200px]">
-                          <img
-                            src={uploadedImage}
-                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
-                            className="max-h-full max-w-full w-auto h-auto object-contain"
-                          />
-                          {/* Subtle loading overlay during generation */}
-                          {isGenerating && (
-                            <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
-                              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
-                            </div>
-                          )}
-                        </div>
+                    {/* Context Images - Side by side, fit within mobile width */}
+                    <div className="flex items-stretch gap-2 sm:gap-3 self-stretch w-full">
+                      {/* Person Image */}
+                      <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center">
+                        <img
+                          src={uploadedImage}
+                          alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                          className="w-full h-auto object-contain"
+                        />
+                        {/* Subtle loading overlay during generation */}
+                        {isGenerating && (
+                          <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
+                          </div>
+                        )}
                       </div>
-                      {/* Clothing Image with Label */}
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <p className="text-xs text-slate-500 text-center font-medium" role="text">
-                          {t("tryOnWidget.resultDisplay.selectedClothing") || "Vêtement sélectionné"}
-                        </p>
-                        <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center min-h-[120px] sm:min-h-[160px] max-h-[180px] sm:max-h-[200px]">
-                          <img
-                            src={selectedClothing}
-                            alt={
-                              t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
-                              "Vêtement actuellement sélectionné pour l'essayage virtuel"
-                            }
-                            className="max-h-full max-w-full w-auto h-auto object-contain"
-                          />
-                          {/* Subtle loading overlay during generation */}
-                          {isGenerating && (
-                            <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
-                              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
-                            </div>
-                          )}
-                        </div>
+                      {/* Clothing Image */}
+                      <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center">
+                        <img
+                          src={selectedClothing}
+                          alt={
+                            t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
+                            "Vêtement actuellement sélectionné pour l'essayage virtuel"
+                          }
+                          className="w-full h-auto object-contain"
+                        />
+                        {/* Subtle loading overlay during generation */}
+                        {isGenerating && (
+                          <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* Visual Connector - Only show when generating or showing result (not error) */}
