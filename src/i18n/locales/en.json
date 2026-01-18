@@ -994,12 +994,6 @@
       "back": "Back",
       "continue": "Continue"
     },
-    "navigation": {
-      "back": "Back",
-      "next": "Next",
-      "backToPhoto": "Back to Photo",
-      "nextToClothing": "Next to Clothing Selection"
-    },
     "tabs": {
       "ariaLabel": "Try-on mode",
       "single": {

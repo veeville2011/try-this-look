@@ -22,7 +22,7 @@ import {
   dataURLToBlob,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, ArrowRight, Info, Share2, LogIn, Shield, WifiOff, CheckCircle } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -1944,7 +1944,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       </header>
 
       {/* Content Container - Below fixed header, inner sections handle their own scrolling */}
-      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[88px] sm:pt-[94px] pb-[80px] sm:pb-[86px] px-4 sm:px-6 overflow-hidden">
+      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[88px] sm:pt-[94px] pb-3 sm:pb-4 px-4 sm:px-6 overflow-hidden">
         {/* Initial Loading Skeleton - Show only during widget opening */}
         {isInitializing ? (
           <div className="w-full flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
@@ -2942,62 +2942,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         </>
         )}
         </div>
-
-      {/* Fixed Footer - Always visible at the bottom, never scrolls */}
-      {customerInfo?.id && !isInitializing && (
-        <footer className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white px-4 sm:px-6 pt-3 pb-3 sm:pt-4 sm:pb-4 border-t border-slate-100/80 shadow-sm">
-          <div className="flex justify-between items-center gap-4">
-            {/* Back Button - Show only when on clothing step (not on photo step or result view) */}
-            {mobileStep === "clothing" ? (
-              <Button
-                onClick={() => {
-                  // Navigate back from clothing to photo step
-                  setMobileStep("photo");
-                }}
-                variant="outline"
-                className="flex items-center justify-center gap-2 h-11 px-4 sm:px-6 border-slate-200 hover:bg-slate-50 transition-colors"
-                aria-label={t("tryOnWidget.navigation.backToPhoto") || "Back to Photo"}
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
-                <span className="text-sm sm:text-base font-medium">
-                  {t("tryOnWidget.navigation.back") || "Back"}
-                </span>
-              </Button>
-            ) : (
-              <div className="flex-1" />
-            )}
-
-            {/* Next Button - Show when on photo step with uploaded image, but NOT when already generated */}
-            {mobileStep === "photo" && uploadedImage && !generatedImage && layoutMode !== "wide" ? (
-              <Button
-                onClick={() => {
-                  // Always request images when switching to clothing step to ensure we have the latest images
-                  const isInIframe = window.parent !== window;
-                  if (isInIframe) {
-                    try {
-                      window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
-                    } catch (error) {
-                      console.error("[TryOnWidget] Failed to request images from parent window:", error);
-                    }
-                  }
-                  // Navigate to clothing step - this does NOT trigger generation
-                  setMobileStep("clothing");
-                }}
-                disabled={isGenerating}
-                className="flex items-center justify-center gap-2 h-11 px-4 sm:px-6 bg-primary hover:bg-primary/90 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label={t("tryOnWidget.navigation.nextToClothing") || "Next to Clothing Selection"}
-              >
-                <span className="text-sm sm:text-base font-medium">
-                  {t("tryOnWidget.navigation.next") || "Next"}
-                </span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
-              </Button>
-            ) : (
-              <div className="flex-1" />
-            )}
-          </div>
-        </footer>
-      )}
       
     </div>
   );
