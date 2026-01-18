@@ -3,7 +3,6 @@ import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
 
 const API_ENDPOINT = "https://ai.nusense.ddns.net/api/fashion-photo";
-const HEALTH_ENDPOINT = "https://ai.nusense.ddns.net/api/health";
 
 /**
  * Normalize shop domain
@@ -457,24 +456,6 @@ async function pollJobStatus(
 
   throw new Error("Job processing timeout");
 }
-
-export const getHealthStatus = async (): Promise<void> => {
-  try {
-    const response = await fetch(HEALTH_ENDPOINT, {
-      headers: {
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-      },
-    });
-
-    if (!response.ok) {
-      return;
-    }
-
-    await response.json();
-  } catch (error) {
-    // Health check request failed
-  }
-};
 
 export async function fetchImageWithCorsHandling(
   url: string,
