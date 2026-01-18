@@ -1944,7 +1944,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       </header>
 
       {/* Content Container - Below fixed header, inner sections handle their own scrolling */}
-      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[72px] sm:pt-[78px] pb-3 sm:pb-4 px-4 sm:px-6 overflow-hidden">
+      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[80px] sm:pt-[86px] pb-3 sm:pb-4 px-4 sm:px-6 overflow-hidden">
         {/* Initial Loading Skeleton - Show only during widget opening */}
         {isInitializing ? (
           <div className="w-full flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
