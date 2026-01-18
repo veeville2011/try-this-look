@@ -2947,27 +2947,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       {customerInfo?.id && !isInitializing && (
         <footer className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white px-4 sm:px-6 pt-3 pb-3 sm:pt-4 sm:pb-4 border-t border-slate-100/80 shadow-sm">
           <div className="flex justify-between items-center gap-4">
-            {/* Back Button - Show when on clothing step or result view (not on photo step) */}
-            {(mobileStep === "clothing" || (layoutMode !== "wide" && generatedImage)) ? (
+            {/* Back Button - Show only when on clothing step (not on photo step or result view) */}
+            {mobileStep === "clothing" ? (
               <Button
                 onClick={() => {
-                  // If we have a generated image and are on result view, go back to clothing step
-                  // If we're already on clothing step, go back to photo step
-                  if (generatedImage && layoutMode !== "wide") {
-                    // Navigate back from result view to clothing step
-                    setMobileStep("clothing");
-                  } else if (mobileStep === "clothing") {
-                    // Navigate back from clothing to photo step
-                    setMobileStep("photo");
-                  }
+                  // Navigate back from clothing to photo step
+                  setMobileStep("photo");
                 }}
                 variant="outline"
                 className="flex items-center justify-center gap-2 h-11 px-4 sm:px-6 border-slate-200 hover:bg-slate-50 transition-colors"
-                aria-label={
-                  generatedImage && layoutMode !== "wide"
-                    ? (t("tryOnWidget.navigation.back") || "Back")
-                    : (t("tryOnWidget.navigation.backToPhoto") || "Back to Photo")
-                }
+                aria-label={t("tryOnWidget.navigation.backToPhoto") || "Back to Photo"}
               >
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                 <span className="text-sm sm:text-base font-medium">
