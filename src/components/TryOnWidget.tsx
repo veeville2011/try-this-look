@@ -367,8 +367,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     return () => clearTimeout(initTimer);
   }, []);
 
+  // Track if we've restored state from storage on this mount to prevent multiple restorations
+  const hasRestoredOnMountRef = useRef(false);
+
   // Restore saved data from storage when component mounts or when widget opens
-  // This ensures the image persists when the widget is closed and reopened
+  // This ensures complete state persistence when widget is closed/reopened, page refresh, or browser restart
   useEffect(() => {
     // Only restore if widget is open (or undefined, meaning always visible)
     if (isOpen !== false) {
@@ -376,55 +379,69 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       const savedClothing = storage.getClothingUrl();
       const savedResult = storage.getGeneratedImage();
       
-      // Use functional setState to check current state values and avoid stale closures
-      // Restore all state first
-      setUploadedImage((currentImage) => {
-        if (savedImage && !currentImage) {
-          return savedImage;
-        }
-        return currentImage;
-      });
+      // Check if we have anything to restore from storage
+      const hasDataToRestore = savedImage || savedClothing || savedResult;
       
-      setSelectedClothing((currentClothing) => {
-        if (savedClothing && !currentClothing) {
-          return savedClothing;
-        }
-        return currentClothing;
-      });
-      
-      setGeneratedImage((currentResult) => {
-        if (savedResult && !currentResult) {
-          return savedResult;
-        }
-        return currentResult;
-      });
+      // Only restore once per mount to prevent unnecessary updates
+      // But always restore if we have data and haven't restored yet on this mount
+      if (hasDataToRestore && !hasRestoredOnMountRef.current) {
+        hasRestoredOnMountRef.current = true;
 
-      // Then set the appropriate step based on what data exists (prioritize result > ready to generate > photo uploaded)
-      // Use a single requestAnimationFrame to coordinate step update after all state is restored
-      if (savedImage || savedClothing || savedResult) {
+        // Restore all state from storage unconditionally to ensure complete state consistency
+        // This handles: widget close/reopen, page refresh, browser restart, navigation
+        if (savedImage) {
+          setUploadedImage(savedImage);
+        }
+        
+        if (savedClothing) {
+          setSelectedClothing(savedClothing);
+        }
+        
+        if (savedResult) {
+          setGeneratedImage(savedResult);
+        }
+
+        // Set the appropriate step and status based on what exists in storage
+        // Use requestAnimationFrame to ensure all state updates are coordinated
+        // Priority: Result (step 4) > Ready to generate (step 3) > Photo uploaded (step 2)
         requestAnimationFrame(() => {
-          // Determine step based on what exists in storage (not current state, to handle race conditions)
-          // Priority: Result (step 4) > Ready to generate (step 3) > Photo uploaded (step 2)
-          if (savedResult) {
+          // Double-check storage values in case they changed (handle race conditions)
+          const finalSavedResult = storage.getGeneratedImage();
+          const finalSavedClothing = storage.getClothingUrl();
+          const finalSavedImage = storage.getUploadedImage();
+
+          if (finalSavedResult) {
             // Step 4: Result page - highest priority (has generated result)
             setCurrentStep(4);
             setStatusMessage(t("tryOnWidget.status.resultReady") || "Résultat prêt. Utilisez les actions ci-dessous.");
+            setStatusVariant("info");
+            setProgress(100); // Ensure progress shows complete
             // mobileStep doesn't need to be set for result - UI shows result based on generatedImage
-          } else if (savedClothing && savedImage) {
+          } else if (finalSavedClothing && finalSavedImage) {
             // Step 3: Ready to generate (has photo + clothing, but no result yet)
             setCurrentStep(3);
             setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
+            setStatusVariant("info");
             setMobileStep("clothing");
-          } else if (savedImage) {
+          } else if (finalSavedImage) {
             // Step 2: Photo uploaded (has photo but no clothing selected)
             setCurrentStep(2);
             setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
+            setStatusVariant("info");
             setMobileStep("clothing");
           }
         });
       }
     }
   }, [isOpen, t]); // Only depend on isOpen and t - restore when widget opens
+
+  // Reset restoration flag when widget closes to allow restoration on next open
+  // This ensures state is restored every time the widget opens, not just on first mount
+  useEffect(() => {
+    if (isOpen === false) {
+      hasRestoredOnMountRef.current = false;
+    }
+  }, [isOpen]);
 
   useEffect(() => {
 
