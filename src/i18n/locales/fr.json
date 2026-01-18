@@ -970,6 +970,7 @@
       "resultReadyActions": "Résultat prêt. Vous pouvez acheter ou télécharger.",
       "photoCleared": "Photo effacée. Téléchargez votre photo.",
       "generating": "Génération…",
+      "generatingTime": "Veuillez patienter, cela prend généralement 15 à 20 secondes",
       "pleaseWait": "Veuillez patienter…",
       "generatingOutfit": "Génération de la tenue complète...",
       "generatingOutfitTime": "La génération d'une tenue complète peut prendre 10 à 15 secondes..."

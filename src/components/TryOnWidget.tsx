@@ -376,17 +376,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       const savedClothing = storage.getClothingUrl();
       const savedResult = storage.getGeneratedImage();
       
-      // Use functional setState to get current state value and avoid stale closures
-      // Only restore if we don't already have the data in state
-      // Update related state within the same effect for proper coordination
+      // Use functional setState to check current state values and avoid stale closures
+      // Restore all state first
       setUploadedImage((currentImage) => {
         if (savedImage && !currentImage) {
-          // Use requestAnimationFrame to ensure state update happens after render
-          requestAnimationFrame(() => {
-            setCurrentStep(2);
-            setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
-            setMobileStep("clothing");
-          });
           return savedImage;
         }
         return currentImage;
@@ -394,9 +387,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       
       setSelectedClothing((currentClothing) => {
         if (savedClothing && !currentClothing) {
-          requestAnimationFrame(() => {
-            setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
-          });
           return savedClothing;
         }
         return currentClothing;
@@ -404,16 +394,37 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       
       setGeneratedImage((currentResult) => {
         if (savedResult && !currentResult) {
-          requestAnimationFrame(() => {
-            setCurrentStep(4);
-            setStatusMessage(t("tryOnWidget.status.resultReady") || "Résultat prêt. Utilisez les actions ci-dessous.");
-          });
           return savedResult;
         }
         return currentResult;
       });
+
+      // Then set the appropriate step based on what data exists (prioritize result > ready to generate > photo uploaded)
+      // Use a single requestAnimationFrame to coordinate step update after all state is restored
+      if (savedImage || savedClothing || savedResult) {
+        requestAnimationFrame(() => {
+          // Determine step based on what exists in storage (not current state, to handle race conditions)
+          // Priority: Result (step 4) > Ready to generate (step 3) > Photo uploaded (step 2)
+          if (savedResult) {
+            // Step 4: Result page - highest priority (has generated result)
+            setCurrentStep(4);
+            setStatusMessage(t("tryOnWidget.status.resultReady") || "Résultat prêt. Utilisez les actions ci-dessous.");
+            // mobileStep doesn't need to be set for result - UI shows result based on generatedImage
+          } else if (savedClothing && savedImage) {
+            // Step 3: Ready to generate (has photo + clothing, but no result yet)
+            setCurrentStep(3);
+            setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
+            setMobileStep("clothing");
+          } else if (savedImage) {
+            // Step 2: Photo uploaded (has photo but no clothing selected)
+            setCurrentStep(2);
+            setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
+            setMobileStep("clothing");
+          }
+        });
+      }
     }
-  }, [isOpen, t]); // Depend on isOpen and t - restore when widget opens
+  }, [isOpen, t]); // Only depend on isOpen and t - restore when widget opens
 
   useEffect(() => {
 
@@ -1683,7 +1694,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       void runImageGeneration();
     }
   }, [uploadedImage, selectedClothing, generatedImage]); // Depend on state to ensure it's set before resuming
-  console.log("inflight");
   // Check if we're inside an iframe
   const isInIframe = typeof window !== "undefined" && window.parent !== window;
 
@@ -2260,16 +2270,19 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             />
                           </div>
                           {/* Loading indicator with subtle animation */}
-                          <div className="relative z-10 flex flex-col items-center justify-center space-y-3">
+                          <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4">
                             <div className="relative">
                               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm">
                                 <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-primary animate-pulse" aria-hidden="true" />
                               </div>
                               <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
                             </div>
-                            <div className="text-center">
-                              <p className="text-sm sm:text-base font-medium text-slate-700">
+                            <div className="text-center space-y-2 w-full max-w-xs">
+                              <p className="text-sm sm:text-base font-semibold text-slate-700 leading-tight">
                                 {t("tryOnWidget.status.generating") || "Génération…"}
+                              </p>
+                              <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                                {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
                               </p>
                             </div>
                           </div>
@@ -2495,16 +2508,19 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       />
                     </div>
                     {/* Loading indicator with subtle animation */}
-                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-4">
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 px-6 py-8">
                       <div className="relative">
                         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm">
                           <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-primary animate-pulse" aria-hidden="true" />
                         </div>
                         <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
                       </div>
-                      <div className="text-center px-4">
-                        <p className="text-base sm:text-lg font-semibold text-slate-700">
+                      <div className="text-center px-6 space-y-2 w-full max-w-sm">
+                        <p className="text-base sm:text-lg font-semibold text-slate-700 leading-tight">
                           {t("tryOnWidget.status.generating") || "Génération…"}
+                        </p>
+                        <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                          {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
                         </p>
                       </div>
                     </div>
