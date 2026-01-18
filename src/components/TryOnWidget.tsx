@@ -1921,7 +1921,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       )}
 
       {/* Fixed Header - Always visible at the top, never scrolls */}
-      <header className="flex-shrink-0 z-50 bg-white px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b border-slate-100/80 shadow-sm">
+      <header className="fixed top-0 left-0 right-0 w-full z-50 bg-white px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b border-slate-100/80 shadow-sm">
         <div className="flex justify-between items-center py-2 sm:py-2.5">
           <div className="flex flex-col items-start gap-0.5 sm:gap-1">
             <img
@@ -1944,7 +1944,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       </header>
 
       {/* Content Container - Below fixed header, inner sections handle their own scrolling */}
-      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 py-3 sm:py-4 px-4 sm:px-6 overflow-hidden">
+      <div className="bg-white w-full max-w-full flex-1 flex flex-col min-h-0 pt-[72px] sm:pt-[78px] pb-3 sm:pb-4 px-4 sm:px-6 overflow-hidden">
         {/* Initial Loading Skeleton - Show only during widget opening */}
         {isInitializing ? (
           <div className="w-full flex-1 flex flex-col items-center justify-center min-h-0 overflow-hidden">
