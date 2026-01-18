@@ -283,17 +283,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Fetch image generations on component load
-  useEffect(() => {
-    fetchGenerations({
-      page: 1,
-      limit: 1000,
-      orderBy: "createdAt",
-      orderDirection: "DESC",
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only fetch once on mount
-
   // Expose store info globally for access
   useEffect(() => {
     if (storeInfo && typeof window !== "undefined") {
@@ -1129,14 +1118,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage(t("tryOnWidget.status.resultReadyActions") || "Résultat prêt. Vous pouvez acheter ou télécharger.");
-
-        // Fetch all generations to update Redux state with the new generation
-        fetchGenerations({
-          page: 1,
-          limit: 1000,
-          orderBy: "createdAt",
-          orderDirection: "DESC",
-        });
       } else {
         throw new Error(
           result.error_message?.message || t("tryOnWidget.errors.generationError") || "Erreur de génération"
