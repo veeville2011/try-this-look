@@ -2515,12 +2515,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
                           className="w-full h-auto object-contain"
                         />
-                        {/* Subtle loading overlay during generation */}
-                        {isGenerating && (
-                          <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
-                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
-                          </div>
-                        )}
                       </div>
                       {/* Clothing Image */}
                       <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center">
@@ -2532,12 +2526,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           }
                           className="w-full h-auto object-contain"
                         />
-                        {/* Subtle loading overlay during generation */}
-                        {isGenerating && (
-                          <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
-                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
-                          </div>
-                        )}
                       </div>
                     </div>
                     {/* Visual Connector - Only show when generating or showing result (not error) */}
