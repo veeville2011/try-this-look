@@ -35,12 +35,22 @@ function safeSetItem(key: string, value: string) {
   } catch (error) {
     if (isQuotaExceeded(error)) {
       // Remove the heaviest entries we store before retrying.
-      const heavyKeys = [
+      // IMPORTANT: Never remove UPLOADED_IMAGE when saving GENERATED_IMAGE.
+      // The uploaded image must persist so users don't lose their photo after generation.
+      let heavyKeys = [
         STORAGE_KEYS.GENERATED_IMAGE,
-        STORAGE_KEYS.UPLOADED_IMAGE,
         STORAGE_KEYS.LAST_SESSION_DATA,
         STORAGE_KEYS.CART_ITEMS,
-      ].filter((heavyKey) => heavyKey !== key);
+      ];
+
+      // Only include UPLOADED_IMAGE in removable items if we're NOT saving GENERATED_IMAGE.
+      // This ensures the uploaded image persists even when saving generated results.
+      if (key !== STORAGE_KEYS.GENERATED_IMAGE) {
+        heavyKeys.push(STORAGE_KEYS.UPLOADED_IMAGE);
+      }
+
+      // Filter out the key we're trying to save (never remove what we're saving)
+      heavyKeys = heavyKeys.filter((heavyKey) => heavyKey !== key);
 
       heavyKeys.forEach((heavyKey) => {
         try {
