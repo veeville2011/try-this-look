@@ -1064,6 +1064,8 @@
     },
     "errors": {
       "errorPrefix": "Error",
+      "connectionErrorTitle": "Oops! Something went wrong",
+      "connectionErrorDescription": "Generation could not be completed. Please check your connection and try again.",
       "missingPhotoOrClothing": "Generation requires a photo and a selected item.",
       "missingPhotoOrGarments": "Generation requires a photo and at least {{count}} selected item.",
       "missingPhotoOrGarments_plural": "Generation requires a photo and at least {{count}} selected items.",

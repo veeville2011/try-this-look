@@ -1064,6 +1064,8 @@
     },
     "errors": {
       "errorPrefix": "Erreur",
+      "connectionErrorTitle": "Oups ! Un problème est survenu",
+      "connectionErrorDescription": "La génération n'a pas pu aboutir. Veuillez vérifier votre connexion et réessayer.",
       "missingPhotoOrClothing": "La génération nécessite une photo et un article sélectionné.",
       "missingPhotoOrGarments": "La génération nécessite une photo et au moins {{count}} article sélectionné.",
       "missingPhotoOrGarments_plural": "La génération nécessite une photo et au moins {{count}} articles sélectionnés.",
