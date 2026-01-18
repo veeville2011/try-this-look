@@ -2503,6 +2503,71 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   <Info className="w-5 h-5 sm:w-6 sm:h-6 text-slate-800 flex-shrink-0" aria-hidden="true" />
                 </div>
 
+                {/* Context Section: Person Image + Clothing Image (Mobile only) - Show during generation, after result, and during error */}
+                {(isGenerating || generatedImage || error) && uploadedImage && selectedClothing && (
+                  <div className="flex flex-col gap-2 mb-4">
+                    {/* Section Label */}
+                    <p className="text-xs text-slate-600 font-medium">
+                      {isGenerating 
+                        ? (t("tryOnWidget.resultDisplay.generatingFrom") || "Génération à partir de:")
+                        : (t("tryOnWidget.resultDisplay.generatedFrom") || "Généré à partir de:")
+                      }
+                    </p>
+                    {/* Context Images with Labels */}
+                    <div className="flex items-stretch gap-2 sm:gap-3 self-stretch">
+                      {/* Person Image with Label */}
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <p className="text-xs text-slate-500 text-center font-medium" role="text">
+                          {t("tryOnWidget.resultDisplay.yourPhoto") || "Votre photo"}
+                        </p>
+                        <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center min-h-[120px] sm:min-h-[160px] max-h-[180px] sm:max-h-[200px]">
+                          <img
+                            src={uploadedImage}
+                            alt={t("tryOnWidget.ariaLabels.uploadedPhoto") || "Photo téléchargée pour l'essayage virtuel"}
+                            className="max-h-full max-w-full w-auto h-auto object-contain"
+                          />
+                          {/* Subtle loading overlay during generation */}
+                          {isGenerating && (
+                            <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Clothing Image with Label */}
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <p className="text-xs text-slate-500 text-center font-medium" role="text">
+                          {t("tryOnWidget.resultDisplay.selectedClothing") || "Vêtement sélectionné"}
+                        </p>
+                        <div className="relative flex-1 rounded-xl bg-white border border-border overflow-hidden p-2 sm:p-3 flex items-center justify-center min-h-[120px] sm:min-h-[160px] max-h-[180px] sm:max-h-[200px]">
+                          <img
+                            src={selectedClothing}
+                            alt={
+                              t("tryOnWidget.clothingSelection.selectedClothingAlt") ||
+                              "Vêtement actuellement sélectionné pour l'essayage virtuel"
+                            }
+                            className="max-h-full max-w-full w-auto h-auto object-contain"
+                          />
+                          {/* Subtle loading overlay during generation */}
+                          {isGenerating && (
+                            <div className="absolute inset-0 bg-primary/5 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin opacity-60" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Visual Connector - Only show when generating or showing result (not error) */}
+                    {(isGenerating || generatedImage) && !error && (
+                      <div className="flex items-center justify-center py-1.5" aria-hidden="true">
+                        <div className="w-px h-4 bg-slate-300" />
+                        <Sparkles className="w-3.5 h-3.5 text-primary mx-2 animate-pulse" />
+                        <div className="w-px h-4 bg-slate-300" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Generated Image or Error State */}
                 {isGenerating ? (
                   <div
@@ -2832,8 +2897,50 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           )}
 
           {(isGenerating || generatedImage) && layoutMode !== "wide" && (
-            /* Result buttons: Mobile - Stacked vertically */
+            /* Result buttons: Mobile - Stacked vertically, ordered by priority */
             <div className="flex flex-col self-stretch mb-8 gap-4">
+              {/* Primary Action: Add to Cart - Only show when result is ready */}
+              {generatedImage && (
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                  className="w-full h-11 bg-primary hover:bg-primary/90"
+                  aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                  aria-busy={isAddToCartLoading}
+                >
+                  {isAddToCartLoading ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                  )}
+                  {isAddToCartLoading
+                    ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                    : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+                </Button>
+              )}
+
+              {/* Secondary Action: Buy Now - Only show when result is ready */}
+              {generatedImage && (
+                <Button
+                  onClick={handleBuyNow}
+                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                  variant="outline"
+                  className="w-full h-11"
+                  aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                  aria-busy={isBuyNowLoading}
+                >
+                  {isBuyNowLoading ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                  )}
+                  {isBuyNowLoading
+                    ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                    : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
+                </Button>
+              )}
+
+              {/* Tertiary Action: Retry - Show during generation or after result */}
               <Button
                 onClick={handleRetryGeneration}
                 variant="outline"
@@ -2846,6 +2953,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {t("tryOnWidget.buttons.retry") || "Réessayer"}
               </Button>
 
+              {/* Last Action: Reset - Destructive action, always available */}
               <Button
                 onClick={handleResetClick}
                 variant="outline"
@@ -2857,41 +2965,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 <RotateCcw className="w-5 h-5 mr-2" aria-hidden="true" />
                 {t("tryOnWidget.buttons.reset") || "Réinitialiser"}
               </Button>
-
-              <Button
-                onClick={handleBuyNow}
-                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                variant="outline"
-                className="w-full h-11"
-                aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                aria-busy={isBuyNowLoading}
-              >
-                {isBuyNowLoading ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                ) : (
-                  <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                )}
-                {isBuyNowLoading
-                  ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                  : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
-              </Button>
-              <Button
-                onClick={handleAddToCart}
-                disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                className="w-full h-11 bg-primary hover:bg-primary/90"
-                aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                aria-busy={isAddToCartLoading}
-              >
-                {isAddToCartLoading ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                ) : (
-                  <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                )}
-                {isAddToCartLoading
-                  ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                  : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
-              </Button>
-
             </div>
           )}
 
