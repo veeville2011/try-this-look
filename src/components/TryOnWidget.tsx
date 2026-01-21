@@ -1171,7 +1171,13 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         personKey, // Non-mandatory: sent when demo picture is used
         selectedVersion, // Non-mandatory: sent when version is selected
         customerInfo, // Non-mandatory: sent when customer is logged in
-        productInfo // Non-mandatory: sent when product data is available
+        productInfo, // Non-mandatory: sent when product data is available
+        (statusDescription) => {
+          // Update status message with real-time status description from API
+          if (statusDescription && statusDescription.trim()) {
+            setStatusMessage(statusDescription);
+          }
+        }
       );
 
       setProgress(100);
@@ -2269,7 +2275,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center shadow-sm"
                           role="status"
                           aria-live="polite"
-                          aria-label={t("tryOnWidget.status.generating") || "Génération…"}
+                          aria-label={statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                           aria-busy="true"
                           style={{ aspectRatio: "1 / 1" }}
                         >
@@ -2295,7 +2301,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             </div>
                             <div className="text-center space-y-2 w-full max-w-xs">
                               <p className="text-sm sm:text-base font-semibold text-slate-700 leading-tight">
-                                {t("tryOnWidget.status.generating") || "Génération…"}
+                                {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                               </p>
                               <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
                                 {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
@@ -2303,7 +2309,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             </div>
                           </div>
                           <span className="sr-only">
-                            {t("tryOnWidget.status.generating") || "Génération…"}
+                            {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                           </span>
                         </div>
                       ) : error ? (
@@ -2543,7 +2549,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-sm"
                     role="status"
                     aria-live="polite"
-                    aria-label={t("tryOnWidget.status.generating") || "Génération…"}
+                    aria-label={statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                     aria-busy="true"
                   >
                     {/* Animated Skeleton with shimmer effect */}
@@ -2568,7 +2574,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </div>
                       <div className="text-center px-6 space-y-2 w-full max-w-sm">
                         <p className="text-base sm:text-lg font-semibold text-slate-700 leading-tight">
-                          {t("tryOnWidget.status.generating") || "Génération…"}
+                          {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                         </p>
                         <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
                           {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
@@ -2576,7 +2582,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </div>
                     </div>
                     <span className="sr-only">
-                      {t("tryOnWidget.status.generating") || "Génération…"}
+                      {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                     </span>
                   </div>
                 ) : error ? (

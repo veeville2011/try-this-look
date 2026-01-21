@@ -39,7 +39,8 @@ export async function generateTryOn(
   personKey?: string | null,
   version?: number | null,
   customerInfo?: CustomerInfo | null,
-  productInfo?: ProductInfo | null
+  productInfo?: ProductInfo | null,
+  onStatusUpdate?: (statusDescription: string | null) => void
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -284,7 +285,7 @@ export async function generateTryOn(
 
     // Step 2: Poll job status until completion
     try {
-      const statusResponse = await pollJobStatus(jobId, requestId);
+      const statusResponse = await pollJobStatus(jobId, requestId, undefined, undefined, onStatusUpdate);
       const totalDuration = Date.now() - startTime;
       
       console.log("[FRONTEND] [TRYON] Job completed", {
@@ -334,7 +335,8 @@ async function pollJobStatus(
   jobId: string,
   requestId: string,
   maxAttempts: number = 200, // 10 minutes max (3s interval)
-  pollInterval: number = 3000 // 3 seconds
+  pollInterval: number = 3000, // 3 seconds
+  onStatusUpdate?: (statusDescription: string | null) => void
 ): Promise<TryOnResponse> {
   const statusEndpoint = `${API_ENDPOINT}/status/${jobId}`;
   let attempts = 0;
@@ -358,10 +360,19 @@ async function pollJobStatus(
 
       const statusData: JobStatusResponse = await response.json();
       
+      // Update UI with status description if available
+      if (onStatusUpdate && statusData.statusDescription) {
+        onStatusUpdate(statusData.statusDescription);
+      } else if (onStatusUpdate && statusData.message) {
+        // Fallback to message if statusDescription is not available
+        onStatusUpdate(statusData.message);
+      }
+      
       console.log("[FRONTEND] [TRYON] Job status check", {
         requestId,
         jobId,
         status: statusData.status,
+        statusDescription: statusData.statusDescription || statusData.message,
         attempt: attempts + 1,
       });
 

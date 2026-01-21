@@ -51,6 +51,7 @@ export interface JobStatusResponse {
   jobId: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   message?: string;
+  statusDescription?: string;
   imageUrl?: string;
   processingTime?: string;
   createdAt?: string;
