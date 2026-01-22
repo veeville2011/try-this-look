@@ -197,6 +197,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   
   
   const INFLIGHT_KEY = "nusense_tryon_inflight";
+  const PROGRESS_KEY = "nusense_tryon_progress";
+  const GENERATION_START_TIME_KEY = "nusense_tryon_generation_start_time";
   // Track if we've already loaded images from URL/NUSENSE_PRODUCT_DATA to prevent parent images from overriding
   const imagesLoadedRef = useRef<boolean>(false);
   // Track if we're currently closing to prevent double-close
@@ -980,10 +982,26 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       return;
     }
 
-    // Show a high-quality loading state immediately (and avoid “stale result” confusion)
+    // Check if we're resuming from a previous generation BEFORE setting progress to 0
+    const isResuming = localStorage.getItem(INFLIGHT_KEY) === "1";
+    const savedStartTime = localStorage.getItem(GENERATION_START_TIME_KEY);
+    const savedProgress = localStorage.getItem(PROGRESS_KEY);
+    
+    // Show a high-quality loading state immediately (and avoid "stale result" confusion)
     setIsGenerating(true);
     setError(null);
-    setProgress(0);
+    
+    // Only set progress to 0 if this is a NEW generation (not resuming)
+    // If resuming, we'll restore progress from storage below
+    if (!isResuming) {
+      setProgress(0);
+      // Clear any old progress storage when starting a new generation
+      try {
+        localStorage.removeItem(PROGRESS_KEY);
+        localStorage.removeItem(GENERATION_START_TIME_KEY);
+      } catch {}
+    }
+    
     setCurrentStep(3);
     setStatusVariant("info");
     setStatusMessage(
@@ -994,17 +1012,44 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     } catch {}
 
     // Perceived-performance: smooth, non-blocking progress ramp while the API works.
-    // Progress from 0% to 95% over 40 seconds, then jump to 100% on completion.
+    // Progress from 0% to 95% over 40 seconds with easing, then smoothly animate to 100% on completion.
     let progressTimer: number | null = null;
-    const startTime = Date.now();
+    let completionInterval: number | null = null;
+    
+    // Determine start time and initial progress
+    const startTime = savedStartTime && isResuming ? parseInt(savedStartTime, 10) : Date.now();
+    const initialProgress = savedProgress && isResuming ? parseInt(savedProgress, 10) : 0;
+    
+    // Save start time if this is a new generation (not resuming)
+    if (!savedStartTime || !isResuming) {
+      try {
+        localStorage.setItem(GENERATION_START_TIME_KEY, startTime.toString());
+      } catch {}
+    }
+    
+    // Restore progress if resuming
+    if (isResuming && initialProgress > 0 && initialProgress < 100) {
+      setProgress(initialProgress);
+    }
+    
     const duration = 40000; // 40 seconds in milliseconds
     const targetProgress = 95; // Cap at 95% until generation completes
+    
+    // Easing function for smoother, more natural progress animation
+    const easeOutQuad = (t: number): number => t * (2 - t);
     
     try {
       progressTimer = window.setInterval(() => {
         const elapsed = Date.now() - startTime;
-        const progressPercent = Math.min((elapsed / duration) * targetProgress, targetProgress);
-        setProgress(Math.round(progressPercent));
+        const normalizedTime = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutQuad(normalizedTime) * targetProgress;
+        const newProgress = Math.round(easedProgress);
+        setProgress(newProgress);
+        
+        // Persist progress to localStorage
+        try {
+          localStorage.setItem(PROGRESS_KEY, newProgress.toString());
+        } catch {}
       }, 100); // Update every 100ms for smooth animation
     } catch {}
 
@@ -1183,7 +1228,48 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         }
       );
 
-      setProgress(100);
+      // Clear the main progress timer before starting completion animation
+      if (progressTimer != null) {
+        try {
+          window.clearInterval(progressTimer);
+          progressTimer = null;
+        } catch {}
+      }
+
+      // Smoothly animate from current progress (95%) to 100% over 500ms
+      const currentProgress = progress;
+      if (currentProgress < 100) {
+        const completionDuration = 500; // 500ms for completion animation
+        const completionStartTime = Date.now();
+        completionInterval = window.setInterval(() => {
+          const elapsed = Date.now() - completionStartTime;
+          const completionProgress = Math.min(elapsed / completionDuration, 1);
+          const newProgress = Math.round(currentProgress + (100 - currentProgress) * completionProgress);
+          setProgress(newProgress);
+          
+          // Persist progress during completion animation
+          try {
+            localStorage.setItem(PROGRESS_KEY, newProgress.toString());
+          } catch {}
+          
+          if (completionProgress >= 1) {
+            if (completionInterval != null) {
+              window.clearInterval(completionInterval);
+              completionInterval = null;
+            }
+            setProgress(100);
+            // Save final progress
+            try {
+              localStorage.setItem(PROGRESS_KEY, "100");
+            } catch {}
+          }
+        }, 16); // ~60fps for smooth animation
+      } else {
+        setProgress(100);
+        try {
+          localStorage.setItem(PROGRESS_KEY, "100");
+        } catch {}
+      }
 
       if (result.status === "success" && result.image) {
         setGeneratedImage(result.image);
@@ -1191,6 +1277,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage(t("tryOnWidget.status.resultReadyActions") || "Résultat prêt. Vous pouvez acheter ou télécharger.");
+        
+        // Clear progress storage on successful completion
+        try {
+          localStorage.removeItem(PROGRESS_KEY);
+          localStorage.removeItem(GENERATION_START_TIME_KEY);
+        } catch {}
       } else {
         throw new Error(
           result.error_message?.message || t("tryOnWidget.errors.generationError") || "Erreur de génération"
@@ -1215,15 +1307,30 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       setError(errorMessage);
       setStatusVariant("error");
       setStatusMessage(errorMessage);
+      
+      // Clear progress storage on error
+      try {
+        localStorage.removeItem(PROGRESS_KEY);
+        localStorage.removeItem(GENERATION_START_TIME_KEY);
+      } catch {}
     } finally {
       if (progressTimer != null) {
         try {
           window.clearInterval(progressTimer);
         } catch {}
       }
+      if (completionInterval != null) {
+        try {
+          window.clearInterval(completionInterval);
+        } catch {}
+      }
       setIsGenerating(false);
       try {
+        // Clear inflight flag
         localStorage.removeItem(INFLIGHT_KEY);
+        // Clear progress and start time only after generation completes (success or error)
+        // They will be cleared when generation finishes, not when component unmounts
+        // This allows progress to persist across unmount/remount cycles
       } catch {}
     }
   };
@@ -1448,6 +1555,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setProgress(0);
     setSelectedVersion(1); // Reset version selection to default
     storage.clearSession();
+    // Clear progress storage when clearing photo
+    try {
+      localStorage.removeItem(PROGRESS_KEY);
+      localStorage.removeItem(GENERATION_START_TIME_KEY);
+      localStorage.removeItem(INFLIGHT_KEY);
+    } catch {}
     setStatusVariant("info");
     setStatusMessage(
       t("tryOnWidget.status.initial") || "Téléchargez votre photo puis choisissez un article à essayer"
@@ -1705,6 +1818,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     // This ensures uploadedImage and selectedClothing are set before calling handleGenerate
     const inflight = localStorage.getItem(INFLIGHT_KEY) === "1";
     const savedResult = storage.getGeneratedImage();
+    const savedProgress = localStorage.getItem(PROGRESS_KEY);
+
+    // Restore progress if resuming
+    if (inflight && savedProgress) {
+      const progressValue = parseInt(savedProgress, 10);
+      if (!isNaN(progressValue) && progressValue >= 0 && progressValue <= 100) {
+        setProgress(progressValue);
+        setIsGenerating(true);
+      }
+    }
 
     // Only resume generation if:
     // 1. There's an inflight generation
@@ -2285,18 +2408,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           aria-busy="true"
                           style={{ aspectRatio: "1 / 1" }}
                         >
-                          {/* Animated Skeleton with shimmer effect */}
-                          <div className="absolute inset-0 rounded-lg overflow-hidden">
-                            <Skeleton className="absolute inset-0 rounded-lg" />
-                            {/* Subtle animated shimmer overlay */}
-                            <div 
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                              style={{
-                                transform: 'translateX(-100%)',
-                                animation: 'shimmer 2s ease-in-out infinite',
-                              }}
-                            />
-                          </div>
                           {/* Loading indicator with radial progress */}
                           <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4 w-full">
                             <div className="flex-shrink-0 w-[120px] h-[120px] flex items-center justify-center">
@@ -2307,12 +2418,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                 showLabel={true}
                               />
                             </div>
-                            <div className="text-center space-y-2 w-full max-w-xs h-[60px] flex flex-col justify-center">
-                              <p className="text-sm sm:text-base font-semibold text-slate-700 leading-tight break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            <div className="text-center w-full max-w-xs min-h-[60px] flex flex-col justify-center">
+                              <p className="text-sm sm:text-base font-normal text-slate-600 leading-relaxed break-words">
                                 {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
-                              </p>
-                              <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                                {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
                               </p>
                             </div>
                           </div>
@@ -2560,20 +2668,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     aria-label={statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                     aria-busy="true"
                   >
-                    {/* Animated Skeleton with shimmer effect */}
-                    <div className="absolute inset-0 rounded-xl overflow-hidden">
-                      <Skeleton className="absolute inset-0 rounded-xl" />
-                      {/* Subtle animated shimmer overlay */}
-                      <div 
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                        style={{
-                          transform: 'translateX(-100%)',
-                          animation: 'shimmer 2s ease-in-out infinite',
-                        }}
-                      />
-                    </div>
                     {/* Loading indicator with radial progress */}
-                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 px-6 py-8 w-full">
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-4 px-6 py-8 w-full">
                       <div className="flex-shrink-0 w-[180px] h-[180px] flex items-center justify-center">
                         <RadialProgress
                           value={progress}
@@ -2582,12 +2678,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           showLabel={true}
                         />
                       </div>
-                      <div className="text-center px-6 space-y-2 w-full max-w-sm h-[70px] flex flex-col justify-center">
-                        <p className="text-base sm:text-lg font-semibold text-slate-700 leading-tight break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      <div className="text-center px-6 w-full max-w-sm min-h-[70px] flex flex-col justify-center">
+                        <p className="text-sm sm:text-base font-normal text-slate-600 leading-relaxed break-words">
                           {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
-                        </p>
-                        <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                          {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
                         </p>
                       </div>
                     </div>
