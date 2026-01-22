@@ -2798,7 +2798,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   </div>
                 ) : (
                   /* Mobile: Cards View */
-                  <div className="grid grid-cols-1 gap-4">
+                  <>
+                    <div className="grid grid-cols-1 gap-4">
                     {historyData.map((item) => {
                       const date = new Date(item.createdAt);
                       const formattedDate = date.toLocaleString("fr-FR", {
@@ -2832,7 +2833,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                     className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                     aria-label="Zoom person image"
                                   >
-                                    <ZoomIn className="w-5 h-5 text-white drop-shadow-lg" />
+                                    <Maximize2 className="w-5 h-5 text-white drop-shadow-lg" />
                                   </button>
                                 </div>
                               </div>
@@ -2852,7 +2853,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                     className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                     aria-label="Zoom clothing image"
                                   >
-                                    <ZoomIn className="w-5 h-5 text-white drop-shadow-lg" />
+                                    <Maximize2 className="w-5 h-5 text-white drop-shadow-lg" />
                                   </button>
                                 </div>
                               </div>
@@ -2872,7 +2873,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                     className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                     aria-label="Zoom result image"
                                   >
-                                    <ZoomIn className="w-5 h-5 text-white drop-shadow-lg" />
+                                    <Maximize2 className="w-5 h-5 text-white drop-shadow-lg" />
                                   </button>
                                 </div>
                               </div>
@@ -2924,6 +2925,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </div>
                     </div>
                   )}
+                  </>
                 )}
               </div>
             </div>
