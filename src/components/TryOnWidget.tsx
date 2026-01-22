@@ -24,7 +24,7 @@ import {
   type ImageGenerationHistoryItem,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadialProgress } from "@/components/ui/radial-progress";
 import {
@@ -2709,7 +2709,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                       className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                       aria-label="Zoom person image"
                                     >
-                                      <ZoomIn className="w-4 h-4 text-white drop-shadow-lg" />
+                                      <Maximize2 className="w-4 h-4 text-white drop-shadow-lg" />
                                     </button>
                                   </div>
                                 </td>
@@ -2726,7 +2726,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                       className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                       aria-label="Zoom clothing image"
                                     >
-                                      <ZoomIn className="w-4 h-4 text-white drop-shadow-lg" />
+                                      <Maximize2 className="w-4 h-4 text-white drop-shadow-lg" />
                                     </button>
                                   </div>
                                 </td>
@@ -2743,7 +2743,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                       className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                       aria-label="Zoom result image"
                                     >
-                                      <ZoomIn className="w-5 h-5 text-white drop-shadow-lg" />
+                                      <Maximize2 className="w-5 h-5 text-white drop-shadow-lg" />
                                     </button>
                                   </div>
                                 </td>
@@ -2882,48 +2882,48 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       );
                     })}
                   </div>
-                )}
-                {/* Pagination - Mobile */}
-                {historyPagination && historyPagination.totalPages > 1 && (
-                  <div className="flex flex-col items-center justify-center gap-4 mt-6 pt-4 border-t border-slate-200">
-                    <div className="text-sm text-slate-600 text-center">
-                      {t("tryOnWidget.history.pagination.showing") || "Showing"}{" "}
-                      {(historyPagination.page - 1) * historyPagination.limit + 1}{" "}
-                      {t("tryOnWidget.history.pagination.to") || "to"}{" "}
-                      {Math.min(historyPagination.page * historyPagination.limit, historyPagination.total)}{" "}
-                      {t("tryOnWidget.history.pagination.ofTotal") || "of"}{" "}
-                      {historyPagination.total}{" "}
-                      {t("tryOnWidget.history.pagination.results") || "results"}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        size="sm"
-                        onClick={handlePreviousPage}
-                        disabled={!historyPagination.hasPrev || historyLoading}
-                        variant="outline"
-                        className="h-9"
-                      >
-                        <ChevronLeft className="w-4 h-4 mr-1" />
-                        {t("tryOnWidget.history.pagination.previous") || "Previous"}
-                      </Button>
-                      <div className="text-sm text-slate-600 px-3">
-                        {t("tryOnWidget.history.pagination.page") || "Page"}{" "}
-                        {historyPagination.page}{" "}
-                        {t("tryOnWidget.history.pagination.of") || "of"}{" "}
-                        {historyPagination.totalPages}
+                  {/* Pagination - Mobile */}
+                  {historyPagination && historyPagination.totalPages > 1 && (
+                    <div className="flex flex-col items-center justify-center gap-4 mt-6 pt-4 border-t border-slate-200">
+                      <div className="text-sm text-slate-600 text-center">
+                        {t("tryOnWidget.history.pagination.showing") || "Showing"}{" "}
+                        {(historyPagination.page - 1) * historyPagination.limit + 1}{" "}
+                        {t("tryOnWidget.history.pagination.to") || "to"}{" "}
+                        {Math.min(historyPagination.page * historyPagination.limit, historyPagination.total)}{" "}
+                        {t("tryOnWidget.history.pagination.ofTotal") || "of"}{" "}
+                        {historyPagination.total}{" "}
+                        {t("tryOnWidget.history.pagination.results") || "results"}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={!historyPagination.hasNext || historyLoading}
-                        variant="outline"
-                        className="h-9"
-                      >
-                        {t("tryOnWidget.history.pagination.next") || "Next"}
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="sm"
+                          onClick={handlePreviousPage}
+                          disabled={!historyPagination.hasPrev || historyLoading}
+                          variant="outline"
+                          className="h-9"
+                        >
+                          <ChevronLeft className="w-4 h-4 mr-1" />
+                          {t("tryOnWidget.history.pagination.previous") || "Previous"}
+                        </Button>
+                        <div className="text-sm text-slate-600 px-3">
+                          {t("tryOnWidget.history.pagination.page") || "Page"}{" "}
+                          {historyPagination.page}{" "}
+                          {t("tryOnWidget.history.pagination.of") || "of"}{" "}
+                          {historyPagination.totalPages}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleNextPage}
+                          disabled={!historyPagination.hasNext || historyLoading}
+                          variant="outline"
+                          className="h-9"
+                        >
+                          {t("tryOnWidget.history.pagination.next") || "Next"}
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 )}
               </div>
             </div>
@@ -3647,7 +3647,15 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
       {/* Zoom Image Dialog */}
       <Dialog open={!!zoomedImage} onOpenChange={(open) => !open && setZoomedImage(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-0">
+        <DialogContent 
+          className="max-w-[95vw] max-h-[95vh] p-0 bg-transparent border-0 shadow-none [&>button]:hidden"
+          style={{ backgroundColor: 'transparent' }}
+        >
+          <style>{`
+            [data-radix-dialog-overlay] {
+              background-color: rgba(0, 0, 0, 0.5) !important;
+            }
+          `}</style>
           <div className="relative w-full h-full flex items-center justify-center p-4">
             {zoomedImage && (
               <img
