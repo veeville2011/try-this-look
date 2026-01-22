@@ -24,7 +24,7 @@ import {
   type ImageGenerationHistoryItem,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2 } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadialProgress } from "@/components/ui/radial-progress";
 import {
@@ -207,6 +207,15 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPagination, setHistoryPagination] = useState<{
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  } | null>(null);
   
   // Mobile step state: "photo" (show photo upload) or "clothing" (show clothing selection)
   const [mobileStep, setMobileStep] = useState<"photo" | "clothing">("photo");
@@ -2029,7 +2038,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   };
 
   // Fetch customer history
-  const fetchHistory = async () => {
+  const fetchHistory = async (page: number = 1) => {
     if (!customerInfo?.email) {
       setHistoryError("Email not available");
       return;
@@ -2039,9 +2048,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setHistoryError(null);
     
     try {
-      const response = await fetchCustomerImageHistory(customerInfo.email);
+      const response = await fetchCustomerImageHistory(customerInfo.email, page);
       if (response.success) {
         setHistoryData(response.data);
+        setHistoryPagination(response.pagination);
+        setHistoryPage(response.pagination.page);
       } else {
         setHistoryError("Failed to load history");
       }
@@ -2053,10 +2064,24 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     }
   };
 
+  // Pagination handlers
+  const handlePreviousPage = () => {
+    if (historyPagination?.hasPrev && historyPage > 1) {
+      void fetchHistory(historyPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (historyPagination?.hasNext) {
+      void fetchHistory(historyPage + 1);
+    }
+  };
+
   // Fetch history when switching to history tab
   useEffect(() => {
     if (activeTab === "history" && customerInfo?.email && historyData.length === 0 && !historyLoading) {
-      void fetchHistory();
+      setHistoryPage(1);
+      void fetchHistory(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, customerInfo?.email]);
@@ -2517,9 +2542,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   <h2 className="text-2xl font-bold text-slate-800 mb-2">
                     {t("tryOnWidget.history.title") || "Vos Essayages"}
                   </h2>
-                  <p className="text-sm text-slate-600">
-                    {t("tryOnWidget.history.description") || "Consultez tous vos essayages virtuels précédents"}
-                  </p>
                 </div>
 
                 {historyLoading ? (
@@ -2530,7 +2552,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <WifiOff className="w-12 h-12 text-amber-600 mb-4" />
                     <p className="text-slate-600 mb-4">{historyError}</p>
-                    <Button onClick={() => void fetchHistory()} variant="outline">
+                    <Button onClick={() => void fetchHistory(historyPage)} variant="outline">
                       <RotateCcw className="w-4 h-4 mr-2" />
                       {t("tryOnWidget.buttons.retry") || "Réessayer"}
                     </Button>
@@ -2561,15 +2583,13 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                               {t("tryOnWidget.history.table.result") || "Résultat"}
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                              {t("tryOnWidget.history.table.actions") || "Actions"}
-                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                           {historyData.map((item) => {
                             const date = new Date(item.createdAt);
-                            const formattedDate = date.toLocaleDateString("fr-FR", {
+                            const formattedDate = date.toLocaleString("fr-FR", {
+                              timeZone: "Europe/Paris",
                               year: "numeric",
                               month: "short",
                               day: "numeric",
@@ -2582,42 +2602,31 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                   {formattedDate}
                                 </td>
                                 <td className="px-4 py-4">
-                                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                  <div className="w-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
                                     <img
                                       src={item.personImageUrl}
                                       alt="Person"
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-auto object-contain"
                                     />
                                   </div>
                                 </td>
                                 <td className="px-4 py-4">
-                                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                  <div className="w-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
                                     <img
                                       src={item.clothingImageUrl}
                                       alt="Clothing"
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-auto object-contain"
                                     />
                                   </div>
                                 </td>
                                 <td className="px-4 py-4">
-                                  <div className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                  <div className="w-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
                                     <img
                                       src={item.generatedImageUrl}
                                       alt="Result"
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-auto object-contain"
                                     />
                                   </div>
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap">
-                                  <Button
-                                    onClick={() => handleUseFromHistory(item)}
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    <Wand2 className="w-3 h-3 mr-1" />
-                                    {t("tryOnWidget.history.reuse") || "Réutiliser"}
-                                  </Button>
                                 </td>
                               </tr>
                             );
@@ -2625,13 +2634,56 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </tbody>
                       </table>
                     </div>
+                    {/* Pagination - Desktop */}
+                    {historyPagination && historyPagination.totalPages > 1 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-4 border-t border-slate-200 bg-slate-50">
+                        <div className="text-sm text-slate-600">
+                          {t("tryOnWidget.history.pagination.showing") || "Showing"}{" "}
+                          {(historyPagination.page - 1) * historyPagination.limit + 1}{" "}
+                          {t("tryOnWidget.history.pagination.to") || "to"}{" "}
+                          {Math.min(historyPagination.page * historyPagination.limit, historyPagination.total)}{" "}
+                          {t("tryOnWidget.history.pagination.ofTotal") || "of"}{" "}
+                          {historyPagination.total}{" "}
+                          {t("tryOnWidget.history.pagination.results") || "results"}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handlePreviousPage}
+                            disabled={!historyPagination.hasPrev || historyLoading}
+                            variant="outline"
+                            className="h-9"
+                          >
+                            <ChevronLeft className="w-4 h-4 mr-1" />
+                            {t("tryOnWidget.history.pagination.previous") || "Previous"}
+                          </Button>
+                          <div className="text-sm text-slate-600 px-3">
+                            {t("tryOnWidget.history.pagination.page") || "Page"}{" "}
+                            {historyPagination.page}{" "}
+                            {t("tryOnWidget.history.pagination.of") || "of"}{" "}
+                            {historyPagination.totalPages}
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={handleNextPage}
+                            disabled={!historyPagination.hasNext || historyLoading}
+                            variant="outline"
+                            className="h-9"
+                          >
+                            {t("tryOnWidget.history.pagination.next") || "Next"}
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   /* Mobile: Cards View */
                   <div className="grid grid-cols-1 gap-4">
                     {historyData.map((item) => {
                       const date = new Date(item.createdAt);
-                      const formattedDate = date.toLocaleDateString("fr-FR", {
+                      const formattedDate = date.toLocaleString("fr-FR", {
+                        timeZone: "Europe/Paris",
                         year: "numeric",
                         month: "short",
                         day: "numeric",
@@ -2643,26 +2695,17 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           <div className="flex flex-col gap-4">
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-slate-500">{formattedDate}</span>
-                              <Button
-                                onClick={() => handleUseFromHistory(item)}
-                                size="sm"
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                <Wand2 className="w-3 h-3 mr-1" />
-                                {t("tryOnWidget.history.reuse") || "Réutiliser"}
-                              </Button>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                               <div className="flex flex-col gap-2">
                                 <span className="text-xs font-medium text-slate-700">
                                   {t("tryOnWidget.history.card.person") || "Photo"}
                                 </span>
-                                <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                <div className="w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center min-h-[100px]">
                                   <img
                                     src={item.personImageUrl}
                                     alt="Person"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-auto object-contain"
                                   />
                                 </div>
                               </div>
@@ -2670,11 +2713,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                 <span className="text-xs font-medium text-slate-700">
                                   {t("tryOnWidget.history.card.clothing") || "Vêtement"}
                                 </span>
-                                <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                <div className="w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center min-h-[100px]">
                                   <img
                                     src={item.clothingImageUrl}
                                     alt="Clothing"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-auto object-contain"
                                   />
                                 </div>
                               </div>
@@ -2682,11 +2725,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                 <span className="text-xs font-medium text-slate-700">
                                   {t("tryOnWidget.history.card.result") || "Résultat"}
                                 </span>
-                                <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                <div className="w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center min-h-[100px]">
                                   <img
                                     src={item.generatedImageUrl}
                                     alt="Result"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-auto object-contain"
                                   />
                                 </div>
                               </div>
@@ -2695,6 +2738,48 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </Card>
                       );
                     })}
+                  </div>
+                )}
+                {/* Pagination - Mobile */}
+                {historyPagination && historyPagination.totalPages > 1 && (
+                  <div className="flex flex-col items-center justify-center gap-4 mt-6 pt-4 border-t border-slate-200">
+                    <div className="text-sm text-slate-600 text-center">
+                      {t("tryOnWidget.history.pagination.showing") || "Showing"}{" "}
+                      {(historyPagination.page - 1) * historyPagination.limit + 1}{" "}
+                      {t("tryOnWidget.history.pagination.to") || "to"}{" "}
+                      {Math.min(historyPagination.page * historyPagination.limit, historyPagination.total)}{" "}
+                      {t("tryOnWidget.history.pagination.ofTotal") || "of"}{" "}
+                      {historyPagination.total}{" "}
+                      {t("tryOnWidget.history.pagination.results") || "results"}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={!historyPagination.hasPrev || historyLoading}
+                        variant="outline"
+                        className="h-9"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" />
+                        {t("tryOnWidget.history.pagination.previous") || "Previous"}
+                      </Button>
+                      <div className="text-sm text-slate-600 px-3">
+                        {t("tryOnWidget.history.pagination.page") || "Page"}{" "}
+                        {historyPagination.page}{" "}
+                        {t("tryOnWidget.history.pagination.of") || "of"}{" "}
+                        {historyPagination.totalPages}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={!historyPagination.hasNext || historyLoading}
+                        variant="outline"
+                        className="h-9"
+                      >
+                        {t("tryOnWidget.history.pagination.next") || "Next"}
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

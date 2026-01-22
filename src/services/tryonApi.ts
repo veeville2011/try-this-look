@@ -533,11 +533,13 @@ export interface ImageGenerationHistoryResponse {
  * Fetch customer image generation history
  */
 export async function fetchCustomerImageHistory(
-  email: string
+  email: string,
+  page: number = 1,
+  limit: number = 10
 ): Promise<ImageGenerationHistoryResponse> {
   try {
     const baseUrl = "https://ai.nusense.ddns.net";
-    const url = `${baseUrl}/api/image-generations/customer?email=${encodeURIComponent(email)}`;
+    const url = `${baseUrl}/api/image-generations/customer?email=${encodeURIComponent(email)}&page=${page}&limit=${limit}`;
     
     const response = await authenticatedFetch(url, {
       method: "GET",

@@ -1027,6 +1027,16 @@
         "person": "Photo",
         "clothing": "Vêtement",
         "result": "Résultat"
+      },
+      "pagination": {
+        "showing": "Affichage",
+        "to": "à",
+        "ofTotal": "sur",
+        "results": "résultats",
+        "page": "Page",
+        "of": "sur",
+        "previous": "Précédent",
+        "next": "Suivant"
       }
     },
     "sections": {
