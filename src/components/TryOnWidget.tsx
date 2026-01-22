@@ -24,6 +24,7 @@ import {
 import { TryOnResponse, ProductImage } from "@/types/tryon";
 import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RadialProgress } from "@/components/ui/radial-progress";
 import {
   Select,
   SelectContent,
@@ -993,16 +994,18 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     } catch {}
 
     // Perceived-performance: smooth, non-blocking progress ramp while the API works.
-    // We cap at 92% and finish at 100% on success.
+    // Progress from 0% to 95% over 40 seconds, then jump to 100% on completion.
     let progressTimer: number | null = null;
+    const startTime = Date.now();
+    const duration = 40000; // 40 seconds in milliseconds
+    const targetProgress = 95; // Cap at 95% until generation completes
+    
     try {
       progressTimer = window.setInterval(() => {
-        setProgress((current) => {
-          if (current >= 92) return 92;
-          const next = current + Math.max(1, Math.round((92 - current) * 0.08));
-          return Math.min(92, next);
-        });
-      }, 450);
+        const elapsed = Date.now() - startTime;
+        const progressPercent = Math.min((elapsed / duration) * targetProgress, targetProgress);
+        setProgress(Math.round(progressPercent));
+      }, 100); // Update every 100ms for smooth animation
     } catch {}
 
     try {
@@ -2083,9 +2086,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                               }}
                             />
                             <div className="absolute inset-0 flex items-center justify-center z-10">
-                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#564646]/10 backdrop-blur-sm flex items-center justify-center border border-[#564646]/20">
-                                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-[#564646] animate-pulse" />
-                              </div>
+                              <RadialProgress
+                                value={progress}
+                                size="md"
+                                color="muted"
+                                showLabel={true}
+                              />
                             </div>
                           </div>
                         )}
@@ -2291,14 +2297,14 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                               }}
                             />
                           </div>
-                          {/* Loading indicator with subtle animation */}
+                          {/* Loading indicator with radial progress */}
                           <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4">
-                            <div className="relative">
-                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm">
-                                <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-primary animate-pulse" aria-hidden="true" />
-                              </div>
-                              <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
-                            </div>
+                            <RadialProgress
+                              value={progress}
+                              size="lg"
+                              color="primary"
+                              showLabel={true}
+                            />
                             <div className="text-center space-y-2 w-full max-w-xs">
                               <p className="text-sm sm:text-base font-semibold text-slate-700 leading-tight">
                                 {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
@@ -2564,14 +2570,14 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         }}
                       />
                     </div>
-                    {/* Loading indicator with subtle animation */}
+                    {/* Loading indicator with radial progress */}
                     <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 px-6 py-8">
-                      <div className="relative">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-primary/20 shadow-sm">
-                          <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-primary animate-pulse" aria-hidden="true" />
-                        </div>
-                        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-75" />
-                      </div>
+                      <RadialProgress
+                        value={progress}
+                        size="xl"
+                        color="primary"
+                        showLabel={true}
+                      />
                       <div className="text-center px-6 space-y-2 w-full max-w-sm">
                         <p className="text-base sm:text-lg font-semibold text-slate-700 leading-tight">
                           {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
