@@ -2648,14 +2648,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         />
                       </div>
                     </div>
-                    {/* Visual Connector - Only show when generating or showing result (not error) */}
-                    {(isGenerating || generatedImage) && !error && (
-                      <div className="flex items-center justify-center py-1.5" aria-hidden="true">
-                        <div className="w-px h-4 bg-slate-300" />
-                        <Sparkles className="w-3.5 h-3.5 text-primary mx-2 animate-pulse" />
-                        <div className="w-px h-4 bg-slate-300" />
-                      </div>
-                    )}
                   </div>
                 )}
 
