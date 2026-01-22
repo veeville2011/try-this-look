@@ -20,9 +20,11 @@ import { storage } from "@/utils/storage";
 import {
   generateTryOn,
   dataURLToBlob,
+  fetchCustomerImageHistory,
+  type ImageGenerationHistoryItem,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadialProgress } from "@/components/ui/radial-progress";
 import {
@@ -55,6 +57,18 @@ interface TryOnWidgetProps {
 
 export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidgetProps) {
   type LayoutMode = "compact" | "wide";
+  
+  // Helper function to format countdown timer from 50 seconds
+  const formatCountdownTimer = (elapsedSeconds: number): string => {
+    const totalSeconds = 50;
+    const remaining = Math.max(0, totalSeconds - elapsedSeconds);
+    if (remaining < 60) {
+      return `${remaining}s`;
+    }
+    const minutes = Math.floor(remaining / 60);
+    const remainingSeconds = remaining % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
   // Popover/container width breakpoint (popover is ~889px in your embed).
   // Use a container-based threshold so the widget shows the "desktop/wide" layout inside the popover.
   const WIDE_LAYOUT_MIN_WIDTH_PX = 880;
@@ -170,6 +184,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [isWatermarkReady, setIsWatermarkReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0); // Timer in seconds
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
   // Cache for watermarked blob and share data to avoid re-processing on every share click
@@ -188,6 +203,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusVariant, setStatusVariant] = useState<"info" | "error">("info");
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<"tryon" | "history">("tryon");
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   
   // Mobile step state: "photo" (show photo upload) or "clothing" (show clothing selection)
   const [mobileStep, setMobileStep] = useState<"photo" | "clothing">("photo");
@@ -995,6 +1014,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     // If resuming, we'll restore progress from storage below
     if (!isResuming) {
       setProgress(0);
+      setElapsedTime(0);
       // Clear any old progress storage when starting a new generation
       try {
         localStorage.removeItem(PROGRESS_KEY);
@@ -1032,11 +1052,32 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       setProgress(initialProgress);
     }
     
-    const duration = 40000; // 40 seconds in milliseconds
+    // Calculate initial elapsed time if resuming (for countdown calculation)
+    if (isResuming && savedStartTime) {
+      const savedStart = parseInt(savedStartTime, 10);
+      const elapsedSeconds = Math.floor((Date.now() - savedStart) / 1000);
+      setElapsedTime(Math.max(0, elapsedSeconds));
+    } else {
+      setElapsedTime(0); // Start at 0, will count up to calculate countdown
+    }
+    
+    const duration = 50000; // 50 seconds in milliseconds
     const targetProgress = 95; // Cap at 95% until generation completes
     
     // Easing function for smoother, more natural progress animation
     const easeOutQuad = (t: number): number => t * (2 - t);
+    
+    // Timer interval - update every second
+    let timerInterval: number | null = null;
+    try {
+      timerInterval = window.setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const elapsedSeconds = Math.floor(elapsed / 1000);
+        setElapsedTime(elapsedSeconds);
+      }, 1000);
+      // Store timer interval for cleanup
+      (window as any).__nusense_timer_interval = timerInterval;
+    } catch {}
     
     try {
       progressTimer = window.setInterval(() => {
@@ -1322,6 +1363,14 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       if (completionInterval != null) {
         try {
           window.clearInterval(completionInterval);
+        } catch {}
+      }
+      // Clear timer interval
+      const timerInterval = (window as any).__nusense_timer_interval;
+      if (timerInterval != null) {
+        try {
+          window.clearInterval(timerInterval);
+          delete (window as any).__nusense_timer_interval;
         } catch {}
       }
       setIsGenerating(false);
@@ -1979,6 +2028,50 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     }
   };
 
+  // Fetch customer history
+  const fetchHistory = async () => {
+    if (!customerInfo?.email) {
+      setHistoryError("Email not available");
+      return;
+    }
+
+    setHistoryLoading(true);
+    setHistoryError(null);
+    
+    try {
+      const response = await fetchCustomerImageHistory(customerInfo.email);
+      if (response.success) {
+        setHistoryData(response.data);
+      } else {
+        setHistoryError("Failed to load history");
+      }
+    } catch (err) {
+      console.error("[TryOnWidget] Failed to fetch history:", err);
+      setHistoryError(err instanceof Error ? err.message : "Failed to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Fetch history when switching to history tab
+  useEffect(() => {
+    if (activeTab === "history" && customerInfo?.email && historyData.length === 0 && !historyLoading) {
+      void fetchHistory();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, customerInfo?.email]);
+
+  // Handle reusing images from history
+  const handleUseFromHistory = (item: ImageGenerationHistoryItem) => {
+    setUploadedImage(item.personImageUrl);
+    setSelectedClothing(item.clothingImageUrl);
+    storage.saveUploadedImage(item.personImageUrl);
+    storage.saveClothingUrl(item.clothingImageUrl);
+    setActiveTab("tryon");
+    setCurrentStep(3);
+    setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
+  };
+
   const handleClose = (e?: React.MouseEvent) => {
     // Prevent event propagation to avoid double-triggering or step navigation
     if (e) {
@@ -2055,13 +2148,51 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       {/* Fixed Header - Always visible at the top, never scrolls */}
       <header className="fixed top-0 left-0 right-0 w-full z-50 bg-white px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b border-slate-100/80 shadow-sm">
         <div className="flex justify-between items-center py-2 sm:py-2.5">
-          <div className="flex flex-col items-start gap-0.5 sm:gap-1">
-            <img
-              src="/assets/NUSENSE_LOGO_v1.png"
-              className="object-contain h-auto transition-all duration-200"
-              alt={t("tryOnWidget.brand.name") || "NUSENSE"}
-              aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
-            />
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex flex-col items-start gap-0.5 sm:gap-1">
+              <img
+                src="/assets/NUSENSE_LOGO_v1.png"
+                className="object-contain h-auto transition-all duration-200"
+                alt={t("tryOnWidget.brand.name") || "NUSENSE"}
+                aria-label={t("tryOnWidget.brand.nameAlt") || "NUSENSE - Essayage Virtuel Alimenté par IA"}
+              />
+            </div>
+            {/* Tabs - Only show when authenticated */}
+            {customerInfo?.id && (
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={() => setActiveTab("tryon")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                    activeTab === "tryon"
+                      ? "bg-primary text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  aria-label={t("tryOnWidget.tabs.tryOn") || "Essayage virtuel"}
+                >
+                  <Wand2 className="w-4 h-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">{t("tryOnWidget.tabs.tryOn") || "Essayage"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("history");
+                    if (historyData.length === 0 && !historyLoading) {
+                      void fetchHistory();
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                    activeTab === "history"
+                      ? "bg-primary text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  aria-label={t("tryOnWidget.tabs.history") || "Historique"}
+                >
+                  <History className="w-4 h-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">{t("tryOnWidget.tabs.history") || "Historique"}</span>
+                </button>
+              </div>
+            )}
           </div>
           <button
             onClick={handleClose}
@@ -2378,7 +2509,197 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           {customerInfo?.id && (
           <div className="w-full flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-300/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/60">
           {/* Content */}
-          {(isGenerating || generatedImage || error) ? (
+          {activeTab === "history" ? (
+            /* History View */
+            <div className="w-full flex-1 flex flex-col min-h-0 p-4 sm:p-6">
+              <div className="w-full max-w-7xl mx-auto">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                    {t("tryOnWidget.history.title") || "Vos Essayages"}
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    {t("tryOnWidget.history.description") || "Consultez tous vos essayages virtuels précédents"}
+                  </p>
+                </div>
+
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : historyError ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <WifiOff className="w-12 h-12 text-amber-600 mb-4" />
+                    <p className="text-slate-600 mb-4">{historyError}</p>
+                    <Button onClick={() => void fetchHistory()} variant="outline">
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                    </Button>
+                  </div>
+                ) : historyData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <History className="w-12 h-12 text-slate-400 mb-4" />
+                    <p className="text-slate-600">
+                      {t("tryOnWidget.history.empty") || "Aucun essayage virtuel pour le moment"}
+                    </p>
+                  </div>
+                ) : layoutMode === "wide" ? (
+                  /* Desktop: Table View */
+                  <div className="bg-white rounded-xl border border-border overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                              {t("tryOnWidget.history.table.date") || "Date"}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                              {t("tryOnWidget.history.table.person") || "Photo"}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                              {t("tryOnWidget.history.table.clothing") || "Vêtement"}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                              {t("tryOnWidget.history.table.result") || "Résultat"}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                              {t("tryOnWidget.history.table.actions") || "Actions"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {historyData.map((item) => {
+                            const date = new Date(item.createdAt);
+                            const formattedDate = date.toLocaleDateString("fr-FR", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            });
+                            return (
+                              <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
+                                  {formattedDate}
+                                </td>
+                                <td className="px-4 py-4">
+                                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                    <img
+                                      src={item.personImageUrl}
+                                      alt="Person"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                    <img
+                                      src={item.clothingImageUrl}
+                                      alt="Clothing"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <div className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                    <img
+                                      src={item.generatedImageUrl}
+                                      alt="Result"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap">
+                                  <Button
+                                    onClick={() => handleUseFromHistory(item)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    <Wand2 className="w-3 h-3 mr-1" />
+                                    {t("tryOnWidget.history.reuse") || "Réutiliser"}
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  /* Mobile: Cards View */
+                  <div className="grid grid-cols-1 gap-4">
+                    {historyData.map((item) => {
+                      const date = new Date(item.createdAt);
+                      const formattedDate = date.toLocaleDateString("fr-FR", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      return (
+                        <Card key={item.id} className="p-4">
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-slate-500">{formattedDate}</span>
+                              <Button
+                                onClick={() => handleUseFromHistory(item)}
+                                size="sm"
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                <Wand2 className="w-3 h-3 mr-1" />
+                                {t("tryOnWidget.history.reuse") || "Réutiliser"}
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="flex flex-col gap-2">
+                                <span className="text-xs font-medium text-slate-700">
+                                  {t("tryOnWidget.history.card.person") || "Photo"}
+                                </span>
+                                <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                  <img
+                                    src={item.personImageUrl}
+                                    alt="Person"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <span className="text-xs font-medium text-slate-700">
+                                  {t("tryOnWidget.history.card.clothing") || "Vêtement"}
+                                </span>
+                                <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                  <img
+                                    src={item.clothingImageUrl}
+                                    alt="Clothing"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <span className="text-xs font-medium text-slate-700">
+                                  {t("tryOnWidget.history.card.result") || "Résultat"}
+                                </span>
+                                <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                                  <img
+                                    src={item.generatedImageUrl}
+                                    alt="Result"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (isGenerating || generatedImage || error) ? (
             /* Result Layout: Container-responsive (popover-safe) */
             layoutMode === "wide" ? (
               <div className="grid items-stretch justify-center flex-1 min-h-0 gap-6 [grid-template-columns:minmax(0,520px)_1px_minmax(0,420px)]">
@@ -2401,13 +2722,30 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                       {isGenerating ? (
                         <div
-                          className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center shadow-sm"
+                          className="relative w-full max-w-full max-h-full rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center shadow-sm"
                           role="status"
                           aria-live="polite"
                           aria-label={statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                           aria-busy="true"
                           style={{ aspectRatio: "1 / 1" }}
                         >
+                          {/* Blurred background image */}
+                          {uploadedImage && (
+                            <div className="absolute inset-0">
+                              <img
+                                src={uploadedImage}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                style={{ filter: 'blur(20px) brightness(0.7)', transform: 'scale(1.1)' }}
+                                aria-hidden="true"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-br from-slate-50/80 via-white/60 to-slate-50/80" />
+                            </div>
+                          )}
+                          {!uploadedImage && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50" />
+                          )}
+                          
                           {/* Loading indicator with radial progress */}
                           <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4 w-full">
                             <div className="flex-shrink-0 w-[120px] h-[120px] flex items-center justify-center">
@@ -2416,7 +2754,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                 size="lg"
                                 color="primary"
                                 showLabel={true}
-                              />
+                              >
+                                <div className="flex flex-col items-center justify-center">
+                                  <span className="text-sm font-bold text-primary leading-none">
+                                    {Math.round(progress)}%
+                                  </span>
+                                  <span className="text-[10px] font-medium text-slate-500 leading-tight mt-0.5">
+                                    {formatCountdownTimer(elapsedTime)}
+                                  </span>
+                                </div>
+                              </RadialProgress>
                             </div>
                             <div className="text-center w-full max-w-xs min-h-[60px] flex flex-col justify-center">
                               <p className="text-sm sm:text-base font-normal text-slate-600 leading-relaxed break-words">
@@ -2654,12 +3001,29 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 {/* Generated Image or Error State */}
                 {isGenerating ? (
                   <div
-                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-sm"
+                    className="relative self-stretch min-h-[400px] max-h-[600px] mb-8 rounded-xl overflow-hidden border border-slate-200 shadow-sm"
                     role="status"
                     aria-live="polite"
                     aria-label={statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                     aria-busy="true"
                   >
+                    {/* Blurred background image */}
+                    {uploadedImage && (
+                      <div className="absolute inset-0">
+                        <img
+                          src={uploadedImage}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          style={{ filter: 'blur(20px) brightness(0.7)', transform: 'scale(1.1)' }}
+                          aria-hidden="true"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-50/80 via-white/60 to-slate-50/80" />
+                      </div>
+                    )}
+                    {!uploadedImage && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50" />
+                    )}
+                    
                     {/* Loading indicator with radial progress */}
                     <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-4 px-6 py-8 w-full">
                       <div className="flex-shrink-0 w-[180px] h-[180px] flex items-center justify-center">
@@ -2668,7 +3032,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           size="xl"
                           color="primary"
                           showLabel={true}
-                        />
+                        >
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-lg font-bold text-primary leading-none">
+                              {Math.round(progress)}%
+                            </span>
+                            <span className="text-xs font-medium text-slate-500 leading-tight mt-1">
+                              {formatCountdownTimer(elapsedTime)}
+                            </span>
+                          </div>
+                        </RadialProgress>
                       </div>
                       <div className="text-center px-6 w-full max-w-sm min-h-[70px] flex flex-col justify-center">
                         <p className="text-sm sm:text-base font-normal text-slate-600 leading-relaxed break-words">

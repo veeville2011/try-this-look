@@ -506,6 +506,59 @@ export async function fetchImageWithCorsHandling(
   throw new Error("Toutes les stratégies CORS ont échoué");
 }
 
+export interface ImageGenerationHistoryItem {
+  id: string;
+  requestId: string;
+  personImageUrl: string;
+  clothingImageUrl: string;
+  generatedImageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImageGenerationHistoryResponse {
+  success: boolean;
+  data: ImageGenerationHistoryItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+/**
+ * Fetch customer image generation history
+ */
+export async function fetchCustomerImageHistory(
+  email: string
+): Promise<ImageGenerationHistoryResponse> {
+  try {
+    const baseUrl = "https://ai.nusense.ddns.net";
+    const url = `${baseUrl}/api/image-generations/customer?email=${encodeURIComponent(email)}`;
+    
+    const response = await authenticatedFetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: ImageGenerationHistoryResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("[FRONTEND] [HISTORY] Failed to fetch customer history:", error);
+    throw error;
+  }
+}
+
 export function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
