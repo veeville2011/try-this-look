@@ -2544,26 +2544,110 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                   </h2>
                 </div>
 
-                {historyLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                {historyError ? (
+                  <div className="bg-white rounded-xl border border-border p-12">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <WifiOff className="w-12 h-12 text-amber-600 mb-4" />
+                      <p className="text-slate-600 mb-4">{historyError}</p>
+                      <Button onClick={() => void fetchHistory(historyPage)} variant="outline">
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        {t("tryOnWidget.buttons.retry") || "Réessayer"}
+                      </Button>
+                    </div>
                   </div>
-                ) : historyError ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <WifiOff className="w-12 h-12 text-amber-600 mb-4" />
-                    <p className="text-slate-600 mb-4">{historyError}</p>
-                    <Button onClick={() => void fetchHistory(historyPage)} variant="outline">
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      {t("tryOnWidget.buttons.retry") || "Réessayer"}
-                    </Button>
-                  </div>
+                ) : historyLoading ? (
+                  layoutMode === "wide" ? (
+                    /* Desktop: Table Skeleton */
+                    <div className="bg-white rounded-xl border border-border overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                {t("tryOnWidget.history.table.date") || "Date"}
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                {t("tryOnWidget.history.table.person") || "Photo"}
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                {t("tryOnWidget.history.table.clothing") || "Vêtement"}
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                {t("tryOnWidget.history.table.result") || "Résultat"}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {[...Array(5)].map((_, i) => (
+                              <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-4 whitespace-nowrap">
+                                  <Skeleton className="h-4 w-32" />
+                                </td>
+                                <td className="px-4 py-4">
+                                  <Skeleton className="w-16 h-16 rounded-lg" />
+                                </td>
+                                <td className="px-4 py-4">
+                                  <Skeleton className="w-16 h-16 rounded-lg" />
+                                </td>
+                                <td className="px-4 py-4">
+                                  <Skeleton className="w-20 h-20 rounded-lg" />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Mobile: Cards Skeleton */
+                    <div className="grid grid-cols-1 gap-4">
+                      {[...Array(3)].map((_, i) => (
+                        <Card key={i} className="p-4">
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                              <Skeleton className="h-3 w-32" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="flex flex-col gap-2">
+                                <Skeleton className="h-3 w-12" />
+                                <Skeleton className="w-full h-[100px] rounded-lg" />
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="w-full h-[100px] rounded-lg" />
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="w-full h-[100px] rounded-lg" />
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )
                 ) : historyData.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <History className="w-12 h-12 text-slate-400 mb-4" />
-                    <p className="text-slate-600">
-                      {t("tryOnWidget.history.empty") || "Aucun essayage virtuel pour le moment"}
-                    </p>
-                  </div>
+                  layoutMode === "wide" ? (
+                    /* Desktop: Empty State */
+                    <div className="bg-white rounded-xl border border-border p-12">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <History className="w-12 h-12 text-slate-400 mb-4" />
+                        <p className="text-slate-600">
+                          {t("tryOnWidget.history.empty") || "Aucun essayage virtuel pour le moment"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Mobile: Empty State */
+                    <div className="bg-white rounded-xl border border-border p-12">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <History className="w-12 h-12 text-slate-400 mb-4" />
+                        <p className="text-slate-600">
+                          {t("tryOnWidget.history.empty") || "Aucun essayage virtuel pour le moment"}
+                        </p>
+                      </div>
+                    </div>
+                  )
                 ) : layoutMode === "wide" ? (
                   /* Desktop: Table View */
                   <div className="bg-white rounded-xl border border-border overflow-hidden">
@@ -2634,48 +2718,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </tbody>
                       </table>
                     </div>
-                    {/* Pagination - Desktop */}
-                    {historyPagination && historyPagination.totalPages > 1 && (
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-4 border-t border-slate-200 bg-slate-50">
-                        <div className="text-sm text-slate-600">
-                          {t("tryOnWidget.history.pagination.showing") || "Showing"}{" "}
-                          {(historyPagination.page - 1) * historyPagination.limit + 1}{" "}
-                          {t("tryOnWidget.history.pagination.to") || "to"}{" "}
-                          {Math.min(historyPagination.page * historyPagination.limit, historyPagination.total)}{" "}
-                          {t("tryOnWidget.history.pagination.ofTotal") || "of"}{" "}
-                          {historyPagination.total}{" "}
-                          {t("tryOnWidget.history.pagination.results") || "results"}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={handlePreviousPage}
-                            disabled={!historyPagination.hasPrev || historyLoading}
-                            variant="outline"
-                            className="h-9"
-                          >
-                            <ChevronLeft className="w-4 h-4 mr-1" />
-                            {t("tryOnWidget.history.pagination.previous") || "Previous"}
-                          </Button>
-                          <div className="text-sm text-slate-600 px-3">
-                            {t("tryOnWidget.history.pagination.page") || "Page"}{" "}
-                            {historyPagination.page}{" "}
-                            {t("tryOnWidget.history.pagination.of") || "of"}{" "}
-                            {historyPagination.totalPages}
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={handleNextPage}
-                            disabled={!historyPagination.hasNext || historyLoading}
-                            variant="outline"
-                            className="h-9"
-                          >
-                            {t("tryOnWidget.history.pagination.next") || "Next"}
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   /* Mobile: Cards View */
@@ -2738,48 +2780,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </Card>
                       );
                     })}
-                  </div>
-                )}
-                {/* Pagination - Mobile */}
-                {historyPagination && historyPagination.totalPages > 1 && (
-                  <div className="flex flex-col items-center justify-center gap-4 mt-6 pt-4 border-t border-slate-200">
-                    <div className="text-sm text-slate-600 text-center">
-                      {t("tryOnWidget.history.pagination.showing") || "Showing"}{" "}
-                      {(historyPagination.page - 1) * historyPagination.limit + 1}{" "}
-                      {t("tryOnWidget.history.pagination.to") || "to"}{" "}
-                      {Math.min(historyPagination.page * historyPagination.limit, historyPagination.total)}{" "}
-                      {t("tryOnWidget.history.pagination.ofTotal") || "of"}{" "}
-                      {historyPagination.total}{" "}
-                      {t("tryOnWidget.history.pagination.results") || "results"}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        size="sm"
-                        onClick={handlePreviousPage}
-                        disabled={!historyPagination.hasPrev || historyLoading}
-                        variant="outline"
-                        className="h-9"
-                      >
-                        <ChevronLeft className="w-4 h-4 mr-1" />
-                        {t("tryOnWidget.history.pagination.previous") || "Previous"}
-                      </Button>
-                      <div className="text-sm text-slate-600 px-3">
-                        {t("tryOnWidget.history.pagination.page") || "Page"}{" "}
-                        {historyPagination.page}{" "}
-                        {t("tryOnWidget.history.pagination.of") || "of"}{" "}
-                        {historyPagination.totalPages}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={!historyPagination.hasNext || historyLoading}
-                        variant="outline"
-                        className="h-9"
-                      >
-                        {t("tryOnWidget.history.pagination.next") || "Next"}
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    </div>
                   </div>
                 )}
               </div>
