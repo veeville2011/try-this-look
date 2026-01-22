@@ -2177,17 +2177,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
       {/* Fixed Header - Always visible at the top, never scrolls */}
       <header className="fixed top-0 left-0 right-0 w-full z-50 bg-white px-4 sm:px-6 pt-3 sm:pt-4 pb-2 border-b border-slate-100/80 shadow-sm">
-        {/* Timer Display - Top Left Corner (only visible during generation) */}
-        {isGenerating && (
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-4 z-[60] flex items-center gap-2 bg-white/98 backdrop-blur-sm rounded-lg px-3 py-2 sm:px-4 sm:py-2.5 shadow-lg border border-primary/20">
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-primary animate-pulse flex-shrink-0" aria-hidden="true" />
-              <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
-                {formatCountdownTimer(elapsedTime)}
-              </span>
-            </div>
-          </div>
-        )}
         <div className="flex justify-between items-center py-2 sm:py-2.5">
           <div className="flex items-center gap-4 flex-1">
             <div className="flex flex-col items-start gap-0.5 sm:gap-1">
@@ -2970,6 +2959,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           aria-busy="true"
                           style={{ aspectRatio: "1 / 1" }}
                         >
+                          {/* Timer Display - Top Left Corner of Photo */}
+                          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-20 flex items-center gap-2 bg-white/98 backdrop-blur-sm rounded-lg px-3 py-2 sm:px-4 sm:py-2.5 shadow-lg border border-primary/20">
+                            <div className="flex items-center gap-2 sm:gap-2.5">
+                              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-primary animate-pulse flex-shrink-0" aria-hidden="true" />
+                              <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
+                                {formatCountdownTimer(elapsedTime)}
+                              </span>
+                            </div>
+                          </div>
+                          
                           {/* Blurred background image */}
                           {uploadedImage && (
                             <div className="absolute inset-0">
@@ -2997,7 +2996,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                                 showLabel={true}
                               >
                                 <div className="flex flex-col items-center justify-center">
-                                  <span className="text-sm font-bold text-primary leading-none">
+                                  <span className="text-sm font-bold leading-none" style={{ color: 'hsl(var(--primary))' }}>
                                     {Math.round(progress)}%
                                   </span>
                                 </div>
@@ -3245,6 +3244,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     aria-label={statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                     aria-busy="true"
                   >
+                    {/* Timer Display - Top Left Corner of Photo */}
+                    <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 bg-white/98 backdrop-blur-sm rounded-lg px-3 py-2 sm:px-4 sm:py-2.5 shadow-lg border border-primary/20">
+                      <div className="flex items-center gap-2 sm:gap-2.5">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-primary animate-pulse flex-shrink-0" aria-hidden="true" />
+                        <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
+                          {formatCountdownTimer(elapsedTime)}
+                        </span>
+                      </div>
+                    </div>
+                    
                     {/* Blurred background image */}
                     {uploadedImage && (
                       <div className="absolute inset-0">
@@ -3272,7 +3281,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           showLabel={true}
                         >
                           <div className="flex flex-col items-center justify-center">
-                            <span className="text-lg font-bold text-primary leading-none">
+                            <span className="text-lg font-bold leading-none" style={{ color: 'hsl(var(--primary))' }}>
                               {Math.round(progress)}%
                             </span>
                           </div>
