@@ -2969,22 +2969,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             </div>
                           </div>
                           
-                          {/* Blurred background image */}
-                          {uploadedImage && (
-                            <div className="absolute inset-0">
-                              <img
-                                src={uploadedImage}
-                                alt=""
-                                className="w-full h-full object-cover"
-                                style={{ filter: 'blur(20px) brightness(0.7)', transform: 'scale(1.1)' }}
-                                aria-hidden="true"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-br from-slate-50/80 via-white/60 to-slate-50/80" />
-                            </div>
-                          )}
-                          {!uploadedImage && (
-                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50" />
-                          )}
+                          {/* Clean, delightful background */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50/80">
+                            {/* Subtle texture for depth */}
+                            <div className="absolute inset-0 opacity-[0.02]" style={{
+                              backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--primary)) 1px, transparent 0)',
+                              backgroundSize: '28px 28px'
+                            }} />
+                            {/* Soft glow effect */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-primary/[0.01]" />
+                          </div>
                           
                           {/* Loading indicator with radial progress */}
                           <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4 w-full">
@@ -3254,22 +3248,16 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       </div>
                     </div>
                     
-                    {/* Blurred background image */}
-                    {uploadedImage && (
-                      <div className="absolute inset-0">
-                        <img
-                          src={uploadedImage}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          style={{ filter: 'blur(20px) brightness(0.7)', transform: 'scale(1.1)' }}
-                          aria-hidden="true"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-br from-slate-50/80 via-white/60 to-slate-50/80" />
-                      </div>
-                    )}
-                    {!uploadedImage && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50" />
-                    )}
+                    {/* Clean, delightful background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-50/80">
+                      {/* Subtle texture for depth */}
+                      <div className="absolute inset-0 opacity-[0.02]" style={{
+                        backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--primary)) 1px, transparent 0)',
+                        backgroundSize: '28px 28px'
+                      }} />
+                      {/* Soft glow effect */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-primary/[0.01]" />
+                    </div>
                     
                     {/* Loading indicator with radial progress */}
                     <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-4 px-6 py-8 w-full">
