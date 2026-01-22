@@ -2298,18 +2298,20 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             />
                           </div>
                           {/* Loading indicator with radial progress */}
-                          <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4">
-                            <RadialProgress
-                              value={progress}
-                              size="lg"
-                              color="primary"
-                              showLabel={true}
-                            />
-                            <div className="text-center space-y-2 w-full max-w-xs">
-                              <p className="text-sm sm:text-base font-semibold text-slate-700 leading-tight">
+                          <div className="relative z-10 flex flex-col items-center justify-center space-y-4 px-6 py-4 w-full">
+                            <div className="flex-shrink-0 w-[120px] h-[120px] flex items-center justify-center">
+                              <RadialProgress
+                                value={progress}
+                                size="lg"
+                                color="primary"
+                                showLabel={true}
+                              />
+                            </div>
+                            <div className="text-center space-y-2 w-full max-w-xs h-[60px] flex flex-col justify-center">
+                              <p className="text-sm sm:text-base font-semibold text-slate-700 leading-tight break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                                 {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                               </p>
-                              <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                              <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                                 {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
                               </p>
                             </div>
@@ -2571,18 +2573,20 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       />
                     </div>
                     {/* Loading indicator with radial progress */}
-                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 px-6 py-8">
-                      <RadialProgress
-                        value={progress}
-                        size="xl"
-                        color="primary"
-                        showLabel={true}
-                      />
-                      <div className="text-center px-6 space-y-2 w-full max-w-sm">
-                        <p className="text-base sm:text-lg font-semibold text-slate-700 leading-tight">
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full min-h-[400px] space-y-6 px-6 py-8 w-full">
+                      <div className="flex-shrink-0 w-[180px] h-[180px] flex items-center justify-center">
+                        <RadialProgress
+                          value={progress}
+                          size="xl"
+                          color="primary"
+                          showLabel={true}
+                        />
+                      </div>
+                      <div className="text-center px-6 space-y-2 w-full max-w-sm h-[70px] flex flex-col justify-center">
+                        <p className="text-base sm:text-lg font-semibold text-slate-700 leading-tight break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                           {statusMessage || t("tryOnWidget.status.generating") || "Génération…"}
                         </p>
-                        <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
+                        <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed break-words overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                           {t("tryOnWidget.status.generatingTime") || "Please wait, this usually takes 15 to 20 seconds"}
                         </p>
                       </div>
