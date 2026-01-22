@@ -996,6 +996,8 @@
     },
     "tabs": {
       "ariaLabel": "Mode d'essayage",
+      "tryOn": "Essayage",
+      "history": "Historique",
       "single": {
         "label": "TryOn",
         "ariaLabel": "Essayer un seul article"
@@ -1007,6 +1009,24 @@
       "look": {
         "label": "TryOutfit",
         "ariaLabel": "Essayer une tenue complète"
+      }
+    },
+    "history": {
+      "title": "Vos Essayages",
+      "description": "Consultez tous vos essayages virtuels précédents",
+      "empty": "Aucun essayage virtuel pour le moment",
+      "reuse": "Réutiliser",
+      "table": {
+        "date": "Date",
+        "person": "Photo",
+        "clothing": "Vêtement",
+        "result": "Résultat",
+        "actions": "Actions"
+      },
+      "card": {
+        "person": "Photo",
+        "clothing": "Vêtement",
+        "result": "Résultat"
       }
     },
     "sections": {

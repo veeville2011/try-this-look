@@ -996,6 +996,8 @@
     },
     "tabs": {
       "ariaLabel": "Try-on mode",
+      "tryOn": "Try-On",
+      "history": "History",
       "single": {
         "label": "TryOn",
         "ariaLabel": "Try on a single item"
@@ -1007,6 +1009,24 @@
       "look": {
         "label": "TryOutfit",
         "ariaLabel": "Try a complete outfit"
+      }
+    },
+    "history": {
+      "title": "Your Try-Ons",
+      "description": "View all your previous virtual try-ons",
+      "empty": "No virtual try-ons yet",
+      "reuse": "Reuse",
+      "table": {
+        "date": "Date",
+        "person": "Photo",
+        "clothing": "Clothing",
+        "result": "Result",
+        "actions": "Actions"
+      },
+      "card": {
+        "person": "Photo",
+        "clothing": "Clothing",
+        "result": "Result"
       }
     },
     "sections": {
