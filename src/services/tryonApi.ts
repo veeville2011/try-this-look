@@ -535,11 +535,23 @@ export interface ImageGenerationHistoryResponse {
 export async function fetchCustomerImageHistory(
   email: string,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  store?: string | null
 ): Promise<ImageGenerationHistoryResponse> {
   try {
     const baseUrl = "https://ai.nusense.ddns.net";
-    const url = `${baseUrl}/api/image-generations/customer?email=${encodeURIComponent(email)}&page=${page}&limit=${limit}`;
+    const queryParams = new URLSearchParams({
+      email: email,
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    
+    if (store) {
+      const normalizedStore = normalizeShopDomain(store);
+      queryParams.append("store", normalizedStore);
+    }
+    
+    const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
     
     const response = await authenticatedFetch(url, {
       method: "GET",

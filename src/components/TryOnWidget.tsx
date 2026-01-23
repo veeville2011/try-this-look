@@ -2053,7 +2053,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setHistoryError(null);
     
     try {
-      const response = await fetchCustomerImageHistory(customerInfo.email, page);
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || reduxStoreInfo?.shop;
+      const response = await fetchCustomerImageHistory(customerInfo.email, page, 10, shopDomain);
       if (response.success) {
         setHistoryData(response.data);
         setHistoryPagination(response.pagination);
