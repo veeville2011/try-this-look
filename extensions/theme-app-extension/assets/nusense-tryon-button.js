@@ -825,24 +825,32 @@
     // Get shop domain from button data attribute
     const shopDomain = buttonEl.dataset.shopDomain || '';
     
-    // Check credits before initializing button
-    // Hide button container if no credits available
     // Support both app block and app embed block containers
     const container = buttonEl.closest('.nusense-tryon-button-app-block') || 
                       buttonEl.closest('.nusense-tryon-button-embed-container');
     
+    // Hide button initially while checking credits (prevents flash of button before hiding)
+    if (container) {
+      container.style.display = 'none';
+    } else {
+      buttonEl.style.display = 'none';
+    }
+    
+    // Check credits before initializing button
     if (shopDomain) {
       const hasCredits = await checkCreditsAvailable(shopDomain);
       
       if (!hasCredits) {
-        // Hide the button container if no credits
-        if (container) {
-          container.style.display = 'none';
-        } else {
-          buttonEl.style.display = 'none';
-        }
+        // Keep button hidden if no credits
         return; // Don't initialize button if no credits
       }
+    }
+    
+    // Show button only after credit check completes successfully
+    if (container) {
+      container.style.display = '';
+    } else {
+      buttonEl.style.display = '';
     }
 
     buttonEl.dataset[INIT_FLAG] = 'true';
@@ -930,19 +938,21 @@
   const scanButtons = () => {
     const buttons = document.querySelectorAll(`button[id^="${BUTTON_ID_PREFIX}"]`);
     buttons.forEach((btn) => {
-      // initButton is now async, but we don't need to await it
-      // The button will be hidden if no credits are available
+      // Hide button immediately when found (before async credit check)
+      // This prevents the button from appearing during loading
+      const container = btn.closest('.nusense-tryon-button-app-block') || 
+                        btn.closest('.nusense-tryon-button-embed-container');
+      if (container) {
+        container.style.display = 'none';
+      } else {
+        btn.style.display = 'none';
+      }
+      
+      // initButton is now async - it will show the button only after credit check succeeds
       initButton(btn).catch((error) => {
         console.warn('[NUSENSE] Error initializing button:', error);
-        // On error, hide the button as a fail-safe
-        // Support both app block and app embed block containers
-        const container = btn.closest('.nusense-tryon-button-app-block') || 
-                          btn.closest('.nusense-tryon-button-embed-container');
-        if (container) {
-          container.style.display = 'none';
-        } else {
-          btn.style.display = 'none';
-        }
+        // On error, keep button hidden as a fail-safe
+        // Button is already hidden above, so no need to hide again
       });
     });
   };
