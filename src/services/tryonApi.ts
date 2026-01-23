@@ -548,7 +548,9 @@ export async function fetchCustomerImageHistory(
     
     if (store) {
       const normalizedStore = normalizeShopDomain(store);
-      queryParams.append("store", normalizedStore);
+      if (normalizedStore) {
+        queryParams.append("store", normalizedStore);
+      }
     }
     
     const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
