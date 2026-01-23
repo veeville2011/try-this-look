@@ -516,6 +516,62 @@
     }
   };
 
+  /**
+   * Check if credits are available for the shop
+   * Returns true if credits > 0, false otherwise
+   * On error, returns false to hide button (fail-safe)
+   */
+  const checkCreditsAvailable = async (shopDomain) => {
+    if (!shopDomain) {
+      console.warn('[NUSENSE] No shop domain provided for credit check');
+      return false;
+    }
+
+    try {
+      // Normalize shop domain
+      let normalizedShop = shopDomain.trim().toLowerCase();
+      if (!normalizedShop.includes('.myshopify.com')) {
+        normalizedShop = `${normalizedShop}.myshopify.com`;
+      }
+
+      const url = `https://ai.nusense.ddns.net/api/credits/balance?shop=${encodeURIComponent(normalizedShop)}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('[NUSENSE] Failed to check credits:', response.status, response.statusText);
+        return false;
+      }
+
+      const data = await response.json();
+      
+      // Check if credits are available
+      // Credits can be in total_balance or balance field (for backward compatibility)
+      const credits = data.total_balance ?? data.balance ?? 0;
+      
+      // Also check if in overage mode (usage records available)
+      const hasOverageCapacity = data.isOverage && data.overage && data.overage.remaining > 0;
+      
+      const hasCredits = credits > 0;
+      
+      if (!hasCredits) {
+        console.log('[NUSENSE] No credits available, hiding try-on button');
+      }
+      
+      return hasCredits;
+    } catch (error) {
+      // On error, hide button (fail-safe approach)
+      console.warn('[NUSENSE] Error checking credits:', error);
+      return false;
+    }
+  };
+
   const buildWidgetUrl = ({ widgetUrl, productId, shopDomain, customerInfo }) => {
     const base = normalizeUrl(widgetUrl);
     if (!base) return null;
@@ -761,10 +817,33 @@
     document.body.style.overflow = 'hidden';
   };
 
-  const initButton = (buttonEl) => {
+  const initButton = async (buttonEl) => {
     if (!(buttonEl instanceof HTMLButtonElement)) return;
     if (!buttonEl.id || !buttonEl.id.startsWith(BUTTON_ID_PREFIX)) return;
     if (buttonEl.dataset[INIT_FLAG] === 'true') return;
+
+    // Get shop domain from button data attribute
+    const shopDomain = buttonEl.dataset.shopDomain || '';
+    
+    // Check credits before initializing button
+    // Hide button container if no credits available
+    // Support both app block and app embed block containers
+    const container = buttonEl.closest('.nusense-tryon-button-app-block') || 
+                      buttonEl.closest('.nusense-tryon-button-embed-container');
+    
+    if (shopDomain) {
+      const hasCredits = await checkCreditsAvailable(shopDomain);
+      
+      if (!hasCredits) {
+        // Hide the button container if no credits
+        if (container) {
+          container.style.display = 'none';
+        } else {
+          buttonEl.style.display = 'none';
+        }
+        return; // Don't initialize button if no credits
+      }
+    }
 
     buttonEl.dataset[INIT_FLAG] = 'true';
 
@@ -850,7 +929,22 @@
 
   const scanButtons = () => {
     const buttons = document.querySelectorAll(`button[id^="${BUTTON_ID_PREFIX}"]`);
-    buttons.forEach((btn) => initButton(btn));
+    buttons.forEach((btn) => {
+      // initButton is now async, but we don't need to await it
+      // The button will be hidden if no credits are available
+      initButton(btn).catch((error) => {
+        console.warn('[NUSENSE] Error initializing button:', error);
+        // On error, hide the button as a fail-safe
+        // Support both app block and app embed block containers
+        const container = btn.closest('.nusense-tryon-button-app-block') || 
+                          btn.closest('.nusense-tryon-button-embed-container');
+        if (container) {
+          container.style.display = 'none';
+        } else {
+          btn.style.display = 'none';
+        }
+      });
+    });
   };
 
   let scanScheduled = false;
