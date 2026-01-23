@@ -558,7 +558,7 @@
       // Also check if in overage mode (usage records available)
       const hasOverageCapacity = data.isOverage && data.overage && data.overage.remaining > 0;
       
-      const hasCredits = credits > 0;
+      const hasCredits = credits > 0 || hasOverageCapacity;
       
       if (!hasCredits) {
         console.log('[NUSENSE] No credits available, hiding try-on button');
