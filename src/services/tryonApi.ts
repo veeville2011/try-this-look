@@ -618,3 +618,201 @@ export async function getHealthStatus(): Promise<{ status: string; timestamp: st
     };
   }
 }
+
+/**
+ * Customer Image Generation Record (from API 1)
+ */
+export interface CustomerImageGeneration {
+  id: string;
+  requestId: string;
+  personImageUrl: string;
+  clothingImageUrl: string;
+  generatedImageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Uploaded Image Record (from API 2)
+ */
+export interface UploadedImage {
+  id: string;
+  requestId: string;
+  personImageUrl: string;
+  personKey: string;
+  storeName: string;
+  uploadedAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Pagination metadata
+ */
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+/**
+ * Response for customer image generations (API 1)
+ */
+export interface CustomerImageGenerationsResponse {
+  success: boolean;
+  data: CustomerImageGeneration[];
+  pagination: PaginationMeta;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, any>;
+  };
+}
+
+/**
+ * Response for uploaded images (API 2)
+ */
+export interface UploadedImagesResponse {
+  success: boolean;
+  data: UploadedImage[];
+  pagination: PaginationMeta;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, any>;
+  };
+}
+
+/**
+ * Parameters for fetching customer image generations
+ */
+export interface FetchCustomerImageGenerationsParams {
+  email: string;
+  store: string;
+  page?: number;
+  limit?: number;
+  status?: "pending" | "processing" | "completed" | "failed";
+  orderBy?: "created_at" | "createdAt" | "updated_at" | "updatedAt" | "status";
+  orderDirection?: "ASC" | "DESC";
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
+}
+
+/**
+ * Parameters for fetching uploaded images
+ */
+export interface FetchUploadedImagesParams {
+  email: string;
+  store?: string;
+  page?: number;
+  limit?: number;
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
+}
+
+/**
+ * Fetch customer image generations (API 1: /api/image-generations/customer)
+ */
+export async function fetchCustomerImageGenerations(
+  params: FetchCustomerImageGenerationsParams
+): Promise<CustomerImageGenerationsResponse> {
+  try {
+    const baseUrl = "https://ai.nusense.ddns.net";
+    const queryParams = new URLSearchParams({
+      email: params.email,
+      store: params.store,
+      page: (params.page || 1).toString(),
+      limit: (params.limit || 10).toString(),
+    });
+
+    if (params.status) {
+      queryParams.append("status", params.status);
+    }
+    if (params.orderBy) {
+      queryParams.append("orderBy", params.orderBy);
+    }
+    if (params.orderDirection) {
+      queryParams.append("orderDirection", params.orderDirection);
+    }
+    if (params.startDate) {
+      queryParams.append("startDate", params.startDate);
+    }
+    if (params.endDate) {
+      queryParams.append("endDate", params.endDate);
+    }
+
+    const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
+
+    const data: CustomerImageGenerationsResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("[FRONTEND] [CUSTOMER_IMAGES] Failed to fetch customer image generations:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch uploaded images (API 2: /api/image-generations/uploaded-images)
+ */
+export async function fetchUploadedImages(
+  params: FetchUploadedImagesParams
+): Promise<UploadedImagesResponse> {
+  try {
+    const baseUrl = "https://ai.nusense.ddns.net";
+    const queryParams = new URLSearchParams({
+      email: params.email,
+      page: (params.page || 1).toString(),
+      limit: (params.limit || 10).toString(),
+    });
+
+    if (params.store) {
+      queryParams.append("store", params.store);
+    }
+    if (params.startDate) {
+      queryParams.append("startDate", params.startDate);
+    }
+    if (params.endDate) {
+      queryParams.append("endDate", params.endDate);
+    }
+
+    const url = `${baseUrl}/api/image-generations/uploaded-images?${queryParams.toString()}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
+
+    const data: UploadedImagesResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("[FRONTEND] [UPLOADED_IMAGES] Failed to fetch uploaded images:", error);
+    throw error;
+  }
+}

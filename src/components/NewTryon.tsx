@@ -6,6 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RadialProgress } from "@/components/ui/radial-progress";
 import { cn } from "@/lib/utils";
 import { detectStoreOrigin } from "@/utils/shopifyIntegration";
+import HorizontalImageList from "@/components/HorizontalImageList";
+import {
+  fetchCustomerImageGenerations,
+  fetchUploadedImages,
+  type CustomerImageGeneration,
+  type UploadedImage,
+} from "@/services/tryonApi";
 import "@/styles/fonts.css";
 
 interface CustomerInfo {
@@ -33,6 +40,14 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
   // Tutorial demo animation state - 4 steps
   const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1);
   const [progress, setProgress] = useState(0);
+
+  // Image data state
+  const [generatedImages, setGeneratedImages] = useState<CustomerImageGeneration[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [loadingGeneratedImages, setLoadingGeneratedImages] = useState(false);
+  const [loadingUploadedImages, setLoadingUploadedImages] = useState(false);
+  const [generatedImagesError, setGeneratedImagesError] = useState<string | null>(null);
+  const [uploadedImagesError, setUploadedImagesError] = useState<string | null>(null);
   
   // Infinite loop tutorial animation
   useEffect(() => {
@@ -60,6 +75,77 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
       };
     }
   }, [customerInfo?.id]);
+
+  // Fetch customer images when authenticated
+  useEffect(() => {
+    if (!customerInfo?.email) return;
+
+    const loadImages = async () => {
+      // Detect store origin
+      const storeInfo = detectStoreOrigin();
+      const store = storeInfo?.shopDomain || storeInfo?.domain || null;
+
+      if (!store) {
+        console.warn("[NewTryon] Store information not available for fetching images");
+        return;
+      }
+
+      // Fetch generated images (API 1)
+      setLoadingGeneratedImages(true);
+      setGeneratedImagesError(null);
+      try {
+        const generatedResponse = await fetchCustomerImageGenerations({
+          email: customerInfo.email,
+          store: store,
+          page: 1,
+          limit: 20,
+          status: "completed",
+          orderBy: "created_at",
+          orderDirection: "DESC",
+        });
+
+        if (generatedResponse.success && generatedResponse.data) {
+          setGeneratedImages(generatedResponse.data);
+        } else {
+          setGeneratedImagesError("Failed to load generated images");
+        }
+      } catch (error) {
+        console.error("[NewTryon] Error fetching generated images:", error);
+        setGeneratedImagesError(
+          error instanceof Error ? error.message : "Failed to load generated images"
+        );
+      } finally {
+        setLoadingGeneratedImages(false);
+      }
+
+      // Fetch uploaded images (API 2)
+      setLoadingUploadedImages(true);
+      setUploadedImagesError(null);
+      try {
+        const uploadedResponse = await fetchUploadedImages({
+          email: customerInfo.email,
+          store: store,
+          page: 1,
+          limit: 20,
+        });
+
+        if (uploadedResponse.success && uploadedResponse.data) {
+          setUploadedImages(uploadedResponse.data);
+        } else {
+          setUploadedImagesError("Failed to load uploaded images");
+        }
+      } catch (error) {
+        console.error("[NewTryon] Error fetching uploaded images:", error);
+        setUploadedImagesError(
+          error instanceof Error ? error.message : "Failed to load uploaded images"
+        );
+      } finally {
+        setLoadingUploadedImages(false);
+      }
+    };
+
+    loadImages();
+  }, [customerInfo?.email]);
   
   // Get login URL - Universal compatibility for ALL stores
   const getLoginUrl = (): string => {
@@ -487,17 +573,81 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
           </div>
         )}
 
-        {/* Coming Soon - Only show if authenticated */}
+        {/* Image Galleries - Only show if authenticated */}
         {customerInfo?.id && (
-          <div className="flex items-center justify-center h-full min-h-[400px] px-4 sm:px-6">
-            <div className="text-center">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mb-2">
-                Coming Soon
-              </h1>
-              <p className="text-slate-600 text-base sm:text-lg">
-                This feature is under development.
-              </p>
-            </div>
+          <div className="w-full max-w-[980px] mx-auto space-y-10 py-8 px-4 sm:px-6">
+            {/* Generated Images Section */}
+            <section aria-labelledby="generated-images-title">
+              <HorizontalImageList
+                title={t("tryOnWidget.generatedImages.title") || "Your Try-On Results"}
+                images={generatedImages.map((img) => ({
+                  id: img.id,
+                  imageUrl: img.generatedImageUrl,
+                  alt: `Generated try-on result from ${new Date(img.createdAt).toLocaleDateString()}`,
+                  metadata: {
+                    createdAt: img.createdAt,
+                    personImageUrl: img.personImageUrl,
+                    clothingImageUrl: img.clothingImageUrl,
+                  },
+                }))}
+                loading={loadingGeneratedImages}
+                emptyMessage={
+                  t("tryOnWidget.generatedImages.empty") ||
+                  "No try-on results yet. Create your first virtual try-on!"
+                }
+                emptyActionLabel={t("tryOnWidget.generatedImages.action") || "Start Try-On"}
+                imageSize="lg"
+                showMetadata={true}
+                enableLightbox={true}
+                onImageClick={(image) => {
+                  // Optional: can add analytics or other actions here
+                }}
+              />
+              {generatedImagesError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700 flex items-center gap-2">
+                    <span className="font-medium">Error:</span>
+                    <span>{generatedImagesError}</span>
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* Uploaded Person Images Section */}
+            <section aria-labelledby="uploaded-images-title">
+              <HorizontalImageList
+                title={t("tryOnWidget.uploadedImages.title") || "Your Uploaded Photos"}
+                images={uploadedImages.map((img) => ({
+                  id: img.id,
+                  imageUrl: img.personImageUrl,
+                  alt: `Uploaded photo from ${new Date(img.uploadedAt).toLocaleDateString()}`,
+                  metadata: {
+                    uploadedAt: img.uploadedAt,
+                    storeName: img.storeName,
+                  },
+                }))}
+                loading={loadingUploadedImages}
+                emptyMessage={
+                  t("tryOnWidget.uploadedImages.empty") ||
+                  "No uploaded photos yet. Upload your first photo to get started!"
+                }
+                emptyActionLabel={t("tryOnWidget.uploadedImages.action") || "Upload Photo"}
+                imageSize="lg"
+                showMetadata={true}
+                enableLightbox={true}
+                onImageClick={(image) => {
+                  // Optional: can add analytics or other actions here
+                }}
+              />
+              {uploadedImagesError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700 flex items-center gap-2">
+                    <span className="font-medium">Error:</span>
+                    <span>{uploadedImagesError}</span>
+                  </p>
+                </div>
+              )}
+            </section>
           </div>
         )}
       </div>
