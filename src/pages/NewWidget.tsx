@@ -1,7 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import NewTryon from "@/components/NewTryon";
 
+interface CustomerInfo {
+  id?: string | null;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}
+
 export default function NewWidget() {
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+
   useEffect(() => {
     // Check if parent window told us it's desktop (for iframe scenarios)
     const urlParams = new URLSearchParams(window.location.search);
@@ -61,11 +70,26 @@ export default function NewWidget() {
       document.documentElement.classList.remove("parent-desktop-mode");
       document.documentElement.style.removeProperty("--parent-desktop");
     }
+
+    // Extract customer information from URL parameters
+    const customerId = urlParams.get("customerId");
+    const customerEmail = urlParams.get("customerEmail");
+    const customerFirstName = urlParams.get("customerFirstName");
+    const customerLastName = urlParams.get("customerLastName");
+
+    if (customerId || customerEmail) {
+      setCustomerInfo({
+        id: customerId || null,
+        email: customerEmail ? decodeURIComponent(customerEmail) : null,
+        firstName: customerFirstName ? decodeURIComponent(customerFirstName) : null,
+        lastName: customerLastName ? decodeURIComponent(customerLastName) : null,
+      });
+    }
   }, []);
 
   return (
     <div className="w-full h-auto mx-auto max-w-[900px]">
-      <NewTryon />
+      <NewTryon customerInfo={customerInfo} />
     </div>
   );
 }
