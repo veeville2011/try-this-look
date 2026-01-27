@@ -588,3 +588,33 @@ export async function dataURLToBlob(dataURL: string): Promise<Blob> {
   const response = await fetch(dataURL);
   return response.blob();
 }
+
+/**
+ * Check health status of the API
+ */
+export async function getHealthStatus(): Promise<{ status: string; timestamp: string }> {
+  try {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${baseUrl}/health`;
+    
+    const response = await authenticatedFetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Health check failed: HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("[FRONTEND] [HEALTH] Health check failed:", error);
+    // Return a default response even if health check fails
+    return {
+      status: "error",
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
