@@ -1294,6 +1294,20 @@
       "instagramWebsiteOpenedDesktopNoCaption": "Site Instagram ouvert ! L'image est enregistrée.",
       "instagramShareError": "Erreur de partage sur Instagram",
       "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez réessayer."
+    },
+    "generatedImages": {
+      "title": "Vos Résultats d'Essayage",
+      "empty": "Aucun résultat d'essayage pour le moment. Créez votre premier essayage virtuel !",
+      "action": "Commencer l'Essayage",
+      "loading": "Chargement des résultats d'essayage...",
+      "error": "Échec du chargement des résultats d'essayage"
+    },
+    "uploadedImages": {
+      "title": "Vos Photos Téléchargées",
+      "empty": "Aucune photo téléchargée pour le moment. Téléchargez votre première photo pour commencer !",
+      "action": "Télécharger une Photo",
+      "loading": "Chargement des photos téléchargées...",
+      "error": "Échec du chargement des photos téléchargées"
     }
   },
   "referral": {
