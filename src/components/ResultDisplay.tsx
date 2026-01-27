@@ -20,6 +20,7 @@ import {
   detectStoreOrigin,
   type StoreInfo,
 } from "@/utils/shopifyIntegration";
+import { trackAddToCartEvent } from "@/services/cartTrackingApi";
 
 interface ResultDisplayProps {
   generatedImage?: string | null;
@@ -38,6 +39,8 @@ interface ProductData {
 
 export default function ResultDisplay({
   generatedImage,
+  personImage,
+  clothingImage,
   isGenerating = false,
 }: ResultDisplayProps) {
   const { t } = useTranslation();
@@ -196,6 +199,94 @@ export default function ResultDisplay({
               ? t("tryOnWidget.resultDisplay.addToCartToastDescription", { title: productData.title }) || `${productData.title} a été ajouté à votre panier.`
               : t("tryOnWidget.resultDisplay.addToCartToastDescriptionFallback") || "L'article a été ajouté à votre panier.",
           });
+
+          // Track add to cart event ONLY after successful cart addition
+          const shopDomain = storeInfo?.shopDomain ?? storeInfo?.domain ?? reduxStoreInfo?.shop;
+          if (shopDomain) {
+            // Get customer info from window if available
+            const customerInfo = typeof window !== "undefined" && (window as any)?.NUSENSE_CUSTOMER_INFO 
+              ? (window as any).NUSENSE_CUSTOMER_INFO 
+              : null;
+
+            // Extract product data from multiple sources with priority:
+            // 1. event.data.product (from bridge script extraction)
+            // 2. event.data.cart.items[0] (direct from cart API response)
+            // 3. localProductData (from NUSENSE_PRODUCT_DATA)
+            const successProductData = event.data?.product ?? {};
+            const cartItem = Array.isArray(event.data?.cart?.items) && (event.data.cart.items.length ?? 0) > 0 
+              ? event.data.cart.items[0] 
+              : null;
+            
+            // Normalize product URL from cart response (may be relative)
+            const normalizeProductUrl = (url: string | null | undefined): string | null => {
+              if (!url || typeof url !== 'string') return null;
+              if (url.startsWith('http://') || url.startsWith('https://')) return url;
+              if (url.startsWith('/')) {
+                try {
+                  return window?.location?.origin ? window.location.origin + url : url;
+                } catch {
+                  return url;
+                }
+              }
+              return url;
+            };
+            
+            // Build final product data with priority: successProductData > cartItem > localProductData
+            const finalProductData = {
+              id: successProductData?.productId 
+                ?? cartItem?.product_id 
+                ?? productData?.id 
+                ?? null,
+              title: successProductData?.productTitle 
+                ?? cartItem?.product_title 
+                ?? productData?.title 
+                ?? null,
+              url: normalizeProductUrl(successProductData?.productUrl) 
+                ?? normalizeProductUrl(cartItem?.url) 
+                ?? productData?.url 
+                ?? null,
+              variantId: successProductData?.variantId 
+                ?? cartItem?.variant_id 
+                ?? null,
+            };
+
+            // Debug logging
+            console.log("[CART_TRACKING] Tracking Add to Cart Event:", {
+              successProductData,
+              cartItem,
+              localProductData: productData,
+              finalProductData,
+            });
+
+            // Validate that we have required product and variant IDs
+            if (!finalProductData.id || !finalProductData.variantId) {
+              console.error("[CART_TRACKING] Missing required product or variant ID", {
+                productId: finalProductData.id,
+                variantId: finalProductData.variantId,
+                successProductData,
+                cartItem,
+                localProductData: productData,
+              });
+            }
+
+            if (customerInfo?.id) {
+              trackAddToCartEvent({
+                storeName: shopDomain,
+                actionType: "add_to_cart",
+                productId: finalProductData.id,
+                productTitle: finalProductData.title,
+                productUrl: finalProductData.url,
+                variantId: finalProductData.variantId,
+                customerId: customerInfo.id,
+              }).catch((trackingError) => {
+              // Show error toast if tracking fails
+              console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
+                toast.error(t("tryOnWidget.resultDisplay.trackingError") || "Erreur de suivi", {
+                  description: t("tryOnWidget.resultDisplay.trackingErrorDescription") || "Impossible d'enregistrer l'événement. L'article a été ajouté au panier.",
+                });
+              });
+            }
+          }
         } else if (event.data.action === "NUSENSE_BUY_NOW") {
           // Clear timeout if it exists
           if (buyNowTimeoutRef.current) {
@@ -204,6 +295,93 @@ export default function ResultDisplay({
           }
           setIsBuyNowLoading(false);
           // Buy now will redirect, so we don't need to show a toast
+
+          // Track buy now event ONLY after successful checkout initiation
+          const shopDomain = storeInfo?.shopDomain ?? storeInfo?.domain ?? reduxStoreInfo?.shop;
+          if (shopDomain) {
+            // Get customer info from window if available
+            const customerInfo = typeof window !== "undefined" && (window as any)?.NUSENSE_CUSTOMER_INFO 
+              ? (window as any).NUSENSE_CUSTOMER_INFO 
+              : null;
+
+            // Extract product data from multiple sources with priority:
+            // 1. event.data.product (from bridge script extraction)
+            // 2. event.data.cart.items[0] (direct from cart API response)
+            // 3. localProductData (from NUSENSE_PRODUCT_DATA)
+            const successProductData = event.data?.product ?? {};
+            const cartItem = Array.isArray(event.data?.cart?.items) && (event.data.cart.items.length ?? 0) > 0 
+              ? event.data.cart.items[0] 
+              : null;
+            const localProductData = getProductDataLocal();
+            
+            // Normalize product URL from cart response (may be relative)
+            const normalizeProductUrl = (url: string | null | undefined): string | null => {
+              if (!url || typeof url !== 'string') return null;
+              if (url.startsWith('http://') || url.startsWith('https://')) return url;
+              if (url.startsWith('/')) {
+                try {
+                  return window?.location?.origin ? window.location.origin + url : url;
+                } catch {
+                  return url;
+                }
+              }
+              return url;
+            };
+            
+            // Build final product data with priority: successProductData > cartItem > localProductData
+            const finalProductData = {
+              id: successProductData?.productId 
+                ?? cartItem?.product_id 
+                ?? localProductData?.id 
+                ?? null,
+              title: successProductData?.productTitle 
+                ?? cartItem?.product_title 
+                ?? localProductData?.title 
+                ?? null,
+              url: normalizeProductUrl(successProductData?.productUrl) 
+                ?? normalizeProductUrl(cartItem?.url) 
+                ?? localProductData?.url 
+                ?? null,
+              variantId: successProductData?.variantId 
+                ?? cartItem?.variant_id 
+                ?? null,
+            };
+
+            // Debug logging
+            console.log("[CART_TRACKING] Tracking Buy Now Event:", {
+              successProductData,
+              cartItem,
+              localProductData,
+              finalProductData,
+            });
+
+            // Validate that we have required product and variant IDs
+            if (!finalProductData.id || !finalProductData.variantId) {
+              console.error("[CART_TRACKING] Missing required product or variant ID", {
+                productId: finalProductData.id,
+                variantId: finalProductData.variantId,
+                successProductData,
+                cartItem,
+                localProductData,
+              });
+            }
+
+            // Fire tracking request without awaiting - don't block checkout redirect
+            if (customerInfo?.id) {
+              trackAddToCartEvent({
+                storeName: shopDomain,
+                actionType: "buy_now",
+                productId: finalProductData.id,
+                productTitle: finalProductData.title,
+                productUrl: finalProductData.url,
+                variantId: finalProductData.variantId,
+                customerId: customerInfo.id,
+              }).catch((trackingError) => {
+                // Silently handle tracking errors - don't affect checkout flow
+                console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
+              });
+            }
+          }
         }
       } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
@@ -247,7 +425,8 @@ export default function ResultDisplay({
         addToCartTimeoutRef.current = null;
       }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeInfo, reduxStoreInfo, generatedImage, personImage, clothingImage, t]);
 
   const handleBuyNow = async () => {
     if (isBuyNowLoading) return;
@@ -260,6 +439,7 @@ export default function ResultDisplay({
 
       if (isInIframe) {
         // Send message to parent window (Shopify page) to trigger buy now
+        // This will immediately redirect to checkout - navigation happens here
         const message = {
           type: "NUSENSE_BUY_NOW",
           ...(productData && { product: productData }),
@@ -267,20 +447,18 @@ export default function ResultDisplay({
 
         window.parent.postMessage(message, "*");
 
-        // Show loading message - parent will handle redirect or error
+        // Show loading message - parent will handle redirect immediately
         toast.info(t("tryOnWidget.resultDisplay.addingToCart") || "Ajout au panier...", {
           description: t("tryOnWidget.resultDisplay.redirectingToCheckout") || "Redirection vers la page de paiement en cours.",
         });
 
         // Set a timeout to reset loading state if no response received (10 seconds)
+        // Note: For buy now, redirect happens immediately, so this timeout is just a safety
         if (buyNowTimeoutRef.current) {
           clearTimeout(buyNowTimeoutRef.current);
         }
         buyNowTimeoutRef.current = setTimeout(() => {
           setIsBuyNowLoading(false);
-          toast.error(t("tryOnWidget.resultDisplay.timeout") || "Timeout", {
-            description: t("tryOnWidget.resultDisplay.timeoutDescription") || "La requête a pris trop de temps. Veuillez réessayer.",
-          });
           buyNowTimeoutRef.current = null;
         }, 10000);
       } else {

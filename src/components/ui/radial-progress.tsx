@@ -56,12 +56,13 @@ const RadialProgress = React.forwardRef<HTMLDivElement, RadialProgressProps>(
     const offset = circumference - (percentage / 100) * circumference;
 
     // Determine color based on percentage if not explicitly set
+    // Use green (success) for high percentages (90%+), appropriate colors for others
     let effectiveColor = color;
     if (color === "primary") {
-      if (percentage >= 90) effectiveColor = "destructive";
-      else if (percentage >= 70) effectiveColor = "warning";
-      else if (percentage >= 50) effectiveColor = "primary";
-      else effectiveColor = "success";
+      if (percentage >= 90) effectiveColor = "success"; // Green for 90%+
+      else if (percentage >= 70) effectiveColor = "primary"; // Primary color for 70-89%
+      else if (percentage >= 50) effectiveColor = "primary"; // Primary color for 50-69%
+      else effectiveColor = "primary"; // Primary color for 0-49%
     }
 
     const effectiveColorConfig = colorMap[effectiveColor];

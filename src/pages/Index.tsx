@@ -4,6 +4,7 @@ import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
 import { getAvailablePlans, subscribeToPlan, cancelSubscription, redeemCouponCode } from "@/services/billingApi";
+import { getReferralCode } from "@/services/referralsApi";
 import {
   Card,
   CardContent,
@@ -23,10 +24,13 @@ import {
   Calendar,
   CreditCard,
   Sparkle,
-  Tag,
   Coins,
   X,
   AlertTriangle,
+  Copy,
+  Users,
+  Gift,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,8 +49,10 @@ import {
 import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
+import { PlanConfirmation } from "@/components/PlanConfirmation";
 import NavigationBar from "@/components/NavigationBar";
 import CreditBalance from "@/components/CreditBalance";
+import CreditUtilizationBanner from "@/components/CreditUtilizationBanner";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -63,10 +69,15 @@ const Index = () => {
   const [availablePlans, setAvailablePlans] = useState<any[] | any>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
+  const [showPlanConfirmation, setShowPlanConfirmation] = useState(false);
+  const [selectedPlanForConfirmation, setSelectedPlanForConfirmation] = useState<any | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [loadingReferralCode, setLoadingReferralCode] = useState(false);
+  const [copyingReferralCode, setCopyingReferralCode] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -274,6 +285,27 @@ const Index = () => {
       // Refresh subscription status
       await refreshSubscription();
 
+      // Sync credits after cancellation to clear plan credits
+      try {
+        const { syncCredits } = await import("@/services/creditsApi");
+        const syncResult = await syncCredits(shopDomain);
+        if (syncResult.success) {
+          console.log("[Billing] Credits synced after cancellation", {
+            action: syncResult.action,
+            requestId: syncResult.requestId,
+          });
+        } else {
+          console.warn("[Billing] Credit sync failed after cancellation", {
+            error: syncResult.error,
+            message: syncResult.message,
+            requestId: syncResult.requestId,
+          });
+        }
+      } catch (syncError) {
+        // Don't block cancellation flow if credit sync fails
+        console.error("[Billing] Failed to sync credits after cancellation", syncError);
+      }
+
       toast.success(t("index.planCard.subscriptionCancelled") || "Subscription cancelled successfully");
       console.log("[Billing] Subscription cancelled successfully", data);
     } catch (error: any) {
@@ -281,6 +313,25 @@ const Index = () => {
       toast.error(error.message || t("index.errors.cancelError") || "Failed to cancel subscription");
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleCopyReferralCode = async () => {
+    if (!referralCode) return;
+
+    try {
+      setCopyingReferralCode(true);
+      await navigator.clipboard.writeText(referralCode);
+      toast.success(t("referral.toast.codeCopied"), {
+        description: t("referral.toast.codeCopiedDescription"),
+      });
+    } catch (err) {
+      console.error("[Index] Failed to copy referral code", err);
+      toast.error(t("referral.toast.copyFailed"), {
+        description: t("referral.toast.copyFailedDescription"),
+      });
+    } finally {
+      setCopyingReferralCode(false);
     }
   };
 
@@ -323,11 +374,50 @@ const Index = () => {
     }
   };
 
-  const handleSelectPlan = async (planHandle: string) => {
+  // Helper function to find plan by handle
+  const findPlanByHandle = (planHandle: string): any | null => {
+    if (Array.isArray(availablePlans)) {
+      return availablePlans.find((p: any) => p.handle === planHandle) || null;
+    } else if (availablePlans?.plans) {
+      return availablePlans.plans.find((p: any) => p.handle === planHandle) || null;
+    } else if (availablePlans?.planTiers) {
+      // Search through all tiers
+      const tiers = availablePlans.planTiers;
+      for (const tierKey in tiers) {
+        const tierPlans = tiers[tierKey];
+        if (Array.isArray(tierPlans)) {
+          const found = tierPlans.find((p: any) => p.handle === planHandle);
+          if (found) return found;
+        }
+      }
+    }
+    return null;
+  };
+
+  const handleSelectPlan = (planHandle: string) => {
+    const plan = findPlanByHandle(planHandle);
+    
+    if (plan) {
+      setSelectedPlanForConfirmation(plan);
+      setShowPlanSelection(false);
+      setShowPlanConfirmation(true);
+    } else {
+      console.error("[Billing] Plan not found for handle:", planHandle);
+      toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
+    }
+  };
+
+  const handleConfirmPlan = async (referralCode: string | null) => {
+    if (!selectedPlanForConfirmation) {
+      toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
+      return;
+    }
+
     const shopDomain =
       shop || new URLSearchParams(window.location.search).get("shop");
 
     if (!shopDomain) {
+      toast.error("Shop domain not found");
       return;
     }
 
@@ -336,11 +426,14 @@ const Index = () => {
 
       console.log("[Billing] Creating subscription request", {
         shop: shopDomain,
-        planHandle,
+        planHandle: selectedPlanForConfirmation.handle,
+        referralCode: referralCode || "none",
       });
 
-      // Use remote API service
-      const data = await subscribeToPlan(shopDomain, planHandle, null);
+      // Note: Referral code is validated separately via /api/referrals/validate
+      // The backend will handle referral code validation during subscription creation
+      // We pass null as promoCode (promoCode is different from referral code)
+      const data = await subscribeToPlan(shopDomain, selectedPlanForConfirmation.handle, null);
 
       console.log("[Billing] Subscription response received", {
         confirmationUrl: data.confirmationUrl,
@@ -356,6 +449,11 @@ const Index = () => {
       console.log("[Billing] Redirecting to confirmation URL", {
         confirmationUrl: data.confirmationUrl,
       });
+
+      // Reset confirmation state before redirecting
+      // This prevents showing confirmation step if user returns/cancels payment
+      setShowPlanConfirmation(false);
+      setSelectedPlanForConfirmation(null);
 
       // Use App Bridge Redirect action for safe navigation from embedded app
       // This properly handles cross-origin navigation without security errors
@@ -381,9 +479,18 @@ const Index = () => {
       console.error("[Billing] Failed to create subscription", error);
       const errorMessage = error?.message || t("index.errors.subscriptionFailed") || "Failed to create subscription. Please try again.";
       toast.error(errorMessage);
+      // Reset confirmation state on error so user can try again
+      setShowPlanConfirmation(false);
+      setSelectedPlanForConfirmation(null);
     } finally {
       setBillingLoading(false);
     }
+  };
+
+  const handleBackToPlanSelection = () => {
+    setShowPlanConfirmation(false);
+    setSelectedPlanForConfirmation(null);
+    setShowPlanSelection(true);
   };
 
   // Debug logging for subscription API call
@@ -487,17 +594,107 @@ const Index = () => {
     }
   }, [subscription?.subscription?.id, refreshCredits]);
 
+  // Fetch referral code for all users (free and paid plans)
+  useEffect(() => {
+    const fetchReferralCode = async () => {
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      
+      if (!shopDomain) {
+        return;
+      }
+
+      // Wait for subscription to finish loading
+      if (subscriptionLoading) {
+        return;
+      }
+
+      // Fetch referral code for all users (no longer restricted to paid plans)
+      try {
+        setLoadingReferralCode(true);
+        const response = await getReferralCode(shopDomain);
+        
+        if (response.success && response.referralCode) {
+          setReferralCode(response.referralCode);
+        } else {
+          setReferralCode(null);
+        }
+      } catch (error) {
+        console.error("[Index] Failed to fetch referral code", error);
+        setReferralCode(null);
+      } finally {
+        setLoadingReferralCode(false);
+      }
+    };
+
+    fetchReferralCode();
+  }, [shop, subscriptionLoading]);
+
   // Track if billing flow has been triggered to prevent infinite loops
-  const billingTriggeredRef = useRef(false);
+  // Use sessionStorage to persist across remounts (navigation between routes)
+  const getBillingTriggeredState = (): boolean => {
+    try {
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) return false;
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
+      const stored = sessionStorage.getItem(`billingTriggered_${normalizedShop}`);
+      return stored === "true";
+    } catch {
+      return false;
+    }
+  };
+
+  const setBillingTriggeredState = (value: boolean): void => {
+    try {
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (!shopDomain) return;
+      const normalizedShop = shopDomain.includes(".myshopify.com")
+        ? shopDomain.toLowerCase()
+        : `${shopDomain.toLowerCase()}.myshopify.com`;
+      if (value) {
+        sessionStorage.setItem(`billingTriggered_${normalizedShop}`, "true");
+      } else {
+        sessionStorage.removeItem(`billingTriggered_${normalizedShop}`);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const billingTriggeredRef = useRef(getBillingTriggeredState());
   const lastSubscriptionRef = useRef<typeof subscription>(null);
   const paymentSuccessTimeRef = useRef<number | null>(null);
   const paymentSuccessRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const componentMountTimeRef = useRef<number>(Date.now());
+  const initialLoadGracePeriodRef = useRef<boolean>(true);
 
   // State to track payment success for reactive UI updates
   const [isWaitingForPaymentSuccess, setIsWaitingForPaymentSuccess] =
     useState(false);
   const [paymentSuccessElapsedTime, setPaymentSuccessElapsedTime] = useState(0);
+
+  // Initialize component mount time and grace period on mount
+  useEffect(() => {
+    try {
+      componentMountTimeRef.current = Date.now();
+      initialLoadGracePeriodRef.current = true;
+      
+      // Clear grace period after a short delay (300ms) to allow subscription hook to initialize
+      const gracePeriodTimeout = setTimeout(() => {
+        initialLoadGracePeriodRef.current = false;
+      }, 300);
+
+      return () => {
+        clearTimeout(gracePeriodTimeout);
+      };
+    } catch (error) {
+      console.error("[Index] Error in grace period initialization:", error);
+      // Ensure grace period is cleared even on error
+      initialLoadGracePeriodRef.current = false;
+    }
+  }, []);
 
   // Check subscription and redirect to pricing page if subscription is null
   useEffect(() => {
@@ -507,6 +704,20 @@ const Index = () => {
       subscriptionLoading
     );
     console.log("🔍 [Redirect Debug] subscription:", subscription);
+    
+    // Apply grace period: don't trigger billing flow immediately after mount
+    // This prevents race conditions when component remounts and subscription hook is still initializing
+    const timeSinceMount = Date.now() - componentMountTimeRef.current;
+    const isInGracePeriod = initialLoadGracePeriodRef.current || timeSinceMount < 300;
+    
+    if (isInGracePeriod) {
+      console.log("🔍 [Redirect Debug] In grace period after mount, waiting...", {
+        timeSinceMount,
+        inGracePeriod: initialLoadGracePeriodRef.current,
+      });
+      // Don't trigger billing flow during grace period
+      // But allow other logic to run (like hiding plan selection if subscription exists)
+    }
 
     // Check if we're returning from payment success
     const urlParams = new URLSearchParams(window.location.search);
@@ -551,6 +762,7 @@ const Index = () => {
       );
       setShowPlanSelection(false);
       billingTriggeredRef.current = false;
+      setBillingTriggeredState(false);
       // Clear payment success tracking since we have subscription
       if (paymentSuccessTimeRef.current !== null) {
         paymentSuccessTimeRef.current = null;
@@ -616,6 +828,7 @@ const Index = () => {
       // Clear billing trigger if subscription changed
       if (subscriptionChanged) {
         billingTriggeredRef.current = false;
+        setBillingTriggeredState(false);
       }
 
       // Continue to normal flow - update plan state, etc.
@@ -669,6 +882,7 @@ const Index = () => {
     // Redirect to billing flow if no subscription is configured
     // BUT only if we're NOT waiting for payment success to process
     // AND only if loading is complete (to prevent showing plan selection while still loading)
+    // AND only if grace period has passed (to prevent race conditions on remount)
     // Also ensure we have a valid subscription object (even if null) to avoid undefined issues
     const hasNoSubscription =
       !subscription ||
@@ -678,62 +892,77 @@ const Index = () => {
     if (
       hasNoSubscription &&
       !subscriptionLoading &&
-      !isWaitingForPaymentSuccess
+      !isWaitingForPaymentSuccess &&
+      !isInGracePeriod
     ) {
-      // Only trigger billing flow once per subscription state
-      if (!billingTriggeredRef.current) {
+      // Only trigger billing flow once per subscription state (check both ref and sessionStorage)
+      const billingAlreadyTriggered = billingTriggeredRef.current || getBillingTriggeredState();
+      
+      if (!billingAlreadyTriggered) {
         console.log(
           "🚨 [Redirect Debug] Triggering billing flow - subscription is null and loading complete",
           {
             subscription: subscription ? "exists but null" : "does not exist",
             subscriptionLoading,
             isWaitingForPaymentSuccess,
+            timeSinceMount,
+            inGracePeriod: isInGracePeriod,
           }
         );
         billingTriggeredRef.current = true;
+        setBillingTriggeredState(true);
         handleRequireBilling();
       } else {
         console.log(
-          "🔍 [Redirect Debug] Billing flow already triggered, skipping"
+          "🔍 [Redirect Debug] Billing flow already triggered, skipping",
+          {
+            refValue: billingTriggeredRef.current,
+            storageValue: getBillingTriggeredState(),
+          }
         );
       }
       lastSubscriptionRef.current = subscription;
       return;
     }
 
-    // Console log subscription status
-    console.log(
-      "✅ [Redirect Debug] NO REDIRECT - Subscription exists:",
-      subscription.subscription?.status
-    );
-    console.log(
-      "✅ [Redirect Debug] subscription.hasActiveSubscription:",
-      subscription.hasActiveSubscription
-    );
-    console.log(
-      "✅ [Redirect Debug] subscription.isFree:",
-      subscription.isFree
-    );
+    // Console log subscription status (with safe property access)
+    if (subscription) {
+      console.log(
+        "✅ [Redirect Debug] NO REDIRECT - Subscription exists:",
+        subscription.subscription?.status
+      );
+      console.log(
+        "✅ [Redirect Debug] subscription.hasActiveSubscription:",
+        subscription.hasActiveSubscription
+      );
+      console.log(
+        "✅ [Redirect Debug] subscription.isFree:",
+        subscription.isFree
+      );
+    }
 
     // Reset billing trigger flag since we have a subscription
     billingTriggeredRef.current = false;
+    setBillingTriggeredState(false);
 
-    // Update current plan state
-    if (subscription.hasActiveSubscription && !subscription.isFree) {
-      console.log(
-        "✅ [Redirect Debug] Setting currentPlan to:",
-        subscription.plan?.name || "active"
-      );
-      setCurrentPlan(subscription.plan?.name || "active");
-    } else if (subscription.isFree) {
-      console.log("✅ [Redirect Debug] Setting currentPlan to: free");
-      setCurrentPlan("free");
-    } else {
-      console.log(
-        "✅ [Redirect Debug] Setting currentPlan to:",
-        subscription.plan?.name || "inactive"
-      );
-      setCurrentPlan(subscription.plan?.name || "inactive");
+    // Update current plan state (with safe property access)
+    if (subscription) {
+      if (subscription.hasActiveSubscription && !subscription.isFree) {
+        console.log(
+          "✅ [Redirect Debug] Setting currentPlan to:",
+          subscription.plan?.name || "active"
+        );
+        setCurrentPlan(subscription.plan?.name || "active");
+      } else if (subscription.isFree) {
+        console.log("✅ [Redirect Debug] Setting currentPlan to: free");
+        setCurrentPlan("free");
+      } else {
+        console.log(
+          "✅ [Redirect Debug] Setting currentPlan to:",
+          subscription.plan?.name || "inactive"
+        );
+        setCurrentPlan(subscription.plan?.name || "inactive");
+      }
     }
 
     lastSubscriptionRef.current = subscription;
@@ -762,12 +991,17 @@ const Index = () => {
           }
         }
 
-        // Hide plan selection if showing
+        // Hide plan selection and confirmation if showing
         if (showPlanSelection) {
           setShowPlanSelection(false);
         }
+        if (showPlanConfirmation) {
+          setShowPlanConfirmation(false);
+          setSelectedPlanForConfirmation(null);
+        }
 
         billingTriggeredRef.current = false;
+        setBillingTriggeredState(false);
       }
     };
 
@@ -783,6 +1017,19 @@ const Index = () => {
       );
     };
   }, [shop, showPlanSelection]);
+
+  // Listen for pricing modal open event from CreditUtilizationBanner
+  useEffect(() => {
+    const handleOpenPricingModal = () => {
+      setShowPlanSelection(true);
+    };
+
+    window.addEventListener("openPricingModal", handleOpenPricingModal);
+
+    return () => {
+      window.removeEventListener("openPricingModal", handleOpenPricingModal);
+    };
+  }, []);
 
   // Clear waiting state immediately when subscription is found
   // OR if subscription fetch completes but subscription is still null (after a short delay)
@@ -862,6 +1109,7 @@ const Index = () => {
             );
             setShowPlanSelection(true);
             billingTriggeredRef.current = false; // Reset to allow retry
+            setBillingTriggeredState(false);
           }
         }
         loadingTimeoutRef.current = null;
@@ -948,6 +1196,21 @@ const Index = () => {
     }
     featuresElement.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Early return if showing plan confirmation - render only confirmation step
+  if (showPlanConfirmation && selectedPlanForConfirmation && shop) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PlanConfirmation
+          selectedPlan={selectedPlanForConfirmation}
+          onConfirm={handleConfirmPlan}
+          onBack={handleBackToPlanSelection}
+          loading={billingLoading}
+          shop={shop}
+        />
+      </div>
+    );
+  }
 
   // Show skeleton loading when subscription is loading
   if (subscriptionLoading && !isWaitingForPaymentSuccess) {
@@ -1072,6 +1335,11 @@ const Index = () => {
       {/* Navigation Bar */}
       <NavigationBar />
 
+      {/* Credit Utilization Banner - Shows at 80%, 90%, 100% utilization */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <CreditUtilizationBanner />
+      </div>
+
       {/* Main Content - Always visible */}
       {/* Hero Section - Shopify Style */}
           <header className="relative bg-card border-b border-border min-h-[calc(100vh-56px)] flex items-center" role="banner">
@@ -1130,11 +1398,11 @@ const Index = () => {
               {/* Right Section - Plan Info */}
               <div className="lg:col-span-4">
                 {subscription && subscription.subscription !== null ? (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 h-full flex flex-col">
+                    <CardContent className="p-4 flex flex-col flex-1">
+                      <div className="space-y-3 flex flex-col flex-1">
                         {/* Plan Badges - Always visible */}
-                        <div className="space-y-2">
+                        <div className="space-y-2 flex-shrink-0">
                           <div className="flex flex-wrap items-center gap-1.5">
                             {subscription.isFree ? (
                               <Badge
@@ -1166,25 +1434,89 @@ const Index = () => {
                               </Badge>
                             )}
                           </div>
-                          {/* Plan Price & Interval - Show when plan exists */}
-                          {subscription.plan && !subscription.isFree && (
-                            <div className="pt-1">
-                              <p className="text-sm font-semibold text-foreground">
-                                {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {subscription.plan.interval === "EVERY_30_DAYS" 
-                                  ? t("planSelection.monthly") || "Monthly"
-                                  : subscription.plan.interval === "ANNUAL"
-                                  ? t("planSelection.annual") || "Annual"
-                                  : subscription.plan.interval}
-                              </p>
+                          {/* Plan Price & Interval - Show when plan exists - Fixed height container */}
+                          <div className="min-h-[48px] flex items-start">
+                            <div className="pt-1 w-full">
+                              <div className={`flex items-baseline gap-2 flex-wrap ${subscription.plan && !subscription.isFree ? 'justify-between' : 'justify-start'}`}>
+                                {/* Price section - only show for paid plans */}
+                                {subscription.plan && !subscription.isFree ? (
+                                  <div className="flex items-baseline gap-2">
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {subscription.plan.currencyCode} {subscription.plan.price.toFixed(2)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {subscription.plan.interval === "EVERY_30_DAYS" 
+                                        ? t("planSelection.monthly") || "Monthly"
+                                        : subscription.plan.interval === "ANNUAL"
+                                        ? t("planSelection.annual") || "Annual"
+                                        : subscription.plan.interval}
+                                    </p>
+                                  </div>
+                                ) : null}
+                                {/* Credits button - show for all plans (including free) */}
+                                {credits && !creditsLoading && (() => {
+                                  const creditBalance = credits.total_balance ?? credits.balance ?? 0;
+                                  const totalCredited = credits.total_credited ?? credits.included ?? 0;
+                                  const isOverage = credits.isOverage;
+                                  
+                                  // Calculate percentage of credits remaining
+                                  // If totalCredited is 0, default to success color (no credits used yet)
+                                  const creditPercentage = totalCredited > 0 
+                                    ? (creditBalance / totalCredited) * 100 
+                                    : 100;
+                                  
+                                  // Determine color scheme based on percentage thresholds
+                                  let colorClasses = "";
+                                  let focusRingColor = "";
+                                  
+                                  if (isOverage) {
+                                    // Overage mode - use warning color from design system
+                                    colorClasses = "bg-warning/10 hover:bg-warning/20 text-warning border-warning/20 hover:border-warning/30";
+                                    focusRingColor = "focus-visible:ring-warning";
+                                  } else if (creditPercentage < 10) {
+                                    // Less than 10% - error color from design system (red)
+                                    colorClasses = "bg-error/10 hover:bg-error/20 text-error border-error/20 hover:border-error/30";
+                                    focusRingColor = "focus-visible:ring-error";
+                                  } else if (creditPercentage < 20) {
+                                    // Less than 20% - warning color from design system (amber)
+                                    colorClasses = "bg-warning/10 hover:bg-warning/20 text-warning border-warning/20 hover:border-warning/30";
+                                    focusRingColor = "focus-visible:ring-warning";
+                                  } else {
+                                    // 20% or more - success color from design system (green)
+                                    colorClasses = "bg-success/10 hover:bg-success/20 text-success border-success/20 hover:border-success/30";
+                                    focusRingColor = "focus-visible:ring-success";
+                                  }
+                                  
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        const creditsSection = document.getElementById("credits-heading");
+                                        if (creditsSection) {
+                                          creditsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                                        }
+                                      }}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRingColor} focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses}`}
+                                      aria-label={t("index.planCard.viewCredits") || "View credits"}
+                                    >
+                                      <Coins className="w-3 h-3" aria-hidden="true" />
+                                      <span>
+                                        {isOverage 
+                                          ? t("index.planCard.overageActive") || "Overage active"
+                                          : creditBalance !== null && creditBalance !== undefined
+                                          ? t("index.planCard.creditsAvailable", { count: creditBalance }) || `${creditBalance} credits available`
+                                          : t("index.planCard.viewCredits") || "View credits"}
+                                      </span>
+                                      <ChevronRight className="w-3 h-3 opacity-60" aria-hidden="true" />
+                                    </button>
+                                  );
+                                })()}
+                              </div>
                             </div>
-                          )}
+                          </div>
                         </div>
 
-                        {/* Action Buttons - Consistent spacing */}
-                        <div className="space-y-1.5" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
+                        {/* Action Buttons - Consistent spacing - Fixed height */}
+                        <div className="space-y-1.5 flex-shrink-0 min-h-[72px]" role="group" aria-label={t("index.planCard.planActions") || "Plan actions"}>
                           <Button
                             size="sm"
                             className="w-full h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -1201,168 +1533,176 @@ const Index = () => {
                               : t("index.planCard.manageSubscription")}
                           </Button>
                           {/* Cancel Button - Show for all plans (user has right to cancel anytime) */}
-                          <div className="min-h-[36px]">
-                            {subscription && 
-                             subscription.subscription !== null && 
-                             subscription.subscription?.id ? (
-                                <>
-                                  <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                                    <AlertDialogContent className="bg-card border-border shadow-lg max-w-md">
-                                      <AlertDialogHeader className="space-y-4">
-                                        {/* Warning Icon Section */}
-                                        <div className="flex items-center gap-3">
-                                          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 border border-destructive/20 flex-shrink-0">
-                                            <AlertTriangle className="w-5 h-5 text-destructive" aria-hidden="true" />
-                                          </div>
-                                          <AlertDialogTitle className="text-lg font-semibold text-foreground leading-tight">
-                                            {t("index.planCard.confirmCancelTitle") || "Cancel Subscription"}
-                                          </AlertDialogTitle>
+                          {subscription && 
+                           subscription.subscription !== null && 
+                           subscription.subscription?.id ? (
+                              <>
+                                <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                                  <AlertDialogContent className="bg-card border-border shadow-lg max-w-md">
+                                    <AlertDialogHeader className="space-y-4">
+                                      {/* Warning Icon Section */}
+                                      <div className="flex items-center gap-3">
+                                        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 border border-destructive/20 flex-shrink-0">
+                                          <AlertTriangle className="w-5 h-5 text-destructive" aria-hidden="true" />
                                         </div>
-                                        <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed pt-2">
-                                          {t("index.errors.confirmCancel") || "Are you sure you want to cancel your subscription? Your subscription will remain active until the end of the current billing period."}
-                                        </AlertDialogDescription>
-                                        {/* Warning Info Box */}
-                                        <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg mt-2">
-                                          <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
-                                            <Shield
-                                              className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
-                                              aria-hidden="true"
-                                            />
-                                            <span>
-                                              <strong className="font-semibold text-foreground">
-                                                {t("index.planCard.important") || "Important:"}{" "}
-                                              </strong>
-                                              {t("index.planCard.cancelWarning") || "You'll continue to have access to all features until your current billing period ends."}
-                                            </span>
-                                          </p>
-                                        </div>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-6">
-                                        <AlertDialogCancel 
-                                          className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 mt-0"
-                                        >
-                                          {t("index.planCard.keepSubscription") || t("common.cancel") || "Keep Subscription"}
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={handleCancelSubscription}
-                                          disabled={cancelling}
-                                          className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive/20 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                                        >
-                                          {cancelling ? (
-                                            <>
-                                              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-destructive-foreground mr-1.5" aria-hidden="true" />
-                                              {t("index.planCard.cancelling") || "Cancelling..."}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                                              {t("index.planCard.confirmCancel") || "Yes, Cancel Subscription"}
-                                            </>
-                                          )}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                                    onClick={() => setShowCancelDialog(true)}
-                                    disabled={cancelling}
-                                    aria-label={cancelling
-                                      ? t("index.planCard.cancelling")
-                                      : t("index.planCard.cancelSubscription")}
-                                  >
-                                    <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                                    {cancelling
-                                      ? t("index.planCard.cancelling")
-                                      : t("index.planCard.cancelSubscription")}
-                                  </Button>
-                                </>
-                              ) : (
-                                <div className="w-full" aria-hidden="true" />
-                              )}
-                          </div>
+                                        <AlertDialogTitle className="text-lg font-semibold text-foreground leading-tight">
+                                          {t("index.planCard.confirmCancelTitle") || "Cancel Subscription"}
+                                        </AlertDialogTitle>
+                                      </div>
+                                      <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed pt-2">
+                                        {t("index.errors.confirmCancel") || "Are you sure you want to cancel your subscription? Your subscription will remain active until the end of the current billing period."}
+                                      </AlertDialogDescription>
+                                      {/* Warning Info Box */}
+                                      <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg mt-2">
+                                        <p className="text-xs sm:text-sm text-foreground flex items-start gap-2 leading-relaxed">
+                                          <Shield
+                                            className="w-4 h-4 text-warning flex-shrink-0 mt-0.5"
+                                            aria-hidden="true"
+                                          />
+                                          <span>
+                                            <strong className="font-semibold text-foreground">
+                                              {t("index.planCard.important") || "Important:"}{" "}
+                                            </strong>
+                                            {t("index.planCard.cancelWarning") || "You'll continue to have access to all features until your current billing period ends."}
+                                          </span>
+                                        </p>
+                                      </div>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-6">
+                                      <AlertDialogCancel 
+                                        className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 mt-0"
+                                      >
+                                        {t("index.planCard.keepSubscription") || t("common.cancel") || "Keep Subscription"}
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={handleCancelSubscription}
+                                        disabled={cancelling}
+                                        className="w-full sm:w-auto h-9 min-h-[36px] font-medium text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive/20 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                      >
+                                        {cancelling ? (
+                                          <>
+                                            <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-destructive-foreground mr-1.5" aria-hidden="true" />
+                                            {t("index.planCard.cancelling") || "Cancelling..."}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                                            {t("index.planCard.confirmCancel") || "Yes, Cancel Subscription"}
+                                          </>
+                                        )}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full h-9 min-h-[36px] font-medium text-xs text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                                  onClick={() => setShowCancelDialog(true)}
+                                  disabled={cancelling}
+                                  aria-label={cancelling
+                                    ? t("index.planCard.cancelling")
+                                    : t("index.planCard.cancelSubscription")}
+                                >
+                                  <X className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                                  {cancelling
+                                    ? t("index.planCard.cancelling")
+                                    : t("index.planCard.cancelSubscription")}
+                                </Button>
+                              </>
+                            ) : null}
                         </div>
 
-                        {/* Subscription Period Info - Show when available */}
-                        {subscription.subscription && !subscription.isFree && (
-                          <div className="pt-1.5 border-t border-border">
-                            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                              <div className="p-1.5 rounded bg-muted/30">
-                                <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
-                                <p className="font-medium text-foreground leading-tight">
-                                  {subscription.subscription.currentPeriodStart
-                                    ? new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
-                                        i18n.language === "fr" ? "fr-FR" : "en-US",
-                                        { year: 'numeric', month: 'short', day: 'numeric' }
-                                      )
-                                    : "—"}
-                                </p>
-                              </div>
-                              <div className="p-1.5 rounded bg-muted/30">
-                                <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
-                                <p className="font-medium text-foreground leading-tight">
-                                  {subscription.subscription.currentPeriodEnd
-                                    ? new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
-                                        i18n.language === "fr" ? "fr-FR" : "en-US",
-                                        { year: 'numeric', month: 'short', day: 'numeric' }
-                                      )
-                                    : "—"}
-                                </p>
+                        {/* Subscription Period Info - Show when available - Fixed height container */}
+                        <div className="flex-shrink-0 min-h-[60px] flex items-start">
+                          {subscription.subscription && !subscription.isFree ? (
+                            <div className="pt-1.5 border-t border-border w-full">
+                              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                                <div className="p-1.5 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodStart") || "Period Start"}</p>
+                                  <p className="font-medium text-foreground leading-tight">
+                                    {subscription.subscription.currentPeriodStart
+                                      ? new Date(subscription.subscription.currentPeriodStart).toLocaleDateString(
+                                          i18n.language === "fr" ? "fr-FR" : "en-US",
+                                          { year: 'numeric', month: 'short', day: 'numeric' }
+                                        )
+                                      : "—"}
+                                  </p>
+                                </div>
+                                <div className="p-1.5 rounded bg-muted/30">
+                                  <p className="text-muted-foreground mb-0.5 leading-tight">{t("index.planCard.periodEnd") || "Period End"}</p>
+                                  <p className="font-medium text-foreground leading-tight">
+                                    {subscription.subscription.currentPeriodEnd
+                                      ? new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString(
+                                          i18n.language === "fr" ? "fr-FR" : "en-US",
+                                          { year: 'numeric', month: 'short', day: 'numeric' }
+                                        )
+                                      : "—"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
+                          ) : null}
+                        </div>
+
+                        {/* Referral Code Section - Available for all users (free and paid plans) */}
+                        {subscription && (
+                          <div className="pt-2 border-t border-border flex-shrink-0">
+                            <label className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
+                              <Users className="w-3 h-3" aria-hidden="true" />
+                              {t("referral.code.label")}
+                            </label>
+                            {loadingReferralCode ? (
+                              <div className="flex items-center gap-2 py-2">
+                                <div className="h-8 flex-1 bg-muted/50 rounded border border-border animate-pulse" />
+                              </div>
+                            ) : referralCode ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex-1 px-3 py-2 bg-muted/50 border border-border rounded text-sm font-mono font-bold text-foreground">
+                                    {referralCode}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCopyReferralCode}
+                                    disabled={copyingReferralCode}
+                                    className="h-8 px-3 font-medium text-xs whitespace-nowrap"
+                                    aria-label={copyingReferralCode ? t("referral.code.copying") : t("referral.code.copyAriaLabel")}
+                                  >
+                                    {copyingReferralCode ? (
+                                      <div className="w-3 h-3 mr-1 border-2 border-border border-t-primary rounded-full animate-spin" />
+                                    ) : (
+                                      <Copy className="w-3 h-3 mr-1" />
+                                    )}
+                                    {t("referral.code.copy")}
+                                  </Button>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {t("referral.code.shareHint")}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="py-2">
+                                <p className="text-[10px] text-muted-foreground">
+                                  {t("referral.code.willAppear")}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
-
-                        {/* Promo Code Section - Always visible for consistent layout */}
-                        <div className="pt-2 border-t border-border">
-                          <label htmlFor="coupon-code" className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
-                            <Tag className="w-3 h-3" aria-hidden="true" />
-                            {t("index.coupon.label") || "Promo Code"}
-                          </label>
-                          <div className="flex gap-1.5">
-                            <Input
-                              id="coupon-code"
-                              type="text"
-                              placeholder={t("index.coupon.placeholder") || "Enter promo code"}
-                              value={couponCode}
-                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !redeemingCoupon) {
-                                  handleRedeemCoupon();
-                                }
-                              }}
-                              disabled={redeemingCoupon}
-                              className="flex-1 h-8 text-xs"
-                              aria-label={t("index.coupon.inputLabel") || "Promo code input"}
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={handleRedeemCoupon}
-                              disabled={redeemingCoupon || !couponCode.trim()}
-                              className="h-8 px-3 font-medium text-xs whitespace-nowrap"
-                              aria-label={redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
-                            >
-                              {redeemingCoupon ? (t("index.coupon.applying") || "Applying...") : (t("index.coupon.apply") || "Apply")}
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            {t("index.coupon.hint") || "Enter a promo code to redeem credits"}
-                          </p>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground">
+                  <Card className="border border-border shadow-sm bg-card max-w-sm mx-auto lg:mx-0 h-full flex flex-col">
+                    <CardContent className="p-4 flex flex-col flex-1">
+                      <div className="space-y-3 flex flex-col flex-1">
+                        <h2 id="plan-card-heading" className="text-xs sm:text-sm font-semibold text-foreground flex-shrink-0">
                           {t("index.planCard.title")}
                         </h2>
-                        <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="flex flex-col items-center gap-3 text-center flex-shrink-0 min-h-[180px]">
                           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/5 border border-primary/10">
                             <CreditCard className="w-6 h-6 text-primary" aria-hidden="true" />
                           </div>
@@ -1886,6 +2226,7 @@ const Index = () => {
           </div>
         </div>
       )}
+
 
       {/* Loading Indicator - Non-blocking, shows in top-right corner */}
       {shouldShowLoading && (

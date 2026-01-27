@@ -1,9 +1,8 @@
-import { TryOnResponse } from "@/types/tryon";
+import { TryOnResponse, JobSubmissionResponse, JobStatusResponse } from "@/types/tryon";
 import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
 
-const API_ENDPOINT = "https://try-on-server-v1.onrender.com/api/fashion-photo";
-const HEALTH_ENDPOINT = "https://try-on-server-v1.onrender.com/api/health";
+const API_ENDPOINT = "https://ai.nusense.ddns.net/api/fashion-photo";
 
 /**
  * Normalize shop domain
@@ -18,13 +17,30 @@ const normalizeShopDomain = (shop: string): string => {
   return normalized;
 };
 
+interface CustomerInfo {
+  id?: string | null;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}
+
+interface ProductInfo {
+  productId?: number | string | null;
+  productTitle?: string | null;
+  productUrl?: string | null;
+  variantId?: number | string | null;
+}
+
 export async function generateTryOn(
   personImage: File | Blob,
   clothingImage: Blob,
   storeName?: string | null,
   clothingKey?: string | null,
   personKey?: string | null,
-  version?: number | null
+  version?: number | null,
+  customerInfo?: CustomerInfo | null,
+  productInfo?: ProductInfo | null,
+  onStatusUpdate?: (statusDescription: string | null) => void
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -37,6 +53,10 @@ export async function generateTryOn(
       storeName: storeName || "not provided",
       clothingKey: clothingKey || "not provided",
       personKey: personKey || "not provided",
+      hasCustomerInfo: !!customerInfo,
+      customerId: customerInfo?.id || "not provided",
+      hasProductInfo: !!productInfo,
+      productInfo: productInfo || "not provided",
       timestamp: new Date().toISOString(),
     });
 
@@ -59,16 +79,80 @@ export async function generateTryOn(
         formData.append("personKey", personKey);
       }
 
+      // Add customer information if available (non-mandatory)
+      if (customerInfo) {
+        if (customerInfo.id) {
+          formData.append("customerId", customerInfo.id);
+        }
+        if (customerInfo.email) {
+          formData.append("customerEmail", customerInfo.email);
+        }
+        if (customerInfo.firstName) {
+          formData.append("customerFirstName", customerInfo.firstName);
+        }
+        if (customerInfo.lastName) {
+          formData.append("customerLastName", customerInfo.lastName);
+        }
+      }
+
+      // Add product information if available (non-mandatory)
+      if (productInfo) {
+        if (productInfo.productId != null && productInfo.productId !== "") {
+          formData.append("productId", String(productInfo.productId));
+          console.log("[FRONTEND] [TRYON] Added productId to FormData:", productInfo.productId);
+        }
+        if (productInfo.productTitle != null && productInfo.productTitle !== "") {
+          formData.append("productTitle", productInfo.productTitle);
+          console.log("[FRONTEND] [TRYON] Added productTitle to FormData:", productInfo.productTitle);
+        }
+        if (productInfo.productUrl != null && productInfo.productUrl !== "") {
+          formData.append("productUrl", productInfo.productUrl);
+          console.log("[FRONTEND] [TRYON] Added productUrl to FormData:", productInfo.productUrl);
+        }
+        if (productInfo.variantId != null && productInfo.variantId !== "") {
+          formData.append("variantId", String(productInfo.variantId));
+          console.log("[FRONTEND] [TRYON] Added variantId to FormData:", productInfo.variantId);
+        }
+      } else {
+        console.log("[FRONTEND] [TRYON] No productInfo provided");
+      }
+
       // Request Instagram-compatible square (1:1) aspect ratio
       formData.append("aspectRatio", "1:1");
       
       // Version parameter removed - not sent to fashion-photo API
       
+      // Log all FormData entries for debugging
+      const formDataEntries: Record<string, string> = {};
+      try {
+        // Note: FormData.entries() is not available in all environments, so we log what we know
+        formDataEntries.personImage = "[File/Blob]";
+        formDataEntries.clothingImage = "[File/Blob]";
+        if (storeName) formDataEntries.storeName = storeName;
+        if (clothingKey) formDataEntries.clothingKey = clothingKey;
+        if (personKey) formDataEntries.personKey = personKey;
+        if (customerInfo?.id) formDataEntries.customerId = String(customerInfo.id);
+        if (customerInfo?.email) formDataEntries.customerEmail = customerInfo.email;
+        if (customerInfo?.firstName) formDataEntries.customerFirstName = customerInfo.firstName;
+        if (customerInfo?.lastName) formDataEntries.customerLastName = customerInfo.lastName;
+        if (productInfo?.productId) formDataEntries.productId = String(productInfo.productId);
+        if (productInfo?.productTitle) formDataEntries.productTitle = productInfo.productTitle;
+        if (productInfo?.productUrl) formDataEntries.productUrl = productInfo.productUrl;
+        if (productInfo?.variantId) formDataEntries.variantId = String(productInfo.variantId);
+        formDataEntries.aspectRatio = "1:1";
+      } catch (e) {
+        // Ignore
+      }
+
       console.log("[FRONTEND] [TRYON] FormData prepared", {
         requestId,
         hasStoreName: !!storeName,
         hasClothingKey: !!clothingKey,
         hasPersonKey: !!personKey,
+        hasCustomerInfo: !!customerInfo,
+        hasProductInfo: !!productInfo,
+        productInfo: productInfo || null,
+        formDataEntries,
       });
     } catch (formError) {
       logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {
@@ -83,8 +167,9 @@ export async function generateTryOn(
       };
     }
 
-    // Send request
+    // Step 1: Submit job
     let response: Response;
+    let jobId: string;
     try {
       // Build URL with shop query parameter if storeName is provided
       let url = API_ENDPOINT;
@@ -95,7 +180,7 @@ export async function generateTryOn(
         url = urlObj.toString();
       }
 
-      console.log("[FRONTEND] [TRYON] Sending request", {
+      console.log("[FRONTEND] [TRYON] Submitting job", {
         requestId,
         endpoint: url,
         method: "POST",
@@ -113,7 +198,7 @@ export async function generateTryOn(
       });
 
       const requestDuration = Date.now() - startTime;
-      console.log("[FRONTEND] [TRYON] Response received", {
+      console.log("[FRONTEND] [TRYON] Job submission response", {
         requestId,
         status: response.status,
         statusText: response.statusText,
@@ -122,7 +207,7 @@ export async function generateTryOn(
       });
     } catch (fetchError) {
       const duration = Date.now() - startTime;
-      logError("[FRONTEND] [TRYON] Fetch request failed", fetchError, {
+      logError("[FRONTEND] [TRYON] Job submission failed", fetchError, {
         requestId,
         duration: `${duration}ms`,
       });
@@ -135,7 +220,7 @@ export async function generateTryOn(
       };
     }
 
-    // Handle error response
+    // Handle error response for job submission
     if (!response.ok) {
       const errorDetails = await logApiError(
         "[FRONTEND] [TRYON]",
@@ -147,32 +232,45 @@ export async function generateTryOn(
         status: "error",
         error_message: {
           code: errorDetails.code || `HTTP_${response.status}`,
-          message: errorDetails.message || "Une erreur s'est produite lors de la génération.",
+          message: errorDetails.message || "Une erreur s'est produite lors de la soumission du job.",
         },
       };
     }
 
-    // Parse successful response
-    let data: TryOnResponse;
+    // Parse job submission response (202 Accepted)
+    let jobSubmissionData: JobSubmissionResponse;
     try {
       const responseText = await response.text();
       if (!responseText) {
         throw new Error("Empty response body");
       }
-      data = JSON.parse(responseText);
+
+      if (response.status !== 202) {
+        // Handle non-202 success responses (backward compatibility)
+        const data = JSON.parse(responseText);
+        
+        // If response already contains image, return directly (backward compatibility)
+        if (data.status === 'success' && data.image) {
+          return data;
+        }
+        
+        throw new Error(`Unexpected status code: ${response.status}`);
+      }
+
+      // Handle 202 Accepted response
+      jobSubmissionData = JSON.parse(responseText);
       
-      const totalDuration = Date.now() - startTime;
-      console.log("[FRONTEND] [TRYON] Response parsed successfully", {
+      if (!jobSubmissionData.jobId) {
+        throw new Error("Job ID not found in response");
+      }
+      
+      jobId = jobSubmissionData.jobId;
+      console.log("[FRONTEND] [TRYON] Job submitted successfully", {
         requestId,
-        status: data.status,
-        hasImage: !!data.image,
-        hasError: !!data.error_message,
-        duration: `${totalDuration}ms`,
+        jobId,
       });
-      
-      return data;
     } catch (parseError) {
-      logError("[FRONTEND] [TRYON] Response parsing failed", parseError, {
+      logError("[FRONTEND] [TRYON] Job submission response parsing failed", parseError, {
         requestId,
         status: response.status,
       });
@@ -180,7 +278,36 @@ export async function generateTryOn(
         status: "error",
         error_message: {
           code: "PARSE_ERROR",
-          message: "Failed to parse server response",
+          message: "Failed to parse job submission response",
+        },
+      };
+    }
+
+    // Step 2: Poll job status until completion
+    try {
+      const statusResponse = await pollJobStatus(jobId, requestId, undefined, undefined, onStatusUpdate);
+      const totalDuration = Date.now() - startTime;
+      
+      console.log("[FRONTEND] [TRYON] Job completed", {
+        requestId,
+        jobId,
+        status: statusResponse.status,
+        hasImage: !!statusResponse.image,
+        hasError: !!statusResponse.error_message,
+        duration: `${totalDuration}ms`,
+      });
+      
+      return statusResponse;
+    } catch (pollError) {
+      logError("[FRONTEND] [TRYON] Job polling failed", pollError, {
+        requestId,
+        jobId,
+      });
+      return {
+        status: "error",
+        error_message: {
+          code: "POLLING_ERROR",
+          message: pollError instanceof Error ? pollError.message : "Une erreur s'est produite lors de la vérification du statut du job.",
         },
       };
     }
@@ -201,23 +328,145 @@ export async function generateTryOn(
   }
 }
 
-export const getHealthStatus = async (): Promise<void> => {
-  try {
-    const response = await fetch(HEALTH_ENDPOINT, {
-      headers: {
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-      },
-    });
+/**
+ * Poll job status until completion or failure
+ */
+async function pollJobStatus(
+  jobId: string,
+  requestId: string,
+  maxAttempts: number = 200, // 10 minutes max (3s interval)
+  pollInterval: number = 3000, // 3 seconds
+  onStatusUpdate?: (statusDescription: string | null) => void
+): Promise<TryOnResponse> {
+  const statusEndpoint = `${API_ENDPOINT}/status/${jobId}`;
+  let attempts = 0;
 
-    if (!response.ok) {
-      return;
+  while (attempts < maxAttempts) {
+    try {
+      const response = await authenticatedFetch(statusEndpoint, {
+        method: "GET",
+        headers: {
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Job not found");
+        }
+        const errorText = await response.text().catch(() => "Unknown error");
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const statusData: JobStatusResponse = await response.json();
+      
+      // Update UI with status description if available
+      if (onStatusUpdate && statusData.statusDescription) {
+        onStatusUpdate(statusData.statusDescription);
+      } else if (onStatusUpdate && statusData.message) {
+        // Fallback to message if statusDescription is not available
+        onStatusUpdate(statusData.message);
+      }
+      
+      console.log("[FRONTEND] [TRYON] Job status check", {
+        requestId,
+        jobId,
+        status: statusData.status,
+        statusDescription: statusData.statusDescription || statusData.message,
+        attempt: attempts + 1,
+      });
+
+      if (statusData.status === 'completed') {
+        // Job is completed - stop polling regardless of image download result
+        if (!statusData.imageUrl) {
+          return {
+            status: "error",
+            error_message: {
+              code: "MISSING_IMAGE_URL",
+              message: "Job completed but imageUrl is missing",
+            },
+          };
+        }
+
+        // Download image using proxy endpoint to avoid CORS issues
+        try {
+          // Use proxy endpoint to fetch image
+          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(statusData.imageUrl)}`;
+          const imageResponse = await authenticatedFetch(proxyUrl, {
+            method: "GET",
+            headers: {
+              "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+            },
+          });
+
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch image via proxy: HTTP ${imageResponse.status}`);
+          }
+
+          const imageBlob = await imageResponse.blob();
+          const imageDataUrl = await blobToDataURL(imageBlob);
+          
+          return {
+            status: "success",
+            image: imageDataUrl,
+          };
+        } catch (imageError) {
+          logError("[FRONTEND] [TRYON] Failed to download image", imageError, {
+            requestId,
+            jobId,
+            imageUrl: statusData.imageUrl,
+          });
+          // Return error response instead of throwing to stop polling
+          return {
+            status: "error",
+            error_message: {
+              code: "IMAGE_DOWNLOAD_FAILED",
+              message: "Job completed but failed to download image. Please try again.",
+            },
+          };
+        }
+      } else if (statusData.status === 'failed') {
+        return {
+          status: "error",
+          error_message: {
+            code: statusData.error?.code || "PROCESSING_FAILURE",
+            message: statusData.error?.message || "Job processing failed",
+          },
+        };
+      } else if (statusData.status === 'pending' || statusData.status === 'processing') {
+        // Continue polling
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        } else {
+          throw new Error("Job is taking longer than expected. Please check back later.");
+        }
+      } else {
+        throw new Error(`Unknown job status: ${statusData.status}`);
+      }
+    } catch (pollError) {
+      // If status is completed or failed, we should have returned already
+      // This catch is only for network/parsing errors during status checks
+      
+      // For network errors, retry after delay
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw new Error(`Job status polling failed after ${maxAttempts} attempts: ${pollError instanceof Error ? pollError.message : String(pollError)}`);
+      }
+      
+      console.warn("[FRONTEND] [TRYON] Status check failed, retrying", {
+        requestId,
+        jobId,
+        attempt: attempts,
+        error: pollError instanceof Error ? pollError.message : String(pollError),
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
-
-    await response.json();
-  } catch (error) {
-    // Health check request failed
   }
-};
+
+  throw new Error("Job processing timeout");
+}
 
 export async function fetchImageWithCorsHandling(
   url: string,
@@ -255,6 +504,75 @@ export async function fetchImageWithCorsHandling(
   }
 
   throw new Error("Toutes les stratégies CORS ont échoué");
+}
+
+export interface ImageGenerationHistoryItem {
+  id: string;
+  requestId: string;
+  personImageUrl: string;
+  clothingImageUrl: string;
+  generatedImageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImageGenerationHistoryResponse {
+  success: boolean;
+  data: ImageGenerationHistoryItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+/**
+ * Fetch customer image generation history
+ */
+export async function fetchCustomerImageHistory(
+  email: string,
+  page: number = 1,
+  limit: number = 10,
+  store?: string | null
+): Promise<ImageGenerationHistoryResponse> {
+  try {
+    const baseUrl = "https://ai.nusense.ddns.net";
+    const queryParams = new URLSearchParams({
+      email: email,
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    
+    if (store) {
+      const normalizedStore = normalizeShopDomain(store);
+      if (normalizedStore) {
+        queryParams.append("store", normalizedStore);
+      }
+    }
+    
+    const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
+    
+    const response = await authenticatedFetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: ImageGenerationHistoryResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("[FRONTEND] [HISTORY] Failed to fetch customer history:", error);
+    throw error;
+  }
 }
 
 export function blobToDataURL(blob: Blob): Promise<string> {

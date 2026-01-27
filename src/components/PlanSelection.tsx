@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Check, Sparkle, CheckCircle2, ArrowLeft, Crown, Zap, TrendingUp } from "lucide-react";
 
 interface PlanLimits {
@@ -98,7 +99,24 @@ interface PlanSelectionProps {
 
 const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onBack }: PlanSelectionProps) => {
   const { t } = useTranslation();
-  const [selectedInterval, setSelectedInterval] = useState<"monthly" | "annual">("annual");
+  
+  // Calculate initial interval dynamically based on subscription
+  // If plan is subscribed, show the tab where that plan is available
+  // If free plan or no plan, default to monthly
+  const getInitialInterval = (): "monthly" | "annual" => {
+    // If user has a subscribed plan (not free) with an interval, use that interval's tab
+    if (subscription?.plan?.interval && subscription?.hasActiveSubscription && !subscription?.isFree) {
+      if (subscription.plan.interval === "EVERY_30_DAYS") {
+        return "monthly";
+      } else if (subscription.plan.interval === "ANNUAL") {
+        return "annual";
+      }
+    }
+    // Default to monthly for free plan or no subscription
+    return "monthly";
+  };
+
+  const [selectedInterval, setSelectedInterval] = useState<"monthly" | "annual">(getInitialInterval);
   const [loadingPlanHandle, setLoadingPlanHandle] = useState<string | null>(null);
 
   // Normalize plans data - handle both array and object response
@@ -118,16 +136,20 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
     subscription?.subscription !== null &&
     subscription?.hasActiveSubscription === true;
 
-  // Auto-select the interval tab based on subscription if available
+  // Auto-select the interval tab based on subscription if available (update when subscription changes)
   useEffect(() => {
-    if (subscription?.plan?.interval) {
+    // If user has a subscribed plan (not free) with an interval, use that interval's tab
+    if (subscription?.plan?.interval && subscription?.hasActiveSubscription && !subscription?.isFree) {
       if (subscription.plan.interval === "EVERY_30_DAYS") {
         setSelectedInterval("monthly");
       } else if (subscription.plan.interval === "ANNUAL") {
         setSelectedInterval("annual");
       }
+    } else {
+      // If free plan or no subscription, default to monthly
+      setSelectedInterval("monthly");
     }
-  }, [subscription?.plan?.interval]);
+  }, [subscription?.plan?.interval, subscription?.hasActiveSubscription, subscription?.isFree]);
 
   // Get plans filtered by interval
   const filteredPlans = useMemo(() => {
@@ -258,8 +280,8 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
         };
       case "growth":
         return {
-          border: "border-primary",
-          badge: "bg-primary/10 text-primary",
+          border: "border-border",
+          badge: "bg-muted text-muted-foreground",
           button: "bg-primary hover:bg-primary/90",
         };
       case "pro":
@@ -275,6 +297,358 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
           button: "bg-primary hover:bg-primary/90",
         };
     }
+  };
+
+  // Helper function to normalize feature strings for comparison
+  const normalizeFeature = (feature: string): string => {
+    return feature.toLowerCase().trim();
+  };
+
+  // Get feature category priority for consistent ordering across plans
+  // Order: 1. Resolution, 2. Credits, 3. Support, 4. Analytics, 5. Watermark, 6. Other features, 7. Cost per generation (last)
+  const getFeatureCategory = (feature: string): number => {
+    const lowerFeature = normalizeFeature(feature);
+    
+    // 1. Resolution (check first to avoid conflicts)
+    if (lowerFeature.includes("resolution") || lowerFeature.includes("résolution") ||
+        lowerFeature.includes("1792") || lowerFeature.includes("768") ||
+        (lowerFeature.includes("×") && lowerFeature.includes("px")) ||
+        (lowerFeature.includes("x") && lowerFeature.includes("px") && !lowerFeature.includes("credit"))) {
+      return 1;
+    }
+    
+    // Check for cost per generation FIRST (before credits) to ensure it's detected correctly
+    // Cost per generation - should be at the very end (highest priority number)
+    const hasCostPattern = lowerFeature.includes("cost per generation") || 
+                          lowerFeature.includes("coût par génération") ||
+                          (lowerFeature.includes("cost") && lowerFeature.includes("generation")) ||
+                          (lowerFeature.includes("coût") && lowerFeature.includes("génération")) ||
+                          lowerFeature.includes("overage billing") || 
+                          lowerFeature.includes("facturation du dépassement") ||
+                          (lowerFeature.includes("cost:") && (lowerFeature.includes("per") || lowerFeature.includes("par"))) ||
+                          (lowerFeature.includes("coût:") && (lowerFeature.includes("par") || lowerFeature.includes("per")));
+    
+    // Also check for patterns with dollar/currency symbols and generation/credit terms
+    const hasCostWithAmount = (lowerFeature.includes("$") || lowerFeature.includes("€")) && 
+                              (lowerFeature.includes("generation") || lowerFeature.includes("génération") || 
+                               (lowerFeature.includes("credit") && lowerFeature.includes("per") && !lowerFeature.includes("included") && !lowerFeature.includes("inclus")) ||
+                               (lowerFeature.includes("crédit") && lowerFeature.includes("par") && !lowerFeature.includes("inclus")));
+    
+    if (hasCostPattern || hasCostWithAmount) {
+      return 10;
+    }
+    
+    // 2. Credits (must check before support/analytics to avoid false matches)
+    if ((lowerFeature.includes("credit") || lowerFeature.includes("crédit")) &&
+        !lowerFeature.includes("cost per") && !lowerFeature.includes("coût par")) {
+      return 2;
+    }
+    
+    // 3. Support
+    if (lowerFeature.includes("support") || lowerFeature.includes("community") ||
+        (lowerFeature.includes("email") && (lowerFeature.includes("24h") || lowerFeature.includes("24 h"))) ||
+        (lowerFeature.includes("priority") && (lowerFeature.includes("12h") || lowerFeature.includes("12 h"))) ||
+        (lowerFeature.includes("dedicated") && (lowerFeature.includes("4h") || lowerFeature.includes("4 h")))) {
+      return 3;
+    }
+    
+    // 4. Analytics (check before watermark to catch usage report)
+    if (lowerFeature.includes("analytics") || lowerFeature.includes("analyses") ||
+        lowerFeature.includes("usage report") || lowerFeature.includes("rapport d'utilisation")) {
+      return 4;
+    }
+    
+    // 5. Watermark
+    if (lowerFeature.includes("watermarked") || lowerFeature.includes("filigrane") ||
+        lowerFeature.includes("watermark")) {
+      return 5;
+    }
+    
+    // Default: put other features before cost per generation (priority 6)
+    return 6;
+  };
+
+  // Process features for a plan (extracted logic for reuse)
+  const processPlanFeatures = (plan: Plan, tier: string): string[] => {
+    const processedFeatures = plan.features.filter((feature) => {
+      const lowerFeature = feature.toLowerCase().trim();
+      
+      // Filter out existing image quality mentions (we'll add our own)
+      if (
+        lowerFeature.includes("watermarked") ||
+        lowerFeature.includes("filigrane") ||
+        lowerFeature.includes("standard definition") ||
+        lowerFeature.includes("définition standard") ||
+        lowerFeature.includes("standard quality") ||
+        lowerFeature.includes("qualité standard") ||
+        lowerFeature.includes("full hd") ||
+        lowerFeature.includes("fullhd") ||
+        lowerFeature.includes("full-hd") ||
+        lowerFeature.includes("image quality") ||
+        lowerFeature.includes("qualité d'image") ||
+        lowerFeature.includes("images")
+      ) {
+        return false;
+      }
+      
+      // Filter out savings messages (shown as badge, not feature)
+      if (
+        (lowerFeature.includes("save") && (lowerFeature.includes("per year") || lowerFeature.includes("par an"))) ||
+        (lowerFeature.includes("économisez") && lowerFeature.includes("par an"))
+      ) {
+        return false;
+      }
+      
+      // Filter out "Payment method required for overage billing" and "basic analytics" for free plans only
+      if (plan.isFree) {
+        return !(
+          lowerFeature.includes("payment method required") ||
+          lowerFeature.includes("méthode de paiement requise") ||
+          lowerFeature.includes("basic analytics") ||
+          lowerFeature.includes("analyses de base")
+        );
+      }
+      
+      return true;
+    });
+
+    // Add image quality and resolution features based on plan tier
+    if (tier === "free") {
+      processedFeatures.unshift("Watermarked images");
+      processedFeatures.unshift("768 × 1024 px resolution");
+    } else if (tier === "starter" || tier === "growth" || tier === "pro") {
+      processedFeatures.unshift("1792 × 2400 px resolution");
+    }
+
+    // Add Usage Report for all non-free plans
+    if (tier !== "free") {
+      processedFeatures.unshift("Usage Report");
+    }
+
+    return processedFeatures;
+  };
+
+  // Translate plan feature strings
+  const translateFeature = (feature: string): string => {
+    if (!feature) return feature;
+
+    const lowerFeature = feature.toLowerCase().trim();
+    const originalFeature = feature.trim();
+
+    // Credits included patterns - English: "X monthly credits included"
+    const creditsMatch = lowerFeature.match(/(\d+)\s*(monthly\s*)?credits?\s*(included|mensuel|mensuels)?/i);
+    if (creditsMatch) {
+      const count = parseInt(creditsMatch[1], 10);
+      const translated = t("planSelection.features.creditsIncluded", { count });
+      // Only use translation if it's different from the key (translation exists)
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Simple credits included - French format: "X crédits inclus"
+    const simpleCreditsMatch = lowerFeature.match(/(\d+)\s*crédits?\s*inclus/i);
+    if (simpleCreditsMatch) {
+      const count = parseInt(simpleCreditsMatch[1], 10);
+      const translated = t("planSelection.features.creditsIncludedSimple", { count });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Watermarked images (specific for free plan)
+    if (lowerFeature === "watermarked images" || lowerFeature.includes("watermarked images")) {
+      const translated = t("planSelection.features.watermarkedImages");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // QHD (2K resolution) images (specific for paid plans)
+    if (lowerFeature === "qhd (2k resolution) images" || lowerFeature.includes("qhd (2k resolution) images") ||
+        lowerFeature === "full hd images" || lowerFeature.includes("full hd images") ||
+        lowerFeature.includes("2k resolution") || lowerFeature.includes("qhd")) {
+      const translated = t("planSelection.features.qhd2kImages");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Standard definition image quality (watermarked) - legacy support
+    if (lowerFeature.includes("watermarked") || lowerFeature.includes("filigrane") || 
+        lowerFeature.includes("standard definition") || lowerFeature.includes("définition standard") ||
+        lowerFeature.includes("standard quality") || lowerFeature.includes("qualité standard")) {
+      const translated = t("planSelection.features.watermarkedImageQuality");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Full HD image quality - legacy support
+    if (lowerFeature.includes("full hd") || lowerFeature.includes("fullhd") || lowerFeature.includes("full-hd") || lowerFeature.includes("qualité d'image full hd")) {
+      const translated = t("planSelection.features.fullHdImageQuality");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Community support
+    if (lowerFeature.includes("community support") || lowerFeature.includes("support communautaire")) {
+      const translated = t("planSelection.features.communitySupport");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Email support 24h
+    if ((lowerFeature.includes("email support") || lowerFeature.includes("support par email")) && (lowerFeature.includes("24h") || lowerFeature.includes("24 h") || lowerFeature.includes("24h response") || lowerFeature.includes("réponse sous 24h"))) {
+      const translated = t("planSelection.features.emailSupport24h");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Priority support 12h
+    if ((lowerFeature.includes("priority support") || lowerFeature.includes("support prioritaire")) && (lowerFeature.includes("12h") || lowerFeature.includes("12 h") || lowerFeature.includes("12h response") || lowerFeature.includes("réponse sous 12h"))) {
+      const translated = t("planSelection.features.prioritySupport12h");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Dedicated support 4h
+    if ((lowerFeature.includes("dedicated support") || lowerFeature.includes("support dédié")) && (lowerFeature.includes("4h") || lowerFeature.includes("4 h") || lowerFeature.includes("4h response") || lowerFeature.includes("réponse sous 4h"))) {
+      const translated = t("planSelection.features.dedicatedSupport4h");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Basic analytics
+    if (lowerFeature.includes("basic analytics") || lowerFeature.includes("analyses de base")) {
+      const translated = t("planSelection.features.basicAnalytics");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Advanced analytics + API
+    if ((lowerFeature.includes("advanced analytics") || lowerFeature.includes("analyses avancées")) && (lowerFeature.includes("api") || lowerFeature.includes("+ api"))) {
+      const translated = t("planSelection.features.advancedAnalyticsApi");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Advanced analytics (without API)
+    if (lowerFeature.includes("advanced analytics") || lowerFeature.includes("analyses avancées")) {
+      const translated = t("planSelection.features.advancedAnalytics");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // API access included
+    if ((lowerFeature.includes("api access") || lowerFeature.includes("accès api")) && (lowerFeature.includes("included") || lowerFeature.includes("inclus"))) {
+      const translated = t("planSelection.features.apiAccessIncluded");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Overage billing with rate - show as cost per generation
+    const overageMatch = lowerFeature.match(/overage\s*billing[:\s]*\$?(\d+\.?\d*)\s*per\s*credit/i) ||
+                         lowerFeature.match(/facturation\s*du\s*dépassement[:\s]*(\d+\.?\d*)\s*\$?\s*par\s*crédit/i);
+    if (overageMatch) {
+      const rate = overageMatch[1];
+      const translated = t("planSelection.features.costPerGeneration", { rate });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Payment method required
+    if (lowerFeature.includes("payment method required") || lowerFeature.includes("méthode de paiement requise")) {
+      const translated = t("planSelection.features.paymentMethodRequired");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Cost per generation
+    const costMatch = lowerFeature.match(/cost[:\s]*\$?(\d+\.?\d*)\s*per\s*generation/i) ||
+                      lowerFeature.match(/coût[:\s]*(\d+\.?\d*)\s*\$?\s*par\s*génération/i);
+    if (costMatch) {
+      const rate = costMatch[1];
+      const translated = t("planSelection.features.costPerGeneration", { rate });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Save per year
+    const saveMatch = lowerFeature.match(/save\s*\$?(\d+)\s*per\s*year/i) ||
+                      lowerFeature.match(/économisez\s*\$?(\d+)\s*par\s*an/i);
+    if (saveMatch) {
+      const amount = saveMatch[1];
+      const translated = t("planSelection.features.savePerYear", { amount });
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // One usage one credit (French format)
+    if (lowerFeature.includes("1 utilisation = 1 crédit") || lowerFeature.includes("(1 utilisation = 1 crédit)")) {
+      const translated = t("planSelection.features.oneUsageOneCredit");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Recharge possible (French format)
+    if (lowerFeature.includes("recharge possible après dépassement")) {
+      const translated = t("planSelection.features.rechargePossible");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // Usage Report
+    if (lowerFeature.includes("usage report") || lowerFeature.includes("rapport d'utilisation")) {
+      const translated = t("planSelection.features.usageReport");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+    }
+
+    // 1792 × 2400 px resolution (for paid plans)
+    if (lowerFeature.includes("1792 × 2400 px resolution") || lowerFeature.includes("1792 x 2400 px resolution") || 
+        lowerFeature.includes("1792×2400 px resolution") || lowerFeature.includes("1792x2400 px resolution") ||
+        lowerFeature.includes("1792 × 2400 px") || lowerFeature.includes("1792 x 2400 px") ||
+        lowerFeature.includes("1792×2400 px") || lowerFeature.includes("1792x2400 px") ||
+        lowerFeature.includes("résolution 1792 × 2400 px") || lowerFeature.includes("résolution 1792 x 2400 px")) {
+      const translated = t("planSelection.features.resolution1792x2400");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+      return "1792 × 2400 px resolution";
+    }
+
+    // 768 × 1024 px resolution (for free plan)
+    if (lowerFeature.includes("768 × 1024 px resolution") || lowerFeature.includes("768 x 1024 px resolution") || 
+        lowerFeature.includes("768×1024 px resolution") || lowerFeature.includes("768x1024 px resolution") ||
+        lowerFeature.includes("768 × 1024 px") || lowerFeature.includes("768 x 1024 px") ||
+        lowerFeature.includes("768×1024 px") || lowerFeature.includes("768x1024 px") ||
+        lowerFeature.includes("résolution 768 × 1024 px") || lowerFeature.includes("résolution 768 x 1024 px")) {
+      const translated = t("planSelection.features.resolution768x1024");
+      if (translated && !translated.startsWith("planSelection.features")) {
+        return translated;
+      }
+      return "768 × 1024 px resolution";
+    }
+
+    // If no translation found, return original feature
+    return originalFeature;
   };
 
   return (
@@ -332,22 +706,33 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
 
       {/* Plans Grid - Using flexbox for equal heights and alignment */}
       {organizedPlans.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 auto-rows-fr">
           {organizedPlans.map(({ tier, plans }) => {
             const plan = plans[0]; // Get the plan for current interval
             if (!plan) return null;
 
             const isSubscribed = isSubscribedToPlan(plan);
             const colors = getTierColorClasses(tier);
-            const isPopular = tier === "growth";
+            const isPopular = tier === "starter";
 
             return (
               <Card
                 key={`${tier}-${selectedInterval}`}
-                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col`}
+                className={`relative border-2 ${colors.border} shadow-lg bg-card transition-all hover:shadow-xl flex flex-col overflow-hidden h-full`}
               >
-                {/* Header - Fixed height */}
-                <CardHeader className="text-center pb-3 pt-6 flex-shrink-0">
+                {/* Popular badge on top edge - corner ribbon style */}
+                {isPopular && (
+                  <div className="absolute top-0 right-0 z-10">
+                    <Badge 
+                      variant="secondary" 
+                      className="bg-primary text-primary-foreground border-0 shadow-md px-3 py-1.5 text-xs font-semibold rounded-bl-md rounded-tr-none hover:bg-primary"
+                    >
+                      {t("planSelection.popular")}
+                    </Badge>
+                  </div>
+                )}
+                {/* Header - Fixed height with consistent padding */}
+                <CardHeader className={`text-center pb-3 flex-shrink-0 ${isPopular ? 'pt-7' : 'pt-6'}`}>
                   <div className="flex items-center justify-center gap-2 mb-2 min-h-[2rem]">
                     <div className="flex items-center gap-2">
                       {getTierIcon(tier)}
@@ -356,12 +741,23 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                       </CardTitle>
                     </div>
                   </div>
+                  {/* Savings badge for annual plans - Fixed height container */}
+                  <div className="min-h-[28px] flex items-center justify-center">
+                    {selectedInterval === "annual" && 
+                     plan.interval === "ANNUAL" && 
+                     plan.yearlySavings && 
+                     plan.yearlySavings > 0 ? (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                        {t("planSelection.yearlySavings", { amount: plan.yearlySavings })}
+                      </Badge>
+                    ) : null}
+                  </div>
                 </CardHeader>
 
                 {/* Content - Flex grow to push button to bottom */}
                 <CardContent className="flex flex-col flex-grow px-4 pb-5">
                   {/* Pricing - Fixed height */}
-                  <div className="text-center border-b border-border pb-4 flex-shrink-0">
+                  <div className="text-center border-b border-border pb-4 flex-shrink-0 min-h-[80px] flex flex-col justify-center">
                     <div className="flex items-baseline justify-center gap-2 mb-1">
                       <span className="text-3xl sm:text-4xl font-bold text-foreground">
                         ${plan.price}
@@ -372,32 +768,96 @@ const PlanSelection = ({ plans, onSelectPlan, loading = false, subscription, onB
                           : (t("planSelection.annualPeriod") || "year")}
                       </span>
                     </div>
-                    {/* Monthly equivalent for annual plans */}
-                    {selectedInterval === "annual" && plan.monthlyEquivalent && plan.monthlyEquivalent > 0 && plan.interval === "ANNUAL" && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t("planSelection.billedAnnually", { price: `$${plan.monthlyEquivalent}` }) || 
-                         `$${plan.monthlyEquivalent}/month billed annually`}
+                    {/* Overage information - shown for both monthly and annual plans, including free plan */}
+                    {/* For annual plans, show overage info instead of "billed annually" */}
+                    {(plan.hasOverage || (plan.isFree && plan.limits?.costPerGeneration)) && 
+                     plan.limits?.costPerGeneration && 
+                     plan.limits?.includedCredits !== undefined ? (
+                      <p className="text-xs text-muted-foreground mt-1 text-left">
+                        {(() => {
+                          const creditsText = plan.isFree 
+                            ? `${plan.limits.includedCredits} free ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`
+                            : `${plan.limits.includedCredits} ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`;
+                          
+                          const translated = t("planSelection.overageInfo", { 
+                            includedCredits: plan.limits.includedCredits,
+                            rate: plan.limits.costPerGeneration,
+                            creditsText: creditsText,
+                            isFree: plan.isFree || false,
+                            interval: plan.interval
+                          });
+                          
+                          // Only use translation if it exists and is different from the key
+                          if (translated && !translated.startsWith("planSelection.overageInfo")) {
+                            return translated;
+                          }
+                          
+                          return `Includes ${creditsText} per month. Additional usage is billed at $${plan.limits.costPerGeneration} per credit.`;
+                        })()}
                       </p>
-                    )}
-                    {/* Overage information */}
-                    {plan.hasOverage && plan.limits?.costPerGeneration && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t("planSelection.overageRate", { rate: plan.limits.costPerGeneration })}
-                      </p>
+                    ) : (
+                      /* Monthly equivalent for annual plans - only show if overage info is not available */
+                      selectedInterval === "annual" && 
+                      plan.monthlyEquivalent && 
+                      plan.monthlyEquivalent > 0 && 
+                      plan.interval === "ANNUAL" &&
+                      plan.limits?.costPerGeneration && 
+                      plan.limits?.includedCredits !== undefined ? (
+                        <p className="text-xs text-muted-foreground mt-1 text-left">
+                          {(() => {
+                            const creditsText = plan.isFree 
+                              ? `${plan.limits.includedCredits} free ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`
+                              : `${plan.limits.includedCredits} ${plan.limits.includedCredits === 1 ? 'credit' : 'credits'}`;
+                            
+                            const translated = t("planSelection.overageInfo", { 
+                              includedCredits: plan.limits.includedCredits,
+                              rate: plan.limits.costPerGeneration,
+                              creditsText: creditsText,
+                              isFree: plan.isFree || false,
+                              interval: plan.interval
+                            });
+                            
+                            // Only use translation if it exists and is different from the key
+                            if (translated && !translated.startsWith("planSelection.overageInfo")) {
+                              return translated;
+                            }
+                            
+                            return `Includes ${creditsText} per month. Additional usage is billed at $${plan.limits.costPerGeneration} per credit.`;
+                          })()}
+                        </p>
+                      ) : null
                     )}
                   </div>
 
                   {/* Features - Flex grow to fill space */}
                   <div className="flex-grow py-4">
                     <ul className="space-y-2">
-                      {plan.features.map((feature, index) => (
+                      {(() => {
+                        // Process features for this plan
+                        const processedFeatures = processPlanFeatures(plan, tier);
+
+                        // Sort features by category order for consistent side-by-side comparison
+                        // Order: 1. Resolution, 2. Credits, 3. Support, 4. Analytics, 5. Watermark, 6. Cost per generation
+                        return processedFeatures.sort((a, b) => {
+                          const categoryA = getFeatureCategory(a);
+                          const categoryB = getFeatureCategory(b);
+                          
+                          // First sort by category
+                          if (categoryA !== categoryB) {
+                            return categoryA - categoryB;
+                          }
+                          
+                          // If same category, maintain original order (stable sort)
+                          return 0;
+                        });
+                      })().map((feature, index) => (
                         <li
                           key={index}
                           className="flex items-start gap-2 text-xs"
                         >
                           <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                           <span className="text-muted-foreground leading-snug">
-                            {feature}
+                            {translateFeature(feature)}
                           </span>
                         </li>
                       ))}

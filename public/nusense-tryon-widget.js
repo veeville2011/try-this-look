@@ -55,6 +55,61 @@
     }
   }
 
+  // Detect customer information from Shopify storefront using JSON script tag
+  // This is the recommended Shopify approach - customer info is injected via Liquid in the app block
+  function getCustomerInfo() {
+    try {
+      // Read customer information from JSON script tag injected by Liquid in the app block
+      const customerInfoScript = document.getElementById('nusense-customer-info');
+      
+      if (customerInfoScript && customerInfoScript.textContent) {
+        try {
+          const customerInfo = JSON.parse(customerInfoScript.textContent);
+          
+          // Only return customer info if at least ID or email is present
+          if (customerInfo && (customerInfo.id || customerInfo.email)) {
+            if (config.debug) {
+              console.log('NUSENSE: Customer info detected from JSON script tag', {
+                hasId: !!customerInfo.id,
+                hasEmail: !!customerInfo.email,
+                id: customerInfo.id,
+                email: customerInfo.email ? customerInfo.email.substring(0, 3) + '***' : null,
+              });
+            }
+            return {
+              id: customerInfo.id ? customerInfo.id.toString() : null,
+              email: customerInfo.email || null,
+              firstName: customerInfo.firstName || null,
+              lastName: customerInfo.lastName || null,
+            };
+          }
+        } catch (parseError) {
+          if (config.debug) {
+            console.warn('NUSENSE: Error parsing customer info JSON:', parseError);
+          }
+        }
+      }
+      
+      // Debug: Log when customer info is not found
+      if (config.debug) {
+        const scriptExists = !!customerInfoScript;
+        const hasContent = customerInfoScript && customerInfoScript.textContent;
+        console.log('NUSENSE: Customer info not found', {
+          scriptExists,
+          hasContent,
+          customerLoggedIn: typeof window.Shopify !== 'undefined' && window.Shopify.customer,
+        });
+      }
+      
+      return null;
+    } catch (error) {
+      if (config.debug) {
+        console.warn('NUSENSE: Error detecting customer info:', error);
+      }
+      return null;
+    }
+  }
+
   // Open widget in modal
   function openWidget() {
     // Check if widget is already open - prevent duplicate modals (check FIRST, before any other logic)
@@ -164,6 +219,30 @@
     const parentIsDesktop = window.innerWidth >= 768;
     urlParams.set('parentWidth', window.innerWidth.toString());
     urlParams.set('parentIsDesktop', parentIsDesktop.toString());
+    
+    // Detect and pass customer information if available
+    const customerInfo = getCustomerInfo();
+    if (customerInfo) {
+      if (customerInfo.id) {
+        urlParams.set('customerId', customerInfo.id.toString());
+      }
+      if (customerInfo.email) {
+        urlParams.set('customerEmail', encodeURIComponent(customerInfo.email));
+      }
+      if (customerInfo.firstName) {
+        urlParams.set('customerFirstName', encodeURIComponent(customerInfo.firstName));
+      }
+      if (customerInfo.lastName) {
+        urlParams.set('customerLastName', encodeURIComponent(customerInfo.lastName));
+      }
+      
+      if (config.debug) {
+        console.log('NUSENSE: Customer info detected and passed to widget', {
+          hasId: !!customerInfo.id,
+          hasEmail: !!customerInfo.email,
+        });
+      }
+    }
     
     const queryString = urlParams.toString();
     iframe.src = config.widgetUrl + '/widget' + (queryString ? '?' + queryString : '');

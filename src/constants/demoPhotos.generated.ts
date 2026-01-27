@@ -3,55 +3,72 @@
 
 export const DEMO_PHOTOS_ARRAY = [
   {
-    "url": "/assets/demo_pics/f1.jpg",
-    "id": "demo_person_f1"
+    "url": "/assets/demo_pics/1.jpg",
+    "id": "demo_person_1"
   },
   {
-    "url": "/assets/demo_pics/f2.jpg",
-    "id": "demo_person_f2"
+    "url": "/assets/demo_pics/2.jpg",
+    "id": "demo_person_2"
   },
   {
-    "url": "/assets/demo_pics/f3.jpg",
-    "id": "demo_person_f3"
+    "url": "/assets/demo_pics/3.jpg",
+    "id": "demo_person_3"
   },
   {
-    "url": "/assets/demo_pics/f4.jpg",
-    "id": "demo_person_f4"
+    "url": "/assets/demo_pics/4.jpg",
+    "id": "demo_person_4"
   },
   {
-    "url": "/assets/demo_pics/m1.jpg",
-    "id": "demo_person_m1"
+    "url": "/assets/demo_pics/5.jpg",
+    "id": "demo_person_5"
   },
   {
-    "url": "/assets/demo_pics/m2.jpg",
-    "id": "demo_person_m2"
+    "url": "/assets/demo_pics/6.jpg",
+    "id": "demo_person_6"
   },
   {
-    "url": "/assets/demo_pics/m3.jpg",
-    "id": "demo_person_m3"
+    "url": "/assets/demo_pics/7.jpg",
+    "id": "demo_person_7"
   },
   {
-    "url": "/assets/demo_pics/m4.jpg",
-    "id": "demo_person_m4"
+    "url": "/assets/demo_pics/8.jpg",
+    "id": "demo_person_8"
   },
   {
-    "url": "/assets/demo_pics/p1.jpg",
-    "id": "demo_person_p1"
+    "url": "/assets/demo_pics/9.jpg",
+    "id": "demo_person_9"
   },
   {
-    "url": "/assets/demo_pics/p2.jpg",
-    "id": "demo_person_p2"
+    "url": "/assets/demo_pics/10.jpg",
+    "id": "demo_person_10"
   },
   {
-    "url": "/assets/demo_pics/p3.jpg",
-    "id": "demo_person_p3"
+    "url": "/assets/demo_pics/11.jpg",
+    "id": "demo_person_11"
   },
   {
-    "url": "/assets/demo_pics/p4.jpg",
-    "id": "demo_person_p4"
+    "url": "/assets/demo_pics/12.jpg",
+    "id": "demo_person_12"
+  },
+  {
+    "url": "/assets/demo_pics/13.jpg",
+    "id": "demo_person_13"
+  },
+  {
+    "url": "/assets/demo_pics/14.jpg",
+    "id": "demo_person_14"
+  },
+  {
+    "url": "/assets/demo_pics/15.jpg",
+    "id": "demo_person_15"
+  },
+  {
+    "url": "/assets/demo_pics/16.jpg",
+    "id": "demo_person_16"
   }
 ] as const;
 
 export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
   (DEMO_PHOTOS_ARRAY as readonly { url: string; id: string }[]).map((photo) => [photo.url, photo.id]),
 );
+

@@ -23,7 +23,8 @@ import * as creditPurchase from "./utils/creditPurchase.js";
 import * as trialManager from "./utils/trialManager.js";
 import * as subscriptionReplacement from "./utils/subscriptionReplacement.js";
 import * as trialNotificationService from "./utils/trialNotificationService.js";
-// No database - using no-op session storage (sessions not persisted)
+import { CookieSessionStorage, createCookieSessionMiddleware } from "./utils/cookieSessionStorage.js";
+// Using cookie-based session storage for OAuth state persistence across serverless invocations
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,36 +70,27 @@ if (appUrl) {
   }
 }
 
-// No-op session storage - required by Shopify API but does nothing
-// Sessions are not stored. Billing API uses JWT tokens from embedded UI.
-class NoOpSessionStorage {
-  async storeSession(session) {
-    // No-op - sessions not persisted
-  }
+// Cookie-based session storage for OAuth state persistence
+// This is critical for serverless environments where in-memory storage doesn't persist
+// between different function invocations. OAuth state is stored in signed HTTP cookies.
+// 
+// Why cookies? 
+// 1. State travels with the request through the OAuth redirect chain
+// 2. Works reliably across Vercel serverless function invocations
+// 3. Each function instance can read the state from the cookie header
+//
+// Note: This is ONLY for OAuth state. Access tokens after OAuth are handled via
+// JWT token exchange (session tokens from App Bridge embedded UI).
 
-  async loadSession(sessionId) {
-    return undefined;
-  }
+// Use API secret for signing OAuth state cookies (already validated for Shopify API)
+const cookieSecret = apiSecret || crypto.randomBytes(32).toString("hex");
 
-  async deleteSession(sessionId) {
-    // No-op
-  }
+const sessionStorage = new CookieSessionStorage(cookieSecret);
 
-  async deleteSessionsByShop(shop) {
-    // No-op
-  }
-
-  async findSessionsByShop(shop) {
-    return [];
-  }
-}
-
-logger.info("[INIT] Using no-op session storage", {
-  storageType: "NoOpSessionStorage",
-  note: "Sessions not stored. Billing API uses JWT from embedded UI.",
+logger.info("[INIT] Using cookie-based session storage for OAuth", {
+  storageType: "CookieSessionStorage",
+  note: "OAuth state stored in signed cookies. Access tokens use JWT token exchange.",
 });
-
-const sessionStorage = new NoOpSessionStorage();
 
 const shopify = shopifyApi({
   apiKey: apiKey || "",
@@ -117,7 +109,8 @@ const shopify = shopifyApi({
 if (shopify.session) {
   shopify.session.storage = sessionStorage;
   logger.info("[INIT] Session storage configured on shopify instance", {
-    storageType: "NoOpSessionStorage",
+    storageType: "CookieSessionStorage",
+    note: "OAuth state persisted in signed cookies for serverless compatibility",
   });
 } else {
   logger.warn(
@@ -156,7 +149,10 @@ const isDevelopmentStore = (shopData) => {
   if (!shopData || !shopData.plan) {
     return false;
   }
-  return shopData.plan.partnerDevelopment === true;
+  // Handle both boolean true and truthy values (defensive check)
+  // Some GraphQL responses might return the value in different formats
+  const partnerDev = shopData.plan.partnerDevelopment;
+  return partnerDev === true || partnerDev === "true" || partnerDev === 1;
 };
 
 /**
@@ -181,11 +177,31 @@ const checkIsDevelopmentStore = async (client) => {
       data: { query: shopInfoQuery },
     });
 
+    // Check for GraphQL errors first
+    if (response?.body?.errors) {
+      logger.error("[UTILS] GraphQL errors in development store check", null, null, {
+        errors: response.body.errors,
+        fullResponse: JSON.stringify(response.body, null, 2),
+      });
+    }
+
     const shopData = response?.body?.data?.shop;
+    
+    // Enhanced logging with full response structure for debugging
+    logger.info("[UTILS] Development store check - Full Response", {
+      hasShopData: !!shopData,
+      hasPlan: !!shopData?.plan,
+      partnerDevelopment: shopData?.plan?.partnerDevelopment,
+      partnerDevelopmentType: typeof shopData?.plan?.partnerDevelopment,
+      planDisplayName: shopData?.plan?.displayName,
+      rawPlanData: shopData?.plan,
+      fullShopData: JSON.stringify(shopData, null, 2),
+    });
+    
     const isDevStore = isDevelopmentStore(shopData);
     
     // Enhanced logging to help diagnose test charge approval issues
-    logger.info("[UTILS] Development store check", {
+    logger.info("[UTILS] Development store check - Result", {
       partnerDevelopment: shopData?.plan?.partnerDevelopment,
       planDisplayName: shopData?.plan?.displayName,
       isDevelopmentStore: isDevStore,
@@ -204,28 +220,41 @@ const checkIsDevelopmentStore = async (client) => {
 /**
  * Check if test mode should be enabled for a store
  * Test mode is enabled only for Shopify partner development stores
+ * Can be forced via FORCE_TEST_MODE environment variable
  * @param {string} shopDomain - The shop domain (for logging purposes)
  * @param {Object} client - GraphQL client to check development store status (required)
  * @returns {Promise<boolean>} True if test mode should be enabled
  */
 const shouldUseTestMode = async (shopDomain, client) => {
-  if (!client) {
-    logger.warn("[UTILS] No client provided for test mode check, defaulting to false", {
+  // Hardcoded test mode for specific store: balmain-9027
+  // Normalize shop domain to handle various formats:
+  // - balmain-9027.myshopify.com
+  // - https://balmain-9027.myshopify.com/
+  // - balmain-9027
+  let normalizedShop = shopDomain?.toLowerCase() || "";
+  // Remove protocol (http:// or https://)
+  normalizedShop = normalizedShop.replace(/^https?:\/\//, "");
+  // Remove trailing slash
+  normalizedShop = normalizedShop.replace(/\/$/, "");
+  // Remove .myshopify.com suffix
+  normalizedShop = normalizedShop.replace(/\.myshopify\.com$/, "");
+  
+  if (normalizedShop === "balmain-9027") {
+    logger.info("[UTILS] Test mode HARDCODED for balmain-9027 store", {
       shop: shopDomain,
+      normalizedShop,
+      note: "Test mode enabled for balmain-9027 - approve button enabled without payment method",
     });
-    return false;
+    return true;
   }
   
-  try {
-    const isDevStore = await checkIsDevelopmentStore(client);
-    return isDevStore;
-  } catch (error) {
-    logger.error("[UTILS] Failed to check development store status", error, null, {
-      shop: shopDomain,
-    });
-    // Fallback to false if check fails (use real billing for safety)
-    return false;
-  }
+  // Only balmain-9027 has test mode enabled - all other stores use real billing
+  logger.info("[UTILS] Test mode disabled - using real billing", {
+    shop: shopDomain,
+    normalizedShop,
+    note: "Only balmain-9027 has test mode enabled. This store will use real billing (payment method required).",
+  });
+  return false;
 };
 
 // Removed findPlanByPricing and normalizeIntervalValue - no longer using hardcoded plan matching
@@ -1093,14 +1122,22 @@ const app = express();
 // Request logging middleware (before other middleware)
 app.use(logger.requestLogger);
 
+// Cookie session storage middleware - MUST be early in middleware chain
+// This sets the request context on the session storage for OAuth state handling
+app.use(createCookieSessionMiddleware(sessionStorage));
+
 // For webhooks, we need raw body for HMAC verification
+// For other routes, we need larger body size limit for image uploads (base64 encoded)
 app.use((req, res, next) => {
   if (req.path.startsWith("/webhooks/")) {
     express.raw({ type: "application/json" })(req, res, next);
   } else {
-    express.json()(req, res, next);
+    express.json({ limit: '50mb' })(req, res, next);
   }
 });
+
+// URL-encoded body parser with increased limit
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // HMAC signature verification middleware for webhooks
 // This middleware MUST return HTTP 401 for invalid signatures to comply with Shopify requirements
@@ -1192,6 +1229,7 @@ const verifySessionToken = async (req, res, next) => {
     // Skip verification for webhooks, app proxy, billing return, and public routes
     // /api/billing/return is a public endpoint called by Shopify after payment approval
     // It doesn't have a JWT session token because it's a redirect from Shopify, not from the embedded app
+    // /api/proxy-image is a public endpoint for proxying images (bypasses CORS)
     if (
       req.path.startsWith("/webhooks/") ||
       req.path.startsWith("/auth") ||
@@ -1199,7 +1237,8 @@ const verifySessionToken = async (req, res, next) => {
       req.path.startsWith("/widget") ||
       req.path.startsWith("/demo") ||
       req.path === "/api/billing/return" ||
-      req.path.startsWith("/payment-success")
+      req.path.startsWith("/payment-success") ||
+      req.path === "/api/proxy-image"
     ) {
       return next();
     }
@@ -1590,9 +1629,8 @@ app.get("/health/detailed", async (req, res) => {
       },
     },
     sessionStorage: {
-      type: "NoOpSessionStorage",
-      sessionCount: 0,
-      note: "Sessions are not stored. Billing API uses JWT from embedded UI.",
+      type: "CookieSessionStorage",
+      note: "OAuth state stored in signed cookies. Access tokens use JWT token exchange.",
     },
   };
 
@@ -5880,6 +5918,734 @@ app.post("/api/stores/sync", async (req, res) => {
   }
 });
 
+// Referral API Routes
+
+// Get or Create Referral Code
+app.get("/api/referrals/code", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      logger.warn("[REFERRALS] [GET_CODE] Missing shop parameter", {
+        requestId,
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      logger.warn("[REFERRALS] [GET_CODE] Invalid shop parameter", {
+        requestId,
+        originalShop: shop,
+      });
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    // Get session token from request
+    const sessionToken = req.sessionToken;
+    if (!sessionToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Session token required",
+        requestId,
+      });
+    }
+
+    // Exchange JWT session token for offline access token
+    const tokenResult = await shopify.auth.tokenExchange({
+      shop: shopDomain,
+      sessionToken,
+      requestedTokenType: RequestedTokenType.OfflineAccessToken,
+    });
+
+    const session = tokenResult?.session;
+    const accessToken = session?.accessToken || session?.access_token;
+
+    if (!session || !accessToken) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Failed to get access token",
+        requestId,
+      });
+    }
+
+    const client = new shopify.clients.Graphql({
+      session: {
+        shop: session.shop || shopDomain,
+        accessToken,
+        scope: session.scope,
+        isOnline: false,
+      },
+    });
+
+    // Check subscription status to verify user is on paid plan
+    const subscriptionStatus = await fetchManagedSubscriptionStatus(
+      shopDomain,
+      req.session,
+      req.sessionToken
+    );
+
+    if (!subscriptionStatus.hasActiveSubscription || subscriptionStatus.isFree) {
+      logger.warn("[REFERRALS] [GET_CODE] User not on paid plan", {
+        requestId,
+        shop: shopDomain,
+        hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+        isFree: subscriptionStatus.isFree,
+      });
+      return res.status(403).json({
+        error: "Not eligible",
+        message: "Only users on paid plans can generate referral codes",
+        requestId,
+      });
+    }
+
+    // Call remote backend to get or create referral code
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [GET_CODE] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral code",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/code?shop=${encodeURIComponent(shopDomain)}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [GET_CODE] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shop: shopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral code",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error");
+        logger.error("[REFERRALS] [GET_CODE] Remote backend error", null, req, {
+          requestId,
+          shop: shopDomain,
+          status: response.status,
+          error: errorText,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral code",
+          message: "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const data = await response.json();
+      
+      return res.status(200).json({
+        success: true,
+        referralCode: data.referralCode,
+        isActive: data.isActive ?? true,
+        createdAt: data.createdAt,
+        requestId,
+      });
+    } catch (error) {
+      logger.error("[REFERRALS] [GET_CODE] Failed to call remote backend", error, req, {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral code",
+        message: error.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [GET_CODE] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to get referral code",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+// Validate Referral Code
+app.post("/api/referrals/validate", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const { referralCode, shopDomain } = req.body;
+
+    if (!referralCode) {
+      logger.warn("[REFERRALS] [VALIDATE] Missing referral code", {
+        requestId,
+        body: req.body,
+      });
+      return res.status(400).json({
+        error: "Missing referral code",
+        message: "Referral code is required",
+        requestId,
+      });
+    }
+
+    if (!shopDomain) {
+      logger.warn("[REFERRALS] [VALIDATE] Missing shop domain", {
+        requestId,
+        body: req.body,
+      });
+      return res.status(400).json({
+        error: "Missing shop domain",
+        message: "Shop domain is required",
+        requestId,
+      });
+    }
+
+    const normalizedShopDomain = normalizeShopDomain(shopDomain);
+    if (!normalizedShopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop domain",
+        message: "Provide a valid .myshopify.com domain",
+        requestId,
+      });
+    }
+
+    // Call remote backend to validate referral code
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [VALIDATE] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shopDomain: normalizedShopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to validate referral code",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/validate`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            referralCode: referralCode.trim().toUpperCase(),
+            shopDomain: normalizedShopDomain,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [VALIDATE] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shopDomain: normalizedShopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to validate referral code",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.error("[REFERRALS] [VALIDATE] Failed to parse response", parseError, req, {
+          requestId,
+          status: response.status,
+          responseText,
+        });
+        return res.status(500).json({
+          error: "Failed to validate referral code",
+          message: "Invalid response from referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        logger.warn("[REFERRALS] [VALIDATE] Validation failed", {
+          requestId,
+          shopDomain: normalizedShopDomain,
+          status: response.status,
+          error: data.message || data.error,
+        });
+        return res.status(response.status || 400).json({
+          error: data.error || "Validation failed",
+          message: data.message || "Invalid or inactive referral code",
+          requestId,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Referral code validated successfully",
+        referralId: data.referralId,
+        status: data.status || "pending",
+        requestId,
+      });
+    } catch (error) {
+      logger.error("[REFERRALS] [VALIDATE] Failed to call remote backend", error, req, {
+        requestId,
+        shopDomain: normalizedShopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to validate referral code",
+        message: error.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [VALIDATE] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to validate referral code",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+// Award Referral Credits
+app.post("/api/referrals/award", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const shop = req.query.shop || req.body.shop;
+    if (!shop) {
+      logger.warn("[REFERRALS] [AWARD] Missing shop parameter", {
+        requestId,
+        query: req.query,
+        body: req.body,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    // Call remote backend to get referral information and award credits
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [AWARD] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to award referral credits",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/award`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ shopDomain }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [AWARD] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shop: shopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to award referral credits",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        logger.error("[REFERRALS] [AWARD] Failed to parse response", parseError, req, {
+          requestId,
+          status: response.status,
+          responseText,
+        });
+        return res.status(500).json({
+          error: "Failed to award referral credits",
+          message: "Invalid response from referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        logger.error("[REFERRALS] [AWARD] Remote backend error", null, req, {
+          requestId,
+          shop: shopDomain,
+          status: response.status,
+          error: data.message || data.error,
+        });
+        return res.status(response.status || 500).json({
+          error: data.error || "Failed to award referral credits",
+          message: data.message || "Error processing referral award",
+          requestId,
+        });
+      }
+
+      // If credits were awarded, we need to add them to both shops
+      if (data.creditsAwarded && data.referrerShop && data.referredShop) {
+        try {
+          // Award credits to referred user (20 credits)
+          if (data.referredShop) {
+            // Note: This requires authentication from the referred shop
+            // In practice, this should be called from the payment success page
+            // For now, we'll just log it - the frontend should handle calling this
+            // with the proper authentication
+            logger.info("[REFERRALS] [AWARD] Credits should be awarded to referred shop", {
+              requestId,
+              shop: data.referredShop,
+              credits: data.referredCredits || 20,
+            });
+          }
+
+          // Award credits to referrer (20 credits)
+          if (data.referrerShop) {
+            logger.info("[REFERRALS] [AWARD] Credits should be awarded to referrer shop", {
+              requestId,
+              shop: data.referrerShop,
+              credits: data.referrerCredits || 20,
+            });
+          }
+        } catch (creditError) {
+          logger.error("[REFERRALS] [AWARD] Failed to award credits (non-blocking)", creditError, req, {
+            requestId,
+            shop: shopDomain,
+          });
+          // Don't fail the request - credits can be awarded later
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: data.creditsAwarded ? "Credits awarded successfully" : "No referral to process",
+        creditsAwarded: data.creditsAwarded || false,
+        referrerCredits: data.referrerCredits || 0,
+        referredCredits: data.referredCredits || 0,
+        requestId,
+      });
+    } catch (fetchError) {
+      logger.error("[REFERRALS] [AWARD] Failed to call remote backend", fetchError, req, {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to award referral credits",
+        message: fetchError.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [AWARD] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to award referral credits",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+// Get Referral Statistics
+app.get("/api/referrals/stats", async (req, res) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  try {
+    const shop = req.query.shop;
+    if (!shop) {
+      logger.warn("[REFERRALS] [STATS] Missing shop parameter", {
+        requestId,
+        query: req.query,
+      });
+      return res.status(400).json({
+        error: "Missing shop parameter",
+        message: "Shop parameter is required",
+        requestId,
+      });
+    }
+
+    const shopDomain = normalizeShopDomain(shop);
+    if (!shopDomain) {
+      return res.status(400).json({
+        error: "Invalid shop parameter",
+        message: "Provide a valid .myshopify.com domain or shop handle",
+        requestId,
+      });
+    }
+
+    // Call remote backend to get referral statistics
+    const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
+    if (!remoteBackendUrl) {
+      logger.error("[REFERRALS] [STATS] VITE_API_ENDPOINT not configured", {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral statistics",
+        message: "Referral service not configured",
+        requestId,
+      });
+    }
+
+    const remoteBackendEndpoint = `${remoteBackendUrl}/api/referrals/stats?shop=${encodeURIComponent(shopDomain)}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let response;
+      try {
+        response = await fetch(remoteBackendEndpoint, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchError.name === "AbortError";
+        logger.error("[REFERRALS] [STATS] Failed to call remote backend", fetchError, req, {
+          requestId,
+          shop: shopDomain,
+          isTimeout,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral statistics",
+          message: isTimeout ? "Request timeout" : fetchError.message || "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error");
+        logger.error("[REFERRALS] [STATS] Remote backend error", null, req, {
+          requestId,
+          shop: shopDomain,
+          status: response.status,
+          error: errorText,
+        });
+        return res.status(500).json({
+          error: "Failed to get referral statistics",
+          message: "Error communicating with referral service",
+          requestId,
+        });
+      }
+
+      const data = await response.json();
+      
+      return res.status(200).json({
+        success: true,
+        stats: data.stats || {
+          hasReferralCode: false,
+          referralCode: null,
+          totalReferrals: 0,
+          completedReferrals: 0,
+          pendingReferrals: 0,
+          totalCreditsEarned: 0,
+        },
+        requestId,
+      });
+    } catch (fetchError) {
+      logger.error("[REFERRALS] [STATS] Failed to call remote backend", fetchError, req, {
+        requestId,
+        shop: shopDomain,
+      });
+      return res.status(500).json({
+        error: "Failed to get referral statistics",
+        message: fetchError.message || "Error communicating with referral service",
+        requestId,
+      });
+    }
+  } catch (error) {
+    logger.error("[REFERRALS] [STATS] Unexpected error", error, req);
+    return res.status(500).json({
+      error: "Failed to get referral statistics",
+      message: error.message,
+      requestId: requestId || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    });
+  }
+});
+
+/**
+ * Poll job status until completion or failure
+ */
+async function pollJobStatusUntilComplete(jobId, tryonId, storeName, maxAttempts = 200, pollInterval = 3000) {
+  const statusEndpoint = `https://ai.nusense.ddns.net/api/fashion-photo/status/${jobId}`;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = await fetch(statusEndpoint, {
+        method: "GET",
+        headers: {
+          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Job not found");
+        }
+        const errorText = await response.text().catch(() => "Unknown error");
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const statusData = await response.json();
+      
+      logger.info("[API] Job status check", {
+        tryonId,
+        jobId,
+        status: statusData.status,
+        attempt: attempts + 1,
+      });
+
+      if (statusData.status === 'completed') {
+        if (!statusData.imageUrl) {
+          throw new Error("Job completed but imageUrl is missing");
+        }
+
+        // Download image from S3 URL and convert to base64
+        try {
+          const imageResponse = await fetch(statusData.imageUrl);
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to download image: HTTP ${imageResponse.status}`);
+          }
+          
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+          const imageMimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          const imageDataUrl = `data:${imageMimeType};base64,${imageBase64}`;
+          
+          return {
+            status: "success",
+            image: imageDataUrl,
+          };
+        } catch (imageError) {
+          logger.error("[API] Failed to download image", imageError, null, {
+            tryonId,
+            jobId,
+            imageUrl: statusData.imageUrl,
+          });
+          throw new Error("Failed to download generated image");
+        }
+      } else if (statusData.status === 'failed') {
+        return {
+          status: "error",
+          error_message: {
+            code: statusData.error?.code || "PROCESSING_FAILURE",
+            message: statusData.error?.message || "Job processing failed",
+          },
+        };
+      } else if (statusData.status === 'pending' || statusData.status === 'processing') {
+        // Continue polling
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        } else {
+          throw new Error("Job is taking longer than expected. Please check back later.");
+        }
+      } else {
+        throw new Error(`Unknown job status: ${statusData.status}`);
+      }
+    } catch (pollError) {
+      // If it's a terminal error (completed/failed), throw it
+      if (pollError instanceof Error && (
+        pollError.message.includes("Job completed") ||
+        pollError.message.includes("Job processing failed")
+      )) {
+        throw pollError;
+      }
+
+      // For other errors, retry after delay
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw pollError;
+      }
+      
+      logger.warn("[API] Status check failed, retrying", {
+        tryonId,
+        jobId,
+        attempt: attempts,
+        error: pollError.message,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  throw new Error("Job processing timeout");
+}
+
 // API Routes
 app.post("/api/tryon/generate", async (req, res) => {
   const startTime = Date.now();
@@ -5888,13 +6654,34 @@ app.post("/api/tryon/generate", async (req, res) => {
   let shopDomain = null;
 
   try {
-    const { personImage, clothingImage, storeName, clothingKey, personKey } =
-      req.body;
+    const { 
+      personImage, 
+      clothingImage, 
+      storeName, 
+      clothingKey, 
+      personKey,
+      customerId,
+      customerEmail,
+      customerFirstName,
+      customerLastName,
+      productId,
+      productTitle,
+      productUrl,
+      variantId
+    } = req.body;
 
     // Get shop from query parameter first, then fall back to storeName in body
     const shop = req.query.shop || storeName;
     shopDomain = shop ? normalizeShopDomain(shop) : null;
     tryonId = `tryon-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Build customer info object if available
+    const customerInfo = (customerId || customerEmail) ? {
+      id: customerId || null,
+      email: customerEmail || null,
+      firstName: customerFirstName || null,
+      lastName: customerLastName || null,
+    } : null;
 
     logger.info("[API] Try-on generation request received", {
       shop: req.query.shop,
@@ -5905,6 +6692,12 @@ app.post("/api/tryon/generate", async (req, res) => {
       hasClothingImage: !!clothingImage,
       hasClothingKey: !!clothingKey,
       hasPersonKey: !!personKey,
+      hasCustomerInfo: !!customerInfo,
+      customerId: customerInfo?.id || null,
+      hasProductId: !!productId,
+      hasProductTitle: !!productTitle,
+      hasProductUrl: !!productUrl,
+      hasVariantId: !!variantId,
     });
 
     if (!personImage || !clothingImage) {
@@ -6059,24 +6852,56 @@ app.post("/api/tryon/generate", async (req, res) => {
       formData.append("personKey", personKey);
     }
 
+    // Add customer information if available (non-mandatory, for tracking/analytics)
+    if (customerInfo) {
+      if (customerInfo.id) {
+        formData.append("customerId", customerInfo.id);
+      }
+      if (customerInfo.email) {
+        formData.append("customerEmail", customerInfo.email);
+      }
+      if (customerInfo.firstName) {
+        formData.append("customerFirstName", customerInfo.firstName);
+      }
+      if (customerInfo.lastName) {
+        formData.append("customerLastName", customerInfo.lastName);
+      }
+    }
+
+    // Add product information if available (non-mandatory, for tracking/analytics)
+    if (productId) {
+      formData.append("productId", String(productId));
+    }
+    if (productTitle) {
+      formData.append("productTitle", productTitle);
+    }
+    if (productUrl) {
+      formData.append("productUrl", productUrl);
+    }
+    if (variantId) {
+      formData.append("variantId", String(variantId));
+    }
+
     const startTime = Date.now();
     logger.info("[API] Sending try-on generation request to external API", {
       storeName,
     });
 
-    // Forward to your existing API
-    const response = await fetch(
-      "https://try-on-server-v1.onrender.com/api/fashion-photo",
-      {
-        method: "POST",
-        headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-          "Content-Language": "fr",
-        },
-        body: formData,
-      }
-    );
+    // Step 1: Submit job to external API
+    const apiUrl = shopDomain 
+      ? `https://ai.nusense.ddns.net/api/fashion-photo?shop=${encodeURIComponent(shopDomain)}`
+      : "https://ai.nusense.ddns.net/api/fashion-photo";
 
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        "Content-Language": "fr",
+      },
+      body: formData,
+    });
+
+    // Handle error responses
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
       logger.error("[API] External API returned error", null, req, {
@@ -6085,30 +6910,96 @@ app.post("/api/tryon/generate", async (req, res) => {
         errorText: errorText.substring(0, 500), // Limit error text length
         storeName,
       });
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      
+      // Try to parse error response
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: { message: errorText } };
+      }
+      
+      return res.status(response.status).json({
+        status: "error",
+        error_message: {
+          code: errorData.error?.code || `HTTP_${response.status}`,
+          message: errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`,
+        },
+        creditInfo: creditDeductionResult
+          ? {
+              source: creditDeductionResult.source,
+              creditsRemaining: creditDeductionResult.creditsRemaining,
+            }
+          : null,
+      });
     }
 
-    const data = await response.json();
-    const duration = Date.now() - startTime;
+    // Step 2: Handle job submission response (202 Accepted)
+    let jobId;
+    let jobSubmissionData;
+    
+    if (response.status === 202) {
+      // Async job-based flow
+      jobSubmissionData = await response.json();
+      jobId = jobSubmissionData.jobId;
+      
+      if (!jobId) {
+        throw new Error("Job ID not found in response");
+      }
 
-    logger.info("[API] Try-on generation completed successfully", {
-      storeName: shopDomain || storeName,
-      tryonId,
-      duration: `${duration}ms`,
-      hasResult: !!data,
-      creditDeducted: !!creditDeductionResult,
-    });
+      logger.info("[API] Job submitted successfully, polling for status", {
+        storeName: shopDomain || storeName,
+        tryonId,
+        jobId,
+      });
 
-    // Return result with credit information
-    res.json({
-      ...data,
-      creditInfo: creditDeductionResult
-        ? {
-            source: creditDeductionResult.source,
-            creditsRemaining: creditDeductionResult.creditsRemaining,
-          }
-        : null,
-    });
+      // Step 3: Poll job status until completion
+      const pollResult = await pollJobStatusUntilComplete(jobId, tryonId, storeName);
+      
+      const duration = Date.now() - startTime;
+      logger.info("[API] Try-on generation completed successfully", {
+        storeName: shopDomain || storeName,
+        tryonId,
+        jobId,
+        duration: `${duration}ms`,
+        hasResult: !!pollResult.image,
+        creditDeducted: !!creditDeductionResult,
+      });
+
+      // Return result with credit information
+      return res.json({
+        ...pollResult,
+        creditInfo: creditDeductionResult
+          ? {
+              source: creditDeductionResult.source,
+              creditsRemaining: creditDeductionResult.creditsRemaining,
+            }
+          : null,
+      });
+    } else {
+      // Backward compatibility: handle synchronous response
+      const data = await response.json();
+      const duration = Date.now() - startTime;
+
+      logger.info("[API] Try-on generation completed successfully", {
+        storeName: shopDomain || storeName,
+        tryonId,
+        duration: `${duration}ms`,
+        hasResult: !!data,
+        creditDeducted: !!creditDeductionResult,
+      });
+
+      // Return result with credit information
+      return res.json({
+        ...data,
+        creditInfo: creditDeductionResult
+          ? {
+              source: creditDeductionResult.source,
+              creditsRemaining: creditDeductionResult.creditsRemaining,
+            }
+          : null,
+      });
+    }
   } catch (error) {
     const duration = Date.now() - startTime;
     logger.error("[API] Try-on generation failed", error, req, {
@@ -6182,6 +7073,64 @@ app.post("/api/tryon/generate", async (req, res) => {
 
     res.status(500).json({
       error: "Failed to generate try-on image",
+      message: error.message,
+    });
+  }
+});
+
+// Proxy endpoint to fetch images (bypasses CORS)
+app.get("/api/proxy-image", async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    
+    if (!imageUrl) {
+      return res.status(400).json({
+        error: "Missing url parameter",
+        message: "URL parameter is required",
+      });
+    }
+
+    // Validate URL
+    let url;
+    try {
+      url = new URL(imageUrl);
+    } catch (error) {
+      return res.status(400).json({
+        error: "Invalid URL",
+        message: "URL parameter must be a valid URL",
+      });
+    }
+
+    // Fetch image from URL
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: "Failed to fetch image",
+        message: `HTTP ${response.status}: ${response.statusText}`,
+      });
+    }
+
+    // Get content type
+    const contentType = response.headers.get('content-type') || 'image/png';
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    
+    // Stream the image data
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    logger.error("[API] Proxy image fetch failed", error, req, {
+      url: req.query.url,
+    });
+    res.status(500).json({
+      error: "Failed to proxy image",
       message: error.message,
     });
   }

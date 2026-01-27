@@ -69,10 +69,10 @@
     "save25": "Économisez 25%",
     "billedAnnually": "{{price}}/mois, facturé annuellement",
     "trialDays": "{{days}} jours d'essai gratuit",
-    "featuresTitle": "Avantages inclus",
+    "featuresTitle": "Fonctionnalités incluses",
     "selectPlan": "Sélectionner ce plan",
     "currentPlan": "Plan actuel",
-    "processing": "Traitement...",
+    "processing": "Traitement en cours...",
     "back": "Retour",
     "infoNote": "Vous pouvez modifier ou annuler votre plan à tout moment depuis votre admin Shopify.",
     "popular": "Le Plus Populaire",
@@ -80,7 +80,36 @@
     "noPlans": "Aucun plan disponible pour le moment.",
     "free": "Gratuit",
     "yearlySavings": "Économisez {{amount}} $/an",
-    "overageRate": "Dépassement : {{rate}} $/crédit"
+    "overageRate": "Dépassement : {{rate}} $/crédit",
+    "overageInfo": "Inclut {{creditsText}} par mois. L'utilisation supplémentaire est facturée à {{rate}} $ par crédit.",
+    "features": {
+      "creditsIncluded": "{{count}} crédit mensuel inclus",
+      "creditsIncluded_plural": "{{count}} crédits mensuels inclus",
+      "watermarkedImageQuality": "Qualité d'image définition standard",
+      "fullHdImageQuality": "Qualité d'image Full HD",
+      "watermarkedImages": "Images avec filigrane",
+      "fullHdImages": "Images Full HD",
+      "qhd2kImages": "Images QHD (résolution 2K)",
+      "communitySupport": "Support communautaire",
+      "emailSupport24h": "Support par email (réponse sous 24h)",
+      "prioritySupport12h": "Support prioritaire (réponse sous 12h)",
+      "dedicatedSupport4h": "Support dédié (réponse sous 4h)",
+      "basicAnalytics": "Analyses de base",
+      "advancedAnalytics": "Analyses avancées",
+      "advancedAnalyticsApi": "Analyses avancées + API",
+      "apiAccessIncluded": "Accès API inclus",
+      "overageBilling": "Facturation du dépassement : {{rate}} $ par crédit après {{freeCredits}} crédits gratuits",
+      "paymentMethodRequired": "Méthode de paiement requise pour la facturation du dépassement",
+      "costPerGeneration": "Coût : {{rate}} $ par génération",
+      "savePerYear": "Économisez {{amount}} $ par an",
+      "oneUsageOneCredit": "(1 utilisation = 1 crédit)",
+      "rechargePossible": "Recharge possible après dépassement.",
+      "creditsIncludedSimple": "{{count}} crédit inclus",
+      "creditsIncludedSimple_plural": "{{count}} crédits inclus",
+      "usageReport": "Rapport d'utilisation",
+      "resolution1792x2400": "Résolution 1792 × 2400 px",
+      "resolution768x1024": "Résolution 768 × 1024 px"
+    }
   },
   "coupon": {
     "redeemTitle": "Code promo",
@@ -97,6 +126,41 @@
     "validateError": "Échec de la validation du code promo",
     "redeemError": "Échec de l'utilisation du code promo",
     "subscriptionRequired": "Un abonnement actif est requis pour utiliser les codes promo"
+  },
+  "planConfirmation": {
+    "title": "Vérifiez Votre Abonnement",
+    "subtitle": "Vérifiez les détails de votre plan et appliquez un code de parrainage avant de procéder au paiement",
+    "backToPlans": "Retour aux Plans",
+    "selectedPlan": "Plan Sélectionné",
+    "planDescription": "Vérifiez les détails de votre plan avant de confirmer",
+    "billingInterval": "Intervalle de Facturation",
+    "monthly": "Mensuel",
+    "annual": "Annuel",
+    "perMonth": "mois",
+    "perYear": "an",
+    "includedCredits": "Crédits Inclus",
+    "costPerCredit": "Coût par crédit supplémentaire",
+    "trialDays": "{{days}} jours d'essai",
+    "features": "Fonctionnalités",
+    "referralCodeLabel": "Code de Parrainage (Optionnel)",
+    "referralCodePlaceholder": "Entrez le code de parrainage",
+    "referralCodeHelper": "Entrez un code de parrainage pour gagner des crédits bonus après l'inscription",
+    "validate": "Valider",
+    "validating": "Validation...",
+    "validCode": "Code valide ! Vous recevrez {{credits}} crédits après l'inscription.",
+    "invalidCode": "Code de parrainage invalide ou expiré",
+    "alreadyUsed": "Ce code de parrainage a déjà été utilisé",
+    "selfReferral": "L'auto-parrainage n'est pas autorisé",
+    "validationError": "Échec de la validation du code de parrainage. Veuillez réessayer.",
+    "confirmButton": "Confirmer et Continuer vers le Paiement",
+    "confirmButtonLoading": "Traitement...",
+    "cancelButton": "Annuler",
+    "error": {
+      "planNotFound": "Plan sélectionné introuvable",
+      "validationFailed": "Échec de la validation du code de parrainage",
+      "enterCode": "Veuillez entrer un code de parrainage",
+      "validationRequired": "Veuillez valider votre code de parrainage avant de confirmer, ou supprimez-le pour continuer sans code de parrainage"
+    }
   },
   "credits": {
     "title": "Crédits",
@@ -150,7 +214,20 @@
       "purchaseCreditsMessage": "Veuillez acheter plus de crédits pour continuer à utiliser le service.",
       "contactSupportMessage": "Veuillez contacter le support pour ajouter des crédits.",
       "lowCreditsRemaining": "Crédits restants faibles",
-      "lowCreditsMessage": "Il vous reste {{count}} crédits. Envisagez d'acheter plus de crédits pour éviter toute interruption."
+      "lowCreditsMessage": "Il vous reste {{count}} crédits. Envisagez d'acheter plus de crédits pour éviter toute interruption.",
+      "utilizationBanner": {
+        "title80": "Avertissement d'utilisation des crédits",
+        "title90": "Alerte d'utilisation des crédits",
+        "title100": "Facturation des dépassements activée",
+        "message80": "Ceci est un rappel amical que vous avez utilisé {{percentage}}% de vos crédits alloués pour cette période de facturation.",
+        "message90": "IMPORTANT : Vous avez utilisé {{percentage}}% de vos crédits alloués. Il ne vous reste que {{remaining}} crédits pour cette période de facturation.",
+        "message100": "Tous vos crédits alloués ont été utilisés pour cette période de facturation. La facturation des dépassements a été automatiquement activée pour garantir un service sans interruption.",
+        "message100WithRemaining": "Tous vos crédits alloués ont été utilisés pour cette période de facturation. La facturation des dépassements a été automatiquement activée pour garantir un service sans interruption. Vous avez {{remaining}} crédits restants provenant d'autres sources.",
+        "overageNote80": "Si vous atteignez 100% de vos crédits, la facturation des dépassements sera automatiquement activée à {{overagePrice}} par crédit.",
+        "overageNote90": "Lorsque vous atteignez 100% de vos crédits, la facturation des dépassements sera automatiquement activée à {{overagePrice}} par crédit. Cela garantit un service sans interruption.",
+        "utilization": "Utilisation des crédits",
+        "viewPricing": "Voir les tarifs"
+      }
     }
   },
   "subscription": {
@@ -215,7 +292,10 @@
       "creditsAvailableAfterUpgrade": "Crédits disponibles après la mise à niveau",
       "loadingCredits": "Chargement des crédits...",
       "showFeatures": "Afficher toutes les fonctionnalités du plan",
-      "hideFeatures": "Masquer les fonctionnalités du plan"
+      "hideFeatures": "Masquer les fonctionnalités du plan",
+      "viewCredits": "Voir les crédits",
+      "creditsAvailable": "Solde total: {{count}}",
+      "overageActive": "Dépassement actif"
     },
     "coupon": {
       "label": "Code promo",
@@ -339,6 +419,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -375,7 +466,18 @@
       "original": "Original",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "zoomedImage": "Image zoomée",
+      "noRelightedImages": "Aucune image relightée pour le moment",
+      "noRelightedImagesAvailable": "Aucune image relightée disponible pour le moment. Les images apparaîtront ici une fois le relighting traité.",
+      "productImages": "Images du produit",
+      "zoomImage": "Zoomer l'image",
+      "relightingInProgress": "Relighting en cours..."
+    },
+    "status": {
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "processing": "Traitement"
     },
     "dialog": {
       "price": "Prix",
@@ -389,7 +491,8 @@
       "approved": "Approuvé",
       "rejected": "Rejeté",
       "pending": "En attente",
-      "noImages": "Aucune image"
+      "noImages": "Aucune image",
+      "noImagesAvailable": "Aucune image disponible"
     },
     "info": {
       "title": "Gestion des produits",
@@ -415,6 +518,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -451,7 +565,8 @@
       "original": "Original",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "zoomedImage": "Image zoomée"
     },
     "dialog": {
       "price": "Prix",
@@ -491,6 +606,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -545,7 +671,8 @@
       "closeViewer": "Fermer le visualiseur",
       "viewerHint": "Glisser pour faire pivoter, faire défiler pour zoomer, clic droit pour déplacer",
       "formattedMetadata": "Métadonnées formatées",
-      "metadata": "Métadonnées du modèle 3D"
+      "metadata": "Métadonnées du modèle 3D",
+      "zoomedImage": "Image zoomée"
     },
     "dialog": {
       "price": "Prix",
@@ -586,6 +713,17 @@
     "loadMore": "Charger plus",
     "loadMoreSuccess": "Plus de produits chargés avec succès",
     "loadMoreError": "Échec du chargement de plus de produits. Veuillez réessayer.",
+    "refresh": "Actualiser les produits",
+    "quantity": "Quantité",
+    "quantityLabel": "Qté:",
+    "notAvailable": "N/D",
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
+    },
     "empty": {
       "title": "Aucun produit trouvé",
       "description": "Cliquez sur 'Récupérer les produits' pour charger les produits créés aujourd'hui avec le statut ACTIF."
@@ -622,7 +760,8 @@
       "original": "Original",
       "relighted": "Relighté",
       "processing": "Traitement...",
-      "imageOf": "Image {{current}} sur {{total}}"
+      "imageOf": "Image {{current}} sur {{total}}",
+      "zoomedImage": "Image zoomée"
     },
     "dialog": {
       "price": "Prix",
@@ -636,7 +775,39 @@
       "approved": "Approuvé",
       "rejected": "Rejeté",
       "pending": "En attente",
-      "noImages": "Aucune image"
+      "noImages": "Aucune image",
+      "noVideos": "Aucune vidéo"
+    },
+    "video": {
+      "approve": "Approuver la vidéo",
+      "reject": "Rejeter la vidéo",
+      "approveSuccess": "Vidéo approuvée avec succès",
+      "rejectSuccess": "Vidéo rejetée avec succès",
+      "approveError": "Échec de l'approbation de la vidéo. Veuillez réessayer.",
+      "rejectError": "Échec du rejet de la vidéo. Veuillez réessayer.",
+      "previous": "Vidéo précédente",
+      "next": "Vidéo suivante",
+      "original": "Image originale",
+      "generated": "Vidéo générée",
+      "notSupported": "Votre navigateur ne prend pas en charge la balise vidéo.",
+      "notAvailable": "Vidéo non disponible",
+      "processing": "Traitement",
+      "completed": "Terminé",
+      "failed": "Échec",
+      "duration": "Durée",
+      "resolution": "Résolution",
+      "aspectRatio": "Ratio d'aspect",
+      "prompt": "Invite",
+      "videoOf": "Vidéo {{current}} sur {{total}}",
+      "zoom": "Zoomer la vidéo",
+      "preview": "Aperçu de la vidéo"
+    },
+    "ariaLabels": {
+      "selectVariant": "Sélectionner {{product}} - {{variant}}",
+      "viewDetails": "Voir les détails pour {{product}} - {{variant}}",
+      "approveProduct": "Approuver {{product}}",
+      "rejectProduct": "Rejeter {{product}}",
+      "zoomedImage": "Image zoomée"
     },
     "info": {
       "title": "Gestion des produits",
@@ -645,11 +816,128 @@
   },
   "navigation": {
     "dashboard": "Tableau de bord",
+    "analytics": "Analyses",
     "nuCopy": "nucopy",
     "nuLight": "nulight",
     "nu3d": "nu3d",
     "nuScene": "nuscene",
     "mainNavigation": "Navigation principale"
+  },
+  "analytics": {
+    "title": "Analyses",
+    "description": "Voir et analyser toutes les générations d'images",
+    "comingSoon": "Bientôt disponible",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "errorMessage": "Échec du chargement des données d'analyse. Veuillez réessayer.",
+    "noData": "Aucune donnée disponible",
+    "noDataDescription": "Aucune génération d'image trouvée pour ce magasin.",
+    "refresh": "Actualiser",
+    "filters": {
+      "title": "Filtres",
+      "status": "Statut",
+      "statusAll": "Tous les statuts",
+      "statusPending": "En attente",
+      "statusProcessing": "En cours",
+      "statusCompleted": "Terminé",
+      "statusFailed": "Échoué",
+      "storeName": "Nom du magasin",
+      "storeNamePlaceholder": "Filtrer par nom de magasin",
+      "user": "Adresse IP",
+      "userPlaceholder": "Filtrer par adresse IP",
+      "dateRange": "Plage de dates",
+      "dateFrom": "De",
+      "dateTo": "À",
+      "datePlaceholder": "Sélectionner une plage de dates",
+      "apply": "Appliquer les filtres",
+      "clear": "Effacer les filtres"
+    },
+    "table": {
+      "id": "ID",
+      "requestId": "ID de requête",
+      "personImage": "Image de la personne",
+      "clothingImage": "Image du vêtement",
+      "generatedImage": "Image générée",
+      "status": "Statut",
+      "storeName": "Magasin",
+      "processingTime": "Temps de traitement",
+      "fileSize": "Taille du fichier",
+      "createdAt": "Créé le",
+      "updatedAt": "Mis à jour le",
+      "ipAddress": "Adresse IP",
+      "userAgent": "User Agent",
+      "name": "Nom",
+      "email": "Email",
+      "customerEmail": "Email du client",
+      "customerName": "Nom du client",
+      "errorMessage": "Message d'erreur",
+      "viewImage": "Voir l'image",
+      "viewDetails": "Voir les détails",
+      "productAddedToCart": "Produit ajouté au panier",
+      "actions": "Actions"
+    },
+    "details": {
+      "basicInfo": "Informations de base",
+      "userInfo": "Informations utilisateur",
+      "technicalInfo": "Informations techniques",
+      "productInfo": "Informations sur le produit",
+      "productInfoDescription": "Détails du produit pour cette génération",
+      "productTitle": "Titre du produit",
+      "productId": "ID du produit",
+      "variantId": "ID de la variante",
+      "aspectRatio": "Ratio d'aspect",
+      "viewProduct": "Voir le produit",
+      "addToCartInfo": "Informations d'ajout au panier",
+      "addToCartInfoDescription": "Événements et activité du panier pour ce produit",
+      "addedToCart": "Ajouté au panier",
+      "totalEvents": "Total des événements",
+      "firstEvent": "Premier événement",
+      "lastEvent": "Dernier événement",
+      "actionTypes": "Types d'action",
+      "cartEventsTimeline": "Chronologie des événements du panier",
+      "otherProductsAddedToCart": "Autres produits ajoutés au panier",
+      "otherProductsDescription": "Produits supplémentaires ajoutés au panier pendant cette session",
+      "product": "Produit",
+      "events": "Événements",
+      "actions": "Actions",
+      "added": "Ajouté"
+    },
+    "search": {
+      "placeholder": "Rechercher par ID, statut ou date..."
+    },
+    "export": {
+      "button": "Exporter",
+      "exporting": "Exportation des données...",
+      "success": "Données exportées avec succès",
+      "error": "Échec de l'exportation des données",
+      "noData": "Aucune donnée à exporter"
+    },
+    "noFilteredData": "Aucun enregistrement ne correspond à vos filtres.",
+    "pagination": {
+      "page": "Page",
+      "of": "sur",
+      "showing": "Affichage",
+      "to": "à",
+      "ofTotal": "sur",
+      "results": "résultats",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "goToPage": "Aller à la page"
+    },
+    "summary": {
+      "totalGenerations": "Total des générations",
+      "customers": "Clients",
+      "products": "Produits",
+      "completed": "Terminées",
+      "failed": "Échouées"
+    },
+    "stats": {
+      "total": "Total des générations",
+      "completed": "Terminées",
+      "failed": "Échouées",
+      "processing": "En cours",
+      "pending": "En attente"
+    }
   },
   "tryOnWidget": {
     "brand": {
@@ -681,7 +969,9 @@
       "resultReady": "Résultat prêt. Utilisez les actions ci-dessous.",
       "resultReadyActions": "Résultat prêt. Vous pouvez acheter ou télécharger.",
       "photoCleared": "Photo effacée. Téléchargez votre photo.",
-      "generating": "Génération en cours. Cela peut prendre 15 à 20 secondes…",
+      "generating": "Génération…",
+      "generatingTime": "Veuillez patienter, cela prend généralement 15 à 20 secondes",
+      "pleaseWait": "Veuillez patienter…",
       "generatingOutfit": "Génération de la tenue complète...",
       "generatingOutfitTime": "La génération d'une tenue complète peut prendre 10 à 15 secondes..."
     },
@@ -706,6 +996,8 @@
     },
     "tabs": {
       "ariaLabel": "Mode d'essayage",
+      "tryOn": "Essayage",
+      "history": "Historique",
       "single": {
         "label": "TryOn",
         "ariaLabel": "Essayer un seul article"
@@ -717,6 +1009,34 @@
       "look": {
         "label": "TryOutfit",
         "ariaLabel": "Essayer une tenue complète"
+      }
+    },
+    "history": {
+      "title": "Vos Essayages",
+      "description": "Consultez tous vos essayages virtuels précédents",
+      "empty": "Aucun essayage virtuel pour le moment",
+      "reuse": "Réutiliser",
+      "table": {
+        "date": "Date",
+        "person": "Photo",
+        "clothing": "Vêtement",
+        "result": "Résultat",
+        "actions": "Actions"
+      },
+      "card": {
+        "person": "Photo",
+        "clothing": "Vêtement",
+        "result": "Résultat"
+      },
+      "pagination": {
+        "showing": "Affichage",
+        "to": "à",
+        "ofTotal": "sur",
+        "results": "résultats",
+        "page": "Page",
+        "of": "sur",
+        "previous": "Précédent",
+        "next": "Suivant"
       }
     },
     "sections": {
@@ -776,6 +1096,8 @@
     },
     "errors": {
       "errorPrefix": "Erreur",
+      "connectionErrorTitle": "Oups ! Un problème est survenu",
+      "connectionErrorDescription": "La génération n'a pas pu aboutir. Veuillez vérifier votre connexion et réessayer.",
       "missingPhotoOrClothing": "La génération nécessite une photo et un article sélectionné.",
       "missingPhotoOrGarments": "La génération nécessite une photo et au moins {{count}} article sélectionné.",
       "missingPhotoOrGarments_plural": "La génération nécessite une photo et au moins {{count}} articles sélectionnés.",
@@ -828,6 +1150,39 @@
       "placeholder": "Sélectionner une version (optionnel)",
       "description": "Sélectionnez la version du modèle à utiliser pour la génération"
     },
+    "authGate": {
+      "title": "Continuer avec l'Essayage Virtuel",
+      "subtitle": "Connectez-vous pour enregistrer vos résultats et y accéder à tout moment",
+      "videoOverlayText1": "Découvrez comment ça vous va",
+      "videoOverlayText2": "Essayez différentes tenues instantanément",
+      "trustBadge": "Connexion sécurisée • Vie privée protégée",
+      "benefit1": "Voir le rendu",
+      "benefit2": "Essayez avant d'acheter",
+      "benefit3": "Gagnez du temps",
+      "benefit4": "Essayez plusieurs styles",
+      "benefit5": "Alimenté par IA",
+      "loginButton": "Se connecter",
+      "loginButtonLoading": "Redirection...",
+      "loginButtonAriaLabel": "Se connecter pour continuer à utiliser l'essayage virtuel",
+      "accountLink": "Vous n'avez pas de compte ?",
+      "signUpLink": "Créer un compte",
+      "signUpLinkAriaLabel": "Créer un nouveau compte",
+      "redirectNotice": "Nous vous redirigerons vers une connexion sécurisée",
+      "demoAriaLabel": "Démonstration tutoriel d'essayage virtuel",
+      "step1Number": "Étape 1",
+      "step1Text": "Téléchargez Votre Photo",
+      "step2Number": "Étape 2",
+      "step2Text": "Sélectionnez Votre Vêtement",
+      "step3Number": "Étape 3",
+      "step3Text": "Génération En Cours",
+      "step4Number": "Étape 4",
+      "step4Text": "Visualisez Votre Résultat",
+      "step5Text": "Processus d'Essayage Complet",
+      "generatingText": "Génération de votre essayage...",
+      "generatedImageAlt": "Exemple de résultat d'essayage virtuel généré",
+      "personImageAlt": "Exemple de photo de personne",
+      "clothingImageAlt": "Exemple d'article vestimentaire"
+    },
     "photoUpload": {
       "srOnlyText": "Téléchargez votre photo ou utilisez une photo de démonstration",
       "uploadAreaAriaLabel": "Télécharger votre photo - Cliquez ou appuyez sur Entrée pour sélectionner une image",
@@ -847,7 +1202,24 @@
       "alreadyGenerated": "Déjà généré",
       "previewAlt": "Aperçu de la photo téléchargée",
       "uploadSuccess": "Photo téléchargée avec succès !",
-      "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement"
+      "nextStepHint": "Passez à l'étape suivante pour sélectionner un vêtement",
+      "correctExample": "Exemple correct",
+      "makeSure": "Assurez-vous que votre photo a :",
+      "examplePhotoAlt": "Exemple de photo correcte",
+      "previousExample": "Exemple précédent",
+      "nextExample": "Exemple suivant",
+      "fileFormat": "JPG / PNG • Photo entière du corps",
+      "invalidType": "Veuillez télécharger un fichier image (jpg, jpeg, png, webp).",
+      "fileTooLarge": "Le fichier sélectionné est trop volumineux. Veuillez choisir une image de moins de {{maxMB}} Mo.",
+      "failedToLoadDemo": "Impossible de charger cette photo de démonstration. Veuillez en essayer une autre.",
+      "checklist": {
+        "visibleFace": "Visage visible",
+        "bodyWellFramed": "Corps bien cadré",
+        "frontFacingPose": "Pose de face",
+        "armsVisible": "Bras visibles",
+        "goodLighting": "Bonne lumière",
+        "cleanBackground": "Fond simple"
+      }
     },
     "clothingSelection": {
       "recommendedProducts": "Produits recommandés",
@@ -922,6 +1294,66 @@
       "instagramWebsiteOpenedDesktopNoCaption": "Site Instagram ouvert ! L'image est enregistrée.",
       "instagramShareError": "Erreur de partage sur Instagram",
       "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez réessayer."
+    }
+  },
+  "referral": {
+    "title": "Programme de Parrainage",
+    "description": "Partagez votre code de parrainage et gagnez des récompenses lorsque d'autres s'inscrivent",
+    "backToDashboard": "Retour au Tableau de Bord",
+    "upgradeRequired": {
+      "title": "Passer à un Plan Payant",
+      "description": "Les codes de parrainage ne sont disponibles que pour les utilisateurs de plans payants. Passez à un plan payant pour commencer à gagner des récompenses de parrainage !",
+      "viewPlans": "Voir les Plans"
+    },
+    "error": {
+      "title": "Erreur de Chargement des Données de Parrainage",
+      "message": "Échec du chargement des données de parrainage. Veuillez réessayer."
+    },
+    "code": {
+      "title": "Votre Code de Parrainage",
+      "description": "Partagez ce code avec d'autres pour gagner des récompenses",
+      "active": "Actif",
+      "copy": "Copier",
+      "share": "Partager",
+      "copying": "Copie en cours...",
+      "copyAriaLabel": "Copier le code de parrainage",
+      "loading": "Chargement de votre code de parrainage...",
+      "label": "Code de Parrainage",
+      "shareHint": "Partagez votre code pour gagner 20 crédits par parrainage",
+      "willAppear": "Votre code de parrainage apparaîtra ici",
+      "rewardMessage": "Lorsque quelqu'un utilise votre code de parrainage, vous recevez tous les deux 20 crédits !"
+    },
+    "statistics": {
+      "title": "Statistiques de Parrainage",
+      "description": "Suivez vos performances de parrainage",
+      "totalReferrals": "Total des Parrainages",
+      "completed": "Terminés",
+      "pending": "En Attente",
+      "creditsEarned": "Crédits Gagnés"
+    },
+    "howItWorks": {
+      "title": "Comment Fonctionne le Parrainage",
+      "step1": "Partagez votre code de parrainage avec vos amis et collègues",
+      "step2": "Lorsqu'ils s'inscrivent et s'abonnent à un plan payant, vous recevez tous les deux 20 crédits",
+      "step3": "Les crédits sont attribués automatiquement après l'approbation de leur abonnement",
+      "step4": "Il n'y a pas de limite au nombre de personnes que vous pouvez parrainer !"
+    },
+    "empty": {
+      "title": "Aucun Parrainage pour le Moment",
+      "description": "Commencez à partager votre code de parrainage pour gagner des récompenses !"
+    },
+    "toast": {
+      "codeCopied": "Code de parrainage copié !",
+      "codeCopiedDescription": "Vous pouvez maintenant le partager avec d'autres",
+      "copyFailed": "Échec de la copie du code",
+      "copyFailedDescription": "Veuillez réessayer",
+      "sharedSuccess": "Partagé avec succès !",
+      "sharedSuccessDescription": "Merci d'avoir partagé votre code de parrainage",
+      "shareFailed": "Échec du partage",
+      "shareFailedDescription": "Veuillez réessayer",
+      "linkCopied": "Lien de parrainage copié !",
+      "linkCopiedDescription": "Vous pouvez maintenant le coller n'importe où",
+      "copyFailedGeneric": "Échec de la copie"
     }
   }
 }

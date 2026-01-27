@@ -80,7 +80,36 @@
     "noPlans": "No plans available at this time.",
     "free": "Free",
     "yearlySavings": "Save ${{amount}}/year",
-    "overageRate": "Overage: ${{rate}}/credit"
+    "overageRate": "Overage: ${{rate}}/credit",
+    "overageInfo": "Includes {{creditsText}} per month. Additional usage is billed at ${{rate}} per credit.",
+    "features": {
+      "creditsIncluded": "{{count}} monthly credits included",
+      "creditsIncluded_plural": "{{count}} monthly credits included",
+      "watermarkedImageQuality": "Standard definition image quality",
+      "fullHdImageQuality": "Full HD image quality",
+      "watermarkedImages": "Watermarked images",
+      "fullHdImages": "Full HD images",
+      "qhd2kImages": "QHD (2K resolution) images",
+      "communitySupport": "Community support",
+      "emailSupport24h": "Email support (24h response)",
+      "prioritySupport12h": "Priority support (12h response)",
+      "dedicatedSupport4h": "Dedicated support (4h response)",
+      "basicAnalytics": "Basic analytics",
+      "advancedAnalytics": "Advanced analytics",
+      "advancedAnalyticsApi": "Advanced analytics + API",
+      "apiAccessIncluded": "API access included",
+      "overageBilling": "Overage billing: ${{rate}} per credit after {{freeCredits}} free credits",
+      "paymentMethodRequired": "Payment method required for overage billing",
+      "costPerGeneration": "Cost: ${{rate}} per generation",
+      "savePerYear": "Save ${{amount}} per year",
+      "oneUsageOneCredit": "(1 usage = 1 credit)",
+      "rechargePossible": "Recharge possible after overage.",
+      "creditsIncludedSimple": "{{count}} credit included",
+      "creditsIncludedSimple_plural": "{{count}} credits included",
+      "usageReport": "Usage Report",
+      "resolution1792x2400": "1792 × 2400 px resolution",
+      "resolution768x1024": "768 × 1024 px resolution"
+    }
   },
   "coupon": {
     "redeemTitle": "Coupon code",
@@ -97,6 +126,41 @@
     "validateError": "Failed to validate coupon code",
     "redeemError": "Failed to redeem coupon",
     "subscriptionRequired": "An active subscription is required to use coupon codes"
+  },
+  "planConfirmation": {
+    "title": "Review Your Subscription",
+    "subtitle": "Review your plan details and apply a referral code before proceeding to payment",
+    "backToPlans": "Back to Plans",
+    "selectedPlan": "Selected Plan",
+    "planDescription": "Review your plan details before confirming",
+    "billingInterval": "Billing Interval",
+    "monthly": "Monthly",
+    "annual": "Annual",
+    "perMonth": "month",
+    "perYear": "year",
+    "includedCredits": "Included Credits",
+    "costPerCredit": "Cost per additional credit",
+    "trialDays": "{{days}} day trial",
+    "features": "Features",
+    "referralCodeLabel": "Referral Code (Optional)",
+    "referralCodePlaceholder": "Enter referral code",
+    "referralCodeHelper": "Enter a referral code to earn bonus credits after signup",
+    "validate": "Validate",
+    "validating": "Validating...",
+    "validCode": "Valid code! You'll receive {{credits}} credits after signup.",
+    "invalidCode": "Invalid or expired referral code",
+    "alreadyUsed": "This referral code has already been used",
+    "selfReferral": "Self-referrals are not allowed",
+    "validationError": "Failed to validate referral code. Please try again.",
+    "confirmButton": "Confirm & Continue to Payment",
+    "confirmButtonLoading": "Processing...",
+    "cancelButton": "Cancel",
+    "error": {
+      "planNotFound": "Selected plan not found",
+      "validationFailed": "Failed to validate referral code",
+      "enterCode": "Please enter a referral code",
+      "validationRequired": "Please validate your referral code before confirming, or remove it to continue without a referral code"
+    }
   },
   "credits": {
     "title": "Credits",
@@ -150,7 +214,20 @@
       "purchaseCreditsMessage": "Please purchase more credits to continue using the service.",
       "contactSupportMessage": "Please contact support to add credits.",
       "lowCreditsRemaining": "Low credits remaining",
-      "lowCreditsMessage": "You have {{count}} credits left. Consider purchasing more credits to avoid interruption."
+      "lowCreditsMessage": "You have {{count}} credits left. Consider purchasing more credits to avoid interruption.",
+      "utilizationBanner": {
+        "title80": "Credit Usage Warning",
+        "title90": "Credit Usage Alert",
+        "title100": "Overage Billing Activated",
+        "message80": "This is a friendly reminder that you have used {{percentage}}% of your allocated credits for this billing period.",
+        "message90": "IMPORTANT: You have used {{percentage}}% of your allocated credits. You only have {{remaining}} credits remaining for this billing period.",
+        "message100": "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service.",
+        "message100WithRemaining": "All your allocated credits have been used for this billing period. Overage billing has been automatically activated to ensure uninterrupted service. You have {{remaining}} credits remaining from other sources.",
+        "overageNote80": "If you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit.",
+        "overageNote90": "When you reach 100% of your credits, overage billing will be automatically activated at {{overagePrice}} per credit. This ensures uninterrupted service.",
+        "utilization": "Credit Utilization",
+        "viewPricing": "View Pricing"
+      }
     }
   },
   "subscription": {
@@ -215,7 +292,10 @@
       "creditsAvailableAfterUpgrade": "Credits available after upgrade",
       "loadingCredits": "Loading credits...",
       "showFeatures": "Show all plan features",
-      "hideFeatures": "Hide plan features"
+      "hideFeatures": "Hide plan features",
+      "viewCredits": "View credits",
+      "creditsAvailable": "{{count}} credits available",
+      "overageActive": "Overage active"
     },
     "coupon": {
       "label": "Promo Code",
@@ -339,6 +419,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -375,7 +466,18 @@
       "original": "Original",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "zoomedImage": "Zoomed image",
+      "noRelightedImages": "No relighted images yet",
+      "noRelightedImagesAvailable": "No relighted images available yet. Images will appear here once relighting is processed.",
+      "productImages": "Product Images",
+      "zoomImage": "Zoom image",
+      "relightingInProgress": "Relighting in progress..."
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "processing": "Processing"
     },
     "dialog": {
       "price": "Price",
@@ -389,7 +491,8 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "pending": "Pending",
-      "noImages": "No Images"
+      "noImages": "No Images",
+      "noImagesAvailable": "No images available"
     },
     "info": {
       "title": "Products Management",
@@ -415,6 +518,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -451,7 +565,8 @@
       "original": "Original",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "zoomedImage": "Zoomed image"
     },
     "dialog": {
       "price": "Price",
@@ -491,6 +606,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -545,7 +671,8 @@
       "closeViewer": "Close viewer",
       "viewerHint": "Drag to rotate, scroll to zoom, right-click to pan",
       "formattedMetadata": "Formatted Metadata",
-      "metadata": "3D Model Metadata"
+      "metadata": "3D Model Metadata",
+      "zoomedImage": "Zoomed image"
     },
     "dialog": {
       "price": "Price",
@@ -586,6 +713,17 @@
     "loadMore": "Load More",
     "loadMoreSuccess": "More products loaded successfully",
     "loadMoreError": "Failed to load more products. Please try again.",
+    "refresh": "Refresh products",
+    "quantity": "Quantity",
+    "quantityLabel": "Qty:",
+    "notAvailable": "N/A",
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
+    },
     "empty": {
       "title": "No products found",
       "description": "Click 'Fetch Products' to load products created today with ACTIVE status."
@@ -622,7 +760,8 @@
       "original": "Original",
       "relighted": "Relighted",
       "processing": "Processing...",
-      "imageOf": "Image {{current}} of {{total}}"
+      "imageOf": "Image {{current}} of {{total}}",
+      "zoomedImage": "Zoomed image"
     },
     "dialog": {
       "price": "Price",
@@ -636,7 +775,39 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "pending": "Pending",
-      "noImages": "No Images"
+      "noImages": "No Images",
+      "noVideos": "No Videos"
+    },
+    "video": {
+      "approve": "Approve Video",
+      "reject": "Reject Video",
+      "approveSuccess": "Video approved successfully",
+      "rejectSuccess": "Video rejected successfully",
+      "approveError": "Failed to approve video. Please try again.",
+      "rejectError": "Failed to reject video. Please try again.",
+      "previous": "Previous video",
+      "next": "Next video",
+      "original": "Original Image",
+      "generated": "Generated Video",
+      "notSupported": "Your browser does not support the video tag.",
+      "notAvailable": "Video not available",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "duration": "Duration",
+      "resolution": "Resolution",
+      "aspectRatio": "Aspect Ratio",
+      "prompt": "Prompt",
+      "videoOf": "Video {{current}} of {{total}}",
+      "zoom": "Zoom video",
+      "preview": "Video Preview"
+    },
+    "ariaLabels": {
+      "selectVariant": "Select {{product}} - {{variant}}",
+      "viewDetails": "View details for {{product}} - {{variant}}",
+      "approveProduct": "Approve {{product}}",
+      "rejectProduct": "Reject {{product}}",
+      "zoomedImage": "Zoomed image"
     },
     "info": {
       "title": "Products Management",
@@ -645,11 +816,128 @@
   },
   "navigation": {
     "dashboard": "Dashboard",
+    "analytics": "Analytics",
     "nuCopy": "nucopy",
     "nuLight": "nulight",
     "nu3d": "nu3d",
     "nuScene": "nuscene",
     "mainNavigation": "Main navigation"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "description": "View and analyze all image generations",
+    "comingSoon": "Coming Soon",
+    "loading": "Loading...",
+    "error": "Error",
+    "errorMessage": "Failed to load analytics data. Please try again.",
+    "noData": "No data available",
+    "noDataDescription": "No image generations found for this store.",
+    "refresh": "Refresh",
+    "filters": {
+      "title": "Filters",
+      "status": "Status",
+      "statusAll": "All Statuses",
+      "statusPending": "Pending",
+      "statusProcessing": "Processing",
+      "statusCompleted": "Completed",
+      "statusFailed": "Failed",
+      "storeName": "Store Name",
+      "storeNamePlaceholder": "Filter by store name",
+      "user": "IP Address",
+      "userPlaceholder": "Filter by IP address",
+      "dateRange": "Date Range",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "datePlaceholder": "Select date range",
+      "apply": "Apply Filters",
+      "clear": "Clear Filters"
+    },
+    "table": {
+      "id": "ID",
+      "requestId": "Request ID",
+      "personImage": "Person Image",
+      "clothingImage": "Clothing Image",
+      "generatedImage": "Generated Image",
+      "status": "Status",
+      "storeName": "Store",
+      "processingTime": "Processing Time",
+      "fileSize": "File Size",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "ipAddress": "IP Address",
+      "userAgent": "User Agent",
+      "name": "Name",
+      "email": "Email",
+      "customerEmail": "Customer Email",
+      "customerName": "Customer Name",
+      "errorMessage": "Error Message",
+      "viewImage": "View Image",
+      "viewDetails": "View Details",
+      "productAddedToCart": "Product Added to Cart",
+      "actions": "Actions"
+    },
+    "details": {
+      "basicInfo": "Basic Information",
+      "userInfo": "User Information",
+      "technicalInfo": "Technical Information",
+      "productInfo": "Product Information",
+      "productInfoDescription": "Product details for this generation",
+      "productTitle": "Product Title",
+      "productId": "Product ID",
+      "variantId": "Variant ID",
+      "aspectRatio": "Aspect Ratio",
+      "viewProduct": "View Product",
+      "addToCartInfo": "Add to Cart Information",
+      "addToCartInfoDescription": "Cart events and activity for this product",
+      "addedToCart": "Added to Cart",
+      "totalEvents": "Total Events",
+      "firstEvent": "First Event",
+      "lastEvent": "Last Event",
+      "actionTypes": "Action Types",
+      "cartEventsTimeline": "Cart Events Timeline",
+      "otherProductsAddedToCart": "Other Products Added to Cart",
+      "otherProductsDescription": "Additional products added to cart during this session",
+      "product": "Product",
+      "events": "Events",
+      "actions": "Actions",
+      "added": "Added"
+    },
+    "search": {
+      "placeholder": "Search by ID, status, or date..."
+    },
+    "export": {
+      "button": "Export",
+      "exporting": "Exporting data...",
+      "success": "Data exported successfully",
+      "error": "Failed to export data",
+      "noData": "No data to export"
+    },
+    "noFilteredData": "No records match your filters.",
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "showing": "Showing",
+      "to": "to",
+      "ofTotal": "of",
+      "results": "results",
+      "previous": "Previous",
+      "next": "Next",
+      "goToPage": "Go to page"
+    },
+    "summary": {
+      "totalGenerations": "Total Generations",
+      "customers": "Customers",
+      "products": "Products",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "stats": {
+      "total": "Total Generations",
+      "completed": "Completed",
+      "failed": "Failed",
+      "processing": "Processing",
+      "pending": "Pending"
+    }
   },
   "tryOnWidget": {
     "brand": {
@@ -681,7 +969,9 @@
       "resultReady": "Result ready. Use the actions below.",
       "resultReadyActions": "Result ready. You can purchase or download.",
       "photoCleared": "Photo cleared. Upload your photo.",
-      "generating": "Generating in progress. This may take 15 to 20 seconds…",
+      "generating": "Generating…",
+      "generatingTime": "Please wait, this usually takes 15 to 20 seconds",
+      "pleaseWait": "Please wait…",
       "generatingOutfit": "Generating complete outfit...",
       "generatingOutfitTime": "Complete outfit generation may take 10 to 15 seconds..."
     },
@@ -706,6 +996,8 @@
     },
     "tabs": {
       "ariaLabel": "Try-on mode",
+      "tryOn": "Try-On",
+      "history": "History",
       "single": {
         "label": "TryOn",
         "ariaLabel": "Try on a single item"
@@ -717,6 +1009,34 @@
       "look": {
         "label": "TryOutfit",
         "ariaLabel": "Try a complete outfit"
+      }
+    },
+    "history": {
+      "title": "Your Try-Ons",
+      "description": "View all your previous virtual try-ons",
+      "empty": "No virtual try-ons yet",
+      "reuse": "Reuse",
+      "table": {
+        "date": "Date",
+        "person": "Photo",
+        "clothing": "Clothing",
+        "result": "Result",
+        "actions": "Actions"
+      },
+      "card": {
+        "person": "Photo",
+        "clothing": "Clothing",
+        "result": "Result"
+      },
+      "pagination": {
+        "showing": "Showing",
+        "to": "to",
+        "ofTotal": "of",
+        "results": "results",
+        "page": "Page",
+        "of": "of",
+        "previous": "Previous",
+        "next": "Next"
       }
     },
     "sections": {
@@ -776,6 +1096,8 @@
     },
     "errors": {
       "errorPrefix": "Error",
+      "connectionErrorTitle": "Oops! Something went wrong",
+      "connectionErrorDescription": "Generation could not be completed. Please check your connection and try again.",
       "missingPhotoOrClothing": "Generation requires a photo and a selected item.",
       "missingPhotoOrGarments": "Generation requires a photo and at least {{count}} selected item.",
       "missingPhotoOrGarments_plural": "Generation requires a photo and at least {{count}} selected items.",
@@ -828,6 +1150,39 @@
       "placeholder": "Select a version (optional)",
       "description": "Select the model version to use for generation"
     },
+    "authGate": {
+      "title": "Continue to Virtual Try-On",
+      "subtitle": "Sign in to save your try-on results and access them anytime",
+      "videoOverlayText1": "See how it looks on you",
+      "videoOverlayText2": "Try different outfits instantly",
+      "trustBadge": "Secure login • Privacy protected",
+      "benefit1": "See how it looks",
+      "benefit2": "Try before you buy",
+      "benefit3": "Save time",
+      "benefit4": "Try multiple styles",
+      "benefit5": "AI-powered",
+      "loginButton": "Sign In",
+      "loginButtonLoading": "Redirecting...",
+      "loginButtonAriaLabel": "Sign in to continue using virtual try-on",
+      "accountLink": "Don't have an account?",
+      "signUpLink": "Create one",
+      "signUpLinkAriaLabel": "Create a new account",
+      "redirectNotice": "We'll redirect you to secure sign-in",
+      "demoAriaLabel": "Virtual try-on tutorial demonstration",
+      "step1Number": "Step 1",
+      "step1Text": "Upload Your Photo",
+      "step2Number": "Step 2",
+      "step2Text": "Select Your Clothing",
+      "step3Number": "Step 3",
+      "step3Text": "Generating Try-On Result",
+      "step4Number": "Step 4",
+      "step4Text": "View Your Result",
+      "step5Text": "Complete Try-On Process",
+      "generatingText": "Generating your try-on...",
+      "generatedImageAlt": "Example of generated virtual try-on result",
+      "personImageAlt": "Example person photo",
+      "clothingImageAlt": "Example clothing item"
+    },
     "photoUpload": {
       "srOnlyText": "Upload your photo or use a demo photo",
       "uploadAreaAriaLabel": "Upload your photo - Click or press Enter to select an image",
@@ -847,7 +1202,24 @@
       "alreadyGenerated": "Already generated",
       "previewAlt": "Preview of uploaded photo",
       "uploadSuccess": "Photo uploaded successfully!",
-      "nextStepHint": "Proceed to the next step to select a garment"
+      "nextStepHint": "Proceed to the next step to select a garment",
+      "correctExample": "Correct example",
+      "makeSure": "Make sure your photo has:",
+      "examplePhotoAlt": "Example of correct photo",
+      "previousExample": "Previous example",
+      "nextExample": "Next example",
+      "fileFormat": "JPG / PNG • Full body photo",
+      "invalidType": "Please upload an image file (jpg, jpeg, png, webp).",
+      "fileTooLarge": "The selected file is too large. Please choose an image under {{maxMB}}MB.",
+      "failedToLoadDemo": "Unable to load this demo photo. Please try another.",
+      "checklist": {
+        "visibleFace": "Face visible",
+        "bodyWellFramed": "Body well framed",
+        "frontFacingPose": "Front-facing pose",
+        "armsVisible": "Arms visible",
+        "goodLighting": "Good lighting",
+        "cleanBackground": "Clean background"
+      }
     },
     "clothingSelection": {
       "recommendedProducts": "Recommended Products",
@@ -922,6 +1294,66 @@
       "instagramWebsiteOpenedDesktopNoCaption": "Instagram website opened! Image is saved.",
       "instagramShareError": "Error sharing to Instagram",
       "instagramShareErrorDescription": "Unable to share to Instagram. Please try again."
+    }
+  },
+  "referral": {
+    "title": "Referral Program",
+    "description": "Share your referral code and earn rewards when others sign up",
+    "backToDashboard": "Back to Dashboard",
+    "upgradeRequired": {
+      "title": "Upgrade to a Paid Plan",
+      "description": "Referral codes are only available for users on paid plans. Upgrade your plan to start earning referral rewards!",
+      "viewPlans": "View Plans"
+    },
+    "error": {
+      "title": "Error Loading Referral Data",
+      "message": "Failed to load referral data. Please try again."
+    },
+    "code": {
+      "title": "Your Referral Code",
+      "description": "Share this code with others to earn rewards",
+      "active": "Active",
+      "copy": "Copy",
+      "share": "Share",
+      "copying": "Copying...",
+      "copyAriaLabel": "Copy referral code",
+      "loading": "Loading your referral code...",
+      "label": "Referral Code",
+      "shareHint": "Share your code to earn 20 credits per referral",
+      "willAppear": "Your referral code will appear here",
+      "rewardMessage": "When someone uses your referral code, you both receive 20 credits!"
+    },
+    "statistics": {
+      "title": "Referral Statistics",
+      "description": "Track your referral performance",
+      "totalReferrals": "Total Referrals",
+      "completed": "Completed",
+      "pending": "Pending",
+      "creditsEarned": "Credits Earned"
+    },
+    "howItWorks": {
+      "title": "How Referrals Work",
+      "step1": "Share your referral code with friends and colleagues",
+      "step2": "When they sign up and subscribe to a paid plan, you both receive 20 credits",
+      "step3": "Credits are awarded automatically after their subscription is approved",
+      "step4": "There's no limit to how many people you can refer!"
+    },
+    "empty": {
+      "title": "No Referrals Yet",
+      "description": "Start sharing your referral code to earn rewards!"
+    },
+    "toast": {
+      "codeCopied": "Referral code copied!",
+      "codeCopiedDescription": "You can now share it with others",
+      "copyFailed": "Failed to copy code",
+      "copyFailedDescription": "Please try again",
+      "sharedSuccess": "Shared successfully!",
+      "sharedSuccessDescription": "Thanks for sharing your referral code",
+      "shareFailed": "Failed to share",
+      "shareFailedDescription": "Please try again",
+      "linkCopied": "Referral link copied!",
+      "linkCopiedDescription": "You can now paste it anywhere",
+      "copyFailedGeneric": "Failed to copy"
     }
   }
 }

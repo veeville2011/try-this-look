@@ -18,9 +18,35 @@
    */
   const INIT_FLAG = 'nusenseInitialized';
 
+  // Performance and reliability constants
+  const CONSTANTS = {
+    SCAN_THROTTLE_MS: 250,
+    CREDIT_CHECK_TIMEOUT_MS: 5000,
+    CREDIT_CHECK_CACHE_TTL_MS: 60000, // 1 minute cache
+    MIN_CLICK_TARGET_PX: 44,
+    OVERLAY_Z_INDEX: 9999,
+    DEFAULT_MODAL_WIDTH: 900,
+    DEFAULT_MODAL_HEIGHT: 650,
+  };
+
+  // Credit check cache and shared promise to prevent race conditions
+  const creditCheckCache = new Map();
+  const creditCheckPromises = new Map();
+
   const normalizeUrl = (url) => {
     if (!url) return '';
     return String(url).trim().replace(/\/+$/, '');
+  };
+
+  const validateWidgetUrl = (url) => {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      // Only allow HTTPS URLs for security
+      return parsed.protocol === 'https:' && parsed.hostname;
+    } catch {
+      return false;
+    }
   };
 
   const getWidgetUrl = (buttonEl) => {
@@ -28,7 +54,15 @@
     const fromGlobal = window?.NUSENSE_CONFIG?.widgetUrl;
     const fallback = 'https://try-this-look.vercel.app';
 
-    return normalizeUrl(fromDataset || fromGlobal || fallback);
+    const url = normalizeUrl(fromDataset || fromGlobal || fallback);
+    
+    // Validate URL and fallback to default if invalid
+    if (!validateWidgetUrl(url)) {
+      console.warn('[NUSENSE] Invalid widget URL, using fallback');
+      return normalizeUrl(fallback);
+    }
+    
+    return url;
   };
 
   const getWidgetOrigin = (widgetUrl) => {
@@ -259,7 +293,7 @@
     else buttonEl.style.removeProperty('border-radius');
 
     // Make sure click target is accessible.
-    buttonEl.style.minHeight = buttonEl.style.minHeight || '44px';
+    buttonEl.style.minHeight = buttonEl.style.minHeight || `${CONSTANTS.MIN_CLICK_TARGET_PX}px`;
 
     const customCss = buttonEl.dataset.customCss || '';
     applyScopedCustomCss(buttonEl.id, customCss);
@@ -467,7 +501,224 @@
     return bestScore > 0 ? best : null;
   };
 
-  const buildWidgetUrl = ({ widgetUrl, productId, shopDomain }) => {
+  /**
+   * Detect customer information from Shopify storefront using JSON script tag
+   * This is the recommended Shopify approach - customer info is injected via Liquid in the app block
+   * 
+   * Works universally across:
+   * - All Shopify stores (uses standard Shopify Liquid customer object)
+   * - All themes (uses standard HTML script tags and DOM APIs)
+   * - All browsers (uses standard getElementById and JSON.parse)
+   * 
+   * @returns {Object|null} Customer info object with id, email, firstName, lastName or null
+   */
+  const getCustomerInfo = () => {
+    try {
+      // Read customer information from JSON script tag injected by Liquid in the app block
+      // Note: If multiple blocks exist on the same page, getElementById returns the first one
+      // This is fine because all instances contain the same customer info (global to the page)
+      const customerInfoScript = document.getElementById('nusense-customer-info');
+      
+      if (customerInfoScript && customerInfoScript.textContent) {
+        try {
+          const customerInfo = JSON.parse(customerInfoScript.textContent);
+          
+          // Only return customer info if at least ID or email is present
+          if (customerInfo && (customerInfo.id || customerInfo.email)) {
+            return {
+              id: customerInfo.id ? customerInfo.id.toString() : null,
+              email: customerInfo.email || null,
+              firstName: customerInfo.firstName || null,
+              lastName: customerInfo.lastName || null,
+            };
+          }
+        } catch (parseError) {
+          // Error parsing customer info JSON - silently fail (graceful degradation)
+          // This ensures the widget still works even if customer info parsing fails
+          console.warn('[NUSENSE] Error parsing customer info JSON:', parseError);
+        }
+      }
+      
+      // Return null if customer is not logged in or script tag not found
+      // This is expected behavior - widget works with or without customer info
+      return null;
+    } catch (error) {
+      // Error detecting customer info - silently fail (graceful degradation)
+      // This ensures the widget still works even if there's an unexpected error
+      console.warn('[NUSENSE] Error detecting customer info:', error);
+      return null;
+    }
+  };
+
+  /**
+   * Check if credits are available for the shop
+   * Returns true if credits > 0, false otherwise
+   * On error, returns false to hide button (fail-safe)
+   * 
+   * Features:
+   * - Request timeout to prevent hanging requests
+   * - Caching to prevent duplicate API calls
+   * - Shared promise to handle concurrent requests
+   */
+  const checkCreditsAvailable = async (shopDomain) => {
+    if (!shopDomain) {
+      console.warn('[NUSENSE] No shop domain provided for credit check');
+      return false;
+    }
+
+    // Normalize shop domain for cache key
+    let normalizedShop = shopDomain.trim().toLowerCase();
+    if (!normalizedShop.includes('.myshopify.com')) {
+      normalizedShop = `${normalizedShop}.myshopify.com`;
+    }
+
+    // Check cache first
+    const cached = creditCheckCache.get(normalizedShop);
+    if (cached && (Date.now() - cached.timestamp) < CONSTANTS.CREDIT_CHECK_CACHE_TTL_MS) {
+      return cached.hasCredits;
+    }
+
+    // Check if there's already a pending request for this shop
+    const existingPromise = creditCheckPromises.get(normalizedShop);
+    if (existingPromise) {
+      try {
+        return await existingPromise;
+      } catch {
+        return false;
+      }
+    }
+
+    // Create new request with timeout and shared promise
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONSTANTS.CREDIT_CHECK_TIMEOUT_MS);
+
+    const creditCheckPromise = (async () => {
+      try {
+        const url = `https://ai.nusense.ddns.net/api/credits/balance?shop=${encodeURIComponent(normalizedShop)}`;
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          signal: controller.signal, // Add abort signal for timeout
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          console.warn('[NUSENSE] Failed to check credits:', response.status, response.statusText);
+          return false;
+        }
+
+        const data = await response.json();
+        
+        // Check if credits are available
+        // Credits can be in total_balance or balance field (for backward compatibility)
+        const credits = data.total_balance ?? data.balance ?? 0;
+        
+        // Also check if in overage mode (usage records available)
+        const hasOverageCapacity = data.isOverage && data.overage && data.overage.remaining > 0;
+        
+        const hasCredits = credits > 0 || hasOverageCapacity;
+        
+        // Cache the result
+        creditCheckCache.set(normalizedShop, {
+          hasCredits,
+          timestamp: Date.now(),
+        });
+
+        if (!hasCredits) {
+          console.log('[NUSENSE] No credits available, hiding try-on button');
+        }
+        
+        return hasCredits;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        // Handle timeout specifically
+        if (error.name === 'AbortError') {
+          console.warn('[NUSENSE] Credit check timeout after', CONSTANTS.CREDIT_CHECK_TIMEOUT_MS, 'ms');
+        } else {
+          console.warn('[NUSENSE] Error checking credits:', error);
+        }
+        
+        // On error, hide button (fail-safe approach)
+        return false;
+      } finally {
+        // Remove promise from map after completion
+        creditCheckPromises.delete(normalizedShop);
+      }
+    })();
+
+    // Store promise for concurrent requests
+    creditCheckPromises.set(normalizedShop, creditCheckPromise);
+
+    return creditCheckPromise;
+  };
+
+  /**
+   * Trap focus within a modal container for accessibility
+   * Returns cleanup function to remove event listeners
+   */
+  const trapFocus = (container) => {
+    if (!container) return () => {};
+
+    const getFocusableElements = () => {
+      const selector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+      return Array.from(container.querySelectorAll(selector)).filter((el) => {
+        if (!(el instanceof HTMLElement)) return false;
+        if (el.disabled) return false;
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) >= 0.1;
+      });
+    };
+
+    const handleTab = (e) => {
+      if (e.key !== 'Tab') return;
+
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === firstElement || !container.contains(document.activeElement)) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        // Tab
+        if (document.activeElement === lastElement || !container.contains(document.activeElement)) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    container.addEventListener('keydown', handleTab);
+
+    // Focus first element
+    const focusableElements = getFocusableElements();
+    if (focusableElements.length > 0) {
+      // Use setTimeout to ensure iframe is ready
+      setTimeout(() => {
+        const firstElement = focusableElements[0];
+        if (firstElement && container.contains(firstElement)) {
+          firstElement.focus();
+        }
+      }, 100);
+    }
+
+    return () => {
+      container.removeEventListener('keydown', handleTab);
+    };
+  };
+
+  const buildWidgetUrl = ({ widgetUrl, productId, shopDomain, customerInfo }) => {
     const base = normalizeUrl(widgetUrl);
     if (!base) return null;
 
@@ -475,12 +726,38 @@
       const url = new URL(`${base}/widget`);
       if (productId && productId !== 'undefined' && productId !== 'null') url.searchParams.set('product_id', productId);
       if (shopDomain) url.searchParams.set('shop_domain', shopDomain);
+      
+      // Add customer information if available
+      if (customerInfo) {
+        if (customerInfo.id) {
+          url.searchParams.set('customerId', customerInfo.id);
+        }
+        if (customerInfo.email) {
+          url.searchParams.set('customerEmail', customerInfo.email);
+        }
+        if (customerInfo.firstName) {
+          url.searchParams.set('customerFirstName', customerInfo.firstName);
+        }
+        if (customerInfo.lastName) {
+          url.searchParams.set('customerLastName', customerInfo.lastName);
+        }
+      }
+      
       return url.toString();
     } catch {
       // Fallback: naive concatenation
       const params = new URLSearchParams();
       if (productId && productId !== 'undefined' && productId !== 'null') params.set('product_id', productId);
       if (shopDomain) params.set('shop_domain', shopDomain);
+      
+      // Add customer information if available
+      if (customerInfo) {
+        if (customerInfo.id) params.set('customerId', customerInfo.id);
+        if (customerInfo.email) params.set('customerEmail', customerInfo.email);
+        if (customerInfo.firstName) params.set('customerFirstName', customerInfo.firstName);
+        if (customerInfo.lastName) params.set('customerLastName', customerInfo.lastName);
+      }
+      
       const suffix = params.toString() ? `?${params.toString()}` : '';
       return `${base}/widget${suffix}`;
     }
@@ -495,7 +772,11 @@
 
     const productId = buttonEl.dataset.productId || '';
     const shopDomain = buttonEl.dataset.shopDomain || '';
-    const widgetHref = buildWidgetUrl({ widgetUrl, productId, shopDomain });
+    
+    // Detect and pass customer information if available
+    const customerInfo = getCustomerInfo();
+    
+    const widgetHref = buildWidgetUrl({ widgetUrl, productId, shopDomain, customerInfo });
     if (!widgetHref) return;
 
     const overlayId = `nusense-widget-overlay-${buttonEl.id}`;
@@ -520,7 +801,7 @@
       'width: 100%',
       'height: 100%',
       'background: rgba(0, 0, 0, 0.5)',
-      'z-index: 9999',
+      `z-index: ${CONSTANTS.OVERLAY_Z_INDEX}`,
       'display: flex',
       'align-items: center',
       'justify-content: center',
@@ -537,13 +818,13 @@
     container.setAttribute('role', 'document');
     container.style.cssText = [
       'position: relative',
-      // Maintain the original desktop modal width (900px) while staying responsive on mobile.
+      // Maintain the original desktop modal width while staying responsive on mobile.
       // - Mobile: width is capped by 95vw
-      // - Desktop: max-width keeps the modal at 900px for consistent UI/UX
+      // - Desktop: max-width keeps the modal at consistent size for UI/UX
       'width: 95vw',
-      'max-width: 900px',
+      `max-width: ${CONSTANTS.DEFAULT_MODAL_WIDTH}px`,
       'height: 94vh',
-      'max-height: 650px',
+      `max-height: ${CONSTANTS.DEFAULT_MODAL_HEIGHT}px`,
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',
@@ -600,6 +881,8 @@
     loading.appendChild(loadingSpinner);
 
     let cleanedUp = false;
+    let focusTrapCleanup = null;
+
     const handleCleanup = () => {
       if (cleanedUp) return;
       cleanedUp = true;
@@ -607,6 +890,10 @@
       try {
         window.removeEventListener('message', handleMessage);
         document.removeEventListener('keydown', handleKeyDown);
+        if (focusTrapCleanup) {
+          focusTrapCleanup();
+          focusTrapCleanup = null;
+        }
       } catch {
         // ignore
       }
@@ -668,6 +955,28 @@
 
     iframe.addEventListener('load', () => {
       loading.remove();
+      
+      // Announce to screen readers that widget has loaded
+      const announcement = document.createElement('div');
+      announcement.setAttribute('role', 'status');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.setAttribute('aria-atomic', 'true');
+      announcement.className = 'sr-only';
+      announcement.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;';
+      announcement.textContent = 'NUSENSE Try-On widget loaded';
+      container.appendChild(announcement);
+      
+      // Remove announcement after screen readers have time to read it
+      setTimeout(() => {
+        try {
+          announcement.remove();
+        } catch {
+          // ignore
+        }
+      }, 1000);
+
+      // Initialize focus trap after iframe loads
+      focusTrapCleanup = trapFocus(container);
     });
 
     document.addEventListener('keydown', handleKeyDown);
@@ -680,12 +989,38 @@
 
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
+
+    // Initialize focus trap immediately (will focus iframe when it loads)
+    focusTrapCleanup = trapFocus(container);
   };
 
-  const initButton = (buttonEl) => {
+  const initButton = async (buttonEl) => {
     if (!(buttonEl instanceof HTMLButtonElement)) return;
     if (!buttonEl.id || !buttonEl.id.startsWith(BUTTON_ID_PREFIX)) return;
     if (buttonEl.dataset[INIT_FLAG] === 'true') return;
+
+    // Get shop domain from button data attribute
+    const shopDomain = buttonEl.dataset.shopDomain || '';
+    
+    // Check credits before initializing button
+    // Hide button container if no credits available
+    // Support both app block and app embed block containers
+    const container = buttonEl.closest('.nusense-tryon-button-app-block') || 
+                      buttonEl.closest('.nusense-tryon-button-embed-container');
+    
+    if (shopDomain) {
+      const hasCredits = await checkCreditsAvailable(shopDomain);
+      
+      if (!hasCredits) {
+        // Hide the button container if no credits
+        if (container) {
+          container.style.display = 'none';
+        } else {
+          buttonEl.style.display = 'none';
+        }
+        return; // Don't initialize button if no credits
+      }
+    }
 
     buttonEl.dataset[INIT_FLAG] = 'true';
 
@@ -771,18 +1106,32 @@
 
   const scanButtons = () => {
     const buttons = document.querySelectorAll(`button[id^="${BUTTON_ID_PREFIX}"]`);
-    buttons.forEach((btn) => initButton(btn));
+    buttons.forEach((btn) => {
+      // initButton is now async, but we don't need to await it
+      // The button will be hidden if no credits are available
+      initButton(btn).catch((error) => {
+        console.warn('[NUSENSE] Error initializing button:', error);
+        // On error, hide the button as a fail-safe
+        // Support both app block and app embed block containers
+        const container = btn.closest('.nusense-tryon-button-app-block') || 
+                          btn.closest('.nusense-tryon-button-embed-container');
+        if (container) {
+          container.style.display = 'none';
+        } else {
+          btn.style.display = 'none';
+        }
+      });
+    });
   };
 
   let scanScheduled = false;
   let lastScanAt = 0;
-  const SCAN_THROTTLE_MS = 250;
   const scheduleScanButtons = () => {
     if (scanScheduled) return;
     scanScheduled = true;
 
     const now = Date.now();
-    const delay = Math.max(0, SCAN_THROTTLE_MS - (now - lastScanAt));
+    const delay = Math.max(0, CONSTANTS.SCAN_THROTTLE_MS - (now - lastScanAt));
 
     setTimeout(() => {
       scanScheduled = false;
@@ -797,22 +1146,100 @@
     }, delay);
   };
 
+  // Optimized MutationObserver that scopes to product form area when possible
+  let domObserver = null;
+  const setupDOMObserver = () => {
+    // Disconnect existing observer if any
+    if (domObserver) {
+      try {
+        domObserver.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+
+    // Try to scope observer to product form area for better performance
+    const productForm = document.querySelector('form[action*="/cart/add"]');
+    const observeTarget = productForm && productForm.parentElement && productForm.parentElement !== document.body
+      ? productForm.parentElement
+      : document.documentElement;
+
+    // Only observe childList changes to reduce overhead
+    domObserver = new MutationObserver((mutations) => {
+      // Only trigger scan if relevant nodes were added/removed
+      const hasRelevantChanges = mutations.some((mutation) => {
+        if (mutation.type !== 'childList') return false;
+        
+        // Check if any added/removed nodes are buttons or containers
+        const nodes = [...(mutation.addedNodes || []), ...(mutation.removedNodes || [])];
+        return nodes.some((node) => {
+          if (!(node instanceof HTMLElement)) return false;
+          return (
+            node.id?.startsWith(BUTTON_ID_PREFIX) ||
+            node.classList?.contains('nusense-tryon-button-app-block') ||
+            node.classList?.contains('nusense-tryon-button-embed-container') ||
+            node.querySelector?.(`button[id^="${BUTTON_ID_PREFIX}"]`)
+          );
+        });
+      });
+
+      if (hasRelevantChanges) {
+        scheduleScanButtons();
+      }
+    });
+
+    // Observe with minimal options for better performance
+    domObserver.observe(observeTarget, {
+      childList: true,
+      subtree: observeTarget === document.documentElement, // Only subtree if observing entire document
+    });
+  };
+
   // Initial scan.
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', scanButtons, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      scanButtons();
+      setupDOMObserver();
+    }, { once: true });
   } else {
     scanButtons();
+    setupDOMObserver();
   }
 
-  // Keep up with dynamic themes/sections.
-  const domObserver = new MutationObserver(() => scheduleScanButtons());
-  domObserver.observe(document.documentElement, { childList: true, subtree: true });
+  // Handle Shopify theme editor section events
+  document.addEventListener('shopify:section:load', (event) => {
+    // Re-scan buttons when sections load in theme editor
+    scheduleScanButtons();
+    // Re-setup observer in case DOM structure changed
+    setTimeout(setupDOMObserver, 100);
+  });
 
+  document.addEventListener('shopify:section:unload', () => {
+    // Cleanup and re-setup observer
+    if (domObserver) {
+      try {
+        domObserver.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+    setTimeout(setupDOMObserver, 100);
+  });
+
+  document.addEventListener('shopify:section:reorder', () => {
+    scheduleScanButtons();
+    setTimeout(setupDOMObserver, 100);
+  });
+
+  // Cleanup on page unload
   window.addEventListener(
     'beforeunload',
     () => {
       try {
-        domObserver.disconnect();
+        if (domObserver) domObserver.disconnect();
+        // Clear credit check cache and promises
+        creditCheckCache.clear();
+        creditCheckPromises.clear();
       } catch {
         // ignore
       }

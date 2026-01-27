@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ClothingSelectionProps {
@@ -15,7 +15,6 @@ interface ClothingSelectionProps {
   generatedKeyCombinations?: Set<string>;
   selectedDemoPhotoUrl?: string | null;
   demoPhotoIdMap?: Map<string, string>;
-  matchingClothingKeys?: string[];
   showFinalLayout?: boolean; // Show 2+2 layout only when both photo and clothing are selected
   isLoadingImages?: boolean;
   isLoadingRecommended?: boolean;
@@ -32,18 +31,12 @@ export default function ClothingSelection({
   generatedKeyCombinations = new Set(),
   selectedDemoPhotoUrl = null,
   demoPhotoIdMap = new Map(),
-  matchingClothingKeys = [],
   showFinalLayout = false,
   isLoadingImages = false,
   isLoadingRecommended = false,
 }: ClothingSelectionProps) {
   const { t } = useTranslation();
   const [validImages, setValidImages] = useState<string[]>([]);
-  const [validRecommendedImages, setValidRecommendedImages] = useState<
-    string[]
-  >([]);
-  const mainScrollRef = useRef<HTMLDivElement>(null);
-  const recommendedScrollRef = useRef<HTMLDivElement>(null);
 
   const horizontalScrollbarClassName =
     "overflow-x-auto overflow-y-visible smooth-scroll pb-2 px-4 pt-1 scroll-pl-4 scroll-pr-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50";
@@ -71,14 +64,6 @@ export default function ClothingSelection({
     if (!clothingKey) return false;
     const normalizedKey = String(clothingKey).trim();
     return generatedClothingKeys.has(normalizedKey);
-  };
-
-  // Check if a clothing item matches the selected person (from key mappings API)
-  const isMatching = (imageUrl: string): boolean => {
-    const clothingKey = availableImagesWithIds.get(imageUrl);
-    if (!clothingKey || matchingClothingKeys.length === 0) return false;
-    const normalizedKey = String(clothingKey).trim();
-    return matchingClothingKeys.includes(normalizedKey);
   };
 
   // Check if the selected person/clothing combination already exists in cache
@@ -114,34 +99,6 @@ export default function ClothingSelection({
     }
   }, [images]);
 
-  // Initialize recommended images
-  useEffect(() => {
-    const unique = Array.from(new Set(recommendedImages.filter(Boolean)));
-    setValidRecommendedImages(unique);
-    // Debug logging to help troubleshoot recommended images loading
-    if (unique.length > 0) {
-      console.log("[ClothingSelection] Recommended images loaded:", unique.length, "images");
-    }
-  }, [recommendedImages]);
-
-  // Touch/swipe handlers for horizontal scrolling
-  const handleTouchStart = (e: React.TouchEvent, ref: React.RefObject<HTMLDivElement>) => {
-    if (!ref.current) return;
-    const startX = e.touches[0].clientX;
-    const scrollLeft = ref.current.scrollLeft;
-    ref.current.dataset.startX = startX.toString();
-    ref.current.dataset.scrollLeft = scrollLeft.toString();
-  };
-
-  const handleTouchMove = (e: React.TouchEvent, ref: React.RefObject<HTMLDivElement>) => {
-    if (!ref.current || !ref.current.dataset.startX) return;
-    const x = e.touches[0].clientX;
-    const startX = parseFloat(ref.current.dataset.startX);
-    const scrollLeft = parseFloat(ref.current.dataset.scrollLeft || "0");
-    const walk = (x - startX) * 1.5; // Scroll speed multiplier
-    ref.current.scrollLeft = scrollLeft - walk;
-  };
-
   // If we are still loading images (iframe / parent message), show skeleton instead of the empty-state.
   if (isLoadingImages && validImages.length === 0 && images.length === 0) {
     return (
@@ -175,26 +132,14 @@ export default function ClothingSelection({
     );
   }
 
-  const mainSet = new Set(validImages.map((u) => u.toLowerCase()));
-  const recommendedSet = new Set(validRecommendedImages.map((u) => u.toLowerCase()));
-
-  // If recommended == main (fallback mode), don't filter them out.
-  const isFallbackToMain =
-    mainSet.size > 0 &&
-    mainSet.size === recommendedSet.size &&
-    Array.from(mainSet).every((u) => recommendedSet.has(u));
-
-  // Otherwise, filter out any duplicates of the main product images.
-  const filteredRecommendedImages = isFallbackToMain
-    ? validRecommendedImages
-    : validRecommendedImages.filter((u) => !mainSet.has(u.toLowerCase()));
-
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full h-full max-w-full overflow-x-hidden">
       {showFinalLayout ? (
-        /* Final Layout - 2x2 Grid Layout (consistent with before selection) */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          {/* Main Product Images - 2x2 Grid */}
+        /* Final Layout - 2x2 Grid Layout with fixed height and scroll - shows exactly 4 items at a time, scrollable for more */
+        <div 
+          className="h-[360px] max-h-[360px] overflow-y-auto pr-1 px-2 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+        >
+          {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pb-2">
               {validImages.map((image, index) => (
@@ -238,9 +183,11 @@ export default function ClothingSelection({
           )}
         </div>
       ) : (
-        /* Original Layout - 2x2 Grid Layout - Minimum height for 4 items (2x2) */
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 px-4 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50">
-          {/* Main Product Images - 2x2 Grid */}
+        /* Original Layout - 2x2 Grid Layout with fixed height and scroll - shows exactly 4 items at a time, scrollable for more */
+        <div 
+          className="h-[360px] max-h-[360px] overflow-y-auto pr-1 px-2 pt-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50"
+        >
+          {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pb-2">
               {validImages.map((image, index) => (

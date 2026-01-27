@@ -1,4 +1,15 @@
 
+{% comment %} Output customer information as JSON script tag for widget loader to read {% endcomment %}
+{% if customer %}
+  <script type="application/json" id="nusense-customer-info">
+    {
+      "id": {{ customer.id | json }},
+      "email": {{ customer.email | json }},
+      "firstName": {% if customer.first_name %}{{ customer.first_name | json }}{% else %}null{% endif %},
+      "lastName": {% if customer.last_name %}{{ customer.last_name | json }}{% else %}null{% endif %}
+    }
+  </script>
+{% endif %}
 
 {% render 'nusense-tryon-script' %}
 

@@ -1,25 +1,14 @@
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useShop } from "@/providers/AppBridgeProvider";
 
 /**
  * Reusable Navigation Bar Component
  * Used across all main pages for consistent navigation
- * Only shown for vto-demo store
  */
 const NavigationBar = () => {
   const { t } = useTranslation();
   const location = useLocation();
-  const shop = useShop();
-
-  // Only show navigation bar for vto-demo store
-  // Check if shop domain includes "vto-demo" (handles both "vto-demo" and "vto-demo.myshopify.com")
-  const isVtoDemoStore = shop && shop.includes("vto-demo-store");
-
-  if (!isVtoDemoStore) {
-    return null;
-  }
 
   return (
     <nav 
@@ -44,48 +33,15 @@ const NavigationBar = () => {
                 {t("navigation.dashboard") || "Dashboard"}
               </Link>
               <Link
-                to="/nucopy"
+                to="/analytics"
                 className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                  location.pathname === "/nucopy"
+                  location.pathname === "/analytics"
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
-                aria-label={t("navigation.nuCopy") || "NU Copy"}
+                aria-label={t("navigation.analytics") || "Analytics"}
               >
-                {t("navigation.nuCopy") || "NU Copy"}
-              </Link>
-              <Link
-                to="/nulight"
-                className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                  location.pathname === "/nulight"
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label={t("navigation.nuLight") || "NU Light"}
-              >
-                {t("navigation.nuLight") || "NU Light"}
-              </Link>
-              <Link
-                to="/nu3d"
-                className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                  location.pathname === "/nu3d"
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label={t("navigation.nu3d") || "Nu3d"}
-              >
-                {t("navigation.nu3d") || "Nu3d"}
-              </Link>
-              <Link
-                to="/nuscene"
-                className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 whitespace-nowrap ${
-                  location.pathname === "/nuscene"
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label={t("navigation.nuScene") || "Nu Scene"}
-              >
-                {t("navigation.nuScene") || "Nu Scene"}
+                {t("navigation.analytics") || "Analytics"}
               </Link>
             </div>
 

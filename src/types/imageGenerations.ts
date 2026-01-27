@@ -1,3 +1,37 @@
+export interface AddToCartInfo {
+  hasCartEvents: boolean;
+  totalEvents?: number;
+  firstEventAt?: string;
+  lastEventAt?: string;
+  actionTypes?: string[];
+  actionTypeCounts?: Record<string, number>;
+  events?: Array<{
+    cartEventId: string;
+    actionType: string;
+    addedAt: string;
+  }>;
+  productId?: string;
+  variantId?: string;
+}
+
+export interface OtherProductCartInfo {
+  productId: string;
+  variantId: string;
+  productTitle: string;
+  productUrl: string;
+  hasCartEvents: boolean;
+  totalEvents: number;
+  firstEventAt: string;
+  lastEventAt: string;
+  actionTypes: string[];
+  actionTypeCounts: Record<string, number>;
+  events: Array<{
+    cartEventId: string;
+    actionType: string;
+    addedAt: string;
+  }>;
+}
+
 export interface ImageGenerationRecord {
   id: string;
   requestId: string;
@@ -5,8 +39,8 @@ export interface ImageGenerationRecord {
   clothingImageUrl: string;
   generatedImageUrl: string;
   generatedImageKey: string;
-  status: "completed" | "failed" | "processing";
-  errorMessage: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  errorMessage: string | null;
   processingTime: string;
   fileSize: string;
   mimeType: string;
@@ -17,8 +51,19 @@ export interface ImageGenerationRecord {
   storeName: string;
   clothingKey: string;
   personKey: string;
+  customerEmail: string | null;
+  customerFirstName: string | null;
+  customerLastName: string | null;
+  customerId?: string;
+  productId?: string;
+  productTitle?: string;
+  productUrl?: string;
+  variantId?: string;
+  aspectRatio?: string;
   createdAt: string;
   updatedAt: string;
+  addToCartInfo?: AddToCartInfo;
+  otherProductsAddedToCart?: OtherProductCartInfo[];
 }
 
 export interface PaginationInfo {
@@ -30,18 +75,38 @@ export interface PaginationInfo {
   hasPrev: boolean;
 }
 
+export interface StatusBreakdown {
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+}
+
+export interface SummaryInfo {
+  generationsCount: number;
+  customersCount: number;
+  productsCount: number;
+  statusBreakdown: StatusBreakdown;
+}
+
 export interface ImageGenerationsResponse {
   status: string;
   data: {
     records: ImageGenerationRecord[];
     pagination: PaginationInfo;
+    summary?: SummaryInfo;
   };
 }
 
 export interface FetchImageGenerationsParams {
   page?: number;
   limit?: number;
+  status?: "pending" | "processing" | "completed" | "failed";
   orderBy?: string;
   orderDirection?: "ASC" | "DESC";
+  user?: string;
+  storeName?: string;
+  startDate?: string;
+  endDate?: string;
 }
 

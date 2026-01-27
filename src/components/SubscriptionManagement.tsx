@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { redirectToPlanSelection } from "@/utils/managedPricing";
 import { useSubscription } from "@/hooks/useSubscription";
+import { syncCredits } from "@/services/creditsApi";
 
 interface SubscriptionManagementProps {
   onSubscriptionUpdate?: () => void;
@@ -38,10 +39,72 @@ const SubscriptionManagement = ({
   const [changingPlan, setChangingPlan] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Sync credits when plan change is detected via URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const planChanged = urlParams.get("plan_changed") === "true";
+    const subscriptionUpdated = urlParams.get("subscription_updated") === "true";
+
+    if ((planChanged || subscriptionUpdated) && shop) {
+      const syncCreditsAfterPlanChange = async () => {
+        try {
+          console.log("[SubscriptionManagement] Detected plan change, syncing credits", {
+            shop,
+            planChanged,
+            subscriptionUpdated,
+          });
+          const syncResult = await syncCredits(shop);
+          if (syncResult.success) {
+            console.log("[SubscriptionManagement] Credits synced after plan change", {
+              action: syncResult.action,
+              oldPlanHandle: syncResult.oldPlanHandle,
+              newPlanHandle: syncResult.newPlanHandle,
+              requestId: syncResult.requestId,
+            });
+          } else {
+            console.warn("[SubscriptionManagement] Credit sync failed after plan change", {
+              error: syncResult.error,
+              message: syncResult.message,
+              requestId: syncResult.requestId,
+            });
+          }
+        } catch (error) {
+          console.error("[SubscriptionManagement] Failed to sync credits after plan change", error);
+        }
+      };
+
+      syncCreditsAfterPlanChange();
+    }
+  }, [shop]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       await refresh();
+      
+      // Sync credits after subscription refresh (handles plan changes, renewals, etc.)
+      const shopDomain = shop || new URLSearchParams(window.location.search).get("shop");
+      if (shopDomain) {
+        try {
+          const syncResult = await syncCredits(shopDomain);
+          if (syncResult.success) {
+            console.log("[SubscriptionManagement] Credits synced after refresh", {
+              action: syncResult.action,
+              requestId: syncResult.requestId,
+            });
+          } else {
+            console.warn("[SubscriptionManagement] Credit sync failed after refresh", {
+              error: syncResult.error,
+              message: syncResult.message,
+              requestId: syncResult.requestId,
+            });
+          }
+        } catch (syncError) {
+          // Don't block refresh flow if credit sync fails
+          console.error("[SubscriptionManagement] Failed to sync credits after refresh", syncError);
+        }
+      }
+      
       if (onSubscriptionUpdate) {
         onSubscriptionUpdate();
       }
@@ -78,7 +141,7 @@ const SubscriptionManagement = ({
       redirectToPlanSelection(shopDomain);
 
       // Note: User will be redirected to Shopify, so we don't need to update state here
-      // The webhook will update the subscription status when cancellation is processed
+      // After user returns from Shopify cancellation, syncCredits will be called via plan change detection
     } catch (error) {
       console.error("[MANAGED_PRICING] Error redirecting to plan selection", {
         error: error instanceof Error ? error.message : String(error),

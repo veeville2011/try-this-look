@@ -202,8 +202,8 @@
   const getSelectedVariantId = () => {
     try {
       const variantSelector =
-        document.querySelector('[name="id"]') ||
-        document.querySelector('input[name="id"]') ||
+        document.querySelector('[name="id"]') ??
+        document.querySelector('input[name="id"]') ??
         document.querySelector('select[name="id"]');
       const value = variantSelector?.value;
       if (value) return value;
@@ -215,7 +215,7 @@
       const variants = window?.NUSENSE_PRODUCT_DATA?.variants;
       if (Array.isArray(variants) && variants.length > 0) {
         const availableVariant = variants.find((v) => v?.available !== false);
-        return String((availableVariant || variants[0])?.id || '');
+        return String((availableVariant ?? variants[0])?.id ?? '');
       }
     } catch {
       // ignore
@@ -226,14 +226,12 @@
 
   const getCartAddUrl = () => {
     const root = window?.Shopify?.routes?.root;
-    if (root) return `${root}cart/add.js`;
-    return '/cart/add.js';
+    return root ? `${root}cart/add.js` : '/cart/add.js';
   };
 
   const getCheckoutUrl = () => {
     const root = window?.Shopify?.routes?.root;
-    if (root) return `${root}checkout`;
-    return '/checkout';
+    return root ? `${root}checkout` : '/checkout';
   };
 
   const handleCartAction = async ({ actionType, event }) => {
@@ -295,8 +293,84 @@
         return;
       }
 
+      // Extract product and variant data from cart response
+      // Cart API returns items array with variant_id, product_id, product_title, url
+      const firstItem = Array.isArray(data?.items) && data.items.length > 0 ? data.items[0] : null;
+      const productData = window?.NUSENSE_PRODUCT_DATA ?? {};
+      
+      // Debug logging to understand response structure
+      if (typeof console !== 'undefined' && console?.log) {
+        console.log('[NUSENSE] Cart API Response:', {
+          hasItems: Array.isArray(data?.items),
+          itemsLength: data?.items?.length,
+          firstItem: firstItem,
+          variantId: variantId,
+          productData: productData,
+        });
+      }
+      
+      // Normalize product URL - cart API may return relative URL, convert to absolute
+      const normalizeProductUrl = (url) => {
+        if (!url || typeof url !== 'string') return null;
+        // If already absolute URL, return as is
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        // If relative URL, make it absolute
+        if (url.startsWith('/')) {
+          const origin = window?.location?.origin;
+          return origin ? origin + url : url;
+        }
+        return url;
+      };
+      
+      // Extract from cart response - use snake_case fields from Shopify API
+      const cartProductId = firstItem?.product_id ?? null;
+      const cartVariantId = firstItem?.variant_id ?? null;
+      const cartProductTitle = firstItem?.product_title ?? null;
+      const cartProductUrl = normalizeProductUrl(firstItem?.url) ?? null;
+      
+      // Get variant ID from NUSENSE_PRODUCT_DATA if cart response doesn't have it
+      let fallbackVariantId = variantId; // Use the variant ID we sent in the request
+      if (!cartVariantId && variantId && productData?.variants) {
+        // Try to find the variant in NUSENSE_PRODUCT_DATA.variants array
+        const variant = Array.isArray(productData.variants) 
+          ? productData.variants.find(v => String(v?.id) === String(variantId))
+          : null;
+        if (variant) {
+          fallbackVariantId = variant?.id ?? variantId;
+        }
+      }
+      
+      // Build product info with priority: cart response > NUSENSE_PRODUCT_DATA > variantId from request
+      const productInfo = {
+        productId: cartProductId ?? productData?.id ?? null,
+        productTitle: cartProductTitle ?? productData?.title ?? null,
+        productUrl: cartProductUrl ?? productData?.url ?? null,
+        variantId: cartVariantId ?? fallbackVariantId ?? null,
+      };
+      
+      // Debug logging for final product info
+      if (typeof console !== 'undefined' && console.log) {
+        console.log('[NUSENSE] Final Product Info for Tracking:', productInfo);
+      }
+
       if (actionType === 'NUSENSE_BUY_NOW') {
-        window.location.href = getCheckoutUrl();
+        // Send success message before redirect so tracking can happen
+        // Use setTimeout to ensure message is sent before page redirects
+        if (event?.source && event.source !== window) {
+          event.source.postMessage(
+            { 
+              type: 'NUSENSE_ACTION_SUCCESS', 
+              action: actionType, 
+              cart: data,
+              product: productInfo
+            },
+            event.origin,
+          );
+        }
+        // Small delay to ensure message is sent before redirect
+        setTimeout(() => {
+          window.location.href = getCheckoutUrl();
+        }, 50);
         return;
       }
 
@@ -314,7 +388,12 @@
 
       if (event?.source && event.source !== window) {
         event.source.postMessage(
-          { type: 'NUSENSE_ACTION_SUCCESS', action: actionType, cart: data },
+          { 
+            type: 'NUSENSE_ACTION_SUCCESS', 
+            action: actionType, 
+            cart: data,
+            product: productInfo
+          },
           event.origin,
         );
       }
@@ -348,6 +427,33 @@
           },
           event.origin,
         );
+        return;
+      }
+
+      if (type === 'NUSENSE_REQUEST_PRODUCT_DATA') {
+        const productData = window?.NUSENSE_PRODUCT_DATA || null;
+        if (productData) {
+          event.source.postMessage(
+            {
+              type: 'NUSENSE_PRODUCT_DATA',
+              productData: {
+                id: productData.id || null,
+                title: productData.title || null,
+                url: productData.url || null,
+                variants: productData.variants || null,
+              },
+            },
+            event.origin,
+          );
+          log('[NUSENSE] Sent product data to iframe:', {
+            id: productData.id,
+            title: productData.title,
+            hasUrl: !!productData.url,
+            variantsCount: Array.isArray(productData.variants) ? productData.variants.length : 0,
+          });
+        } else {
+          warn('[NUSENSE] NUSENSE_PRODUCT_DATA not available');
+        }
         return;
       }
 

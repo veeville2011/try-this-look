@@ -95,7 +95,7 @@ async function testWebhook() {
       responseData = responseText;
     }
 
-    console.log(`📊 Status: ${response.status} ${response.statusText}`);
+    console.log(`📊 Status check: ${response.status} ${response.statusText}`);
     console.log("📦 Responses:", JSON.stringify(responseData, null, 2));
 
     if (response.ok) {

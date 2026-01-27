@@ -40,6 +40,28 @@ export interface TryOnResponse {
   };
 }
 
+export interface JobSubmissionResponse {
+  status: 'accepted';
+  jobId: string;
+  message: string;
+  statusUrl: string;
+}
+
+export interface JobStatusResponse {
+  jobId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  message?: string;
+  statusDescription?: string;
+  imageUrl?: string;
+  processingTime?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
 export interface GenerationState {
   isGenerating: boolean;
   currentStep: number;
