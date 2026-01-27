@@ -10,7 +10,6 @@ import HorizontalImageList from "@/components/HorizontalImageList";
 import TestPhotoUpload from "@/components/TestPhotoUpload";
 import TestClothingSelection from "@/components/TestClothingSelection";
 import ReusePhotoSection from "@/components/ReusePhotoSection";
-import OptimalResultsSection from "@/components/OptimalResultsSection";
 import {
   fetchCustomerImageGenerations,
   fetchUploadedImages,
@@ -633,18 +632,14 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
         {/* Image Galleries - Only show if authenticated */}
         {customerInfo?.id && (
           <div className="w-full max-w-[980px] mx-auto flex flex-col min-h-0 py-4 sm:py-6">
-            {/* First Row: Reuse Photo + Optimal Results */}
-            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
-              {/* Left: Reuse a photo */}
+            {/* First Row: Reuse Photo - Full Width */}
+            <div className="w-full mb-4 sm:mb-6">
               <ReusePhotoSection
                 uploadedImages={uploadedImages}
                 onSelectImage={(imageUrl) => {
                   setTestUploadedImage(imageUrl);
                 }}
               />
-              
-              {/* Right: For optimal results */}
-              <OptimalResultsSection />
             </div>
 
             {/* Second Row: Photo Upload + Clothing Selection */}
@@ -702,7 +697,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                   "No try-on results yet. Create your first virtual try-on!"
                 }
                 emptyActionLabel={t("tryOnWidget.generatedImages.action") || "Start Try-On"}
-                imageSize="sm"
+                imageSize="xs"
                 showMetadata={true}
                 enableLightbox={true}
                 onImageClick={(image) => {

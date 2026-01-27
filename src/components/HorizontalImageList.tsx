@@ -31,6 +31,7 @@ interface HorizontalImageListProps {
 }
 
 const IMAGE_SIZES = {
+  xs: "w-20 h-20",
   sm: "w-32 h-32",
   md: "w-48 h-48",
   lg: "w-64 h-64",
@@ -162,7 +163,7 @@ const HorizontalImageList = ({
     <>
       <div className={cn("w-full", className)}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
           <div className="flex items-center gap-3">
             <h3 className="text-lg sm:text-xl font-semibold text-slate-800">{title}</h3>
             {!loading && images.length > 0 && (
@@ -204,7 +205,7 @@ const HorizontalImageList = ({
           {/* Scroll Container */}
           <div
             ref={scrollContainerRef}
-            className="flex gap-4 overflow-x-auto overflow-y-hidden pb-4 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden focus-within:outline-none focus-within:ring-2 focus-within:ring-primary/20 focus-within:ring-offset-2 rounded-lg"
+            className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden focus-within:outline-none focus-within:ring-2 focus-within:ring-primary/20 focus-within:ring-offset-2 rounded-lg"
             role="region"
             aria-label={`${title} gallery`}
             tabIndex={0}
@@ -248,13 +249,14 @@ const HorizontalImageList = ({
                   <div
                     key={image.id}
                     className={cn(
-                      "flex-shrink-0 group relative rounded-xl overflow-hidden",
-                      "border-2 border-slate-200 bg-slate-50",
-                      "hover:border-slate-300 hover:shadow-lg",
+                      "flex-shrink-0 group relative rounded-lg overflow-hidden",
+                      "border-2 border-slate-200 bg-white",
+                      "hover:border-slate-300 hover:shadow-md",
                       "transition-all duration-200 cursor-pointer",
                       "focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2",
-                      sizeClass
+                      "flex items-center justify-center"
                     )}
+                    style={{ height: '80px', minWidth: '80px', width: 'auto' }}
                     onClick={() => handleImageClick(image)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -278,7 +280,8 @@ const HorizontalImageList = ({
                         <img
                           src={image.imageUrl}
                           alt={image.alt || "Image"}
-                          className="w-full h-full object-contain bg-white transition-transform duration-300 group-hover:scale-105"
+                          className="h-full w-auto object-contain bg-white transition-transform duration-300 group-hover:scale-105"
+                          style={{ maxHeight: '100%', width: 'auto' }}
                           loading="lazy"
                           onError={() => handleImageError(image.id)}
                           decoding="async"
