@@ -467,7 +467,45 @@
     return bestScore > 0 ? best : null;
   };
 
-  const buildWidgetUrl = ({ widgetUrl, productId, shopDomain }) => {
+  const getCustomerInfo = () => {
+    try {
+      // Read customer information from JSON script tag injected by Liquid in the app block
+      // Note: If multiple blocks exist on the same page, getElementById returns the first one
+      // This is fine because all instances contain the same customer info (global to the page)
+      const customerInfoScript = document.getElementById('nusense-customer-info');
+      
+      if (customerInfoScript && customerInfoScript.textContent) {
+        try {
+          const customerInfo = JSON.parse(customerInfoScript.textContent);
+          
+          // Only return customer info if at least ID or email is present
+          if (customerInfo && (customerInfo.id || customerInfo.email)) {
+            return {
+              id: customerInfo.id ? customerInfo.id.toString() : null,
+              email: customerInfo.email || null,
+              firstName: customerInfo.firstName || null,
+              lastName: customerInfo.lastName || null,
+            };
+          }
+        } catch (parseError) {
+          // Error parsing customer info JSON - silently fail (graceful degradation)
+          // This ensures the widget still works even if customer info parsing fails
+          console.warn('[NUSENSE] Error parsing customer info JSON:', parseError);
+        }
+      }
+      
+      // Return null if customer is not logged in or script tag not found
+      // This is expected behavior - widget works with or without customer info
+      return null;
+    } catch (error) {
+      // Error detecting customer info - silently fail (graceful degradation)
+      // This ensures the widget still works even if there's an unexpected error
+      console.warn('[NUSENSE] Error detecting customer info:', error);
+      return null;
+    }
+  };
+
+  const buildWidgetUrl = ({ widgetUrl, productId, shopDomain, customerInfo }) => {
     const base = normalizeUrl(widgetUrl);
     if (!base) return null;
 
@@ -475,12 +513,38 @@
       const url = new URL(`${base}/widget-test`);
       if (productId && productId !== 'undefined' && productId !== 'null') url.searchParams.set('product_id', productId);
       if (shopDomain) url.searchParams.set('shop_domain', shopDomain);
+      
+      // Add customer information if available
+      if (customerInfo) {
+        if (customerInfo.id) {
+          url.searchParams.set('customerId', customerInfo.id);
+        }
+        if (customerInfo.email) {
+          url.searchParams.set('customerEmail', customerInfo.email);
+        }
+        if (customerInfo.firstName) {
+          url.searchParams.set('customerFirstName', customerInfo.firstName);
+        }
+        if (customerInfo.lastName) {
+          url.searchParams.set('customerLastName', customerInfo.lastName);
+        }
+      }
+      
       return url.toString();
     } catch {
       // Fallback: naive concatenation
       const params = new URLSearchParams();
       if (productId && productId !== 'undefined' && productId !== 'null') params.set('product_id', productId);
       if (shopDomain) params.set('shop_domain', shopDomain);
+      
+      // Add customer information if available
+      if (customerInfo) {
+        if (customerInfo.id) params.set('customerId', customerInfo.id);
+        if (customerInfo.email) params.set('customerEmail', customerInfo.email);
+        if (customerInfo.firstName) params.set('customerFirstName', customerInfo.firstName);
+        if (customerInfo.lastName) params.set('customerLastName', customerInfo.lastName);
+      }
+      
       const suffix = params.toString() ? `?${params.toString()}` : '';
       return `${base}/widget-test${suffix}`;
     }
@@ -495,7 +559,11 @@
 
     const productId = buttonEl.dataset.productId || '';
     const shopDomain = buttonEl.dataset.shopDomain || '';
-    const widgetHref = buildWidgetUrl({ widgetUrl, productId, shopDomain });
+    
+    // Detect and pass customer information if available
+    const customerInfo = getCustomerInfo();
+    
+    const widgetHref = buildWidgetUrl({ widgetUrl, productId, shopDomain, customerInfo });
     if (!widgetHref) return;
 
     const overlayId = `test-extension-widget-overlay-${buttonEl.id}`;

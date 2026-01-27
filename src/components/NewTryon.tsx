@@ -217,7 +217,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
       </header>
 
       {/* Content Container - Below fixed header */}
-      <div className="flex-1 pt-20 sm:pt-24 overflow-y-auto">
+      <div className="flex-1 pt-20 sm:pt-24 overflow-y-auto px-4 sm:px-6">
         {/* Authentication Gate - Image Collage Design */}
         {!customerInfo?.id && (
           <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
