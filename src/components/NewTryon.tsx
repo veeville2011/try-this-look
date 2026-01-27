@@ -9,6 +9,8 @@ import { detectStoreOrigin } from "@/utils/shopifyIntegration";
 import HorizontalImageList from "@/components/HorizontalImageList";
 import TestPhotoUpload from "@/components/TestPhotoUpload";
 import TestClothingSelection from "@/components/TestClothingSelection";
+import ReusePhotoSection from "@/components/ReusePhotoSection";
+import OptimalResultsSection from "@/components/OptimalResultsSection";
 import {
   fetchCustomerImageGenerations,
   fetchUploadedImages,
@@ -631,10 +633,59 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
         {/* Image Galleries - Only show if authenticated */}
         {customerInfo?.id && (
           <div className="w-full max-w-[980px] mx-auto flex flex-col min-h-0 py-4 sm:py-6">
-            {/* Generated Images Section - Compact - First Row */}
-            <section aria-labelledby="generated-images-title" className="flex-shrink-0 mb-4 sm:mb-6">
+            {/* First Row: Reuse Photo + Optimal Results */}
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+              {/* Left: Reuse a photo */}
+              <ReusePhotoSection
+                uploadedImages={uploadedImages}
+                onSelectImage={(imageUrl) => {
+                  setTestUploadedImage(imageUrl);
+                }}
+              />
+              
+              {/* Right: For optimal results */}
+              <OptimalResultsSection />
+            </div>
+
+            {/* Second Row: Photo Upload + Clothing Selection */}
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+              {/* Left Half: Choose a photo of yourself */}
+              <div className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex-shrink-0">
+                  {t("tryOnWidget.photoUpload.choosePhoto") || "Choose a photo of yourself"}
+                </h3>
+                <div className="flex-1 min-h-0 w-full">
+                  <TestPhotoUpload
+                    onPhotoUpload={(dataURL) => {
+                      setTestUploadedImage(dataURL);
+                    }}
+                    uploadedImage={testUploadedImage}
+                  />
+                </div>
+              </div>
+
+              {/* Right Half: You are trying on */}
+              <div className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex-shrink-0">
+                  {t("tryOnWidget.clothingSelection.tryingOn") || "You are trying on"}
+                </h3>
+                <div className="flex-1 min-h-0 w-full">
+                  <TestClothingSelection
+                    images={testProductImages}
+                    selectedImage={testSelectedClothing}
+                    onSelect={(imageUrl) => {
+                      setTestSelectedClothing(imageUrl);
+                    }}
+                    isLoadingImages={testLoadingImages}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Third Row: History of the latest generations */}
+            <section aria-labelledby="generated-images-title" className="flex-shrink-0">
               <HorizontalImageList
-                title={t("tryOnWidget.generatedImages.title") || "Your Try-On Results"}
+                title={t("tryOnWidget.generatedImages.title") || "History of the latest generations"}
                 images={generatedImages.map((img) => ({
                   id: img.id,
                   imageUrl: img.generatedImageUrl,
@@ -667,77 +718,6 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                 </div>
               )}
             </section>
-
-            {/* Uploaded Person Images Section - Compact - Second Row */}
-            <section aria-labelledby="uploaded-images-title" className="flex-shrink-0 mb-4 sm:mb-6">
-              <HorizontalImageList
-                title={t("tryOnWidget.uploadedImages.title") || "Your Uploaded Photos"}
-                images={uploadedImages.map((img) => ({
-                  id: img.id,
-                  imageUrl: img.personImageUrl,
-                  alt: `Uploaded photo from ${new Date(img.uploadedAt).toLocaleDateString()}`,
-                  metadata: {
-                    uploadedAt: img.uploadedAt,
-                    storeName: img.storeName,
-                  },
-                }))}
-                loading={loadingUploadedImages}
-                emptyMessage={
-                  t("tryOnWidget.uploadedImages.empty") ||
-                  "No uploaded photos yet. Upload your first photo to get started!"
-                }
-                emptyActionLabel={t("tryOnWidget.uploadedImages.action") || "Upload Photo"}
-                imageSize="sm"
-                showMetadata={true}
-                enableLightbox={true}
-                onImageClick={(image) => {
-                  // Optional: can add analytics or other actions here
-                }}
-              />
-              {uploadedImagesError && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-700 flex items-center gap-2">
-                    <span className="font-medium">Error:</span>
-                    <span>{uploadedImagesError}</span>
-                  </p>
-                </div>
-              )}
-            </section>
-
-            {/* Test Widget: Photo Upload and Clothing Selection - Two Column Layout - Third Row */}
-            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-h-[50vh] md:min-h-[60vh]">
-              {/* Left Half: Photo Upload */}
-              <div className="flex flex-col min-h-0">
-                <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 sm:mb-3 flex-shrink-0">
-                  {t("tryOnWidget.photoUpload.takePhoto") || "Upload Your Photo"}
-                </h3>
-                <div className="flex-1 min-h-0 w-full">
-                  <TestPhotoUpload
-                    onPhotoUpload={(dataURL) => {
-                      setTestUploadedImage(dataURL);
-                    }}
-                    uploadedImage={testUploadedImage}
-                  />
-                </div>
-              </div>
-
-              {/* Right Half: Clothing Selection - Show Only First Image */}
-              <div className="flex flex-col min-h-0">
-                <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 sm:mb-3 flex-shrink-0">
-                  {t("tryOnWidget.sections.selectClothing.title") || "Select Clothing"}
-                </h3>
-                <div className="flex-1 min-h-0 w-full">
-                  <TestClothingSelection
-                    images={testProductImages}
-                    selectedImage={testSelectedClothing}
-                    onSelect={(imageUrl) => {
-                      setTestSelectedClothing(imageUrl);
-                    }}
-                    isLoadingImages={testLoadingImages}
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

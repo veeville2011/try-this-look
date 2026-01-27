@@ -125,41 +125,14 @@ export default function TestPhotoUpload({
       )}
 
       {!showFilePicker && !showDemoModel ? (
-        <div className="flex flex-col bg-white w-full h-full py-4 sm:py-6 px-3 sm:px-4 gap-3 sm:gap-4 min-h-0">
-          {/* Demo Model Selection */}
+        <div className="flex flex-col bg-white w-full h-full py-4 sm:py-6 px-3 sm:px-4 gap-4 min-h-0">
+          {/* File Upload - Main Action - Centered */}
           <div
-            className="flex flex-col items-center justify-center bg-white rounded-lg sm:rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors py-6 sm:py-8 flex-1 min-h-0"
-            onClick={handleDemoModelClick}
-            role="button"
-            tabIndex={0}
-            aria-label={t("tryOnWidget.photoUpload.chooseDemoModel") || "Choose a demo model"}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleDemoModelClick();
-              }
-            }}
-          >
-            <User className="w-6 h-6 sm:w-8 sm:h-8 text-slate-600 mb-2" aria-hidden="true" />
-            <span className="text-slate-700 text-sm sm:text-base font-medium text-center px-2">
-              {t("tryOnWidget.photoUpload.chooseDemoModel") || "Choose a demo model"}
-            </span>
-          </div>
-
-          {/* Separator */}
-          <div className="flex items-center flex-shrink-0">
-            <div className="bg-slate-200 flex-1 h-[1px] mr-2 sm:mr-2.5"></div>
-            <span className="text-slate-500 text-xs sm:text-sm font-medium">OR</span>
-            <div className="bg-slate-200 flex-1 h-[1px] ml-2 sm:ml-2.5"></div>
-          </div>
-
-          {/* File Upload */}
-          <div
-            className="flex flex-col items-center justify-center bg-white rounded-lg sm:rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors py-6 sm:py-8 flex-1 min-h-0"
+            className="flex flex-col items-center justify-center bg-white rounded-lg sm:rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors py-8 sm:py-12 flex-1 min-h-0"
             onClick={handleFilePickerClick}
             role="button"
             tabIndex={0}
-            aria-label={t("tryOnWidget.photoUpload.uploadPhoto") || "Upload your photo"}
+            aria-label={t("tryOnWidget.photoUpload.choosePhoto") || "Choose a photo of yourself"}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -167,11 +140,23 @@ export default function TestPhotoUpload({
               }
             }}
           >
-            <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-slate-600 mb-2" aria-hidden="true" />
+            <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-slate-600 mb-3 sm:mb-4" aria-hidden="true" />
             <span className="text-slate-700 text-sm sm:text-base font-medium text-center px-2">
-              {t("tryOnWidget.photoUpload.uploadPhoto") || "Upload your photo"}
+              {t("tryOnWidget.photoUpload.choosePhoto") || "Choose a photo of yourself"}
             </span>
           </div>
+
+          {/* No photo? Try on a demo model link - Below main action */}
+          <button
+            onClick={handleDemoModelClick}
+            className="flex items-center justify-center gap-2 text-slate-600 hover:text-slate-800 text-xs sm:text-sm transition-colors py-2 flex-shrink-0"
+            aria-label={t("tryOnWidget.photoUpload.noPhotoTryDemo") || "No photo? Try on a demo model"}
+          >
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" aria-hidden="true" />
+            <span className="underline">
+              {t("tryOnWidget.photoUpload.noPhotoTryDemo") || "No photo? Try on a demo model"}
+            </span>
+          </button>
         </div>
       ) : showDemoModel ? (
         <div className="flex flex-col bg-white w-full h-full p-3 sm:p-4 min-h-0">

@@ -39,7 +39,7 @@ export default function TestClothingSelection({
 
   if (isLoadingImages) {
     return (
-      <div className="flex flex-col bg-white w-full h-full rounded-xl border border-slate-200 overflow-hidden min-h-0">
+      <div className="flex flex-col w-full h-full min-h-0">
         <div className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-0">
           <Skeleton className="w-full h-full rounded-lg" />
         </div>
@@ -49,7 +49,7 @@ export default function TestClothingSelection({
 
   if (!firstImage) {
     return (
-      <div className="flex flex-col items-center justify-center bg-white w-full h-full rounded-xl border border-slate-200 p-6 sm:p-8 min-h-0">
+      <div className="flex flex-col items-center justify-center w-full h-full p-6 sm:p-8 min-h-0">
         <p className="text-slate-500 text-xs sm:text-sm text-center">
           {t("tryOnWidget.clothingSelection.noImages") || "No clothing images available"}
         </p>
@@ -59,7 +59,7 @@ export default function TestClothingSelection({
 
   // Show the first image in preview style, similar to photo upload
   return (
-    <div className="flex flex-col bg-white w-full h-full rounded-xl border border-slate-200 overflow-hidden min-h-0">
+    <div className="flex flex-col w-full h-full overflow-hidden min-h-0">
       <div className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-0 w-full h-full">
         <img
           src={firstImage}
