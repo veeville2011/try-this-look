@@ -278,7 +278,7 @@ const HorizontalImageList = ({
                         <img
                           src={image.imageUrl}
                           alt={image.alt || "Image"}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                          className="w-full h-full object-contain bg-white transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
                           onError={() => handleImageError(image.id)}
                           decoding="async"

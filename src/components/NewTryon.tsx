@@ -7,6 +7,8 @@ import { RadialProgress } from "@/components/ui/radial-progress";
 import { cn } from "@/lib/utils";
 import { detectStoreOrigin } from "@/utils/shopifyIntegration";
 import HorizontalImageList from "@/components/HorizontalImageList";
+import TestPhotoUpload from "@/components/TestPhotoUpload";
+import TestClothingSelection from "@/components/TestClothingSelection";
 import {
   fetchCustomerImageGenerations,
   fetchUploadedImages,
@@ -49,6 +51,12 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
   const [generatedImagesError, setGeneratedImagesError] = useState<string | null>(null);
   const [uploadedImagesError, setUploadedImagesError] = useState<string | null>(null);
   
+  // Test widget state - photo upload and clothing selection
+  const [testUploadedImage, setTestUploadedImage] = useState<string | null>(null);
+  const [testSelectedClothing, setTestSelectedClothing] = useState<string | null>(null);
+  const [testProductImages, setTestProductImages] = useState<string[]>([]);
+  const [testLoadingImages, setTestLoadingImages] = useState(false);
+  
   // Infinite loop tutorial animation
   useEffect(() => {
     if (!customerInfo?.id) {
@@ -74,6 +82,53 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
         clearInterval(progressInterval);
       };
     }
+  }, [customerInfo?.id]);
+
+  // Request product images from parent window when authenticated (for test widget)
+  useEffect(() => {
+    if (!customerInfo?.id) return;
+
+    const isInIframe = typeof window !== "undefined" && window.parent !== window;
+    if (isInIframe) {
+      setTestLoadingImages(true);
+      try {
+        window.parent.postMessage({ type: "NUSENSE_REQUEST_IMAGES" }, "*");
+      } catch (error) {
+        console.error("[NewTryon] Failed to request images from parent:", error);
+        setTestLoadingImages(false);
+      }
+    }
+  }, [customerInfo?.id]);
+
+  // Listen for product images from parent window
+  useEffect(() => {
+    if (!customerInfo?.id) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "NUSENSE_PRODUCT_IMAGES") {
+        const parentImages = event.data.images || [];
+        
+        if (parentImages.length > 0) {
+          const imageUrls: string[] = [];
+          
+          parentImages.forEach((img: string | { url?: string }) => {
+            if (typeof img === "string") {
+              imageUrls.push(img);
+            } else if (img && typeof img === "object" && "url" in img && img.url) {
+              imageUrls.push(img.url);
+            }
+          });
+
+          setTestProductImages(imageUrls);
+          setTestLoadingImages(false);
+        } else {
+          setTestLoadingImages(false);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, [customerInfo?.id]);
 
   // Fetch customer images when authenticated
@@ -303,7 +358,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
       </header>
 
       {/* Content Container - Below fixed header */}
-      <div className="flex-1 pt-20 sm:pt-24 overflow-y-auto px-4 sm:px-6">
+      <div className="flex-1 pt-20 sm:pt-24 overflow-y-auto px-4 sm:px-6 min-h-0">
         {/* Authentication Gate - Image Collage Design */}
         {!customerInfo?.id && (
           <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
@@ -575,9 +630,44 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
 
         {/* Image Galleries - Only show if authenticated */}
         {customerInfo?.id && (
-          <div className="w-full max-w-[980px] mx-auto space-y-10 py-8 px-4 sm:px-6">
-            {/* Generated Images Section */}
-            <section aria-labelledby="generated-images-title">
+          <div className="w-full max-w-[980px] mx-auto flex flex-col min-h-0 py-4 sm:py-6">
+            {/* Test Widget: Photo Upload and Clothing Selection - Two Column Layout - Priority Section */}
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6 min-h-[50vh] md:min-h-[60vh]">
+              {/* Left Half: Photo Upload */}
+              <div className="flex flex-col min-h-0">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 sm:mb-3 flex-shrink-0">
+                  {t("tryOnWidget.photoUpload.takePhoto") || "Upload Your Photo"}
+                </h3>
+                <div className="flex-1 min-h-0 w-full">
+                  <TestPhotoUpload
+                    onPhotoUpload={(dataURL) => {
+                      setTestUploadedImage(dataURL);
+                    }}
+                    uploadedImage={testUploadedImage}
+                  />
+                </div>
+              </div>
+
+              {/* Right Half: Clothing Selection */}
+              <div className="flex flex-col min-h-0">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 sm:mb-3 flex-shrink-0">
+                  {t("tryOnWidget.sections.selectClothing.title") || "Select Clothing"}
+                </h3>
+                <div className="flex-1 min-h-0 w-full">
+                  <TestClothingSelection
+                    images={testProductImages}
+                    selectedImage={testSelectedClothing}
+                    onSelect={(imageUrl) => {
+                      setTestSelectedClothing(imageUrl);
+                    }}
+                    isLoadingImages={testLoadingImages}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Generated Images Section - Compact */}
+            <section aria-labelledby="generated-images-title" className="flex-shrink-0 mb-4 sm:mb-6">
               <HorizontalImageList
                 title={t("tryOnWidget.generatedImages.title") || "Your Try-On Results"}
                 images={generatedImages.map((img) => ({
@@ -596,7 +686,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                   "No try-on results yet. Create your first virtual try-on!"
                 }
                 emptyActionLabel={t("tryOnWidget.generatedImages.action") || "Start Try-On"}
-                imageSize="lg"
+                imageSize="sm"
                 showMetadata={true}
                 enableLightbox={true}
                 onImageClick={(image) => {
@@ -613,8 +703,8 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
               )}
             </section>
 
-            {/* Uploaded Person Images Section */}
-            <section aria-labelledby="uploaded-images-title">
+            {/* Uploaded Person Images Section - Compact */}
+            <section aria-labelledby="uploaded-images-title" className="flex-shrink-0">
               <HorizontalImageList
                 title={t("tryOnWidget.uploadedImages.title") || "Your Uploaded Photos"}
                 images={uploadedImages.map((img) => ({
@@ -632,7 +722,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                   "No uploaded photos yet. Upload your first photo to get started!"
                 }
                 emptyActionLabel={t("tryOnWidget.uploadedImages.action") || "Upload Photo"}
-                imageSize="lg"
+                imageSize="sm"
                 showMetadata={true}
                 enableLightbox={true}
                 onImageClick={(image) => {
