@@ -134,8 +134,6 @@
       >
         {% if button_icon contains 'http://' or button_icon contains 'https://' %}
           <img src="{{ button_icon | escape }}" alt="" width="48" height="48" style="display: inline-block; vertical-align: middle; width: 3rem; height: 3rem; object-fit: contain;" loading="lazy" />
-        {% elsif button_icon != blank %}
-          <img src="{{ button_icon | asset_url }}" alt="" width="48" height="48" style="display: inline-block; vertical-align: middle; width: 3rem; height: 3rem; object-fit: contain;" loading="lazy" />
         {% else %}
           {{ button_icon | escape }}
         {% endif %}

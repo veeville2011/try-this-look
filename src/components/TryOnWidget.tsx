@@ -188,7 +188,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [cartQuantity, setCartQuantity] = useState(1);
-  const [currentCartQuantity, setCurrentCartQuantity] = useState(0);
   const [isNotifyMeLoading, setIsNotifyMeLoading] = useState(false);
   const [variantStockInfo, setVariantStockInfo] = useState<{
     isAvailable: boolean;
@@ -719,9 +718,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       if (event.data && event.data.type === "NUSENSE_ACTION_SUCCESS") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
           setIsAddToCartLoading(false);
-          // Update current cart quantity after successful add
-          const qty = getCurrentCartQuantity();
-          setCurrentCartQuantity(qty);
           const productData = getProductData();
           
           // Track add to cart event ONLY after successful cart addition
@@ -931,7 +927,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [fetchStoreInfoFromRedux, storeInfo, reduxStoreInfo, generatedImage, uploadedImage, selectedClothing, customerInfo, t, storedProductData, getCurrentCartQuantity]); // Include all dependencies
+  }, [fetchStoreInfoFromRedux, storeInfo, reduxStoreInfo, generatedImage, uploadedImage, selectedClothing, customerInfo, t, storedProductData]); // Include all dependencies
 
   // Request product data on mount if in iframe and we don't have it
   useEffect(() => {
@@ -1567,28 +1563,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     return null;
   };
 
-  // Get current cart quantity for the product/variant
-  const getCurrentCartQuantity = useCallback(() => {
-    const productData = storedProductData || getProductData();
-    if (!productData) return 0;
-
-    const cartItems = storage.getCartItems();
-    const productId = String((productData as any)?.id ?? (productData as any)?.productId ?? "");
-    const variantId = String(
-      (productData as any)?.selectedVariantId ??
-      (productData as any)?.selected_variant_id ??
-      (productData as any)?.variantId ??
-      (productData as any)?.variant_id ??
-      ""
-    );
-
-    const matchingItem = cartItems.find(
-      (item) => String(item.id) === productId || String(item.id) === variantId
-    );
-
-    return matchingItem ? matchingItem.quantity : 0;
-  }, [storedProductData]);
-
   // Check variant stock availability
   const checkVariantStock = useCallback(() => {
     const productData = storedProductData || getProductData();
@@ -1656,14 +1630,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       variantId: selectedVariantId,
     });
   }, [storedProductData, cartQuantity]);
-
-  // Update current cart quantity when product data or cart changes
-  useEffect(() => {
-    if (generatedImage) {
-      const qty = getCurrentCartQuantity();
-      setCurrentCartQuantity(qty);
-    }
-  }, [generatedImage, storedProductData, getCurrentCartQuantity]);
 
   // Check stock when product data, variant, or cart quantity changes
   useEffect(() => {
@@ -1834,7 +1800,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
     return (
       <div
-        className="inline-flex items-center gap-0 rounded-lg border border-border bg-white overflow-hidden h-11"
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-2 py-1.5 h-11"
         role="group"
         aria-label={t("tryOnWidget.quantity.ariaLabel") || "Quantity selector"}
       >
@@ -1844,23 +1810,20 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           size="sm"
           onClick={handleDecreaseCartQuantity}
           disabled={!canDecrease || isGenerating || isAddToCartLoading || isBuyNowLoading}
-          className="h-11 w-11 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-none rounded-l-lg border-0 border-r border-border hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="h-9 w-9 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label={t("tryOnWidget.quantity.decreaseAriaLabel") || "Decrease quantity"}
         >
-          <span className="text-lg font-semibold leading-none text-slate-700" aria-hidden="true">
-            −
+          <span className="text-base leading-none" aria-hidden="true">
+            -
           </span>
         </Button>
 
-        <div className="flex items-center justify-center min-w-[3rem] px-4 h-11 bg-slate-50 border-y border-border">
-          <span
-            className="text-base font-semibold tabular-nums text-slate-900 select-none"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {cartQuantity}
-          </span>
-        </div>
+        <span
+          className="w-8 text-center text-sm font-semibold tabular-nums"
+          aria-live="polite"
+        >
+          {cartQuantity}
+        </span>
 
         <Button
           type="button"
@@ -1868,10 +1831,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           size="sm"
           onClick={handleIncreaseCartQuantity}
           disabled={!canIncrease || isGenerating || isAddToCartLoading || isBuyNowLoading}
-          className="h-11 w-11 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-none rounded-r-lg border-0 border-l border-border hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="h-9 w-9 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label={t("tryOnWidget.quantity.increaseAriaLabel") || "Increase quantity"}
         >
-          <span className="text-lg font-semibold leading-none text-slate-700" aria-hidden="true">
+          <span className="text-base leading-none" aria-hidden="true">
             +
           </span>
         </Button>
@@ -3417,67 +3380,40 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         </div>
                       ) : (
                         /* In Stock: Show Quantity + Add to Cart/Buy Now */
-                        <>
-                          {/* Mobile: Quantity on top */}
-                          <div className="block md:hidden w-full mb-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <label className="text-sm font-medium text-slate-700" htmlFor="quantity-stepper-mobile">
-                                {t("tryOnWidget.quantity.label") || "Quantité"}
-                              </label>
-                              <QuantityStepper />
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-3 flex-wrap justify-end w-full">
-                            {/* Desktop: Quantity on left side of buttons */}
-                            <div className="hidden md:flex md:items-center md:gap-3">
-                              <label className="text-sm font-medium text-slate-700 whitespace-nowrap" htmlFor="quantity-stepper-desktop">
-                                {t("tryOnWidget.quantity.label") || "Quantité"}
-                              </label>
-                              <QuantityStepper />
-                            </div>
+                        <div className="flex items-center gap-3 flex-wrap justify-end w-full">
+                          <QuantityStepper />
 
-                            {/* Buttons container */}
-                            <div className="flex flex-col items-stretch gap-3 w-full md:w-auto">
-                            <Button
-                              onClick={handleAddToCart}
-                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                              className="min-w-[220px] h-11 bg-primary hover:bg-primary/90 relative"
-                              aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                              aria-busy={isAddToCartLoading}
-                            >
-                              {isAddToCartLoading ? (
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                              ) : (
-                                <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                              )}
-                              {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
-                              {/* Badge showing local quantity that hasn't been added yet */}
-                              {cartQuantity > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
-                                  {cartQuantity}
-                                </span>
-                              )}
-                            </Button>
+                          <Button
+                            onClick={handleBuyNow}
+                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                            variant={outlineVariant}
+                            className="min-w-[220px] h-11"
+                            aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                            aria-busy={isBuyNowLoading}
+                          >
+                            {isBuyNowLoading ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                            )}
+                            {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
+                          </Button>
 
-                            <Button
-                              onClick={handleBuyNow}
-                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                              variant={outlineVariant}
-                              className="min-w-[220px] h-11"
-                              aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                              aria-busy={isBuyNowLoading}
-                            >
-                              {isBuyNowLoading ? (
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                              ) : (
-                                <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                              )}
-                              {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
-                            </Button>
-                          </div>
+                          <Button
+                            onClick={handleAddToCart}
+                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                            className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
+                            aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                            aria-busy={isAddToCartLoading}
+                          >
+                            {isAddToCartLoading ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                            )}
+                            {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
+                          </Button>
                         </div>
-                        </>
                       )}
 
                     </div>
@@ -3890,12 +3826,12 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 </Button>
               ) : (
                 <>
-                  {/* In Stock: Show Quantity selector - Mobile: on top, Desktop: on left */}
+                  {/* In Stock: Show Quantity selector */}
                   {generatedImage && (
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <label className="text-sm font-medium text-slate-700" htmlFor="quantity-stepper-compact">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-700">
                         {t("tryOnWidget.quantity.label") || "Quantité"}
-                      </label>
+                      </p>
                       <QuantityStepper />
                     </div>
                   )}
@@ -3904,7 +3840,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <Button
                       onClick={handleAddToCart}
                       disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                      className="w-full h-11 bg-primary hover:bg-primary/90 relative"
+                      className="w-full h-11 bg-primary hover:bg-primary/90"
                       aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
                       aria-busy={isAddToCartLoading}
                     >
@@ -3916,12 +3852,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       {isAddToCartLoading
                         ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
                         : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
-                      {/* Badge showing local quantity that hasn't been added yet */}
-                      {cartQuantity > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
-                          {cartQuantity}
-                        </span>
-                      )}
                     </Button>
                   )}
 
