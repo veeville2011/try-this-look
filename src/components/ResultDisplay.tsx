@@ -827,38 +827,6 @@ export default function ResultDisplay({
 
           <div className="grid gap-1.5 sm:gap-2 auto-rows-min grid-cols-1 sm:grid-cols-2 lg:grid-cols-2">
             <Button
-              onClick={handleBuyNow}
-              onKeyDown={(e) => handleKeyDown(e, handleBuyNow)}
-              disabled={
-                isBuyNowLoading ||
-                isAddToCartLoading ||
-                isDownloadLoading ||
-                isInstagramShareLoading ||
-                isGenerating ||
-                !generatedImage
-              }
-              size="sm"
-              className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-red-500/80 bg-white hover:bg-red-50 hover:border-red-600 text-red-600 hover:text-red-700 active:bg-red-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              aria-label={t("tryOnWidget.resultDisplay.buyNowAriaLabel") || "Acheter Maintenant"}
-              aria-busy={isBuyNowLoading}
-            >
-              {isBuyNowLoading ? (
-                <Loader2
-                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
-                  aria-hidden="true"
-                />
-              ) : (
-                <CreditCard
-                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
-                  aria-hidden="true"
-                />
-              )}
-              <span className="leading-tight whitespace-nowrap">
-                {isBuyNowLoading ? t("tryOnWidget.resultDisplay.processing") || "Traitement..." : t("tryOnWidget.resultDisplay.buyNow") || "Acheter Maintenant"}
-              </span>
-            </Button>
-
-            <Button
               onClick={handleAddToCart}
               onKeyDown={(e) => handleKeyDown(e, handleAddToCart)}
               disabled={
@@ -887,6 +855,38 @@ export default function ResultDisplay({
               )}
               <span className="leading-tight whitespace-nowrap">
                 {isAddToCartLoading ? t("tryOnWidget.resultDisplay.adding") || "Ajout..." : t("tryOnWidget.resultDisplay.addToCart") || "Ajouter au Panier"}
+              </span>
+            </Button>
+
+            <Button
+              onClick={handleBuyNow}
+              onKeyDown={(e) => handleKeyDown(e, handleBuyNow)}
+              disabled={
+                isBuyNowLoading ||
+                isAddToCartLoading ||
+                isDownloadLoading ||
+                isInstagramShareLoading ||
+                isGenerating ||
+                !generatedImage
+              }
+              size="sm"
+              className="group relative w-full inline-flex items-center justify-center min-h-[40px] sm:min-h-[44px] h-auto py-1.5 sm:py-2 px-2.5 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm font-semibold border-2 border-red-500/80 bg-white hover:bg-red-50 hover:border-red-600 text-red-600 hover:text-red-700 active:bg-red-100 active:scale-[0.98] transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+              aria-label={t("tryOnWidget.resultDisplay.buyNowAriaLabel") || "Acheter Maintenant"}
+              aria-busy={isBuyNowLoading}
+            >
+              {isBuyNowLoading ? (
+                <Loader2
+                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 animate-spin flex-shrink-0 mr-1.5 sm:mr-2"
+                  aria-hidden="true"
+                />
+              ) : (
+                <CreditCard
+                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 transition-transform duration-200 group-hover:scale-110 flex-shrink-0 mr-1.5 sm:mr-2"
+                  aria-hidden="true"
+                />
+              )}
+              <span className="leading-tight whitespace-nowrap">
+                {isBuyNowLoading ? t("tryOnWidget.resultDisplay.processing") || "Traitement..." : t("tryOnWidget.resultDisplay.buyNow") || "Acheter Maintenant"}
               </span>
             </Button>
 
