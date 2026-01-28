@@ -236,7 +236,7 @@
 
   const getCartChangeUrl = () => {
     const root = window?.Shopify?.routes?.root;
-    return root ? `${root}cart/change.js` : '/cart/change.js';
+    return root ? `${root}cart/change` : '/cart/change';
   };
 
   const getCheckoutUrl = () => {
@@ -384,85 +384,217 @@
       // Cart API returns items array with variant_id, product_id, product_title, url
       const firstItem = Array.isArray(data?.items) && data.items.length > 0 ? data.items[0] : null;
       
-      // Call /cart/change.js to trigger cart update (some themes require this for immediate refresh)
+      // Call /cart/change to trigger cart update and section refresh
       // This ensures the cart state is properly synchronized and triggers theme refresh listeners
-      // According to Shopify Cart API: /cart/change.js requires the 'key' property (line item key)
-      // Format: "794864229:03af7a8cb59a4c3c45595c76fa8cb53c" (integer:32-char-hex) or pure integer as string
+      // Shopify's /cart/change endpoint expects:
+      // - line: 1-based line item index in cart
+      // - quantity: new quantity
+      // - sections: section ID to refresh (e.g., header section)
+      // - sections_url: product URL for section rendering
       if (firstItem) {
         try {
           const cartChangeUrl = getCartChangeUrl();
           
-          // Shopify's /cart/change.js expects the line item key from the 'key' property
-          // The 'key' is the line item identifier, not the variant ID
-          // Must be passed as a string (even if it's a pure integer)
-          let lineItemKey = firstItem.key || firstItem.id;
+          // Find the line item index (1-based) - the item we just added should be the last one
+          // or we can find it by matching variant_id
+          const lineItemIndex = (() => {
+            if (!Array.isArray(data?.items)) return 1;
+            // Find the index of the item we just added (match by variant_id)
+            const index = data.items.findIndex(item => 
+              String(item?.variant_id) === String(variantId) || 
+              String(item?.id) === String(variantId)
+            );
+            // Return 1-based index (if found) or use the last item index
+            return index >= 0 ? index + 1 : data.items.length;
+          })();
           
-          // Convert to string and validate format
-          // Expected formats:
-          // 1. Pure integer: "123456789" (as string)
-          // 2. Integer with hash: "123456789:03af7a8cb59a4c3c45595c76fa8cb53c" (32-char hex)
-          const lineItemKeyStr = String(lineItemKey || '');
+          const lineItemQuantity = firstItem.quantity || quantity;
           
-          // Validate format matches Shopify's expected pattern
-          const isValidFormat = /^\d+$/.test(lineItemKeyStr) || /^\d+:[a-f0-9]{32}$/i.test(lineItemKeyStr);
-          
-          if (!isValidFormat || !lineItemKeyStr) {
-            // Skip change API if we don't have a valid line item key
-            // The 'key' property is required for /cart/change.js
-            warn('[NUSENSE] Cannot determine valid line item key for change API:', {
-              id: firstItem.id,
-              key: firstItem.key,
-              variant_id: firstItem.variant_id,
-              note: 'The "key" property from cart/add.js response is required for cart/change.js',
-            });
-            lineItemKey = null;
-          } else {
-            // Ensure it's a string (Shopify expects string, not number)
-            lineItemKey = lineItemKeyStr;
-          }
-          
-          if (lineItemKey) {
-            const lineItemQuantity = firstItem.quantity || quantity;
+          // Get product URL for sections_url (must be relative path, not absolute)
+          const getProductUrl = () => {
+            // Try to get relative URL from cart response
+            if (firstItem?.url && typeof firstItem.url === 'string') {
+              // If it's already relative, use it
+              if (firstItem.url.startsWith('/')) {
+                return firstItem.url;
+              }
+              // If it's absolute, extract the pathname
+              try {
+                const urlObj = new URL(firstItem.url);
+                return urlObj.pathname;
+              } catch {
+                // If URL parsing fails, try to extract path manually
+                const match = firstItem.url.match(/\/products\/[^?#]+/);
+                if (match) return match[0];
+              }
+            }
             
-            log('[NUSENSE] Calling cart change API:', {
-              url: cartChangeUrl,
-              lineItemKey,
-              quantity: lineItemQuantity,
-              originalId: firstItem.id,
-              originalKey: firstItem.key,
-            });
+            // Try from NUSENSE_PRODUCT_DATA
+            const productDataUrl = window?.NUSENSE_PRODUCT_DATA?.url;
+            if (productDataUrl && typeof productDataUrl === 'string') {
+              if (productDataUrl.startsWith('/')) {
+                return productDataUrl;
+              }
+              try {
+                const urlObj = new URL(productDataUrl);
+                return urlObj.pathname;
+              } catch {
+                const match = productDataUrl.match(/\/products\/[^?#]+/);
+                if (match) return match[0];
+              }
+            }
             
-            // Call cart change API to ensure cart is updated and triggers refresh
-            // Note: 'id' parameter must be the line item key (from 'key' property) as a string
-            const changeResponse = await fetch(cartChangeUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id: lineItemKey, // Line item key as string
-                quantity: lineItemQuantity,
-              }),
-            });
-            
-            if (changeResponse.ok) {
-              const changeData = await changeResponse.json().catch(() => null);
-              if (changeData) {
-                log('[NUSENSE] Cart change API success:', changeData);
-                // Use the updated cart data from change response if available
-                if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
-                  // Update data with change response for consistency
-                  data = changeData;
+            // Fallback to current page pathname
+            return window?.location?.pathname || '/';
+          };
+          
+          const productUrl = getProductUrl();
+          
+          // Extract section ID from DOM or use default pattern
+          // Shopify themes typically use data-section-id or id attributes
+          // Format: sections--{section_id}__header_section (e.g., "sections--18940114960428__header_section")
+          const getSectionId = () => {
+            try {
+              // Method 1: Try to find header section ID from DOM attributes
+              const headerSection = document.querySelector('[data-section-id*="header"]') ||
+                                   document.querySelector('[id*="header"]') ||
+                                   document.querySelector('[data-section-type="header"]') ||
+                                   document.querySelector('header[data-section-id]') ||
+                                   document.querySelector('[class*="header"][data-section-id]');
+              
+              if (headerSection) {
+                let sectionId = headerSection.getAttribute('data-section-id') ||
+                               headerSection.getAttribute('id') ||
+                               headerSection.getAttribute('data-section-type');
+                
+                if (sectionId) {
+                  // If already in correct format, return as is
+                  if (/^sections--\d+__header_section$/i.test(sectionId)) {
+                    return sectionId;
+                  }
+                  // Extract numeric ID and format it
+                  const numericId = sectionId.replace(/^sections--/, '').replace(/__.*$/, '').replace(/\D/g, '');
+                  if (numericId) {
+                    return `sections--${numericId}__header_section`;
+                  }
                 }
               }
-            } else {
-              const errorData = await changeResponse.json().catch(() => null);
-              warn('[NUSENSE] Cart change API returned non-ok status:', {
-                status: changeResponse.status,
-                statusText: changeResponse.statusText,
-                error: errorData,
-                lineItemKey,
-                requestBody: { id: lineItemKey, quantity: lineItemQuantity },
-              });
+              
+              // Method 2: Try to extract from Shopify theme object
+              if (window?.theme?.sections?.header?.id) {
+                const themeSectionId = String(window.theme.sections.header.id);
+                return `sections--${themeSectionId}__header_section`;
+              }
+              
+              // Method 3: Search for section ID pattern in the page HTML
+              try {
+                const sectionPattern = /sections--(\d+)__header_section/gi;
+                const pageContent = document.documentElement.innerHTML;
+                const matches = [...pageContent.matchAll(sectionPattern)];
+                if (matches.length > 0) {
+                  // Use the first match
+                  return matches[0][0];
+                }
+              } catch (e) {
+                // ignore HTML parsing errors
+              }
+              
+              // Method 4: Try to find section ID in script tags or data attributes
+              const scriptTags = document.querySelectorAll('script[type="application/json"][data-section-id]');
+              for (const script of scriptTags) {
+                const sectionId = script.getAttribute('data-section-id');
+                if (sectionId && /^\d+$/.test(sectionId)) {
+                  return `sections--${sectionId}__header_section`;
+                }
+              }
+            } catch (e) {
+              warn('[NUSENSE] Error extracting section ID:', e);
             }
+            return null;
+          };
+          
+          const sectionId = getSectionId();
+          
+          if (!sectionId) {
+            warn('[NUSENSE] Cannot determine section ID for cart change API. Skipping sections parameter.');
+          }
+          
+          const changePayload = {
+            line: lineItemIndex,
+            quantity: lineItemQuantity,
+            ...(sectionId && { sections: sectionId }),
+            sections_url: productUrl,
+          };
+          
+          log('[NUSENSE] Calling cart change API:', {
+            url: cartChangeUrl,
+            payload: changePayload,
+            lineItemIndex,
+            quantity: lineItemQuantity,
+            sectionId,
+            productUrl,
+          });
+          
+          // Call cart change API to ensure cart is updated and triggers refresh
+          const changeResponse = await fetch(cartChangeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(changePayload),
+          });
+          
+          if (changeResponse.ok) {
+            const changeData = await changeResponse.json().catch(() => null);
+            if (changeData) {
+              log('[NUSENSE] Cart change API success:', changeData);
+              
+              // Handle section HTML updates if sections parameter was included
+              // Shopify returns section HTML in the response when sections parameter is provided
+              if (sectionId && changeData?.sections) {
+                try {
+                  // Update the DOM with the new section HTML
+                  const sectionHtml = changeData.sections[sectionId];
+                  if (sectionHtml && typeof sectionHtml === 'string') {
+                    // Find the section element and update it
+                    const sectionElement = document.querySelector(`[data-section-id="${sectionId.replace(/^sections--/, '').replace(/__.*$/, '')}"]`) ||
+                                         document.querySelector(`[id*="${sectionId.replace(/^sections--/, '').replace(/__.*$/, '')}"]`) ||
+                                         document.querySelector('header[data-section-id]') ||
+                                         document.querySelector('[data-section-type="header"]');
+                    
+                    if (sectionElement) {
+                      // Create a temporary container to parse the HTML
+                      const tempDiv = document.createElement('div');
+                      tempDiv.innerHTML = sectionHtml;
+                      
+                      // Replace the section content
+                      const newSectionContent = tempDiv.firstElementChild;
+                      if (newSectionContent) {
+                        sectionElement.innerHTML = newSectionContent.innerHTML;
+                        // Trigger a custom event to notify other scripts
+                        sectionElement.dispatchEvent(new CustomEvent('section:updated', { 
+                          detail: { sectionId, html: sectionHtml } 
+                        }));
+                      }
+                    }
+                  }
+                } catch (e) {
+                  warn('[NUSENSE] Error updating section HTML:', e);
+                }
+              }
+              
+              // Use the updated cart data from change response if available
+              if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
+                // Update data with change response for consistency
+                data = changeData;
+              }
+            }
+          } else {
+            const errorData = await changeResponse.json().catch(() => null);
+            warn('[NUSENSE] Cart change API returned non-ok status:', {
+              status: changeResponse.status,
+              statusText: changeResponse.statusText,
+              error: errorData,
+              payload: changePayload,
+            });
           }
         } catch (e) {
           // Don't fail the whole operation if change API fails
