@@ -456,7 +456,142 @@
         return;
       }
 
-      // Fetch fresh cart state and update theme UI immediately
+      // IMMEDIATE SYNCHRONOUS REFRESH - Trigger events immediately with response data
+      // This ensures themes that listen to events get notified right away
+      const triggerImmediateRefresh = (cartData) => {
+        try {
+          // Dispatch events immediately (synchronous)
+          if (typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('cart:updated', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('cart:add', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('cart:refresh', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('cart:change', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('ajaxCart:updated', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('theme:cart:change', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('shopify:cart:updated', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('cart:reload', { detail: cartData }));
+            window.dispatchEvent(new CustomEvent('cart:update', { detail: cartData }));
+          }
+
+          // jQuery events (synchronous)
+          if (typeof window.jQuery !== 'undefined' && window.jQuery) {
+            try {
+              window.jQuery(window).trigger('cart:updated', [cartData]);
+              window.jQuery(window).trigger('cart:refresh', [cartData]);
+              window.jQuery(window).trigger('ajaxCart:updated', [cartData]);
+              window.jQuery(document).trigger('cart:updated', [cartData]);
+              window.jQuery(document).trigger('shopify:cart:updated', [cartData]);
+              if (document.body) {
+                window.jQuery(document.body).trigger('cart:updated', [cartData]);
+              }
+            } catch {
+              // ignore jQuery errors
+            }
+          }
+
+          // Update Shopify.cart object immediately
+          try {
+            if (window.Shopify && window.Shopify.cart) {
+              window.Shopify.cart.items = cartData.items || [];
+              window.Shopify.cart.item_count = cartData.item_count || 0;
+              window.Shopify.cart.total_price = cartData.total_price || 0;
+            }
+          } catch {
+            // ignore
+          }
+
+          // Try theme cart API immediately
+          try {
+            const cart = window?.theme?.cart;
+            if (cart) {
+              if (typeof cart.update === 'function') cart.update();
+              if (typeof cart.refresh === 'function') cart.refresh();
+            }
+          } catch {
+            // ignore
+          }
+        } catch (e) {
+          warn('[NUSENSE] Immediate refresh error:', e);
+        }
+      };
+
+      // Update cart count badges IMMEDIATELY (synchronous, before everything else)
+      // Works on both mobile and desktop
+      const itemCount = data?.item_count ?? 0;
+      try {
+        const cartCountSelectors = [
+          // Common cart count selectors (mobile & desktop)
+          '[data-cart-count]',
+          '.cart-count',
+          '#cart-count',
+          '[data-cart-item-count]',
+          '.cart-item-count',
+          '.cart__count',
+          '[aria-label*="cart"] [data-count]',
+          '[data-cart-counter]',
+          '.cart-counter',
+          // Mobile-specific cart count badges
+          '[data-mobile-cart-count]',
+          '.mobile-cart-count',
+          '[data-header-cart-count]',
+          '.header-cart-count',
+          // Icon badges
+          '.cart-icon-badge',
+          '[data-cart-badge]',
+          '.cart-badge',
+          // Text content selectors
+          '[data-cart-count-text]',
+          '.cart-count-text',
+          // Additional common patterns
+          '[id*="cart-count"]',
+          '[class*="cart-count"]',
+          '[data-count]',
+        ];
+        
+        cartCountSelectors.forEach((selector) => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach((el) => {
+              // Update text content
+              if (el.textContent !== undefined) {
+                el.textContent = String(itemCount);
+              }
+              // Update innerText as well (some themes use this)
+              if (el.innerText !== undefined) {
+                el.innerText = String(itemCount);
+              }
+              // Update data attributes
+              if (el.dataset) {
+                el.dataset.cartCount = String(itemCount);
+                el.dataset.count = String(itemCount);
+                el.dataset.itemCount = String(itemCount);
+              }
+              // Update aria-label if it contains cart count
+              if (el.getAttribute && el.getAttribute('aria-label')) {
+                const ariaLabel = el.getAttribute('aria-label');
+                if (ariaLabel && /\d+/.test(ariaLabel)) {
+                  el.setAttribute('aria-label', ariaLabel.replace(/\d+/, String(itemCount)));
+                }
+              }
+              // Trigger events for reactive frameworks
+              if (typeof el.dispatchEvent === 'function') {
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('update', { bubbles: true }));
+              }
+            });
+          } catch {
+            // ignore selector errors
+          }
+        });
+      } catch {
+        // ignore DOM update errors
+      }
+
+      // Trigger immediate refresh with response data (synchronous)
+      triggerImmediateRefresh(data);
+
+      // Fetch fresh cart state and update theme UI (async - more comprehensive)
       const refreshCartUI = async () => {
         try {
           // First, fetch the latest cart state from Shopify
@@ -630,75 +765,25 @@
         }
       };
 
-      // Also update cart count badges immediately (before async refresh completes)
-      // Works on both mobile and desktop
-      const itemCount = data?.item_count ?? 0;
-      try {
-        const cartCountSelectors = [
-          // Common cart count selectors (mobile & desktop)
-          '[data-cart-count]',
-          '.cart-count',
-          '#cart-count',
-          '[data-cart-item-count]',
-          '.cart-item-count',
-          '.cart__count',
-          '[aria-label*="cart"] [data-count]',
-          '[data-cart-counter]',
-          '.cart-counter',
-          // Mobile-specific cart count badges
-          '[data-mobile-cart-count]',
-          '.mobile-cart-count',
-          '[data-header-cart-count]',
-          '.header-cart-count',
-          // Icon badges
-          '.cart-icon-badge',
-          '[data-cart-badge]',
-          '.cart-badge',
-          // Text content selectors
-          '[data-cart-count-text]',
-          '.cart-count-text',
-        ];
-        
-        cartCountSelectors.forEach((selector) => {
-          try {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach((el) => {
-              if (el.textContent !== undefined) {
-                el.textContent = String(itemCount);
-              }
-              if (el.dataset) {
-                el.dataset.cartCount = String(itemCount);
-                el.dataset.count = String(itemCount);
-                el.dataset.itemCount = String(itemCount);
-              }
-              // Trigger input event for reactive frameworks
-              if (typeof el.dispatchEvent === 'function') {
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-              }
-            });
-          } catch {
-            // ignore selector errors
-          }
-        });
-      } catch {
-        // ignore DOM update errors
-      }
-
-      // Trigger immediate refresh (async - fetches fresh cart and updates UI)
+      // Trigger comprehensive async refresh (fetches fresh cart and updates UI)
+      // This runs in parallel and doesn't block the success message
       void refreshCartUI();
 
-      if (event?.source && event.source !== window) {
-        event.source.postMessage(
-          { 
-            type: 'NUSENSE_ACTION_SUCCESS', 
-            action: actionType, 
-            cart: data,
-            product: productInfo
-          },
-          event.origin,
-        );
-      }
+      // Small delay to ensure immediate refresh events have propagated
+      // Then send success message to widget
+      setTimeout(() => {
+        if (event?.source && event.source !== window) {
+          event.source.postMessage(
+            { 
+              type: 'NUSENSE_ACTION_SUCCESS', 
+              action: actionType, 
+              cart: data,
+              product: productInfo
+            },
+            event.origin,
+          );
+        }
+      }, 50);
     } catch (e) {
       if (event?.source && event.source !== window) {
         event.source.postMessage(
