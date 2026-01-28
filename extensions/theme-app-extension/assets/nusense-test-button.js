@@ -232,8 +232,10 @@
         if (!img) {
           img = document.createElement('img');
           img.alt = '';
+          img.width = 48;
+          img.height = 48;
           img.loading = 'lazy';
-          img.style.cssText = 'display: inline-block; vertical-align: middle; width: 1em; height: 1em; object-fit: contain;';
+          img.style.cssText = 'display: inline-block; vertical-align: middle; width: 3rem; height: 3rem; object-fit: contain;';
           iconSpan.appendChild(img);
           
           // Handle image loading errors gracefully

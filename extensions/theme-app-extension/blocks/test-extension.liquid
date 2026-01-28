@@ -133,12 +133,12 @@
         style="{% unless show_icon %}display: none;{% endunless %}"
       >
         {% if button_icon contains 'http://' or button_icon contains 'https://' %}
-          <img src="{{ button_icon | escape }}" alt="" style="display: inline-block; vertical-align: middle; width: 1em; height: 1em; object-fit: contain;" loading="lazy" />
+          <img src="{{ button_icon | escape }}" alt="" width="48" height="48" style="display: inline-block; vertical-align: middle; width: 3rem; height: 3rem; object-fit: contain;" loading="lazy" />
         {% else %}
           {{ button_icon | escape }}
         {% endif %}
       </span>
-      <span class="button__text" id="test-extension-desc-{{ block.id }}">{{ button_text | escape }}</span>
+      <span class="button__text" id="test-extension-desc-{{ block.id }}" style="margin-left: -0.75rem;">{{ button_text | escape }}</span>
     </button>
   </div>
 
