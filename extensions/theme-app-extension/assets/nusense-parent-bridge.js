@@ -456,40 +456,186 @@
         return;
       }
 
-      // Trigger comprehensive cart refresh for Shopify themes
-      // Dispatch multiple cart events that different themes listen to
-      if (typeof window.dispatchEvent === 'function') {
-        window.dispatchEvent(new CustomEvent('cart:updated'));
-        window.dispatchEvent(new CustomEvent('cart:add', { detail: data }));
-        window.dispatchEvent(new CustomEvent('cart:refresh'));
-        window.dispatchEvent(new CustomEvent('cart:change', { detail: data }));
-        // Some themes listen to jQuery events
-        if (typeof window.jQuery !== 'undefined' && window.jQuery) {
-          try {
-            window.jQuery(window).trigger('cart:updated', [data]);
-            window.jQuery(window).trigger('cart:refresh', [data]);
-          } catch {
-            // ignore jQuery errors
+      // Fetch fresh cart state and update theme UI immediately
+      const refreshCartUI = async () => {
+        try {
+          // First, fetch the latest cart state from Shopify
+          const cartUrl = getCartUrl();
+          const cartResponse = await fetch(cartUrl, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          if (cartResponse.ok) {
+            const freshCartData = await cartResponse.json().catch(() => null);
+            if (freshCartData) {
+              // Use fresh cart data for all refresh operations
+              const cartDataToUse = freshCartData;
+              
+              // Trigger comprehensive cart refresh for Shopify themes
+              // Dispatch multiple cart events that different themes listen to
+              if (typeof window.dispatchEvent === 'function') {
+                // Standard cart events (most themes listen to these)
+                window.dispatchEvent(new CustomEvent('cart:updated', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('cart:add', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('cart:refresh', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('cart:change', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('ajaxCart:updated', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('theme:cart:change', { detail: cartDataToUse }));
+                
+                // Additional common event patterns
+                window.dispatchEvent(new CustomEvent('shopify:cart:updated', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('cart:reload', { detail: cartDataToUse }));
+                window.dispatchEvent(new CustomEvent('cart:update', { detail: cartDataToUse }));
+                
+                // Some themes listen to jQuery events
+                if (typeof window.jQuery !== 'undefined' && window.jQuery) {
+                  try {
+                    window.jQuery(window).trigger('cart:updated', [cartDataToUse]);
+                    window.jQuery(window).trigger('cart:refresh', [cartDataToUse]);
+                    window.jQuery(window).trigger('ajaxCart:updated', [cartDataToUse]);
+                    window.jQuery(document).trigger('cart:updated', [cartDataToUse]);
+                    window.jQuery(document).trigger('shopify:cart:updated', [cartDataToUse]);
+                    // Trigger on body as well (some themes listen there)
+                    if (document.body) {
+                      window.jQuery(document.body).trigger('cart:updated', [cartDataToUse]);
+                    }
+                  } catch {
+                    // ignore jQuery errors
+                  }
+                }
+              }
+
+              // Method 1: Shopify theme cart API (covers most official themes)
+              try {
+                const cart = window?.theme?.cart;
+                if (cart) {
+                  if (typeof cart.getCart === 'function') cart.getCart();
+                  if (typeof cart.refresh === 'function') cart.refresh();
+                  if (typeof cart.update === 'function') cart.update();
+                  if (typeof cart.render === 'function') cart.render(cartDataToUse);
+                  if (typeof cart.buildCart === 'function') cart.buildCart(cartDataToUse);
+                  if (typeof cart.rebuild === 'function') cart.rebuild();
+                  if (typeof cart.load === 'function') cart.load();
+                }
+                
+                // Also check for theme-specific cart objects
+                if (window?.theme?.CartDrawer) {
+                  try {
+                    if (typeof window.theme.CartDrawer.open === 'function') {
+                      // Some themes need drawer to be opened to refresh
+                    }
+                    if (typeof window.theme.CartDrawer.refresh === 'function') {
+                      window.theme.CartDrawer.refresh();
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+              } catch (e) {
+                warn('[NUSENSE] Theme cart API error:', e);
+              }
+
+              // Method 2: Shopify AJAX Cart API (common in many themes)
+              try {
+                if (window.Shopify && window.Shopify.cart) {
+                  if (typeof window.Shopify.cart.getCart === 'function') {
+                    window.Shopify.cart.getCart();
+                  }
+                  // Update cart object directly
+                  if (window.Shopify.cart) {
+                    window.Shopify.cart.items = cartDataToUse.items || [];
+                    window.Shopify.cart.item_count = cartDataToUse.item_count || 0;
+                    window.Shopify.cart.total_price = cartDataToUse.total_price || 0;
+                  }
+                }
+              } catch (e) {
+                warn('[NUSENSE] Shopify cart API error:', e);
+              }
+
+              // Method 3: Update cart drawer content directly (mobile & desktop)
+              try {
+                const cartDrawerSelectors = [
+                  // Desktop cart drawer selectors
+                  '[data-cart-drawer]',
+                  '.cart-drawer',
+                  '#cart-drawer',
+                  '[id*="cart-drawer"]',
+                  '[class*="cart-drawer"]',
+                  '[data-ajax-cart-container]',
+                  '.ajax-cart-container',
+                  // Mobile cart drawer/panel selectors
+                  '[data-cart-panel]',
+                  '.cart-panel',
+                  '#cart-panel',
+                  '[data-mobile-cart]',
+                  '.mobile-cart',
+                  '[data-cart-sidebar]',
+                  '.cart-sidebar',
+                  '[data-cart-modal]',
+                  '.cart-modal',
+                  '[id*="cart-modal"]',
+                  '[class*="cart-modal"]',
+                  // Bottom sheet patterns (common on mobile)
+                  '[data-bottom-sheet]',
+                  '.bottom-sheet',
+                  '[data-sheet*="cart"]',
+                  '[class*="sheet"][class*="cart"]',
+                  // Slide-in panels
+                  '[data-slide-panel]',
+                  '.slide-panel',
+                  '[data-off-canvas]',
+                  '.off-canvas',
+                ];
+                
+                cartDrawerSelectors.forEach((selector) => {
+                  try {
+                    const drawer = document.querySelector(selector);
+                    if (drawer) {
+                      // Trigger refresh event on drawer
+                      if (typeof drawer.dispatchEvent === 'function') {
+                        drawer.dispatchEvent(new CustomEvent('refresh', { detail: cartDataToUse }));
+                        drawer.dispatchEvent(new CustomEvent('cart:updated', { detail: cartDataToUse }));
+                      }
+                      // Some themes use data attributes to trigger refresh
+                      if (drawer.dataset) {
+                        drawer.dataset.refresh = 'true';
+                        drawer.dataset.cartUpdated = 'true';
+                        setTimeout(() => {
+                          if (drawer.dataset) {
+                            delete drawer.dataset.refresh;
+                            delete drawer.dataset.cartUpdated;
+                          }
+                        }, 100);
+                      }
+                      // Try to find and update cart content
+                      const cartContent = drawer.querySelector('[data-cart-items]') || 
+                                         drawer.querySelector('.cart-items') ||
+                                         drawer.querySelector('[id*="cart-items"]');
+                      if (cartContent && typeof cartContent.dispatchEvent === 'function') {
+                        cartContent.dispatchEvent(new CustomEvent('refresh', { detail: cartDataToUse }));
+                      }
+                    }
+                  } catch {
+                    // ignore drawer errors
+                  }
+                });
+              } catch (e) {
+                warn('[NUSENSE] Cart drawer update error:', e);
+              }
+            }
           }
+        } catch (e) {
+          warn('[NUSENSE] Failed to fetch fresh cart state:', e);
         }
-      }
+      };
 
-      // Try multiple methods to refresh cart UI
-      try {
-        // Method 1: Shopify theme cart API
-        const cart = window?.theme?.cart;
-        if (cart) {
-          if (typeof cart.getCart === 'function') cart.getCart();
-          if (typeof cart.refresh === 'function') cart.refresh();
-          if (typeof cart.update === 'function') cart.update();
-        }
-      } catch {
-        // ignore
-      }
-
-      // Method 2: Direct DOM updates for cart count badges
+      // Also update cart count badges immediately (before async refresh completes)
+      // Works on both mobile and desktop
+      const itemCount = data?.item_count ?? 0;
       try {
         const cartCountSelectors = [
+          // Common cart count selectors (mobile & desktop)
           '[data-cart-count]',
           '.cart-count',
           '#cart-count',
@@ -497,9 +643,21 @@
           '.cart-item-count',
           '.cart__count',
           '[aria-label*="cart"] [data-count]',
+          '[data-cart-counter]',
+          '.cart-counter',
+          // Mobile-specific cart count badges
+          '[data-mobile-cart-count]',
+          '.mobile-cart-count',
+          '[data-header-cart-count]',
+          '.header-cart-count',
+          // Icon badges
+          '.cart-icon-badge',
+          '[data-cart-badge]',
+          '.cart-badge',
+          // Text content selectors
+          '[data-cart-count-text]',
+          '.cart-count-text',
         ];
-        
-        const itemCount = data?.item_count ?? 0;
         
         cartCountSelectors.forEach((selector) => {
           try {
@@ -511,6 +669,12 @@
               if (el.dataset) {
                 el.dataset.cartCount = String(itemCount);
                 el.dataset.count = String(itemCount);
+                el.dataset.itemCount = String(itemCount);
+              }
+              // Trigger input event for reactive frameworks
+              if (typeof el.dispatchEvent === 'function') {
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
               }
             });
           } catch {
@@ -521,53 +685,8 @@
         // ignore DOM update errors
       }
 
-      // Method 3: Trigger cart drawer refresh if it exists
-      try {
-        const cartDrawerSelectors = [
-          '[data-cart-drawer]',
-          '.cart-drawer',
-          '#cart-drawer',
-          '[id*="cart-drawer"]',
-          '[class*="cart-drawer"]',
-        ];
-        
-        cartDrawerSelectors.forEach((selector) => {
-          try {
-            const drawer = document.querySelector(selector);
-            if (drawer) {
-              // Trigger refresh event on drawer
-              if (typeof drawer.dispatchEvent === 'function') {
-                drawer.dispatchEvent(new CustomEvent('refresh'));
-              }
-              // Some themes use data attributes to trigger refresh
-              if (drawer.dataset) {
-                drawer.dataset.refresh = 'true';
-                setTimeout(() => {
-                  if (drawer.dataset) {
-                    delete drawer.dataset.refresh;
-                  }
-                }, 100);
-              }
-            }
-          } catch {
-            // ignore drawer errors
-          }
-        });
-      } catch {
-        // ignore drawer refresh errors
-      }
-
-      // Method 4: Use Shopify's built-in cart refresh (if available)
-      try {
-        if (typeof window.Shopify !== 'undefined' && window.Shopify) {
-          // Some themes listen to Shopify.cart events
-          if (window.Shopify.cart && typeof window.Shopify.cart.getCart === 'function') {
-            window.Shopify.cart.getCart();
-          }
-        }
-      } catch {
-        // ignore Shopify API errors
-      }
+      // Trigger immediate refresh (async - fetches fresh cart and updates UI)
+      void refreshCartUI();
 
       if (event?.source && event.source !== window) {
         event.source.postMessage(
