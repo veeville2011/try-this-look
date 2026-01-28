@@ -1856,10 +1856,25 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       const productData = getProductData();
 
       if (isInIframe) {
+        // Get variant ID from variantStockInfo or productData
+        const variantId = variantStockInfo?.variantId ?? 
+                          (productData as any)?.selectedVariantId ?? 
+                          (productData as any)?.variants?.[0]?.id ?? 
+                          null;
+
+        if (!variantId) {
+          setIsAddToCartLoading(false);
+          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+            description: t("tryOnWidget.resultDisplay.variantNotSelected") || "Veuillez sélectionner une variante du produit.",
+          });
+          return;
+        }
+
         const message = {
           type: "NUSENSE_ADD_TO_CART",
           ...(productData && { product: productData }),
           quantity: cartQuantity,
+          variantId: variantId, // Send variant ID explicitly
         };
         window.parent.postMessage(message, "*");
 

@@ -240,7 +240,30 @@
   };
 
   const handleCartAction = async ({ actionType, event, quantityOverride }) => {
-    const variantIdRaw = getSelectedVariantId();
+    // Priority: variantId from message > DOM selector > NUSENSE_PRODUCT_DATA
+    let variantIdRaw = event?.data?.variantId ?? null;
+    
+    // If not provided in message, try to get from DOM
+    if (!variantIdRaw) {
+      variantIdRaw = getSelectedVariantId();
+    }
+    
+    // If still not found, try to get from NUSENSE_PRODUCT_DATA
+    if (!variantIdRaw) {
+      try {
+        const productData = window?.NUSENSE_PRODUCT_DATA;
+        if (productData?.variants && Array.isArray(productData.variants) && productData.variants.length > 0) {
+          // Try to find selected variant or use first available variant
+          const selectedVariant = productData.variants.find((v) => v?.selected === true) ||
+                                   productData.variants.find((v) => v?.available !== false) ||
+                                   productData.variants[0];
+          variantIdRaw = selectedVariant?.id ?? null;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    
     const variantId = Number.parseInt(String(variantIdRaw), 10);
     if (!Number.isFinite(variantId)) {
       if (event?.source && event.source !== window) {
@@ -253,6 +276,11 @@
           event.origin,
         );
       }
+      warn('[NUSENSE] No variant ID found. Tried:', {
+        fromMessage: event?.data?.variantId,
+        fromDOM: getSelectedVariantId(),
+        fromProductData: window?.NUSENSE_PRODUCT_DATA?.variants?.[0]?.id,
+      });
       return;
     }
 
@@ -288,6 +316,15 @@
 
     try {
       const cartAddUrl = getCartAddUrl();
+      
+      // Debug logging
+      log('[NUSENSE] Adding to cart:', {
+        url: cartAddUrl,
+        variantId,
+        quantity,
+        cartData,
+      });
+      
       const response = await fetch(cartAddUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -296,8 +333,39 @@
 
       const data = await response.json().catch(() => ({}));
 
+      // Debug logging for response
+      log('[NUSENSE] Cart API response:', {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+
       if (!response.ok) {
-        const errorMessage = data?.description || data?.message || 'Failed to add product to cart';
+        const errorMessage = data?.description || data?.message || `Failed to add product to cart (${response.status})`;
+        error('[NUSENSE] Cart API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage,
+          data,
+          cartData,
+        });
+        if (event?.source && event.source !== window) {
+          event.source.postMessage(
+            { type: 'NUSENSE_ACTION_ERROR', action: actionType, error: errorMessage },
+            event.origin,
+          );
+        }
+        return;
+      }
+
+      // Verify that items were actually added
+      if (!Array.isArray(data?.items) || data.items.length === 0) {
+        const errorMessage = 'Cart API returned success but no items were added';
+        warn('[NUSENSE] Cart API warning:', {
+          data,
+          cartData,
+        });
         if (event?.source && event.source !== window) {
           event.source.postMessage(
             { type: 'NUSENSE_ACTION_ERROR', action: actionType, error: errorMessage },
@@ -388,16 +456,117 @@
         return;
       }
 
+      // Trigger comprehensive cart refresh for Shopify themes
+      // Dispatch multiple cart events that different themes listen to
       if (typeof window.dispatchEvent === 'function') {
         window.dispatchEvent(new CustomEvent('cart:updated'));
         window.dispatchEvent(new CustomEvent('cart:add', { detail: data }));
+        window.dispatchEvent(new CustomEvent('cart:refresh'));
+        window.dispatchEvent(new CustomEvent('cart:change', { detail: data }));
+        // Some themes listen to jQuery events
+        if (typeof window.jQuery !== 'undefined' && window.jQuery) {
+          try {
+            window.jQuery(window).trigger('cart:updated', [data]);
+            window.jQuery(window).trigger('cart:refresh', [data]);
+          } catch {
+            // ignore jQuery errors
+          }
+        }
       }
 
+      // Try multiple methods to refresh cart UI
       try {
+        // Method 1: Shopify theme cart API
         const cart = window?.theme?.cart;
-        if (cart && typeof cart.getCart === 'function') cart.getCart();
+        if (cart) {
+          if (typeof cart.getCart === 'function') cart.getCart();
+          if (typeof cart.refresh === 'function') cart.refresh();
+          if (typeof cart.update === 'function') cart.update();
+        }
       } catch {
         // ignore
+      }
+
+      // Method 2: Direct DOM updates for cart count badges
+      try {
+        const cartCountSelectors = [
+          '[data-cart-count]',
+          '.cart-count',
+          '#cart-count',
+          '[data-cart-item-count]',
+          '.cart-item-count',
+          '.cart__count',
+          '[aria-label*="cart"] [data-count]',
+        ];
+        
+        const itemCount = data?.item_count ?? 0;
+        
+        cartCountSelectors.forEach((selector) => {
+          try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach((el) => {
+              if (el.textContent !== undefined) {
+                el.textContent = String(itemCount);
+              }
+              if (el.dataset) {
+                el.dataset.cartCount = String(itemCount);
+                el.dataset.count = String(itemCount);
+              }
+            });
+          } catch {
+            // ignore selector errors
+          }
+        });
+      } catch {
+        // ignore DOM update errors
+      }
+
+      // Method 3: Trigger cart drawer refresh if it exists
+      try {
+        const cartDrawerSelectors = [
+          '[data-cart-drawer]',
+          '.cart-drawer',
+          '#cart-drawer',
+          '[id*="cart-drawer"]',
+          '[class*="cart-drawer"]',
+        ];
+        
+        cartDrawerSelectors.forEach((selector) => {
+          try {
+            const drawer = document.querySelector(selector);
+            if (drawer) {
+              // Trigger refresh event on drawer
+              if (typeof drawer.dispatchEvent === 'function') {
+                drawer.dispatchEvent(new CustomEvent('refresh'));
+              }
+              // Some themes use data attributes to trigger refresh
+              if (drawer.dataset) {
+                drawer.dataset.refresh = 'true';
+                setTimeout(() => {
+                  if (drawer.dataset) {
+                    delete drawer.dataset.refresh;
+                  }
+                }, 100);
+              }
+            }
+          } catch {
+            // ignore drawer errors
+          }
+        });
+      } catch {
+        // ignore drawer refresh errors
+      }
+
+      // Method 4: Use Shopify's built-in cart refresh (if available)
+      try {
+        if (typeof window.Shopify !== 'undefined' && window.Shopify) {
+          // Some themes listen to Shopify.cart events
+          if (window.Shopify.cart && typeof window.Shopify.cart.getCart === 'function') {
+            window.Shopify.cart.getCart();
+          }
+        }
+      } catch {
+        // ignore Shopify API errors
       }
 
       if (event?.source && event.source !== window) {
