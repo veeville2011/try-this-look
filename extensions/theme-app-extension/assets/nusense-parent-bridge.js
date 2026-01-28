@@ -234,6 +234,11 @@
     return root ? `${root}cart.js` : '/cart.js';
   };
 
+  const getCartChangeUrl = () => {
+    const root = window?.Shopify?.routes?.root;
+    return root ? `${root}cart/change.js` : '/cart/change.js';
+  };
+
   const getCheckoutUrl = () => {
     const root = window?.Shopify?.routes?.root;
     return root ? `${root}checkout` : '/checkout';
@@ -378,6 +383,54 @@
       // Extract product and variant data from cart response
       // Cart API returns items array with variant_id, product_id, product_title, url
       const firstItem = Array.isArray(data?.items) && data.items.length > 0 ? data.items[0] : null;
+      
+      // Call /cart/change.js to trigger cart update (some themes require this for immediate refresh)
+      // This ensures the cart state is properly synchronized and triggers theme refresh listeners
+      if (firstItem && firstItem.id) {
+        try {
+          const cartChangeUrl = getCartChangeUrl();
+          const lineItemId = firstItem.id; // Line item ID from cart response
+          const lineItemQuantity = firstItem.quantity || quantity;
+          
+          log('[NUSENSE] Calling cart change API:', {
+            url: cartChangeUrl,
+            lineItemId,
+            quantity: lineItemQuantity,
+          });
+          
+          // Call cart change API to ensure cart is updated and triggers refresh
+          const changeResponse = await fetch(cartChangeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: lineItemId,
+              quantity: lineItemQuantity,
+            }),
+          });
+          
+          if (changeResponse.ok) {
+            const changeData = await changeResponse.json().catch(() => null);
+            if (changeData) {
+              log('[NUSENSE] Cart change API success:', changeData);
+              // Use the updated cart data from change response if available
+              if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
+                // Update data with change response for consistency
+                data = changeData;
+              }
+            }
+          } else {
+            warn('[NUSENSE] Cart change API returned non-ok status:', {
+              status: changeResponse.status,
+              statusText: changeResponse.statusText,
+            });
+          }
+        } catch (e) {
+          // Don't fail the whole operation if change API fails
+          // The item is already added via /cart/add.js
+          warn('[NUSENSE] Cart change API error (non-critical):', e);
+        }
+      }
+      
       const productData = window?.NUSENSE_PRODUCT_DATA ?? {};
       
       // Debug logging to understand response structure
