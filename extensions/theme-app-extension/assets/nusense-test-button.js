@@ -215,8 +215,41 @@
     const showIcon = buttonEl.dataset.showIcon === 'true' || buttonEl.dataset.showIcon === true;
     if (iconSpan instanceof HTMLElement) {
       iconSpan.style.display = showIcon ? 'inline' : 'none';
-      const icon = buttonEl.dataset.buttonIcon || iconSpan.dataset.icon || '✨';
-      iconSpan.textContent = icon;
+      const icon = buttonEl.dataset.buttonIcon || iconSpan.dataset.icon || 'https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/demo_images/star-12498_256.gif';
+      
+      // Check if icon is an image URL (must start with http:// or https://)
+      const isImageUrl = icon && (
+        icon.startsWith('http://') || 
+        icon.startsWith('https://')
+      );
+      
+      if (isImageUrl) {
+        // Remove any existing text content
+        iconSpan.textContent = '';
+        
+        // Check if img already exists
+        let img = iconSpan.querySelector('img');
+        if (!img) {
+          img = document.createElement('img');
+          img.alt = '';
+          img.loading = 'lazy';
+          img.style.cssText = 'display: inline-block; vertical-align: middle; width: 1em; height: 1em; object-fit: contain;';
+          iconSpan.appendChild(img);
+          
+          // Handle image loading errors gracefully
+          img.addEventListener('error', () => {
+            // Fallback: remove image and show nothing (or could show a fallback emoji)
+            img.remove();
+            iconSpan.textContent = '';
+          });
+        }
+        img.src = icon;
+      } else {
+        // Remove any existing img element
+        const existingImg = iconSpan.querySelector('img');
+        if (existingImg) existingImg.remove();
+        iconSpan.textContent = icon;
+      }
     }
 
     const backgroundColor = buttonEl.dataset.backgroundColor;

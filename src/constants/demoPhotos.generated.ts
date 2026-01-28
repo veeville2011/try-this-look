@@ -71,4 +71,3 @@ export const DEMO_PHOTOS_ARRAY = [
 export const DEMO_PHOTO_ID_MAP = new Map<string, string>(
   (DEMO_PHOTOS_ARRAY as readonly { url: string; id: string }[]).map((photo) => [photo.url, photo.id]),
 );
-

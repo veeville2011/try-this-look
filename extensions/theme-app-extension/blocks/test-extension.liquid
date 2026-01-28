@@ -12,7 +12,7 @@
 
   {% assign button_text = block.settings.button_text | default: 'TryOn' %}
   {% assign button_style = block.settings.button_style | default: 'primary' %}
-  {% assign button_icon = block.settings.button_icon | default: '✨' %}
+  {% assign button_icon = block.settings.button_icon | default: 'https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/demo_images/star-12498_256.gif' %}
   {% assign button_background_color = block.settings.button_background_color %}
   {% assign button_text_color = block.settings.button_text_color %}
   {% assign button_border_color = block.settings.button_border_color %}
@@ -131,7 +131,13 @@
         data-icon="{{ button_icon | escape }}"
         aria-hidden="true"
         style="{% unless show_icon %}display: none;{% endunless %}"
-      >{{ button_icon | escape }}</span>
+      >
+        {% if button_icon contains 'http://' or button_icon contains 'https://' %}
+          <img src="{{ button_icon | escape }}" alt="" style="display: inline-block; vertical-align: middle; width: 1em; height: 1em; object-fit: contain;" loading="lazy" />
+        {% else %}
+          {{ button_icon | escape }}
+        {% endif %}
+      </span>
       <span class="button__text" id="test-extension-desc-{{ block.id }}">{{ button_text | escape }}</span>
     </button>
   </div>
@@ -201,8 +207,9 @@
     {
       "type": "text",
       "id": "button_icon",
-      "label": "Button Icon (emoji)",
-      "default": "✨"
+      "label": "Button Icon (emoji or image URL)",
+      "default": "https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/demo_images/star-12498_256.gif",
+      "info": "Enter an emoji or image URL (supports .gif, .png, .jpg, .svg, .webp)"
     },
     {
       "type": "checkbox",
