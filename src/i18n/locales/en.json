@@ -990,9 +990,19 @@
       "retry": "Retry",
       "addToCart": "Add to Cart",
       "buyNow": "Buy Now",
+      "notifyMe": "Notify Me When Available",
+      "notifyMeSuccess": "Notification Registered",
+      "notifyMeSuccessDescription": "We'll send you an email when this item is back in stock.",
+      "notifyMeError": "Unable to register notification. Please try again.",
       "generateHelp": "Please upload a photo and select a garment to generate the virtual try-on",
       "back": "Back",
       "continue": "Continue"
+    },
+    "quantity": {
+      "label": "Quantity",
+      "ariaLabel": "Quantity selector",
+      "decreaseAriaLabel": "Decrease quantity",
+      "increaseAriaLabel": "Increase quantity"
     },
     "tabs": {
       "ariaLabel": "Try-on mode",

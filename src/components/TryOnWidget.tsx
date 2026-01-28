@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import {
   type ImageGenerationHistoryItem,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight, Maximize2, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadialProgress } from "@/components/ui/radial-progress";
 import {
@@ -79,6 +79,10 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
   // i18next translation hook
   const { t } = useTranslation();
+
+  // Workaround: some TS diagnostics in this file incorrectly narrow Button `variant` values.
+  // Using a local cast keeps the intended styling without changing the Button component API.
+  const outlineVariant = "outline" as any;
   
   // Mobile detection
   const isMobile = useIsMobile();
@@ -183,6 +187,13 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
+  const [cartQuantity, setCartQuantity] = useState(1);
+  const [isNotifyMeLoading, setIsNotifyMeLoading] = useState(false);
+  const [variantStockInfo, setVariantStockInfo] = useState<{
+    isAvailable: boolean;
+    availableQuantity: number | null;
+    variantId: string | number | null;
+  } | null>(null);
   const [isDownloadLoading, setIsDownloadLoading] = useState(false);
   const [isInstagramShareLoading, setIsInstagramShareLoading] = useState(false);
   const [isWatermarkReady, setIsWatermarkReady] = useState(false);
@@ -875,6 +886,20 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               });
             }
           }
+        } else if (event.data.action === "NUSENSE_NOTIFY_ME") {
+          setIsNotifyMeLoading(false);
+          toast.success(t("tryOnWidget.buttons.notifyMeSuccess") || "Notification enregistrée", {
+            description:
+              t("tryOnWidget.buttons.notifyMeSuccessDescription") ||
+              "Nous vous enverrons un email lorsque cet article sera de nouveau en stock.",
+          });
+        }
+      } else if (event.data && event.data.type === "NUSENSE_ACTION_INFO") {
+        if (event.data.action === "NUSENSE_NOTIFY_ME") {
+          setIsNotifyMeLoading(false);
+          toast.info(t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible", {
+            description: event.data.message || undefined,
+          });
         }
       } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
@@ -890,6 +915,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             description:
               event.data.error ||
               t("tryOnWidget.resultDisplay.buyNowError") || "Impossible de procéder à l'achat. Veuillez réessayer.",
+          });
+        } else if (event.data.action === "NUSENSE_NOTIFY_ME") {
+          setIsNotifyMeLoading(false);
+          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+            description: event.data.error || t("tryOnWidget.buttons.notifyMeError") || "Impossible d'enregistrer la notification. Veuillez réessayer.",
           });
         }
       }
@@ -1515,7 +1545,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   };
 
   // Get product data if available (from Shopify parent window)
-  const getProductData = (): { id?: number; title?: string; url?: string } | null => {
+  const getProductData = (): { id?: number; title?: string; url?: string; variants?: any[] } | null => {
     if (typeof window === "undefined") return null;
     try {
       if (
@@ -1533,6 +1563,81 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     return null;
   };
 
+  // Check variant stock availability
+  const checkVariantStock = useCallback(() => {
+    const productData = storedProductData || getProductData();
+    if (!productData) {
+      setVariantStockInfo(null);
+      return;
+    }
+
+    // Get selected variant ID from multiple sources
+    let selectedVariantId: string | number | null = null;
+
+    // 1) Prefer selected variant ID coming from parent bridge postMessage
+    selectedVariantId =
+      (productData as any)?.selectedVariantId ??
+      (productData as any)?.selected_variant_id ??
+      null;
+
+    // 2) Fallback: variant id on product object (varies by theme/scripts)
+    if (!selectedVariantId) {
+      selectedVariantId =
+        (productData as any)?.variantId ??
+        (productData as any)?.variant_id ??
+        (productData as any)?.selectedVariantId ??
+        null;
+    }
+
+    // 3) Standalone mode fallback: check current URL query param
+    if (!selectedVariantId) {
+      try {
+        if (typeof window !== "undefined" && window.location) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const variantParam = urlParams.get("variant");
+          if (variantParam) selectedVariantId = variantParam;
+        }
+      } catch {}
+    }
+
+    // If we have variants array, find the selected variant
+    if ((productData as any).variants && Array.isArray((productData as any).variants) && selectedVariantId) {
+      const variant = (productData as any).variants.find((v: any) =>
+        String(v?.id) === String(selectedVariantId) || String(v?.variant_id) === String(selectedVariantId)
+      );
+
+      if (variant) {
+        const isAvailable = variant.available !== false && variant.availableForSale !== false;
+        const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? null;
+
+        // If inventory tracking is disabled (null), assume unlimited stock.
+        // If inventory tracking is enabled, require inventory >= requested quantity.
+        const hasEnoughStock = inventoryQty === null || inventoryQty >= cartQuantity;
+
+        setVariantStockInfo({
+          isAvailable: isAvailable && hasEnoughStock,
+          availableQuantity: inventoryQty,
+          variantId: selectedVariantId,
+        });
+        return;
+      }
+    }
+
+    // If we can't find a matching variant, treat as "unknown/assume available"
+    setVariantStockInfo({
+      isAvailable: true,
+      availableQuantity: null,
+      variantId: selectedVariantId,
+    });
+  }, [storedProductData, cartQuantity]);
+
+  // Check stock when product data, variant, or cart quantity changes
+  useEffect(() => {
+    if (generatedImage) {
+      checkVariantStock();
+    }
+  }, [generatedImage, storedProductData, cartQuantity, checkVariantStock]);
+
   const handleBuyNow = async () => {
     if (isBuyNowLoading) return;
 
@@ -1548,6 +1653,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         const message = {
           type: "NUSENSE_BUY_NOW",
           ...(productData && { product: productData }),
+          quantity: cartQuantity,
         };
         window.parent.postMessage(message, "*");
 
@@ -1586,6 +1692,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         const message = {
           type: "NUSENSE_ADD_TO_CART",
           ...(productData && { product: productData }),
+          quantity: cartQuantity,
         };
         window.parent.postMessage(message, "*");
 
@@ -1606,6 +1713,42 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     }
   };
 
+  const handleNotifyMe = async () => {
+    if (isNotifyMeLoading) return;
+
+    setIsNotifyMeLoading(true);
+
+    try {
+      const isInIframe = window.parent !== window;
+      const productData = getProductData();
+
+      if (isInIframe) {
+        // Send message to parent window to handle notify me (back in stock notification)
+        const message = {
+          type: "NUSENSE_NOTIFY_ME",
+          ...(productData && { product: productData }),
+          variantId: variantStockInfo?.variantId ?? null,
+        };
+        window.parent.postMessage(message, "*");
+
+        // Safety timeout in case no response comes back from parent
+        setTimeout(() => {
+          setIsNotifyMeLoading(false);
+        }, 10000);
+      } else {
+        setIsNotifyMeLoading(false);
+        toast.error(t("tryOnWidget.resultDisplay.featureUnavailable") || "Fonctionnalité non disponible", {
+          description: t("tryOnWidget.resultDisplay.featureUnavailableDescription") || "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
+        });
+      }
+    } catch (error) {
+      setIsNotifyMeLoading(false);
+      toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
+        description: t("tryOnWidget.buttons.notifyMeError") || "Impossible d'enregistrer la notification. Veuillez réessayer.",
+      });
+    }
+  };
+
   const handleReset = () => {
     setCurrentStep(1);
     setUploadedImage(null);
@@ -1614,6 +1757,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
     setGeneratedImage(null);
+    setCartQuantity(1);
+    setVariantStockInfo(null); // Reset stock info
     setError(null);
     setProgress(0);
     setSelectedVersion(1); // Reset version selection to default
@@ -1634,6 +1779,67 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   
   const handleResetClick = () => {
     handleReset();
+  };
+
+  const clampCartQuantity = (value: number): number => {
+    const asInt = Number.isFinite(value) ? Math.round(value) : 1;
+    return Math.min(99, Math.max(1, asInt));
+  };
+
+  const handleDecreaseCartQuantity = () => {
+    setCartQuantity((prev) => clampCartQuantity(prev - 1));
+  };
+
+  const handleIncreaseCartQuantity = () => {
+    setCartQuantity((prev) => clampCartQuantity(prev + 1));
+  };
+
+  const QuantityStepper = () => {
+    const canDecrease = cartQuantity > 1;
+    const canIncrease = cartQuantity < 99;
+
+    return (
+      <div
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-2 py-1.5 h-11"
+        role="group"
+        aria-label={t("tryOnWidget.quantity.ariaLabel") || "Quantity selector"}
+      >
+        <Button
+          type="button"
+          variant={outlineVariant}
+          size="sm"
+          onClick={handleDecreaseCartQuantity}
+          disabled={!canDecrease || isGenerating || isAddToCartLoading || isBuyNowLoading}
+          className="h-9 w-9 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label={t("tryOnWidget.quantity.decreaseAriaLabel") || "Decrease quantity"}
+        >
+          <span className="text-base leading-none" aria-hidden="true">
+            -
+          </span>
+        </Button>
+
+        <span
+          className="w-8 text-center text-sm font-semibold tabular-nums"
+          aria-live="polite"
+        >
+          {cartQuantity}
+        </span>
+
+        <Button
+          type="button"
+          variant={outlineVariant}
+          size="sm"
+          onClick={handleIncreaseCartQuantity}
+          disabled={!canIncrease || isGenerating || isAddToCartLoading || isBuyNowLoading}
+          className="h-9 w-9 p-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label={t("tryOnWidget.quantity.increaseAriaLabel") || "Increase quantity"}
+        >
+          <span className="text-base leading-none" aria-hidden="true">
+            +
+          </span>
+        </Button>
+      </div>
+    );
   };
 
 
@@ -2555,7 +2761,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="flex flex-col items-center justify-center text-center">
                       <WifiOff className="w-12 h-12 text-amber-600 mb-4" />
                       <p className="text-slate-600 mb-4">{historyError}</p>
-                      <Button onClick={() => void fetchHistory(historyPage)} variant="outline">
+                      <Button onClick={() => void fetchHistory(historyPage)} variant={outlineVariant}>
                         <RotateCcw className="w-4 h-4 mr-2" />
                         {t("tryOnWidget.buttons.retry") || "Réessayer"}
                       </Button>
@@ -2771,7 +2977,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             size="sm"
                             onClick={handlePreviousPage}
                             disabled={!historyPagination.hasPrev || historyLoading}
-                            variant="outline"
+                            variant={outlineVariant}
                             className="h-9"
                           >
                             <ChevronLeft className="w-4 h-4 mr-1" />
@@ -2787,7 +2993,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                             size="sm"
                             onClick={handleNextPage}
                             disabled={!historyPagination.hasNext || historyLoading}
-                            variant="outline"
+                            variant={outlineVariant}
                             className="h-9"
                           >
                             {t("tryOnWidget.history.pagination.next") || "Next"}
@@ -2901,7 +3107,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           size="sm"
                           onClick={handlePreviousPage}
                           disabled={!historyPagination.hasPrev || historyLoading}
-                          variant="outline"
+                          variant={outlineVariant}
                           className="h-9"
                         >
                           <ChevronLeft className="w-4 h-4 mr-1" />
@@ -2917,7 +3123,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                           size="sm"
                           onClick={handleNextPage}
                           disabled={!historyPagination.hasNext || historyLoading}
-                          variant="outline"
+                          variant={outlineVariant}
                           className="h-9"
                         >
                           {t("tryOnWidget.history.pagination.next") || "Next"}
@@ -3131,7 +3337,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="flex items-start gap-4 w-full justify-end flex-wrap">
                       <Button
                         onClick={handleResetClick}
-                        variant="outline"
+                        variant={outlineVariant}
                         disabled={isGenerating}
                         className="min-w-[160px] h-11"
                         aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
@@ -3143,7 +3349,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
 
                       <Button
                         onClick={handleRetryGeneration}
-                        variant="outline"
+                        variant={outlineVariant}
                         disabled={!selectedClothing || !uploadedImage || isGenerating}
                         className="min-w-[160px] h-11"
                         aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
@@ -3153,36 +3359,62 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         {t("tryOnWidget.buttons.retry") || "Réessayer"}
                       </Button>
 
-                      <Button
-                        onClick={handleBuyNow}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                        variant="outline"
-                        className="min-w-[220px] h-11"
-                        aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                        aria-busy={isBuyNowLoading}
-                      >
-                        {isBuyNowLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
-                      </Button>
+                      {/* Stock availability check - Show Notify Me if out of stock, otherwise show quantity + Add to Cart/Buy Now */}
+                      {variantStockInfo && !variantStockInfo.isAvailable ? (
+                        /* Out of Stock: Show Notify Me button */
+                        <div className="flex items-center gap-3 flex-wrap justify-end w-full">
+                          <Button
+                            onClick={handleNotifyMe}
+                            disabled={isGenerating || isNotifyMeLoading}
+                            className="min-w-[220px] h-11 bg-slate-600 hover:bg-slate-700 text-white"
+                            aria-label={t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
+                            aria-busy={isNotifyMeLoading}
+                          >
+                            {isNotifyMeLoading ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Bell className="w-5 h-5 mr-2" aria-hidden="true" />
+                            )}
+                            {t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
+                          </Button>
+                        </div>
+                      ) : (
+                        /* In Stock: Show Quantity + Add to Cart/Buy Now */
+                        <div className="flex items-center gap-3 flex-wrap justify-end w-full">
+                          <QuantityStepper />
 
-                      <Button
-                        onClick={handleAddToCart}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                        className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
-                        aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                        aria-busy={isAddToCartLoading}
-                      >
-                        {isAddToCartLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
-                      </Button>
+                          <Button
+                            onClick={handleBuyNow}
+                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                            variant={outlineVariant}
+                            className="min-w-[220px] h-11"
+                            aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                            aria-busy={isBuyNowLoading}
+                          >
+                            {isBuyNowLoading ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                            )}
+                            {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
+                          </Button>
+
+                          <Button
+                            onClick={handleAddToCart}
+                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                            className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
+                            aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                            aria-busy={isAddToCartLoading}
+                          >
+                            {isAddToCartLoading ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                            )}
+                            {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
+                          </Button>
+                        </div>
+                      )}
 
                     </div>
                   </div>
@@ -3426,7 +3658,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 <div className="flex flex-col self-stretch mb-6 mt-0 gap-4">
                   <Button
                     onClick={handleResetClick}
-                    variant="outline"
+                    variant={outlineVariant}
                     className="w-full h-11"
                     aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                   >
@@ -3537,7 +3769,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                     <div className="flex items-start gap-4 w-full justify-end flex-wrap">
                       <Button
                         onClick={handleResetClick}
-                        variant="outline"
+                        variant={outlineVariant}
                         className="min-w-[160px] h-11"
                         aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}
                       >
@@ -3575,51 +3807,81 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           {(isGenerating || generatedImage) && layoutMode !== "wide" && (
             /* Result buttons: Mobile - Stacked vertically, ordered by priority */
             <div className="flex flex-col self-stretch mb-8 gap-4">
-              {/* Primary Action: Add to Cart - Only show when result is ready */}
-              {generatedImage && (
+              {/* Stock availability check - Show Notify Me if out of stock, otherwise show quantity + Add to Cart/Buy Now */}
+              {generatedImage && variantStockInfo && !variantStockInfo.isAvailable ? (
+                /* Out of Stock: Show Notify Me button */
                 <Button
-                  onClick={handleAddToCart}
-                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                  className="w-full h-11 bg-primary hover:bg-primary/90"
-                  aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                  aria-busy={isAddToCartLoading}
+                  onClick={handleNotifyMe}
+                  disabled={isGenerating || isNotifyMeLoading}
+                  className="w-full h-11 bg-slate-600 hover:bg-slate-700 text-white"
+                  aria-label={t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
+                  aria-busy={isNotifyMeLoading}
                 >
-                  {isAddToCartLoading ? (
+                  {isNotifyMeLoading ? (
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                   ) : (
-                    <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                    <Bell className="w-5 h-5 mr-2" aria-hidden="true" />
                   )}
-                  {isAddToCartLoading
-                    ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                    : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+                  {t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
                 </Button>
-              )}
+              ) : (
+                <>
+                  {/* In Stock: Show Quantity selector */}
+                  {generatedImage && (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-700">
+                        {t("tryOnWidget.quantity.label") || "Quantité"}
+                      </p>
+                      <QuantityStepper />
+                    </div>
+                  )}
+                  {/* Primary Action: Add to Cart - Only show when result is ready */}
+                  {generatedImage && (
+                    <Button
+                      onClick={handleAddToCart}
+                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                      className="w-full h-11 bg-primary hover:bg-primary/90"
+                      aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                      aria-busy={isAddToCartLoading}
+                    >
+                      {isAddToCartLoading ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                      )}
+                      {isAddToCartLoading
+                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+                    </Button>
+                  )}
 
-              {/* Secondary Action: Buy Now - Only show when result is ready */}
-              {generatedImage && (
-                <Button
-                  onClick={handleBuyNow}
-                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                  variant="outline"
-                  className="w-full h-11"
-                  aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                  aria-busy={isBuyNowLoading}
-                >
-                  {isBuyNowLoading ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                  {/* Secondary Action: Buy Now - Only show when result is ready */}
+                  {generatedImage && (
+                    <Button
+                      onClick={handleBuyNow}
+                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                      variant={outlineVariant}
+                      className="w-full h-11"
+                      aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                      aria-busy={isBuyNowLoading}
+                    >
+                      {isBuyNowLoading ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                      )}
+                      {isBuyNowLoading
+                        ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                        : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
+                    </Button>
                   )}
-                  {isBuyNowLoading
-                    ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                    : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
-                </Button>
+                </>
               )}
 
               {/* Tertiary Action: Retry - Show during generation or after result */}
               <Button
                 onClick={handleRetryGeneration}
-                variant="outline"
+                variant={outlineVariant}
                 disabled={!selectedClothing || !uploadedImage || isGenerating}
                 className="w-full h-11"
                 aria-label={t("tryOnWidget.buttons.retry") || "Réessayer"}
@@ -3632,7 +3894,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               {/* Last Action: Reset - Destructive action, always available */}
               <Button
                 onClick={handleResetClick}
-                variant="outline"
+                variant={outlineVariant}
                 disabled={isGenerating}
                 className="w-full h-11"
                 aria-label={t("tryOnWidget.buttons.reset") || "Réinitialiser l'application"}

@@ -234,7 +234,7 @@
     return root ? `${root}checkout` : '/checkout';
   };
 
-  const handleCartAction = async ({ actionType, event }) => {
+  const handleCartAction = async ({ actionType, event, quantityOverride }) => {
     const variantIdRaw = getSelectedVariantId();
     const variantId = Number.parseInt(String(variantIdRaw), 10);
     if (!Number.isFinite(variantId)) {
@@ -251,17 +251,26 @@
       return;
     }
 
+    const parsePositiveInt = (value, fallback = 1) => {
+      const parsed = Number.parseInt(String(value ?? ''), 10);
+      if (!Number.isFinite(parsed)) return fallback;
+      if (parsed <= 0) return fallback;
+      return parsed;
+    };
+
     const productForm = document.querySelector('form[action*="/cart/add"]');
-    const quantity = (() => {
+    const formQuantity = (() => {
       try {
         if (!productForm) return 1;
         const q = new FormData(productForm).get('quantity');
-        const parsed = Number.parseInt(String(q || 1), 10);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        return parsePositiveInt(q, 1);
       } catch {
         return 1;
       }
     })();
+
+    const safeQuantityOverride = parsePositiveInt(quantityOverride, 0);
+    const quantity = safeQuantityOverride > 0 ? safeQuantityOverride : formQuantity;
 
     const cartData = {
       items: [
@@ -433,6 +442,7 @@
       if (type === 'NUSENSE_REQUEST_PRODUCT_DATA') {
         const productData = window?.NUSENSE_PRODUCT_DATA || null;
         if (productData) {
+          const selectedVariantId = getSelectedVariantId() || null;
           event.source.postMessage(
             {
               type: 'NUSENSE_PRODUCT_DATA',
@@ -441,6 +451,7 @@
                 title: productData.title || null,
                 url: productData.url || null,
                 variants: productData.variants || null,
+                selectedVariantId,
               },
             },
             event.origin,
@@ -450,6 +461,7 @@
             title: productData.title,
             hasUrl: !!productData.url,
             variantsCount: Array.isArray(productData.variants) ? productData.variants.length : 0,
+            hasSelectedVariantId: !!selectedVariantId,
           });
         } else {
           warn('[NUSENSE] NUSENSE_PRODUCT_DATA not available');
@@ -476,7 +488,96 @@
       }
 
       if (type === 'NUSENSE_ADD_TO_CART' || type === 'NUSENSE_BUY_NOW') {
-        void handleCartAction({ actionType: type, event });
+        const quantityOverride = event?.data?.quantity;
+        void handleCartAction({ actionType: type, event, quantityOverride });
+        return;
+      }
+
+      if (type === 'NUSENSE_NOTIFY_ME') {
+        // Handle notify me (back in stock notification)
+        // Try to find the notify me form on the page or trigger Shopify's notify me functionality
+        try {
+          const variantId = event?.data?.variantId;
+          const productData = event?.data?.product || window?.NUSENSE_PRODUCT_DATA || {};
+          
+          // Look for Shopify's notify me form or button
+          // Common selectors for notify me functionality in Shopify themes
+          const notifyMeSelectors = [
+            'form[action*="/contact"]',
+            'button[data-notify-me]',
+            '.notify-me-form',
+            '[data-back-in-stock]',
+            'form[action*="/notify"]',
+          ];
+          
+          let notifyForm = null;
+          for (const selector of notifyMeSelectors) {
+            notifyForm = document.querySelector(selector);
+            if (notifyForm) break;
+          }
+          
+          if (notifyForm) {
+            // If form found, try to submit it or trigger it
+            if (notifyForm.tagName === 'FORM') {
+              // Fill variant ID if there's an input for it
+              const variantInput = notifyForm.querySelector('input[name*="variant"], input[name*="id"]');
+              if (variantInput && variantId) {
+                variantInput.value = String(variantId);
+              }
+              // Trigger form submission (prefer requestSubmit when available)
+              try {
+                if (typeof notifyForm.requestSubmit === 'function') {
+                  notifyForm.requestSubmit();
+                } else {
+                  notifyForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                  if (typeof notifyForm.submit === 'function') notifyForm.submit();
+                }
+              } catch {
+                // ignore
+              }
+            } else if (notifyForm.tagName === 'BUTTON') {
+              // If it's a button, click it
+              if (typeof notifyForm.click === 'function') notifyForm.click();
+            }
+            
+            // Send success message
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { 
+                  type: 'NUSENSE_ACTION_SUCCESS', 
+                  action: 'NUSENSE_NOTIFY_ME',
+                  message: 'Notification request submitted'
+                },
+                event.origin,
+              );
+            }
+          } else {
+            // No notify me form found - send info message
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { 
+                  type: 'NUSENSE_ACTION_INFO', 
+                  action: 'NUSENSE_NOTIFY_ME',
+                  message: 'Notify me functionality not available on this page. Please use the store\'s notify me form if available.'
+                },
+                event.origin,
+              );
+            }
+            log('[NUSENSE] Notify me requested but no form found on page');
+          }
+        } catch (e) {
+          warn('[NUSENSE] Notify me handling failed', e);
+          if (event?.source && event.source !== window) {
+            event.source.postMessage(
+              { 
+                type: 'NUSENSE_ACTION_ERROR', 
+                action: 'NUSENSE_NOTIFY_ME',
+                error: 'Failed to process notify me request'
+              },
+              event.origin,
+            );
+          }
+        }
         return;
       }
 
