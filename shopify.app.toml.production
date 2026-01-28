@@ -17,17 +17,16 @@ api_version = "2024-01"
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
 
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/data_request"
-  compliance_topics = [ "customers/data_request" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/redact"
-  compliance_topics = [ "customers/redact" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/shop/redact"
-  compliance_topics = [ "shop/redact" ]
+  # GDPR Compliance Webhooks Removed:
+  # This app stores all data client-side (localStorage) only.
+  # No server-side customer or shop data is stored or processed.
+  # Therefore, GDPR compliance webhooks are not required.
+  # Reference: https://shopify.dev/docs/apps/build/compliance/privacy-law-compliance
+  #
+  # If server-side data storage is added in the future, re-enable these webhooks:
+  # - customers/data_request: Required if storing customer data server-side
+  # - customers/redact: Required if storing customer data server-side
+  # - shop/redact: Required if storing shop data server-side
 
   # IMPORTANT: app/subscriptions/update webhook configuration
   # ============================================================

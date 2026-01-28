@@ -515,91 +515,185 @@
           
           const sectionId = getSectionId();
           
-          if (!sectionId) {
-            warn('[NUSENSE] Cannot determine section ID for cart change API. Skipping sections parameter.');
-          }
-          
+          // Build payload - only include sections if we found a valid section ID
           const changePayload = {
             line: lineItemIndex,
             quantity: lineItemQuantity,
-            ...(sectionId && { sections: sectionId }),
             sections_url: productUrl,
           };
+          
+          // Only add sections parameter if we have a valid section ID
+          if (sectionId) {
+            changePayload.sections = sectionId;
+          } else {
+            warn('[NUSENSE] Cannot determine section ID for cart change API. Calling without sections parameter.');
+          }
           
           log('[NUSENSE] Calling cart change API:', {
             url: cartChangeUrl,
             payload: changePayload,
             lineItemIndex,
             quantity: lineItemQuantity,
-            sectionId,
+            sectionId: sectionId || 'NOT_FOUND',
             productUrl,
           });
           
           // Call cart change API to ensure cart is updated and triggers refresh
           const changeResponse = await fetch(cartChangeUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
             body: JSON.stringify(changePayload),
           });
           
           if (changeResponse.ok) {
-            const changeData = await changeResponse.json().catch(() => null);
+            // Try to parse as JSON first (for sections response)
+            let changeData = null;
+            const contentType = changeResponse.headers.get('content-type');
+            
+            if (contentType && contentType.includes('application/json')) {
+              changeData = await changeResponse.json().catch(() => null);
+            } else {
+              // If not JSON, try to parse as HTML/text
+              const textResponse = await changeResponse.text().catch(() => null);
+              if (textResponse) {
+                log('[NUSENSE] Cart change API returned non-JSON response:', {
+                  contentType,
+                  textLength: textResponse.length,
+                });
+              }
+            }
+            
             if (changeData) {
               log('[NUSENSE] Cart change API success:', changeData);
               
               // Handle section HTML updates if sections parameter was included
               // Shopify returns section HTML in the response when sections parameter is provided
-              if (sectionId && changeData?.sections) {
+              if (sectionId && changeData?.sections && typeof changeData.sections === 'object') {
                 try {
                   // Update the DOM with the new section HTML
                   const sectionHtml = changeData.sections[sectionId];
                   if (sectionHtml && typeof sectionHtml === 'string') {
-                    // Find the section element and update it
-                    const sectionElement = document.querySelector(`[data-section-id="${sectionId.replace(/^sections--/, '').replace(/__.*$/, '')}"]`) ||
-                                         document.querySelector(`[id*="${sectionId.replace(/^sections--/, '').replace(/__.*$/, '')}"]`) ||
+                    // Extract numeric section ID for DOM query
+                    const numericSectionId = sectionId.replace(/^sections--/, '').replace(/__.*$/, '');
+                    
+                    // Try multiple selectors to find the section element
+                    const sectionElement = document.querySelector(`[data-section-id="${numericSectionId}"]`) ||
+                                         document.querySelector(`[id*="${numericSectionId}"]`) ||
+                                         document.querySelector(`section[data-section-id="${numericSectionId}"]`) ||
                                          document.querySelector('header[data-section-id]') ||
-                                         document.querySelector('[data-section-type="header"]');
+                                         document.querySelector('[data-section-type="header"]') ||
+                                         document.querySelector('header');
                     
                     if (sectionElement) {
-                      // Create a temporary container to parse the HTML
+                      // Parse the HTML response
                       const tempDiv = document.createElement('div');
-                      tempDiv.innerHTML = sectionHtml;
+                      tempDiv.innerHTML = sectionHtml.trim();
                       
-                      // Replace the section content
-                      const newSectionContent = tempDiv.firstElementChild;
+                      // Get the first element (should be the section wrapper)
+                      const newSectionContent = tempDiv.firstElementChild || tempDiv;
+                      
                       if (newSectionContent) {
+                        // Replace the entire section content
                         sectionElement.innerHTML = newSectionContent.innerHTML;
-                        // Trigger a custom event to notify other scripts
+                        
+                        // Also update outerHTML if it's a direct match
+                        if (sectionElement.tagName === newSectionContent.tagName) {
+                          // Preserve the original element but update its content
+                          while (sectionElement.firstChild) {
+                            sectionElement.removeChild(sectionElement.firstChild);
+                          }
+                          while (newSectionContent.firstChild) {
+                            sectionElement.appendChild(newSectionContent.firstChild);
+                          }
+                        }
+                        
+                        // Trigger custom events for theme compatibility
                         sectionElement.dispatchEvent(new CustomEvent('section:updated', { 
-                          detail: { sectionId, html: sectionHtml } 
+                          detail: { sectionId, html: sectionHtml },
+                          bubbles: true
                         }));
+                        
+                        // Also trigger on document for broader compatibility
+                        document.dispatchEvent(new CustomEvent('shopify:section:load', {
+                          detail: { sectionId },
+                          bubbles: true
+                        }));
+                        
+                        log('[NUSENSE] Section HTML updated successfully:', {
+                          sectionId,
+                          elementFound: true,
+                          htmlLength: sectionHtml.length,
+                        });
+                      } else {
+                        warn('[NUSENSE] Could not parse section HTML:', {
+                          sectionId,
+                          htmlLength: sectionHtml.length,
+                        });
                       }
+                    } else {
+                      warn('[NUSENSE] Could not find section element in DOM:', {
+                        sectionId,
+                        numericSectionId,
+                        triedSelectors: [
+                          `[data-section-id="${numericSectionId}"]`,
+                          `[id*="${numericSectionId}"]`,
+                          'header[data-section-id]',
+                          '[data-section-type="header"]',
+                        ],
+                      });
                     }
                   }
                 } catch (e) {
-                  warn('[NUSENSE] Error updating section HTML:', e);
+                  warn('[NUSENSE] Error updating section HTML:', {
+                    error: e,
+                    sectionId,
+                    message: e?.message,
+                  });
                 }
+              } else if (sectionId) {
+                // Section ID was provided but no sections in response
+                warn('[NUSENSE] Section ID provided but no sections in response:', {
+                  sectionId,
+                  responseKeys: changeData ? Object.keys(changeData) : [],
+                  hasSections: !!changeData?.sections,
+                });
               }
               
               // Use the updated cart data from change response if available
               if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
                 // Update data with change response for consistency
                 data = changeData;
+                log('[NUSENSE] Updated cart data from change response');
               }
             }
           } else {
-            const errorData = await changeResponse.json().catch(() => null);
+            const errorText = await changeResponse.text().catch(() => '');
+            let errorData = null;
+            try {
+              errorData = errorText ? JSON.parse(errorText) : null;
+            } catch {
+              // Not JSON, use text as error
+            }
+            
             warn('[NUSENSE] Cart change API returned non-ok status:', {
               status: changeResponse.status,
               statusText: changeResponse.statusText,
-              error: errorData,
+              error: errorData || errorText,
               payload: changePayload,
+              contentType: changeResponse.headers.get('content-type'),
             });
           }
         } catch (e) {
           // Don't fail the whole operation if change API fails
           // The item is already added via /cart/add.js
-          warn('[NUSENSE] Cart change API error (non-critical):', e);
+          warn('[NUSENSE] Cart change API error (non-critical):', {
+            error: e,
+            message: e?.message,
+            stack: e?.stack,
+          });
         }
       }
       
@@ -742,7 +836,14 @@
 
       // Update cart count badges IMMEDIATELY (synchronous, before everything else)
       // Works on both mobile and desktop
+      // This is the PRIMARY mechanism for updating cart count - it always works
       const itemCount = data?.item_count ?? 0;
+      
+      log('[NUSENSE] Updating cart count badges:', {
+        itemCount,
+        itemsLength: data?.items?.length,
+        cartData: data,
+      });
       try {
         const cartCountSelectors = [
           // Common cart count selectors (mobile & desktop)
