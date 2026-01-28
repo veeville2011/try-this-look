@@ -229,6 +229,11 @@
     return root ? `${root}cart/add.js` : '/cart/add.js';
   };
 
+  const getCartUrl = () => {
+    const root = window?.Shopify?.routes?.root;
+    return root ? `${root}cart.js` : '/cart.js';
+  };
+
   const getCheckoutUrl = () => {
     const root = window?.Shopify?.routes?.root;
     return root ? `${root}checkout` : '/checkout';
@@ -466,6 +471,60 @@
         } else {
           warn('[NUSENSE] NUSENSE_PRODUCT_DATA not available');
         }
+        return;
+      }
+
+      if (type === 'NUSENSE_REQUEST_CART_STATE') {
+        // Get current cart state from Shopify
+        const getCartState = async () => {
+          try {
+            const cartUrl = getCartUrl();
+            if (!cartUrl) {
+              // No cart URL available, send empty cart
+              if (event?.source && event.source !== window) {
+                event.source.postMessage(
+                  { type: 'NUSENSE_CART_STATE', items: [] },
+                  event.origin,
+                );
+              }
+              return;
+            }
+
+            const response = await fetch(cartUrl, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to fetch cart state');
+            }
+
+            const data = await response.json().catch(() => ({}));
+            const cartItems = Array.isArray(data?.items) ? data.items : [];
+
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { type: 'NUSENSE_CART_STATE', items: cartItems },
+                event.origin,
+              );
+            }
+
+            log('[NUSENSE] Sent cart state to iframe:', {
+              itemsCount: cartItems.length,
+            });
+          } catch (e) {
+            warn('[NUSENSE] Failed to get cart state', e);
+            // Send empty cart on error
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { type: 'NUSENSE_CART_STATE', items: [] },
+                event.origin,
+              );
+            }
+          }
+        };
+
+        void getCartState();
         return;
       }
 

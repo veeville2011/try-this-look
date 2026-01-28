@@ -188,6 +188,11 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [cartQuantity, setCartQuantity] = useState(1);
+  const [currentCartQuantity, setCurrentCartQuantity] = useState(0);
+  const [cartStateCache, setCartStateCache] = useState<{
+    items: any[];
+    timestamp: number;
+  } | null>(null);
   const [isNotifyMeLoading, setIsNotifyMeLoading] = useState(false);
   const [variantStockInfo, setVariantStockInfo] = useState<{
     isAvailable: boolean;
@@ -714,11 +719,47 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         void productImages;
       }
 
+      // Handle cart state response from parent window
+      if (event.data && event.data.type === "NUSENSE_CART_STATE") {
+        const productData = storedProductData || getProductData();
+        if (productData?.id && Array.isArray(event.data.items)) {
+          // Update cache with fresh cart state
+          setCartStateCache({
+            items: event.data.items,
+            timestamp: Date.now(),
+          });
+
+          // Update cart quantity using improved matching (variant-level + aggregation)
+          const variantId = variantStockInfo?.variantId;
+          updateCartQuantityFromItems(event.data.items, productData, variantId);
+        }
+      }
+
       // Handle cart action success/error messages from parent window
       if (event.data && event.data.type === "NUSENSE_ACTION_SUCCESS") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
           setIsAddToCartLoading(false);
           const productData = getProductData();
+          
+          // Update cache and cart quantity from cart response
+          try {
+            if (Array.isArray(event.data?.cart?.items) && event.data.cart.items.length > 0) {
+              // Update cache with fresh cart state
+              setCartStateCache({
+                items: event.data.cart.items,
+                timestamp: Date.now(),
+              });
+
+              // Update cart quantity using improved matching (variant-level + aggregation)
+              const variantId = variantStockInfo?.variantId;
+              updateCartQuantityFromItems(event.data.cart.items, productData, variantId);
+            }
+          } catch (error) {
+            console.warn("[TryOnWidget] Failed to update cart quantity from add to cart response:", error);
+            // Keep current quantity on error
+          }
+          // Reset local quantity selector to 1 after successful add
+          setCartQuantity(1);
           
           // Track add to cart event ONLY after successful cart addition
           const shopDomain = storeInfo?.shopDomain ?? storeInfo?.domain ?? reduxStoreInfo?.shop;
@@ -1637,6 +1678,132 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       checkVariantStock();
     }
   }, [generatedImage, storedProductData, cartQuantity, checkVariantStock]);
+
+  // Helper function to update cart quantity from items array
+  // Supports variant-level matching and quantity aggregation
+  const updateCartQuantityFromItems = useCallback((
+    items: any[],
+    productData: any,
+    variantId?: string | number | null
+  ) => {
+    if (!productData?.id || !Array.isArray(items)) {
+      setCurrentCartQuantity(0);
+      return;
+    }
+
+    try {
+      const productId = String(productData.id);
+      
+      // Find all matching items (same product, optionally same variant)
+      const matchingItems = items.filter((item: any) => {
+        const matchesProduct = 
+          String(item.product_id) === productId || 
+          String(item.productId) === productId;
+        
+        // If variantId is provided, also match by variant
+        if (variantId) {
+          const matchesVariant = 
+            String(item.variant_id) === String(variantId) ||
+            String(item.variantId) === String(variantId);
+          return matchesProduct && matchesVariant;
+        }
+        
+        return matchesProduct;
+      });
+
+      // Aggregate quantities if multiple matching items found
+      const totalQuantity = matchingItems.reduce(
+        (sum, item) => sum + (item.quantity || 0),
+        0
+      );
+
+      setCurrentCartQuantity(totalQuantity);
+    } catch (error) {
+      console.warn("[TryOnWidget] Failed to update cart quantity:", error);
+      // Fallback to local storage on error
+      const cartItems = storage.getCartItems();
+      const cartItem = cartItems.find(item => String(item.id) === String(productData.id));
+      setCurrentCartQuantity(cartItem?.quantity || 0);
+    }
+  }, []);
+
+  // Debounced cart state request function
+  const requestCartStateRef = useRef<NodeJS.Timeout | null>(null);
+  const requestCartState = useCallback(() => {
+    const isInIframe = typeof window !== "undefined" && window.parent !== window;
+    if (!isInIframe) return;
+
+    // Clear existing timeout
+    if (requestCartStateRef.current) {
+      clearTimeout(requestCartStateRef.current);
+    }
+
+    // Debounce: wait 300ms before requesting
+    requestCartStateRef.current = setTimeout(() => {
+      // Check cache first (5 second cache validity)
+      const cacheValid = cartStateCache && (Date.now() - cartStateCache.timestamp < 5000);
+      if (!cacheValid) {
+        window.parent.postMessage(
+          { type: "NUSENSE_REQUEST_CART_STATE" },
+          "*"
+        );
+      } else {
+        // Use cached data
+        const productData = storedProductData || getProductData();
+        const variantId = variantStockInfo?.variantId;
+        updateCartQuantityFromItems(cartStateCache.items, productData, variantId);
+      }
+      requestCartStateRef.current = null;
+    }, 300);
+  }, [cartStateCache, storedProductData, variantStockInfo, updateCartQuantityFromItems]);
+
+  // Get current cart quantity for the product
+  useEffect(() => {
+    const productData = storedProductData || getProductData();
+    if (productData?.id) {
+      // Request cart state from Shopify (more accurate than local storage)
+      const isInIframe = typeof window !== "undefined" && window.parent !== window;
+      if (isInIframe) {
+        requestCartState();
+      } else {
+        // Fallback to local storage if not in iframe
+        const cartItems = storage.getCartItems();
+        const cartItem = cartItems.find(item => String(item.id) === String(productData.id));
+        setCurrentCartQuantity(cartItem?.quantity || 0);
+      }
+    } else {
+      setCurrentCartQuantity(0);
+    }
+  }, [storedProductData, generatedImage, requestCartState]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (requestCartStateRef.current) {
+        clearTimeout(requestCartStateRef.current);
+      }
+    };
+  }, []);
+
+  // Listen for cart updates from bridge script (cart:updated events)
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      // Invalidate cache and request fresh cart state
+      setCartStateCache(null);
+      // Small delay to ensure cart state is updated in Shopify
+      setTimeout(() => {
+        requestCartState();
+      }, 100);
+    };
+
+    // Listen for cart:updated events from bridge script
+    if (typeof window !== "undefined") {
+      window.addEventListener("cart:updated", handleCartUpdate);
+      return () => {
+        window.removeEventListener("cart:updated", handleCartUpdate);
+      };
+    }
+  }, [requestCartState]);
 
   const handleBuyNow = async () => {
     if (isBuyNowLoading) return;
@@ -3381,38 +3548,50 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                       ) : (
                         /* In Stock: Show Quantity + Add to Cart/Buy Now */
                         <div className="flex items-center gap-3 flex-wrap justify-end w-full">
-                          <QuantityStepper />
+                          {/* Desktop: Quantity control on left, buttons on right */}
+                          <div className="flex items-center gap-3">
+                            <QuantityStepper />
+                            
+                            <Button
+                              onClick={handleAddToCart}
+                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                              className="min-w-[220px] h-11 bg-primary hover:bg-primary/90 relative"
+                              aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                              aria-busy={isAddToCartLoading}
+                            >
+                              {isAddToCartLoading ? (
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                              )}
+                              {currentCartQuantity > 0 ? (
+                                <span>{t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"} ({currentCartQuantity})</span>
+                              ) : (
+                                <span>{t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}</span>
+                              )}
+                              {cartQuantity > 1 && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
+                                  {cartQuantity}
+                                </span>
+                              )}
+                            </Button>
 
-                          <Button
-                            onClick={handleBuyNow}
-                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                            variant={outlineVariant}
-                            className="min-w-[220px] h-11"
-                            aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                            aria-busy={isBuyNowLoading}
-                          >
-                            {isBuyNowLoading ? (
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                            ) : (
-                              <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                            )}
-                            {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
-                          </Button>
-
-                          <Button
-                            onClick={handleAddToCart}
-                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                            className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
-                            aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                            aria-busy={isAddToCartLoading}
-                          >
-                            {isAddToCartLoading ? (
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                            ) : (
-                              <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                            )}
-                            {t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}
-                          </Button>
+                            <Button
+                              onClick={handleBuyNow}
+                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                              variant={outlineVariant}
+                              className="min-w-[220px] h-11"
+                              aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                              aria-busy={isBuyNowLoading}
+                            >
+                              {isBuyNowLoading ? (
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                              )}
+                              {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
+                            </Button>
+                          </div>
                         </div>
                       )}
 
@@ -3826,33 +4005,41 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                 </Button>
               ) : (
                 <>
-                  {/* In Stock: Show Quantity selector */}
+                  {/* In Stock: Show Quantity selector on top, then Add to Cart */}
                   {generatedImage && (
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium text-slate-700">
-                        {t("tryOnWidget.quantity.label") || "Quantité"}
-                      </p>
-                      <QuantityStepper />
-                    </div>
-                  )}
-                  {/* Primary Action: Add to Cart - Only show when result is ready */}
-                  {generatedImage && (
-                    <Button
-                      onClick={handleAddToCart}
-                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                      className="w-full h-11 bg-primary hover:bg-primary/90"
-                      aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                      aria-busy={isAddToCartLoading}
-                    >
-                      {isAddToCartLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                      )}
-                      {isAddToCartLoading
-                        ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                        : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
-                    </Button>
+                    <>
+                      {/* Mobile: Quantity control on top */}
+                      <div className="flex items-center justify-between gap-3 w-full">
+                        <p className="text-sm font-medium text-slate-700">
+                          {t("tryOnWidget.quantity.label") || "Quantité"}
+                        </p>
+                        <QuantityStepper />
+                      </div>
+                      {/* Primary Action: Add to Cart - Only show when result is ready */}
+                      <Button
+                        onClick={handleAddToCart}
+                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                        className="w-full h-11 bg-primary hover:bg-primary/90 relative"
+                        aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                        aria-busy={isAddToCartLoading}
+                      >
+                        {isAddToCartLoading ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                        )}
+                        {isAddToCartLoading
+                          ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                          : currentCartQuantity > 0
+                          ? `${t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"} (${currentCartQuantity})`
+                          : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+                        {cartQuantity > 1 && (
+                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
+                            {cartQuantity}
+                          </span>
+                        )}
+                      </Button>
+                    </>
                   )}
 
                   {/* Secondary Action: Buy Now - Only show when result is ready */}
