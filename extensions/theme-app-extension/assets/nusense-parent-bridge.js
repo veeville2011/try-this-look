@@ -386,43 +386,83 @@
       
       // Call /cart/change.js to trigger cart update (some themes require this for immediate refresh)
       // This ensures the cart state is properly synchronized and triggers theme refresh listeners
-      if (firstItem && firstItem.id) {
+      // According to Shopify Cart API: /cart/change.js requires the 'key' property (line item key)
+      // Format: "794864229:03af7a8cb59a4c3c45595c76fa8cb53c" (integer:32-char-hex) or pure integer as string
+      if (firstItem) {
         try {
           const cartChangeUrl = getCartChangeUrl();
-          const lineItemId = firstItem.id; // Line item ID from cart response
-          const lineItemQuantity = firstItem.quantity || quantity;
           
-          log('[NUSENSE] Calling cart change API:', {
-            url: cartChangeUrl,
-            lineItemId,
-            quantity: lineItemQuantity,
-          });
+          // Shopify's /cart/change.js expects the line item key from the 'key' property
+          // The 'key' is the line item identifier, not the variant ID
+          // Must be passed as a string (even if it's a pure integer)
+          let lineItemKey = firstItem.key || firstItem.id;
           
-          // Call cart change API to ensure cart is updated and triggers refresh
-          const changeResponse = await fetch(cartChangeUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: lineItemId,
-              quantity: lineItemQuantity,
-            }),
-          });
+          // Convert to string and validate format
+          // Expected formats:
+          // 1. Pure integer: "123456789" (as string)
+          // 2. Integer with hash: "123456789:03af7a8cb59a4c3c45595c76fa8cb53c" (32-char hex)
+          const lineItemKeyStr = String(lineItemKey || '');
           
-          if (changeResponse.ok) {
-            const changeData = await changeResponse.json().catch(() => null);
-            if (changeData) {
-              log('[NUSENSE] Cart change API success:', changeData);
-              // Use the updated cart data from change response if available
-              if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
-                // Update data with change response for consistency
-                data = changeData;
-              }
-            }
-          } else {
-            warn('[NUSENSE] Cart change API returned non-ok status:', {
-              status: changeResponse.status,
-              statusText: changeResponse.statusText,
+          // Validate format matches Shopify's expected pattern
+          const isValidFormat = /^\d+$/.test(lineItemKeyStr) || /^\d+:[a-f0-9]{32}$/i.test(lineItemKeyStr);
+          
+          if (!isValidFormat || !lineItemKeyStr) {
+            // Skip change API if we don't have a valid line item key
+            // The 'key' property is required for /cart/change.js
+            warn('[NUSENSE] Cannot determine valid line item key for change API:', {
+              id: firstItem.id,
+              key: firstItem.key,
+              variant_id: firstItem.variant_id,
+              note: 'The "key" property from cart/add.js response is required for cart/change.js',
             });
+            lineItemKey = null;
+          } else {
+            // Ensure it's a string (Shopify expects string, not number)
+            lineItemKey = lineItemKeyStr;
+          }
+          
+          if (lineItemKey) {
+            const lineItemQuantity = firstItem.quantity || quantity;
+            
+            log('[NUSENSE] Calling cart change API:', {
+              url: cartChangeUrl,
+              lineItemKey,
+              quantity: lineItemQuantity,
+              originalId: firstItem.id,
+              originalKey: firstItem.key,
+            });
+            
+            // Call cart change API to ensure cart is updated and triggers refresh
+            // Note: 'id' parameter must be the line item key (from 'key' property) as a string
+            const changeResponse = await fetch(cartChangeUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: lineItemKey, // Line item key as string
+                quantity: lineItemQuantity,
+              }),
+            });
+            
+            if (changeResponse.ok) {
+              const changeData = await changeResponse.json().catch(() => null);
+              if (changeData) {
+                log('[NUSENSE] Cart change API success:', changeData);
+                // Use the updated cart data from change response if available
+                if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
+                  // Update data with change response for consistency
+                  data = changeData;
+                }
+              }
+            } else {
+              const errorData = await changeResponse.json().catch(() => null);
+              warn('[NUSENSE] Cart change API returned non-ok status:', {
+                status: changeResponse.status,
+                statusText: changeResponse.statusText,
+                error: errorData,
+                lineItemKey,
+                requestBody: { id: lineItemKey, quantity: lineItemQuantity },
+              });
+            }
           }
         } catch (e) {
           // Don't fail the whole operation if change API fails
