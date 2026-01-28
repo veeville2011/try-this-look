@@ -17,16 +17,16 @@ api_version = "2024-01"
   uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
-  topics = [ "customers/data_request" ]
   uri = "/webhooks/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
 
   [[webhooks.subscriptions]]
-  topics = [ "customers/redact" ]
   uri = "/webhooks/customers/redact"
+  compliance_topics = [ "customers/redact" ]
 
   [[webhooks.subscriptions]]
-  topics = [ "shop/redact" ]
   uri = "/webhooks/shop/redact"
+  compliance_topics = [ "shop/redact" ]
 
   # IMPORTANT: app/subscriptions/update webhook configuration
   # ============================================================
