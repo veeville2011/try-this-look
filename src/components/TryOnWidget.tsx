@@ -45,6 +45,18 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import {
+  safeInitTracking,
+  safeTrackPhotoUpload,
+  safeTrackGarmentSelect,
+  safeTrackTryonStart,
+  safeTrackTryonComplete,
+  safeTrackResultView,
+  safeTrackShare,
+  safeTrackDownload,
+  safeTrackAddToCart,
+  getTracking,
+} from "@/utils/tracking";
 
 interface CustomerInfo {
   id?: string | null;
@@ -189,6 +201,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0); // Timer in seconds
+  const [currentTryonId, setCurrentTryonId] = useState<number | null>(null); // Track current try-on ID for analytics
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
   // Cache for watermarked blob and share data to avoid re-processing on every share click
@@ -773,6 +786,19 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               });
             }
 
+            // Track via Pixel (analytics/attribution) - works even without customer login
+            safeTrackAddToCart({
+              id: finalProductData.id,
+              title: finalProductData.title,
+              price: cartItem?.price || null,
+              quantity: cartItem?.quantity || 1,
+              variant: {
+                id: finalProductData.variantId,
+                price: cartItem?.price || null
+              }
+            });
+
+            // Track via Cart Tracking API (business logic) - requires customer login
             if (customerInfo?.id) {
               trackAddToCartEvent({
                 storeName: shopDomain,
@@ -859,6 +885,19 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               });
             }
 
+            // Track via Pixel (analytics/attribution) - works even without customer login
+            safeTrackAddToCart({
+              id: finalProductData.id,
+              title: finalProductData.title,
+              price: cartItem?.price || null,
+              quantity: cartItem?.quantity || 1,
+              variant: {
+                id: finalProductData.variantId,
+                price: cartItem?.price || null
+              }
+            });
+
+            // Track via Cart Tracking API (business logic) - requires customer login
             // Fire tracking request without awaiting - don't block checkout redirect
             if (customerInfo?.id) {
               trackAddToCartEvent({
@@ -981,6 +1020,18 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       setPhotoSelectionMethod("file");
       setSelectedDemoPhotoUrl(null);
     }
+    
+    // Track photo upload (non-intrusive - fails gracefully)
+    try {
+      const productData = getProductData();
+      safeTrackPhotoUpload({
+        productId: productData?.id?.toString(),
+        productTitle: productData?.title
+      });
+    } catch (error) {
+      // Silently fail - tracking is optional
+    }
+    
     setStatusVariant("info");
     setStatusMessage(t("tryOnWidget.status.photoUploaded") || "Photo chargée. Sélectionnez un vêtement.");
     // Don't auto-advance to clothing step - let the continue button handle it
@@ -996,6 +1047,18 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     if (imageUrl) {
       const clothingId = singleTabAvailableImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
+
+      // Track garment selection (non-intrusive - fails gracefully)
+      try {
+        const productData = getProductData();
+        safeTrackGarmentSelect(
+          productData?.id?.toString() || '',
+          productData?.title || '',
+          imageUrl
+        );
+      } catch (error) {
+        // Silently fail - tracking is optional
+      }
 
       setStatusVariant("info");
       setStatusMessage(t("tryOnWidget.status.readyToGenerate") || "Prêt à générer. Cliquez sur Générer.");
@@ -1266,6 +1329,19 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       // - version: optional version parameter (1 or 2)
       // - customerInfo: optional customer information if customer is logged in
       // - productInfo: optional product information (productId, productTitle, productUrl, variantId)
+      
+      // Track try-on start (non-intrusive - fails gracefully)
+      const tryonStartTime = Date.now();
+      try {
+        const productData = getProductData();
+        safeTrackTryonStart(
+          productData?.id?.toString() || '',
+          productData?.title || ''
+        );
+      } catch (error) {
+        // Silently fail - tracking is optional
+      }
+      
       const result: TryOnResponse = await generateTryOn(
         personBlob,
         clothingBlob,
@@ -1332,6 +1408,24 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         setCurrentStep(4);
         setStatusVariant("info");
         setStatusMessage(t("tryOnWidget.status.resultReadyActions") || "Résultat prêt. Vous pouvez acheter ou télécharger.");
+        
+        // Track try-on completion (non-intrusive - fails gracefully)
+        try {
+          const productData = getProductData();
+          const processingTimeMs = Date.now() - tryonStartTime;
+          // Generate a unique tryon ID (use timestamp + random for uniqueness)
+          // In production, this should come from the API response if available
+          const tryonId = Date.now();
+          setCurrentTryonId(tryonId);
+          safeTrackTryonComplete(
+            tryonId,
+            productData?.id?.toString() || '',
+            productData?.title || '',
+            processingTimeMs
+          );
+        } catch (error) {
+          // Silently fail - tracking is optional
+        }
         
         // Clear progress storage on successful completion
         try {
@@ -1671,6 +1765,15 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         URL.revokeObjectURL(url);
       }, 100);
 
+      // Track download (non-intrusive - fails gracefully)
+      try {
+        if (currentTryonId) {
+          safeTrackDownload(currentTryonId);
+        }
+      } catch (error) {
+        // Silently fail - tracking is optional
+      }
+
       setIsDownloadLoading(false);
       toast.success(t("tryOnWidget.download.success") || "Téléchargement réussi", {
         description: t("tryOnWidget.download.successDescription") || "L'image a été téléchargée avec succès.",
@@ -1810,6 +1913,15 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         title: shareData.title,
         text: shareData.text,
       }).then(() => {
+        // Track share (non-intrusive - fails gracefully)
+        try {
+          if (currentTryonId) {
+            safeTrackShare(currentTryonId, 'instagram');
+          }
+        } catch (error) {
+          // Silently fail - tracking is optional
+        }
+        
         setIsInstagramShareLoading(false);
         toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
           description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image and caption are ready!",
@@ -1838,6 +1950,15 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         text: `${shareData.text}\n\nImage: ${imageDataUrl}`,
         url: shareData.url,
       }).then(() => {
+        // Track share (non-intrusive - fails gracefully)
+        try {
+          if (currentTryonId) {
+            safeTrackShare(currentTryonId, 'instagram');
+          }
+        } catch (error) {
+          // Silently fail - tracking is optional
+        }
+        
         setIsInstagramShareLoading(false);
         toast.success(t("tryOnWidget.resultDisplay.instagramOpened") || "Share sheet opened!", {
           description: t("tryOnWidget.resultDisplay.shareSheetOpenedDescription") || "Select Instagram from the share options. Image link and caption are ready!",
@@ -1906,6 +2027,52 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       void runImageGeneration();
     }
   }, [uploadedImage, selectedClothing, generatedImage]); // Depend on state to ensure it's set before resuming
+
+  // Initialize tracking SDK (non-intrusive - fails gracefully)
+  useEffect(() => {
+    try {
+      // Initialize tracking (API key is optional - backend doesn't require it)
+      safeInitTracking({
+        apiKey: null, // Optional - backend doesn't require API key
+        debug: import.meta.env.DEV || false
+      });
+
+      // Set customer IDs if available
+      const tracking = getTracking();
+      if (tracking && customerInfo) {
+        if (customerInfo.id) {
+          tracking.setCustomerId(parseInt(customerInfo.id, 10));
+        }
+        // Shopify customer ID would be set here if available
+        // For now, we don't have shopifyCustomerId in customerInfo
+      }
+
+      // Notify parent to initialize tracking SDK (for storefront events)
+      if (window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            type: 'NUSENSE_INIT_TRACKING',
+            config: {
+              apiKey: null, // Optional - backend doesn't require API key
+              debug: import.meta.env.DEV || false
+            }
+          }, '*');
+        } catch (error) {
+          // Silently fail - postMessage is optional
+        }
+      }
+    } catch (error) {
+      // Silently fail - tracking is optional
+    }
+  }, [customerInfo]);
+
+  // Track result view when generated image is displayed
+  useEffect(() => {
+    if (generatedImage && currentTryonId) {
+      safeTrackResultView(currentTryonId);
+    }
+  }, [generatedImage, currentTryonId]);
+
   // Check if we're inside an iframe
   const isInIframe = typeof window !== "undefined" && window.parent !== window;
 

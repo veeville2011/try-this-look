@@ -13,7 +13,8 @@
     widgetUrl: {{ widget_url | json }},
     debug: {{ debug_mode | default: false | json }},
     autoDetect: true,
-    shopDomain: {{ shop.permanent_domain | json }}
+    shopDomain: {{ shop.permanent_domain | json }},
+    apiUrl: 'https://ai.nusense.ddns.net/api'
   });
 
   {% if product %}
@@ -67,11 +68,30 @@
 
   (function () {
     if (!document || !document.head) return;
-    if (document.querySelector('script[src*="nusense-parent-bridge.js"]')) return;
-    var script = document.createElement('script');
-    script.src = "{{ 'nusense-parent-bridge.js' | asset_url }}";
-    script.defer = true;
-    document.head.appendChild(script);
+    
+    // Load parent bridge script (existing)
+    if (!document.querySelector('script[src*="nusense-parent-bridge.js"]')) {
+      var bridgeScript = document.createElement('script');
+      bridgeScript.src = "{{ 'nusense-parent-bridge.js' | asset_url }}";
+      bridgeScript.defer = true;
+      bridgeScript.onerror = function() {
+        // Silently fail - bridge script is optional
+        console.warn('[NUSENSE] Bridge script failed to load, continuing without it');
+      };
+      document.head.appendChild(bridgeScript);
+    }
+    
+    // Auto-load NULIGHT Tracking SDK (NEW - automatic)
+    if (!document.querySelector('script[src*="nulight-tracking.js"]')) {
+      var trackingScript = document.createElement('script');
+      trackingScript.src = "{{ 'nulight-tracking.js' | asset_url }}";
+      trackingScript.defer = true;
+      trackingScript.onerror = function() {
+        // Silently fail - tracking is optional
+        console.warn('[NUSENSE] Tracking SDK failed to load, continuing without tracking');
+      };
+      document.head.appendChild(trackingScript);
+    }
   })();
   {% endif %}
 })();

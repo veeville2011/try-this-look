@@ -21,6 +21,7 @@ import {
   type StoreInfo,
 } from "@/utils/shopifyIntegration";
 import { trackAddToCartEvent } from "@/services/cartTrackingApi";
+import { safeTrackAddToCart } from "@/utils/tracking";
 
 interface ResultDisplayProps {
   generatedImage?: string | null;
@@ -269,6 +270,19 @@ export default function ResultDisplay({
               });
             }
 
+            // Track via Pixel (analytics/attribution) - works even without customer login
+            safeTrackAddToCart({
+              id: finalProductData.id,
+              title: finalProductData.title,
+              price: cartItem?.price || null,
+              quantity: cartItem?.quantity || 1,
+              variant: {
+                id: finalProductData.variantId,
+                price: cartItem?.price || null
+              }
+            });
+
+            // Track via Cart Tracking API (business logic) - requires customer login
             if (customerInfo?.id) {
               trackAddToCartEvent({
                 storeName: shopDomain,
@@ -366,6 +380,19 @@ export default function ResultDisplay({
               });
             }
 
+            // Track via Pixel (analytics/attribution) - works even without customer login
+            safeTrackAddToCart({
+              id: finalProductData.id,
+              title: finalProductData.title,
+              price: cartItem?.price || null,
+              quantity: cartItem?.quantity || 1,
+              variant: {
+                id: finalProductData.variantId,
+                price: cartItem?.price || null
+              }
+            });
+
+            // Track via Cart Tracking API (business logic) - requires customer login
             // Fire tracking request without awaiting - don't block checkout redirect
             if (customerInfo?.id) {
               trackAddToCartEvent({

@@ -122,6 +122,20 @@ export async function generateTryOn(
       
       // Version parameter removed - not sent to fashion-photo API
       
+      // Add session ID for attribution (non-intrusive - fails gracefully)
+      try {
+        if (typeof window !== 'undefined' && (window as any).NulightTracking) {
+          const sessionId = (window as any).NulightTracking.getSessionId();
+          if (sessionId) {
+            formData.append("sessionId", sessionId);
+            console.log("[FRONTEND] [TRYON] Added sessionId to FormData:", sessionId);
+          }
+        }
+      } catch (error) {
+        // Silently fail - session ID is optional
+        console.warn("[FRONTEND] [TRYON] Failed to get session ID:", error);
+      }
+      
       // Log all FormData entries for debugging
       const formDataEntries: Record<string, string> = {};
       try {
@@ -187,13 +201,30 @@ export async function generateTryOn(
         hasShop: !!storeName,
       });
 
+      // Get session ID for attribution header (non-intrusive - fails gracefully)
+      let sessionId: string | null = null;
+      try {
+        if (typeof window !== 'undefined' && (window as any).NulightTracking) {
+          sessionId = (window as any).NulightTracking.getSessionId();
+        }
+      } catch (error) {
+        // Silently fail - session ID is optional
+      }
+
       // Use authenticated fetch if available, otherwise regular fetch
+      const headers: HeadersInit = {
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        "Content-Language": "fr",
+      };
+      
+      // Add session ID header if available (for attribution)
+      if (sessionId) {
+        headers["X-Session-ID"] = sessionId;
+      }
+      
       response = await authenticatedFetch(url, {
         method: "POST",
-        headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-          "Content-Language": "fr",
-        },
+        headers,
         body: formData,
       });
 
