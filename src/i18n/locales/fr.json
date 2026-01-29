@@ -990,9 +990,19 @@
       "retry": "Réessayer",
       "addToCart": "Ajouter au Panier",
       "buyNow": "Acheter Maintenant",
+      "notifyMe": "Me notifier quand disponible",
+      "notifyMeSuccess": "Notification enregistrée",
+      "notifyMeSuccessDescription": "Nous vous enverrons un email lorsque cet article sera de nouveau en stock.",
+      "notifyMeError": "Impossible d'enregistrer la notification. Veuillez réessayer.",
       "generateHelp": "Veuillez télécharger une photo et sélectionner un vêtement pour générer l'essayage virtuel",
       "back": "Retour",
       "continue": "Continuer"
+    },
+    "quantity": {
+      "label": "Quantité",
+      "ariaLabel": "Sélecteur de quantité",
+      "decreaseAriaLabel": "Diminuer la quantité",
+      "increaseAriaLabel": "Augmenter la quantité"
     },
     "tabs": {
       "ariaLabel": "Mode d'essayage",
@@ -1294,6 +1304,20 @@
       "instagramWebsiteOpenedDesktopNoCaption": "Site Instagram ouvert ! L'image est enregistrée.",
       "instagramShareError": "Erreur de partage sur Instagram",
       "instagramShareErrorDescription": "Impossible de partager sur Instagram. Veuillez réessayer."
+    },
+    "generatedImages": {
+      "title": "Vos Résultats d'Essayage",
+      "empty": "Aucun résultat d'essayage pour le moment. Créez votre premier essayage virtuel !",
+      "action": "Commencer l'Essayage",
+      "loading": "Chargement des résultats d'essayage...",
+      "error": "Échec du chargement des résultats d'essayage"
+    },
+    "uploadedImages": {
+      "title": "Vos Photos Téléchargées",
+      "empty": "Aucune photo téléchargée pour le moment. Téléchargez votre première photo pour commencer !",
+      "action": "Télécharger une Photo",
+      "loading": "Chargement des photos téléchargées...",
+      "error": "Échec du chargement des photos téléchargées"
     }
   },
   "referral": {

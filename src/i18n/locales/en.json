@@ -990,9 +990,19 @@
       "retry": "Retry",
       "addToCart": "Add to Cart",
       "buyNow": "Buy Now",
+      "notifyMe": "Notify Me When Available",
+      "notifyMeSuccess": "Notification Registered",
+      "notifyMeSuccessDescription": "We'll send you an email when this item is back in stock.",
+      "notifyMeError": "Unable to register notification. Please try again.",
       "generateHelp": "Please upload a photo and select a garment to generate the virtual try-on",
       "back": "Back",
       "continue": "Continue"
+    },
+    "quantity": {
+      "label": "Quantity",
+      "ariaLabel": "Quantity selector",
+      "decreaseAriaLabel": "Decrease quantity",
+      "increaseAriaLabel": "Increase quantity"
     },
     "tabs": {
       "ariaLabel": "Try-on mode",
@@ -1294,6 +1304,20 @@
       "instagramWebsiteOpenedDesktopNoCaption": "Instagram website opened! Image is saved.",
       "instagramShareError": "Error sharing to Instagram",
       "instagramShareErrorDescription": "Unable to share to Instagram. Please try again."
+    },
+    "generatedImages": {
+      "title": "Your Try-On Results",
+      "empty": "No try-on results yet. Create your first virtual try-on!",
+      "action": "Start Try-On",
+      "loading": "Loading try-on results...",
+      "error": "Failed to load try-on results"
+    },
+    "uploadedImages": {
+      "title": "Your Uploaded Photos",
+      "empty": "No uploaded photos yet. Upload your first photo to get started!",
+      "action": "Upload Photo",
+      "loading": "Loading uploaded photos...",
+      "error": "Failed to load uploaded photos"
     }
   },
   "referral": {

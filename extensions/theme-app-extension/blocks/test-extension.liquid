@@ -1,0 +1,373 @@
+{% comment %}
+  Test Extension Block
+  Visible only for specific store: vto-demo.myshopify.com
+  Exact copy of tryon button but points to NewTryon.tsx component
+{% endcomment %}
+
+{% assign allowed_store = 'vto-demo.myshopify.com' %}
+{% assign current_store = shop.permanent_domain | default: shop.myshopify_domain %}
+
+{% if current_store == allowed_store %}
+  {% render 'nusense-tryon-script' %}
+
+  {% assign button_text = block.settings.button_text | default: 'TryOn' %}
+  {% assign button_style = block.settings.button_style | default: 'primary' %}
+  {% assign button_icon = block.settings.button_icon | default: 'https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/demo_images/star-12498_256.gif' %}
+  {% assign button_background_color = block.settings.button_background_color %}
+  {% assign button_text_color = block.settings.button_text_color %}
+  {% assign button_border_color = block.settings.button_border_color %}
+  {% assign button_font_size = block.settings.button_font_size | default: 16 %}
+  {% assign button_padding = block.settings.button_padding | default: 0.8 %}
+  {% assign button_border_radius = block.settings.button_border_radius | default: 4 %}
+  {% assign button_alignment = block.settings.button_alignment | default: 'auto' %}
+  {% assign button_width_percent = block.settings.button_width_percent | default: 100 %}
+  {% assign margin_top = block.settings.margin_top | default: 0 %}
+  {% assign margin_bottom = block.settings.margin_bottom | default: 0 %}
+  {% assign margin_left = block.settings.margin_left | default: 0 %}
+  {% assign margin_right = block.settings.margin_right | default: 0 %}
+  {% assign custom_css = block.settings.custom_css %}
+
+  {% if block.settings.show_icon == true or block.settings.show_icon == 'true' %}
+    {% assign show_icon = true %}
+  {% else %}
+    {% assign show_icon = false %}
+  {% endif %}
+
+  {% if block.settings.button_width_full == true or block.settings.button_width_full == 'true' %}
+    {% assign button_width_full = true %}
+  {% else %}
+    {% assign button_width_full = false %}
+  {% endif %}
+
+  <style>
+    .test-extension-button-app-block {
+      width: 100%;
+      display: flex;
+      {% if button_width_full %}
+        align-items: stretch;
+      {% endif %}
+      {% if button_alignment == 'left' %}
+        justify-content: flex-start;
+      {% elsif button_alignment == 'center' %}
+        justify-content: center;
+      {% elsif button_alignment == 'right' %}
+        justify-content: flex-end;
+      {% else %}
+        {% if button_width_full %}
+          justify-content: stretch;
+        {% else %}
+          justify-content: flex-start;
+        {% endif %}
+      {% endif %}
+    }
+
+    .test-extension-button-app-block .test-extension-button[data-loading="true"] {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .test-extension-button-app-block .test-extension-button .button__text {
+      color: inherit;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+      letter-spacing: inherit;
+      text-transform: inherit;
+    }
+  </style>
+
+  {% assign button_classes = 'button test-extension-button' %}
+  {% case button_style %}
+    {% when 'secondary' %}
+      {% assign button_classes = button_classes | append: ' button--secondary' %}
+    {% when 'outline' %}
+      {% assign button_classes = button_classes | append: ' button--outline' %}
+    {% when 'minimal' %}
+      {% assign button_classes = button_classes | append: ' button--tertiary' %}
+    {% else %}
+      {% assign button_classes = button_classes | append: ' button--primary' %}
+  {% endcase %}
+  {% if button_width_full %}
+    {% assign button_classes = button_classes | append: ' button--full-width' %}
+  {% endif %}
+
+  <div
+    class="test-extension-button-app-block"
+    data-block-id="{{ block.id }}"
+    {{ block.shopify_attributes }}
+    style="width: 100%; display: flex;{% if button_width_full %} align-items: stretch;{% endif %}{% if button_alignment == 'left' %} justify-content: flex-start;{% elsif button_alignment == 'center' %} justify-content: center;{% elsif button_alignment == 'right' %} justify-content: flex-end;{% else %}{% if button_width_full %} justify-content: stretch;{% else %} justify-content: flex-start;{% endif %}{% endif %}"
+  >
+    <button
+      id="test-extension-btn-{{ block.id }}"
+      class="{{ button_classes }}"
+      type="button"
+      aria-label="{{ button_text | escape }}"
+      {% if product %}data-product-id="{{ product.id }}"{% else %}data-product-id=""{% endif %}
+      data-shop-domain="{{ shop.permanent_domain | escape }}"
+      data-button-style="{{ button_style | escape }}"
+      data-show-icon="{{ show_icon }}"
+      data-button-width-full="{{ button_width_full }}"
+      data-width-percent="{{ button_width_percent }}"
+      data-button-icon="{{ button_icon | escape }}"
+      data-alignment="{{ button_alignment | escape }}"
+      data-margin-top="{{ margin_top }}"
+      data-margin-bottom="{{ margin_bottom }}"
+      data-margin-left="{{ margin_left }}"
+      data-margin-right="{{ margin_right }}"
+      data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' | escape }}"
+      data-loading="true"
+      {% if button_background_color != blank %}data-background-color="{{ button_background_color | escape }}"{% endif %}
+      {% if button_text_color != blank %}data-text-color="{{ button_text_color | escape }}"{% endif %}
+      {% if button_border_color != blank %}data-border-color="{{ button_border_color | escape }}"{% endif %}
+      {% if button_font_size != blank %}data-font-size="{{ button_font_size | escape }}"{% endif %}
+      {% if button_padding != blank %}data-padding="{{ button_padding | escape }}"{% endif %}
+      {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius | escape }}"{% endif %}
+      {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
+      style="display: {% if button_width_full %}flex{% else %}inline-flex{% endif %}; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% else %}{% if button_width_percent != blank and button_width_percent != 100 %} width: {{ button_width_percent }}%;{% endif %}{% endif %}"
+    >
+      <span
+        class="button__icon"
+        data-icon="{{ button_icon | escape }}"
+        aria-hidden="true"
+        style="{% unless show_icon %}display: none;{% endunless %}"
+      >
+        {% if button_icon contains 'http://' or button_icon contains 'https://' %}
+          <img src="{{ button_icon | escape }}" alt="" width="48" height="48" style="display: inline-block; vertical-align: middle; width: 3rem; height: 3rem; object-fit: contain;" loading="lazy" />
+        {% else %}
+          {{ button_icon | escape }}
+        {% endif %}
+      </span>
+      <span class="button__text" id="test-extension-desc-{{ block.id }}" style="margin-left: -0.75rem;">{{ button_text | escape }}</span>
+    </button>
+  </div>
+
+  <script>
+    (function () {
+      if (typeof window === 'undefined') return;
+      if (!document || !document.head) return;
+      if (document.querySelector('script[src*="nusense-test-button.js"]')) return;
+
+      var script = document.createElement('script');
+      script.src = "{{ 'nusense-test-button.js' | asset_url }}";
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Test Extension Button",
+  "target": "section",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "This extension is only visible for vto-demo.myshopify.com store. Points to NewTryon.tsx component for testing."
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "TryOn"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Button Style",
+      "options": [
+        {
+          "value": "primary",
+          "label": "Primary"
+        },
+        {
+          "value": "secondary",
+          "label": "Secondary"
+        },
+        {
+          "value": "outline",
+          "label": "Outline"
+        },
+        {
+          "value": "minimal",
+          "label": "Minimal"
+        }
+      ],
+      "default": "primary"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_icon",
+      "label": "Show Icon",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_icon",
+      "label": "Button Icon (emoji or image URL)",
+      "default": "https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/demo_images/star-12498_256.gif",
+      "info": "Enter an emoji or image URL (supports .gif, .png, .jpg, .svg, .webp)"
+    },
+    {
+      "type": "checkbox",
+      "id": "button_width_full",
+      "label": "Full Width Button",
+      "default": true,
+      "info": "Enable to make button full width. Disable to allow flexible width (can be placed next to other buttons)"
+    },
+    {
+      "type": "range",
+      "id": "button_width_percent",
+      "label": "Button width (%) when Full Width is off",
+      "min": 10,
+      "max": 100,
+      "step": 1,
+      "default": 100,
+      "unit": "%",
+      "info": "Applies only when Full Width Button is disabled."
+    },
+    {
+      "type": "header",
+      "content": "Positioning & Spacing"
+    },
+    {
+      "type": "paragraph",
+      "content": "This is a manual app block. Place it anywhere in the product template where you'd like the Try-On button to appear."
+    },
+    {
+      "type": "select",
+      "id": "button_alignment",
+      "label": "Button Alignment",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Auto (Match Theme)"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "auto",
+      "info": "Horizontal alignment of the button. 'Auto' matches the Add to Cart button alignment."
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "label": "Top Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space above the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "label": "Bottom Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space below the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_left",
+      "label": "Left Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the left of the button"
+    },
+    {
+      "type": "range",
+      "id": "margin_right",
+      "label": "Right Margin (rem)",
+      "min": 0,
+      "max": 5,
+      "step": 0.2,
+      "default": 0,
+      "unit": "rem",
+      "info": "Space to the right of the button"
+    },
+    {
+      "type": "header",
+      "content": "Advanced Customization"
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Button Background Color",
+      "info": "Override theme colors with a custom background color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button Text Color",
+      "info": "Override theme colors with a custom text color. Leave empty to use theme colors."
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Button Border Color",
+      "info": "Override theme colors with a custom border color. Leave empty to use theme colors."
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "Font Size (px)",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "default": 16,
+      "unit": "px",
+      "info": "Customize button font size"
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "label": "Padding (rem)",
+      "min": 0.2,
+      "max": 3,
+      "step": 0.2,
+      "default": 0.8,
+      "unit": "rem",
+      "info": "Customize button padding"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Border Radius (px)",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "default": 4,
+      "unit": "px",
+      "info": "Customize button border radius"
+    },
+    {
+      "type": "text",
+      "id": "custom_css",
+      "label": "Custom CSS",
+      "info": "Add custom CSS to further customize the button. Use selector: .test-extension-button",
+      "placeholder": ".test-extension-button { /* your styles */ }"
+    }
+  ]
+}
+{% endschema %}

@@ -69,7 +69,7 @@ const hmac = crypto
 
 // Make webhook request
 async function testWebhook() {
-  console.log("🧪 Testing webhook endpoint...");
+  console.log("🧪 Testing wk webhook endpoint...");
   console.log(`📍 URL: ${WEBHOOK_URL}`);
   console.log(`🏪 Shop: ${SHOP_DOMAIN}`);
   console.log(`🔐 HMAC: ${hmac.substring(0, 20)}...`);

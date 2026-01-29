@@ -7414,6 +7414,91 @@ app.get("/widget", (req, res) => {
   }
 });
 
+// Widget-test route - serves the test widget page (NewTryon component)
+// IMPORTANT: This route must be PUBLIC (no auth required) as it's loaded in iframe from Shopify storefront
+// Only visible for vto-demo.myshopify.com store
+app.get("/widget-test", (req, res) => {
+  try {
+    logger.info("[WIDGET-TEST] Test widget page requested", {
+      query: req.query,
+      shop: req.query.shop_domain,
+      productId: req.query.product_id,
+    });
+    
+    // Set headers to allow iframe embedding from any Shopify storefront
+    // Widget is embedded in storefronts (not admin), so we need to allow all Shopify domains
+    // frame-ancestors * allows embedding from any origin (required for storefront widgets)
+    res.removeHeader("X-Frame-Options");
+    
+    // Set CSP that allows widget to be embedded in Shopify storefronts
+    // frame-src allows the widget itself to load iframes (if needed)
+    // frame-ancestors * allows the widget to be embedded in any Shopify storefront
+    const widgetCSP = [
+      "default-src 'self';",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com;",
+      "connect-src 'self' https://*.shopify.com https://*.myshopify.com wss://*.shopify.com;",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
+      "img-src 'self' data: https:;",
+      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
+      "frame-ancestors *;", // Allow embedding from any origin (Shopify storefronts)
+    ].join(" ");
+    
+    res.setHeader("Content-Security-Policy", widgetCSP);
+    
+    // In Vercel, static files are handled by vercel.json rewrites
+    // The rewrite rule "/(.*)" -> "/index.html" handles this
+    // But we still need this route for non-Vercel environments
+    const indexPath = join(__dirname, "../dist/index.html");
+    
+    // Check if file exists (for non-Vercel environments)
+    if (!isVercel) {
+      const fs = require('fs');
+      if (!fs.existsSync(indexPath)) {
+        logger.error("[WIDGET-TEST] index.html not found at:", indexPath);
+        return res.status(500).json({ 
+          error: "Widget not available", 
+          message: "Widget files not found. Please rebuild the application." 
+        });
+      }
+    }
+    
+    // Serve index.html so React Router can handle /widget-test route
+    // In Vercel, this will be handled by the rewrite rule, but we include it for completeness
+    if (isVercel) {
+      // In Vercel, let the rewrite rule handle it, but we can still log
+      logger.info("[WIDGET-TEST] Vercel environment - rewrite rule will handle");
+      // Still try to serve the file if it exists
+      const fs = require('fs');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      }
+      // If file doesn't exist in Vercel, the rewrite rule will handle it
+      return res.status(200).send("Test widget loading...");
+    } else {
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          logger.error("[WIDGET-TEST] Failed to serve test widget page", err, req);
+          if (!res.headersSent) {
+            res.status(500).json({ 
+              error: "Failed to load test widget", 
+              message: err.message 
+            });
+          }
+        }
+      });
+    }
+  } catch (error) {
+    logger.error("[WIDGET-TEST] Error serving test widget page", error, req);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: "Failed to load test widget", 
+        message: error.message 
+      });
+    }
+  }
+});
+
 
 // Serve frontend (only in non-Vercel environment)
 // In Vercel, static files and SPA routing are handled by vercel.json

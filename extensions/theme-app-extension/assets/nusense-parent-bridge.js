@@ -229,13 +229,46 @@
     return root ? `${root}cart/add.js` : '/cart/add.js';
   };
 
+  const getCartUrl = () => {
+    const root = window?.Shopify?.routes?.root;
+    return root ? `${root}cart.js` : '/cart.js';
+  };
+
+  const getCartChangeUrl = () => {
+    const root = window?.Shopify?.routes?.root;
+    return root ? `${root}cart/change` : '/cart/change';
+  };
+
   const getCheckoutUrl = () => {
     const root = window?.Shopify?.routes?.root;
     return root ? `${root}checkout` : '/checkout';
   };
 
-  const handleCartAction = async ({ actionType, event }) => {
-    const variantIdRaw = getSelectedVariantId();
+  const handleCartAction = async ({ actionType, event, quantityOverride }) => {
+    // Priority: variantId from message > DOM selector > NUSENSE_PRODUCT_DATA
+    let variantIdRaw = event?.data?.variantId ?? null;
+    
+    // If not provided in message, try to get from DOM
+    if (!variantIdRaw) {
+      variantIdRaw = getSelectedVariantId();
+    }
+    
+    // If still not found, try to get from NUSENSE_PRODUCT_DATA
+    if (!variantIdRaw) {
+      try {
+        const productData = window?.NUSENSE_PRODUCT_DATA;
+        if (productData?.variants && Array.isArray(productData.variants) && productData.variants.length > 0) {
+          // Try to find selected variant or use first available variant
+          const selectedVariant = productData.variants.find((v) => v?.selected === true) ||
+                                   productData.variants.find((v) => v?.available !== false) ||
+                                   productData.variants[0];
+          variantIdRaw = selectedVariant?.id ?? null;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    
     const variantId = Number.parseInt(String(variantIdRaw), 10);
     if (!Number.isFinite(variantId)) {
       if (event?.source && event.source !== window) {
@@ -248,20 +281,34 @@
           event.origin,
         );
       }
+      warn('[NUSENSE] No variant ID found. Tried:', {
+        fromMessage: event?.data?.variantId,
+        fromDOM: getSelectedVariantId(),
+        fromProductData: window?.NUSENSE_PRODUCT_DATA?.variants?.[0]?.id,
+      });
       return;
     }
 
+    const parsePositiveInt = (value, fallback = 1) => {
+      const parsed = Number.parseInt(String(value ?? ''), 10);
+      if (!Number.isFinite(parsed)) return fallback;
+      if (parsed <= 0) return fallback;
+      return parsed;
+    };
+
     const productForm = document.querySelector('form[action*="/cart/add"]');
-    const quantity = (() => {
+    const formQuantity = (() => {
       try {
         if (!productForm) return 1;
         const q = new FormData(productForm).get('quantity');
-        const parsed = Number.parseInt(String(q || 1), 10);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        return parsePositiveInt(q, 1);
       } catch {
         return 1;
       }
     })();
+
+    const safeQuantityOverride = parsePositiveInt(quantityOverride, 0);
+    const quantity = safeQuantityOverride > 0 ? safeQuantityOverride : formQuantity;
 
     const cartData = {
       items: [
@@ -274,6 +321,15 @@
 
     try {
       const cartAddUrl = getCartAddUrl();
+      
+      // Debug logging
+      log('[NUSENSE] Adding to cart:', {
+        url: cartAddUrl,
+        variantId,
+        quantity,
+        cartData,
+      });
+      
       const response = await fetch(cartAddUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -282,8 +338,39 @@
 
       const data = await response.json().catch(() => ({}));
 
+      // Debug logging for response
+      log('[NUSENSE] Cart API response:', {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+
       if (!response.ok) {
-        const errorMessage = data?.description || data?.message || 'Failed to add product to cart';
+        const errorMessage = data?.description || data?.message || `Failed to add product to cart (${response.status})`;
+        error('[NUSENSE] Cart API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage,
+          data,
+          cartData,
+        });
+        if (event?.source && event.source !== window) {
+          event.source.postMessage(
+            { type: 'NUSENSE_ACTION_ERROR', action: actionType, error: errorMessage },
+            event.origin,
+          );
+        }
+        return;
+      }
+
+      // Verify that items were actually added
+      if (!Array.isArray(data?.items) || data.items.length === 0) {
+        const errorMessage = 'Cart API returned success but no items were added';
+        warn('[NUSENSE] Cart API warning:', {
+          data,
+          cartData,
+        });
         if (event?.source && event.source !== window) {
           event.source.postMessage(
             { type: 'NUSENSE_ACTION_ERROR', action: actionType, error: errorMessage },
@@ -296,6 +383,320 @@
       // Extract product and variant data from cart response
       // Cart API returns items array with variant_id, product_id, product_title, url
       const firstItem = Array.isArray(data?.items) && data.items.length > 0 ? data.items[0] : null;
+      
+      // Call /cart/change to trigger cart update and section refresh
+      // This ensures the cart state is properly synchronized and triggers theme refresh listeners
+      // Shopify's /cart/change endpoint expects:
+      // - line: 1-based line item index in cart
+      // - quantity: new quantity
+      // - sections: section ID to refresh (e.g., header section)
+      // - sections_url: product URL for section rendering
+      if (firstItem) {
+        try {
+          const cartChangeUrl = getCartChangeUrl();
+          
+          // Find the line item index (1-based) - the item we just added should be the last one
+          // or we can find it by matching variant_id
+          const lineItemIndex = (() => {
+            if (!Array.isArray(data?.items)) return 1;
+            // Find the index of the item we just added (match by variant_id)
+            const index = data.items.findIndex(item => 
+              String(item?.variant_id) === String(variantId) || 
+              String(item?.id) === String(variantId)
+            );
+            // Return 1-based index (if found) or use the last item index
+            return index >= 0 ? index + 1 : data.items.length;
+          })();
+          
+          const lineItemQuantity = firstItem.quantity || quantity;
+          
+          // Get product URL for sections_url (must be relative path, not absolute)
+          const getProductUrl = () => {
+            // Try to get relative URL from cart response
+            if (firstItem?.url && typeof firstItem.url === 'string') {
+              // If it's already relative, use it
+              if (firstItem.url.startsWith('/')) {
+                return firstItem.url;
+              }
+              // If it's absolute, extract the pathname
+              try {
+                const urlObj = new URL(firstItem.url);
+                return urlObj.pathname;
+              } catch {
+                // If URL parsing fails, try to extract path manually
+                const match = firstItem.url.match(/\/products\/[^?#]+/);
+                if (match) return match[0];
+              }
+            }
+            
+            // Try from NUSENSE_PRODUCT_DATA
+            const productDataUrl = window?.NUSENSE_PRODUCT_DATA?.url;
+            if (productDataUrl && typeof productDataUrl === 'string') {
+              if (productDataUrl.startsWith('/')) {
+                return productDataUrl;
+              }
+              try {
+                const urlObj = new URL(productDataUrl);
+                return urlObj.pathname;
+              } catch {
+                const match = productDataUrl.match(/\/products\/[^?#]+/);
+                if (match) return match[0];
+              }
+            }
+            
+            // Fallback to current page pathname
+            return window?.location?.pathname || '/';
+          };
+          
+          const productUrl = getProductUrl();
+          
+          // Extract section ID from DOM or use default pattern
+          // Shopify themes typically use data-section-id or id attributes
+          // Format: sections--{section_id}__header_section (e.g., "sections--18940114960428__header_section")
+          const getSectionId = () => {
+            try {
+              // Method 1: Try to find header section ID from DOM attributes
+              const headerSection = document.querySelector('[data-section-id*="header"]') ||
+                                   document.querySelector('[id*="header"]') ||
+                                   document.querySelector('[data-section-type="header"]') ||
+                                   document.querySelector('header[data-section-id]') ||
+                                   document.querySelector('[class*="header"][data-section-id]');
+              
+              if (headerSection) {
+                let sectionId = headerSection.getAttribute('data-section-id') ||
+                               headerSection.getAttribute('id') ||
+                               headerSection.getAttribute('data-section-type');
+                
+                if (sectionId) {
+                  // If already in correct format, return as is
+                  if (/^sections--\d+__header_section$/i.test(sectionId)) {
+                    return sectionId;
+                  }
+                  // Extract numeric ID and format it
+                  const numericId = sectionId.replace(/^sections--/, '').replace(/__.*$/, '').replace(/\D/g, '');
+                  if (numericId) {
+                    return `sections--${numericId}__header_section`;
+                  }
+                }
+              }
+              
+              // Method 2: Try to extract from Shopify theme object
+              if (window?.theme?.sections?.header?.id) {
+                const themeSectionId = String(window.theme.sections.header.id);
+                return `sections--${themeSectionId}__header_section`;
+              }
+              
+              // Method 3: Search for section ID pattern in the page HTML
+              try {
+                const sectionPattern = /sections--(\d+)__header_section/gi;
+                const pageContent = document.documentElement.innerHTML;
+                const matches = [...pageContent.matchAll(sectionPattern)];
+                if (matches.length > 0) {
+                  // Use the first match
+                  return matches[0][0];
+                }
+              } catch (e) {
+                // ignore HTML parsing errors
+              }
+              
+              // Method 4: Try to find section ID in script tags or data attributes
+              const scriptTags = document.querySelectorAll('script[type="application/json"][data-section-id]');
+              for (const script of scriptTags) {
+                const sectionId = script.getAttribute('data-section-id');
+                if (sectionId && /^\d+$/.test(sectionId)) {
+                  return `sections--${sectionId}__header_section`;
+                }
+              }
+            } catch (e) {
+              warn('[NUSENSE] Error extracting section ID:', e);
+            }
+            return null;
+          };
+          
+          const sectionId = getSectionId();
+          
+          // Build payload - only include sections if we found a valid section ID
+          const changePayload = {
+            line: lineItemIndex,
+            quantity: lineItemQuantity,
+            sections_url: productUrl,
+          };
+          
+          // Only add sections parameter if we have a valid section ID
+          if (sectionId) {
+            changePayload.sections = sectionId;
+          } else {
+            warn('[NUSENSE] Cannot determine section ID for cart change API. Calling without sections parameter.');
+          }
+          
+          log('[NUSENSE] Calling cart change API:', {
+            url: cartChangeUrl,
+            payload: changePayload,
+            lineItemIndex,
+            quantity: lineItemQuantity,
+            sectionId: sectionId || 'NOT_FOUND',
+            productUrl,
+          });
+          
+          // Call cart change API to ensure cart is updated and triggers refresh
+          const changeResponse = await fetch(cartChangeUrl, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(changePayload),
+          });
+          
+          if (changeResponse.ok) {
+            // Try to parse as JSON first (for sections response)
+            let changeData = null;
+            const contentType = changeResponse.headers.get('content-type');
+            
+            if (contentType && contentType.includes('application/json')) {
+              changeData = await changeResponse.json().catch(() => null);
+            } else {
+              // If not JSON, try to parse as HTML/text
+              const textResponse = await changeResponse.text().catch(() => null);
+              if (textResponse) {
+                log('[NUSENSE] Cart change API returned non-JSON response:', {
+                  contentType,
+                  textLength: textResponse.length,
+                });
+              }
+            }
+            
+            if (changeData) {
+              log('[NUSENSE] Cart change API success:', changeData);
+              
+              // Handle section HTML updates if sections parameter was included
+              // Shopify returns section HTML in the response when sections parameter is provided
+              if (sectionId && changeData?.sections && typeof changeData.sections === 'object') {
+                try {
+                  // Update the DOM with the new section HTML
+                  const sectionHtml = changeData.sections[sectionId];
+                  if (sectionHtml && typeof sectionHtml === 'string') {
+                    // Extract numeric section ID for DOM query
+                    const numericSectionId = sectionId.replace(/^sections--/, '').replace(/__.*$/, '');
+                    
+                    // Try multiple selectors to find the section element
+                    const sectionElement = document.querySelector(`[data-section-id="${numericSectionId}"]`) ||
+                                         document.querySelector(`[id*="${numericSectionId}"]`) ||
+                                         document.querySelector(`section[data-section-id="${numericSectionId}"]`) ||
+                                         document.querySelector('header[data-section-id]') ||
+                                         document.querySelector('[data-section-type="header"]') ||
+                                         document.querySelector('header');
+                    
+                    if (sectionElement) {
+                      // Parse the HTML response
+                      const tempDiv = document.createElement('div');
+                      tempDiv.innerHTML = sectionHtml.trim();
+                      
+                      // Get the first element (should be the section wrapper)
+                      const newSectionContent = tempDiv.firstElementChild || tempDiv;
+                      
+                      if (newSectionContent) {
+                        // Replace the entire section content
+                        sectionElement.innerHTML = newSectionContent.innerHTML;
+                        
+                        // Also update outerHTML if it's a direct match
+                        if (sectionElement.tagName === newSectionContent.tagName) {
+                          // Preserve the original element but update its content
+                          while (sectionElement.firstChild) {
+                            sectionElement.removeChild(sectionElement.firstChild);
+                          }
+                          while (newSectionContent.firstChild) {
+                            sectionElement.appendChild(newSectionContent.firstChild);
+                          }
+                        }
+                        
+                        // Trigger custom events for theme compatibility
+                        sectionElement.dispatchEvent(new CustomEvent('section:updated', { 
+                          detail: { sectionId, html: sectionHtml },
+                          bubbles: true
+                        }));
+                        
+                        // Also trigger on document for broader compatibility
+                        document.dispatchEvent(new CustomEvent('shopify:section:load', {
+                          detail: { sectionId },
+                          bubbles: true
+                        }));
+                        
+                        log('[NUSENSE] Section HTML updated successfully:', {
+                          sectionId,
+                          elementFound: true,
+                          htmlLength: sectionHtml.length,
+                        });
+                      } else {
+                        warn('[NUSENSE] Could not parse section HTML:', {
+                          sectionId,
+                          htmlLength: sectionHtml.length,
+                        });
+                      }
+                    } else {
+                      warn('[NUSENSE] Could not find section element in DOM:', {
+                        sectionId,
+                        numericSectionId,
+                        triedSelectors: [
+                          `[data-section-id="${numericSectionId}"]`,
+                          `[id*="${numericSectionId}"]`,
+                          'header[data-section-id]',
+                          '[data-section-type="header"]',
+                        ],
+                      });
+                    }
+                  }
+                } catch (e) {
+                  warn('[NUSENSE] Error updating section HTML:', {
+                    error: e,
+                    sectionId,
+                    message: e?.message,
+                  });
+                }
+              } else if (sectionId) {
+                // Section ID was provided but no sections in response
+                warn('[NUSENSE] Section ID provided but no sections in response:', {
+                  sectionId,
+                  responseKeys: changeData ? Object.keys(changeData) : [],
+                  hasSections: !!changeData?.sections,
+                });
+              }
+              
+              // Use the updated cart data from change response if available
+              if (Array.isArray(changeData?.items) && changeData.items.length > 0) {
+                // Update data with change response for consistency
+                data = changeData;
+                log('[NUSENSE] Updated cart data from change response');
+              }
+            }
+          } else {
+            const errorText = await changeResponse.text().catch(() => '');
+            let errorData = null;
+            try {
+              errorData = errorText ? JSON.parse(errorText) : null;
+            } catch {
+              // Not JSON, use text as error
+            }
+            
+            warn('[NUSENSE] Cart change API returned non-ok status:', {
+              status: changeResponse.status,
+              statusText: changeResponse.statusText,
+              error: errorData || errorText,
+              payload: changePayload,
+              contentType: changeResponse.headers.get('content-type'),
+            });
+          }
+        } catch (e) {
+          // Don't fail the whole operation if change API fails
+          // The item is already added via /cart/add.js
+          warn('[NUSENSE] Cart change API error (non-critical):', {
+            error: e,
+            message: e?.message,
+            stack: e?.stack,
+          });
+        }
+      }
+      
       const productData = window?.NUSENSE_PRODUCT_DATA ?? {};
       
       // Debug logging to understand response structure
@@ -435,6 +836,7 @@
       if (type === 'NUSENSE_REQUEST_PRODUCT_DATA') {
         const productData = window?.NUSENSE_PRODUCT_DATA || null;
         if (productData) {
+          const selectedVariantId = getSelectedVariantId() || null;
           event.source.postMessage(
             {
               type: 'NUSENSE_PRODUCT_DATA',
@@ -443,6 +845,7 @@
                 title: productData.title || null,
                 url: productData.url || null,
                 variants: productData.variants || null,
+                selectedVariantId,
               },
             },
             event.origin,
@@ -452,10 +855,65 @@
             title: productData.title,
             hasUrl: !!productData.url,
             variantsCount: Array.isArray(productData.variants) ? productData.variants.length : 0,
+            hasSelectedVariantId: !!selectedVariantId,
           });
         } else {
           warn('[NUSENSE] NUSENSE_PRODUCT_DATA not available');
         }
+        return;
+      }
+
+      if (type === 'NUSENSE_REQUEST_CART_STATE') {
+        // Get current cart state from Shopify
+        const getCartState = async () => {
+          try {
+            const cartUrl = getCartUrl();
+            if (!cartUrl) {
+              // No cart URL available, send empty cart
+              if (event?.source && event.source !== window) {
+                event.source.postMessage(
+                  { type: 'NUSENSE_CART_STATE', items: [] },
+                  event.origin,
+                );
+              }
+              return;
+            }
+
+            const response = await fetch(cartUrl, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to fetch cart state');
+            }
+
+            const data = await response.json().catch(() => ({}));
+            const cartItems = Array.isArray(data?.items) ? data.items : [];
+
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { type: 'NUSENSE_CART_STATE', items: cartItems },
+                event.origin,
+              );
+            }
+
+            log('[NUSENSE] Sent cart state to iframe:', {
+              itemsCount: cartItems.length,
+            });
+          } catch (e) {
+            warn('[NUSENSE] Failed to get cart state', e);
+            // Send empty cart on error
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { type: 'NUSENSE_CART_STATE', items: [] },
+                event.origin,
+              );
+            }
+          }
+        };
+
+        void getCartState();
         return;
       }
 
@@ -478,7 +936,96 @@
       }
 
       if (type === 'NUSENSE_ADD_TO_CART' || type === 'NUSENSE_BUY_NOW') {
-        void handleCartAction({ actionType: type, event });
+        const quantityOverride = event?.data?.quantity;
+        void handleCartAction({ actionType: type, event, quantityOverride });
+        return;
+      }
+
+      if (type === 'NUSENSE_NOTIFY_ME') {
+        // Handle notify me (back in stock notification)
+        // Try to find the notify me form on the page or trigger Shopify's notify me functionality
+        try {
+          const variantId = event?.data?.variantId;
+          const productData = event?.data?.product || window?.NUSENSE_PRODUCT_DATA || {};
+          
+          // Look for Shopify's notify me form or button
+          // Common selectors for notify me functionality in Shopify themes
+          const notifyMeSelectors = [
+            'form[action*="/contact"]',
+            'button[data-notify-me]',
+            '.notify-me-form',
+            '[data-back-in-stock]',
+            'form[action*="/notify"]',
+          ];
+          
+          let notifyForm = null;
+          for (const selector of notifyMeSelectors) {
+            notifyForm = document.querySelector(selector);
+            if (notifyForm) break;
+          }
+          
+          if (notifyForm) {
+            // If form found, try to submit it or trigger it
+            if (notifyForm.tagName === 'FORM') {
+              // Fill variant ID if there's an input for it
+              const variantInput = notifyForm.querySelector('input[name*="variant"], input[name*="id"]');
+              if (variantInput && variantId) {
+                variantInput.value = String(variantId);
+              }
+              // Trigger form submission (prefer requestSubmit when available)
+              try {
+                if (typeof notifyForm.requestSubmit === 'function') {
+                  notifyForm.requestSubmit();
+                } else {
+                  notifyForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                  if (typeof notifyForm.submit === 'function') notifyForm.submit();
+                }
+              } catch {
+                // ignore
+              }
+            } else if (notifyForm.tagName === 'BUTTON') {
+              // If it's a button, click it
+              if (typeof notifyForm.click === 'function') notifyForm.click();
+            }
+            
+            // Send success message
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { 
+                  type: 'NUSENSE_ACTION_SUCCESS', 
+                  action: 'NUSENSE_NOTIFY_ME',
+                  message: 'Notification request submitted'
+                },
+                event.origin,
+              );
+            }
+          } else {
+            // No notify me form found - send info message
+            if (event?.source && event.source !== window) {
+              event.source.postMessage(
+                { 
+                  type: 'NUSENSE_ACTION_INFO', 
+                  action: 'NUSENSE_NOTIFY_ME',
+                  message: 'Notify me functionality not available on this page. Please use the store\'s notify me form if available.'
+                },
+                event.origin,
+              );
+            }
+            log('[NUSENSE] Notify me requested but no form found on page');
+          }
+        } catch (e) {
+          warn('[NUSENSE] Notify me handling failed', e);
+          if (event?.source && event.source !== window) {
+            event.source.postMessage(
+              { 
+                type: 'NUSENSE_ACTION_ERROR', 
+                action: 'NUSENSE_NOTIFY_ME',
+                error: 'Failed to process notify me request'
+              },
+              event.origin,
+            );
+          }
+        }
         return;
       }
 
