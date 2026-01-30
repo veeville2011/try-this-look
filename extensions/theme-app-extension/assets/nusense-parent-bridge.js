@@ -1404,11 +1404,7 @@
    * Get API base URL from config or use default
    */
   const getApiBaseUrl = () => {
-    try {
-      return window?.NUSENSE_CONFIG?.apiUrl || 'https://ai.nusense.ddns.net/api';
-    } catch {
-      return 'https://ai.nusense.ddns.net/api';
-    }
+   return 'https://ai.nusense.ddns.net/api';
   };
 
   /**
