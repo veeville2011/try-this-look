@@ -1037,30 +1037,7 @@
         return;
       }
 
-      // Handle tracking initialization from widget
-      if (type === 'NUSENSE_INIT_TRACKING') {
-        // Add origin check for security
-        if (!isAllowedOrigin(event.origin)) return;
-        if (!event.source || event.source === window) return;
-        
-        try {
-          if (window.NulightTracking && !window.NULIGHT_TRACKING_INITIALIZED) {
-            const config = event.data.config || {};
-            // API key is optional - backend doesn't require it
-            window.NulightTracking.init({
-              apiKey: config.apiKey || null, // Optional
-              apiUrl: config.apiUrl || 'https://ai.nusense.ddns.net/api',
-              debug: config.debug || false
-            });
-            window.NULIGHT_TRACKING_INITIALIZED = true;
-            log('[NUSENSE] Tracking SDK initialized from widget');
-          }
-        } catch (error) {
-          // Silently fail - tracking is optional
-          warn('[NUSENSE] Failed to initialize tracking:', error);
-        }
-        return;
-      }
+      // Note: NUSENSE_INIT_TRACKING is no longer needed - Web Pixel Extension handles initialization automatically
 
       // Handle tracking events from widget
       if (type === 'NUSENSE_TRACK_EVENT') {
@@ -1069,48 +1046,94 @@
         if (!event.source || event.source === window) return;
         
         try {
-          if (window.NulightTracking && window.NULIGHT_TRACKING_INITIALIZED) {
+          // Use Shopify.analytics.publish() instead of NulightTracking
+          if (window.Shopify?.analytics?.publish) {
             const { eventType, eventData } = event.data;
-            const tracking = window.NulightTracking;
             
-            // Map event types to tracking methods
+            // Map event types to Shopify analytics publish calls
             switch (eventType) {
-              case 'widget_open':
-                tracking.trackWidgetOpen();
+              case 'widget_opened':
+                window.Shopify.analytics.publish('tryon:widget_opened', {});
                 break;
-              case 'widget_close':
-                tracking.trackWidgetClose();
+              case 'widget_closed':
+                window.Shopify.analytics.publish('tryon:widget_closed', {});
                 break;
-              case 'photo_upload':
-                tracking.trackPhotoUpload(eventData);
+              case 'photo_uploaded':
+                window.Shopify.analytics.publish('tryon:photo_uploaded', {
+                  tryon: {
+                    product_id: eventData?.productId,
+                    product_title: eventData?.productTitle
+                  }
+                });
                 break;
-              case 'garment_select':
-                tracking.trackGarmentSelect(eventData.productId, eventData.productTitle, eventData.productImageUrl);
+              case 'garment_selected':
+                window.Shopify.analytics.publish('tryon:garment_selected', {
+                  product: {
+                    id: eventData?.productId,
+                    title: eventData?.productTitle,
+                    image_url: eventData?.productImageUrl
+                  }
+                });
                 break;
-              case 'tryon_start':
-                tracking.trackTryonStart(eventData.productId, eventData.productTitle);
+              case 'tryon_started':
+                window.Shopify.analytics.publish('tryon:started', {
+                  product: {
+                    id: eventData?.productId,
+                    title: eventData?.productTitle
+                  }
+                });
                 break;
-              case 'tryon_complete':
-                tracking.trackTryonComplete(eventData.tryonId, eventData.productId, eventData.productTitle, eventData.processingTimeMs);
+              case 'tryon_completed':
+                window.Shopify.analytics.publish('tryon:completed', {
+                  tryon: {
+                    tryon_id: eventData?.tryonId,
+                    product_id: eventData?.productId,
+                    product_title: eventData?.productTitle,
+                    processing_time_ms: eventData?.processingTimeMs
+                  }
+                });
                 break;
-              case 'result_view':
-                tracking.trackResultView(eventData.tryonId);
+              case 'result_viewed':
+                window.Shopify.analytics.publish('tryon:result_viewed', {
+                  tryon: {
+                    tryon_id: eventData?.tryonId
+                  }
+                });
                 break;
-              case 'share':
-                tracking.trackShare(eventData.tryonId, eventData.platform);
+              case 'result_shared':
+                window.Shopify.analytics.publish('tryon:result_shared', {
+                  tryon: {
+                    tryon_id: eventData?.tryonId,
+                    share_platform: eventData?.platform
+                  }
+                });
                 break;
-              case 'download':
-                tracking.trackDownload(eventData.tryonId);
+              case 'result_downloaded':
+                window.Shopify.analytics.publish('tryon:result_downloaded', {
+                  tryon: {
+                    tryon_id: eventData?.tryonId
+                  }
+                });
                 break;
-              case 'feedback':
-                tracking.trackFeedback(eventData.tryonId, eventData.liked, eventData.text);
+              case 'feedback_submitted':
+                window.Shopify.analytics.publish('tryon:feedback_submitted', {
+                  tryon: {
+                    tryon_id: eventData?.tryonId,
+                    feedback_liked: eventData?.liked,
+                    feedback_text: eventData?.text
+                  }
+                });
                 break;
-              case 'product_view':
-                tracking.trackProductView(eventData.product);
+              case 'product_viewed':
+                window.Shopify.analytics.publish('product_viewed', {
+                  product: eventData?.product || {}
+                });
                 break;
               case 'add_to_cart':
                 // Track via Pixel for analytics (Cart Tracking API handled separately in widget)
-                tracking.trackAddToCart(eventData.product);
+                window.Shopify.analytics.publish('product_added_to_cart', {
+                  product: eventData?.product || {}
+                });
                 break;
               default:
                 // Unknown event type - ignore
@@ -1141,8 +1164,8 @@
   
   const trackWidgetOpen = () => {
     try {
-      if (window.NulightTracking && window.NULIGHT_TRACKING_INITIALIZED && !widgetOpenTracked) {
-        window.NulightTracking.trackWidgetOpen();
+      if (window.Shopify?.analytics?.publish && !widgetOpenTracked) {
+        window.Shopify.analytics.publish('tryon:widget_opened', {});
         widgetOpenTracked = true;
         log('[NUSENSE] Tracked widget open');
       }
@@ -1153,8 +1176,8 @@
   
   const trackWidgetClose = () => {
     try {
-      if (window.NulightTracking && window.NULIGHT_TRACKING_INITIALIZED && widgetOpenTracked) {
-        window.NulightTracking.trackWidgetClose();
+      if (window.Shopify?.analytics?.publish && widgetOpenTracked) {
+        window.Shopify.analytics.publish('tryon:widget_closed', {});
         widgetOpenTracked = false;
         log('[NUSENSE] Tracked widget close');
       }
@@ -1244,23 +1267,25 @@
   
   const trackProductView = () => {
     try {
-      if (window.NulightTracking && window.NULIGHT_TRACKING_INITIALIZED) {
+      if (window.Shopify?.analytics?.publish) {
         const productData = window?.NUSENSE_PRODUCT_DATA;
         if (productData) {
-          // Retry logic: wait for SDK to be ready
+          // Retry logic: wait for Shopify analytics to be ready
           const retryTrack = (attempts = 0) => {
             if (attempts > 10) return; // Max 10 retries (5 seconds)
             
-            if (window.NulightTracking && window.NULIGHT_TRACKING_INITIALIZED) {
-              window.NulightTracking.trackProductView({
-                id: productData.id,
-                title: productData.title,
-                vendor: productData.shop?.name,
-                type: null,
-                url: productData.url,
-                image_url: productData.images?.[0]?.url,
-                price: productData.priceRaw,
-                variant: productData.variants?.[0]
+            if (window.Shopify?.analytics?.publish) {
+              window.Shopify.analytics.publish('product_viewed', {
+                product: {
+                  id: productData.id,
+                  title: productData.title,
+                  vendor: productData.shop?.name,
+                  type: null,
+                  url: productData.url,
+                  image_url: productData.images?.[0]?.url,
+                  price: productData.priceRaw,
+                  variant: productData.variants?.[0]
+                }
               });
               log('[NUSENSE] Tracked product view');
             } else {
@@ -1278,9 +1303,9 @@
   
   // Track product view on product pages (when NUSENSE_PRODUCT_DATA is available)
   if (window?.NUSENSE_PRODUCT_DATA) {
-    // Wait for tracking SDK to load
+    // Wait for Shopify analytics to be ready
     const checkTrackingReady = () => {
-      if (window.NulightTracking) {
+      if (window.Shopify?.analytics?.publish) {
         trackProductView();
       } else {
         setTimeout(checkTrackingReady, 100);
@@ -1414,14 +1439,16 @@
       // 1. Pixel Tracking (Analytics/Attribution)
       // ============================================
       // Always track via Pixel for analytics - works even without customer login
-      if (window.NulightTracking && window.NULIGHT_TRACKING_INITIALIZED) {
+      if (window.Shopify?.analytics?.publish) {
         try {
-          window.NulightTracking.trackAddToCart({
-            id: productData.id,
-            title: productData.title,
-            price: productData.price,
-            quantity: productData.quantity || 1,
-            variant: productData.variant
+          window.Shopify.analytics.publish('product_added_to_cart', {
+            product: {
+              id: productData.id,
+              title: productData.title,
+              price: productData.price,
+              quantity: productData.quantity || 1,
+              variant: productData.variant
+            }
           });
           log('[NUSENSE] Tracked native cart event via Pixel:', {
             productId: productData.id,
@@ -1450,7 +1477,7 @@
 
       const normalizedStoreName = normalizeShopDomain(shopDomain);
       const apiBaseUrl = getApiBaseUrl();
-      const url = `${apiBaseUrl}/api/cart-tracking/track`;
+      const url = `${apiBaseUrl}/cart-tracking/track`;
 
       const payload = {
         storeName: normalizedStoreName,
@@ -1664,7 +1691,7 @@
                     const shopDomain = window?.NUSENSE_CONFIG?.shopDomain || window.location.hostname;
                     const normalizedStoreName = normalizeShopDomain(shopDomain);
                     const apiBaseUrl = getApiBaseUrl();
-                    const url = `${apiBaseUrl}/api/cart-tracking/track`;
+                    const url = `${apiBaseUrl}/cart-tracking/track`;
 
                     const payload = {
                       storeName: normalizedStoreName,
@@ -1747,7 +1774,7 @@
                   const shopDomain = window?.NUSENSE_CONFIG?.shopDomain || window.location.hostname;
                   const normalizedStoreName = normalizeShopDomain(shopDomain);
                   const apiBaseUrl = getApiBaseUrl();
-                  const url = `${apiBaseUrl}/api/cart-tracking/track`;
+                  const url = `${apiBaseUrl}/cart-tracking/track`;
 
                   const payload = {
                     storeName: normalizedStoreName,
@@ -1861,9 +1888,9 @@
   // Initialize native cart tracking when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      // Wait for tracking SDK to be ready
+      // Wait for Shopify analytics to be ready
       const checkTrackingReady = () => {
-        if (window.NulightTracking) {
+        if (window.Shopify?.analytics?.publish) {
           setupNativeCartTracking();
         } else {
           setTimeout(checkTrackingReady, 100);
@@ -1874,7 +1901,7 @@
   } else {
     // DOM already ready
     const checkTrackingReady = () => {
-      if (window.NulightTracking) {
+      if (window.Shopify?.analytics?.publish) {
         setupNativeCartTracking();
       } else {
         setTimeout(checkTrackingReady, 100);

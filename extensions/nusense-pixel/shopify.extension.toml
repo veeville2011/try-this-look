@@ -1,0 +1,26 @@
+# Web Pixel App Extension Configuration
+# Learn more: https://shopify.dev/docs/apps/build/marketing-analytics/build-web-pixels
+
+type = "web_pixel_extension"
+name = "nusense-pixel"
+uid = "nusense-pixel-extension-uid"
+runtime_context = "strict"
+
+# Privacy settings - required for GDPR/CCPA compliance
+[customer_privacy]
+analytics = true
+marketing = true
+preferences = false
+sale_of_data = "enabled"
+
+# Settings for the web pixel (required by Shopify)
+# Note: We don't use settings in our pixel code, but Shopify requires at least one field
+[settings]
+type = "object"
+
+# Minimal placeholder field (required by Shopify, but not used in our code)
+[settings.fields.placeholder]
+name = "Placeholder"
+description = "This field is required by Shopify but not used"
+type = "single_line_text_field"
+

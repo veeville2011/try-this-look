@@ -1,0 +1,9 @@
+{
+  "name": "nusense-pixel",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@shopify/web-pixels-extension": "^1.0.0"
+  }
+}
+

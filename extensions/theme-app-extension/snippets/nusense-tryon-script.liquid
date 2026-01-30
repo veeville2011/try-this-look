@@ -81,17 +81,7 @@
       document.head.appendChild(bridgeScript);
     }
     
-    // Auto-load NULIGHT Tracking SDK (NEW - automatic)
-    if (!document.querySelector('script[src*="nulight-tracking.js"]')) {
-      var trackingScript = document.createElement('script');
-      trackingScript.src = "{{ 'nulight-tracking.js' | asset_url }}";
-      trackingScript.defer = true;
-      trackingScript.onerror = function() {
-        // Silently fail - tracking is optional
-        console.warn('[NUSENSE] Tracking SDK failed to load, continuing without tracking');
-      };
-      document.head.appendChild(trackingScript);
-    }
+    // Note: Tracking is now handled by Web Pixel Extension (automatic, no script loading needed)
   })();
   {% endif %}
 })();

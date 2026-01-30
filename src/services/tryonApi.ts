@@ -1,6 +1,7 @@
 import { TryOnResponse, JobSubmissionResponse, JobStatusResponse } from "@/types/tryon";
 import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
+import { getSessionId } from "@/utils/tracking";
 
 const API_ENDPOINT = "https://ai.nusense.ddns.net/api/fashion-photo";
 
@@ -124,8 +125,8 @@ export async function generateTryOn(
       
       // Add session ID for attribution (non-intrusive - fails gracefully)
       try {
-        if (typeof window !== 'undefined' && (window as any).NulightTracking) {
-          const sessionId = (window as any).NulightTracking.getSessionId();
+        if (typeof window !== 'undefined') {
+          const sessionId = getSessionId();
           if (sessionId) {
             formData.append("sessionId", sessionId);
             console.log("[FRONTEND] [TRYON] Added sessionId to FormData:", sessionId);
@@ -204,8 +205,8 @@ export async function generateTryOn(
       // Get session ID for attribution header (non-intrusive - fails gracefully)
       let sessionId: string | null = null;
       try {
-        if (typeof window !== 'undefined' && (window as any).NulightTracking) {
-          sessionId = (window as any).NulightTracking.getSessionId();
+        if (typeof window !== 'undefined') {
+          sessionId = getSessionId();
         }
       } catch (error) {
         // Silently fail - session ID is optional

@@ -46,7 +46,6 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import {
-  safeInitTracking,
   safeTrackPhotoUpload,
   safeTrackGarmentSelect,
   safeTrackTryonStart,
@@ -55,7 +54,6 @@ import {
   safeTrackShare,
   safeTrackDownload,
   safeTrackAddToCart,
-  getTracking,
 } from "@/utils/tracking";
 
 interface CustomerInfo {
@@ -2416,43 +2414,8 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     }
   }, [uploadedImage, selectedClothing, generatedImage]); // Depend on state to ensure it's set before resuming
 
-  // Initialize tracking SDK (non-intrusive - fails gracefully)
-  useEffect(() => {
-    try {
-      // Initialize tracking (API key is optional - backend doesn't require it)
-      safeInitTracking({
-        apiKey: null, // Optional - backend doesn't require API key
-        debug: import.meta.env.DEV || false
-      });
-
-      // Set customer IDs if available
-      const tracking = getTracking();
-      if (tracking && customerInfo) {
-        if (customerInfo.id) {
-          tracking.setCustomerId(parseInt(customerInfo.id, 10));
-        }
-        // Shopify customer ID would be set here if available
-        // For now, we don't have shopifyCustomerId in customerInfo
-      }
-
-      // Notify parent to initialize tracking SDK (for storefront events)
-      if (window.parent !== window) {
-        try {
-          window.parent.postMessage({
-            type: 'NUSENSE_INIT_TRACKING',
-            config: {
-              apiKey: null, // Optional - backend doesn't require API key
-              debug: import.meta.env.DEV || false
-            }
-          }, '*');
-        } catch (error) {
-          // Silently fail - postMessage is optional
-        }
-      }
-    } catch (error) {
-      // Silently fail - tracking is optional
-    }
-  }, [customerInfo]);
+  // Note: Tracking initialization is now handled automatically by Web Pixel Extension
+  // No manual initialization needed
 
   // Track result view when generated image is displayed
   useEffect(() => {

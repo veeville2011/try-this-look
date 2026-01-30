@@ -1,100 +1,37 @@
 /**
  * Safe Tracking Wrapper Utility
  * 
- * Provides safe wrappers for NULIGHT Tracking SDK calls.
- * All tracking calls are wrapped in try-catch to prevent errors from breaking functionality.
+ * Provides safe wrappers for Shopify Web Pixels API calls.
+ * All tracking calls use Shopify.analytics.publish() to publish custom events.
+ * Events are then handled by the Web Pixel Extension which sends them to the backend.
+ * 
  * Uses PostMessage API to communicate with parent storefront when running in iframe.
  */
 
-// Type definitions for tracking SDK
-interface NulightTracking {
-  init: (config?: { apiKey?: string | null; apiUrl?: string; debug?: boolean }) => NulightTracking;
-  setCustomerId: (customerId: number) => NulightTracking;
-  setShopifyCustomerId: (shopifyCustomerId: string) => NulightTracking;
-  getSessionId: () => string;
-  trackWidgetOpen: () => NulightTracking;
-  trackWidgetClose: () => NulightTracking;
-  trackPhotoUpload: (options?: { productId?: string; productTitle?: string }) => NulightTracking;
-  trackGarmentSelect: (productId: string, productTitle: string, productImageUrl: string) => NulightTracking;
-  trackTryonStart: (productId: string, productTitle: string) => NulightTracking;
-  trackTryonComplete: (tryonId: number, productId: string, productTitle: string, processingTimeMs: number) => NulightTracking;
-  trackResultView: (tryonId: number) => NulightTracking;
-  trackShare: (tryonId: number, platform: string) => NulightTracking;
-  trackDownload: (tryonId: number) => NulightTracking;
-  trackFeedback: (tryonId: number, liked: boolean, text?: string) => NulightTracking;
-  trackPageView: () => NulightTracking;
-  trackProductView: (product: any) => NulightTracking;
-  trackAddToCart: (product: any) => NulightTracking;
-  trackCheckoutComplete: (checkout: any) => NulightTracking;
-}
-
-declare global {
-  interface Window {
-    NulightTracking?: NulightTracking;
+// Helper to check if Shopify.analytics is available
+function isShopifyAnalyticsAvailable(): boolean {
+  try {
+    return typeof window !== 'undefined' && 
+           window.Shopify?.analytics?.publish !== undefined;
+  } catch {
+    return false;
   }
 }
 
-/**
- * Initialize tracking SDK safely
- * @param config Optional configuration (API key is optional - backend doesn't require it)
- */
-export const safeInitTracking = (config?: { apiKey?: string | null; apiUrl?: string; debug?: boolean }): void => {
+// Helper to publish event safely
+function safePublish(eventName: string, data: Record<string, any> = {}): void {
   try {
-    if (typeof window === 'undefined') return;
-    
-    // Wait for SDK to load if not available yet
-    if (!window.NulightTracking) {
-      // Retry after a short delay
-      setTimeout(() => {
-        safeInitTracking(config);
-      }, 100);
-      return;
-    }
-
-    if (!window.NULIGHT_TRACKING_INITIALIZED) {
-      window.NulightTracking.init({
-        apiKey: config?.apiKey || null, // Optional - backend doesn't require API key
-        apiUrl: config?.apiUrl || 'https://ai.nusense.ddns.net/api',
-        debug: config?.debug || false
-      });
-      window.NULIGHT_TRACKING_INITIALIZED = true;
-    }
-  } catch (error) {
-    // Silently fail - tracking is optional
-    if (config?.debug) {
-      console.warn('[Tracking] Failed to initialize:', error);
-    }
-  }
-};
-
-/**
- * Get tracking SDK instance safely
- */
-export const getTracking = (): NulightTracking | null => {
-  try {
-    if (typeof window === 'undefined') return null;
-    return window.NulightTracking || null;
-  } catch (error) {
-    return null;
-  }
-};
-
-/**
- * Safe wrapper for any tracking call
- */
-export const safeTrack = (method: string, ...args: any[]): void => {
-  try {
-    const tracking = getTracking();
-    if (tracking && typeof tracking[method as keyof NulightTracking] === 'function') {
-      (tracking[method as keyof NulightTracking] as Function)(...args);
+    if (isShopifyAnalyticsAvailable()) {
+      window.Shopify.analytics.publish(eventName, data);
     }
   } catch (error) {
     // Silently fail - tracking is optional
   }
-};
+}
 
 /**
  * Send tracking event to parent via PostMessage (for iframe communication)
+ * This is used when the widget is in an iframe and needs to communicate with parent
  */
 export const sendTrackingToParent = (eventType: string, eventData?: any): void => {
   try {
@@ -105,52 +42,9 @@ export const sendTrackingToParent = (eventType: string, eventData?: any): void =
         eventData
       }, '*');
     } else {
-      // Not in iframe - track directly (fallback)
-      const tracking = getTracking();
-      if (tracking) {
-        // Map event types to tracking methods
-        switch (eventType) {
-          case 'widget_open':
-            tracking.trackWidgetOpen();
-            break;
-          case 'widget_close':
-            tracking.trackWidgetClose();
-            break;
-          case 'photo_upload':
-            tracking.trackPhotoUpload(eventData);
-            break;
-          case 'garment_select':
-            tracking.trackGarmentSelect(eventData.productId, eventData.productTitle, eventData.productImageUrl);
-            break;
-          case 'tryon_start':
-            tracking.trackTryonStart(eventData.productId, eventData.productTitle);
-            break;
-          case 'tryon_complete':
-            tracking.trackTryonComplete(eventData.tryonId, eventData.productId, eventData.productTitle, eventData.processingTimeMs);
-            break;
-          case 'result_view':
-            tracking.trackResultView(eventData.tryonId);
-            break;
-          case 'share':
-            tracking.trackShare(eventData.tryonId, eventData.platform);
-            break;
-          case 'download':
-            tracking.trackDownload(eventData.tryonId);
-            break;
-          case 'feedback':
-            tracking.trackFeedback(eventData.tryonId, eventData.liked, eventData.text);
-            break;
-          case 'product_view':
-            tracking.trackProductView(eventData.product);
-            break;
-          case 'add_to_cart':
-            tracking.trackAddToCart(eventData.product);
-            break;
-          default:
-            // Unknown event type - ignore
-            break;
-        }
-      }
+      // Not in iframe - publish directly
+      const eventName = `tryon:${eventType}`;
+      safePublish(eventName, eventData || {});
     }
   } catch (error) {
     // Silently fail - tracking is optional
@@ -162,13 +56,13 @@ export const sendTrackingToParent = (eventType: string, eventData?: any): void =
 // =============================
 
 export const safeTrackWidgetOpen = (): void => {
-  sendTrackingToParent('widget_open');
-  safeTrack('trackWidgetOpen');
+  sendTrackingToParent('widget_opened');
+  safePublish('tryon:widget_opened', {});
 };
 
 export const safeTrackWidgetClose = (): void => {
-  sendTrackingToParent('widget_close');
-  safeTrack('trackWidgetClose');
+  sendTrackingToParent('widget_closed');
+  safePublish('tryon:widget_closed', {});
 };
 
 // =============================
@@ -176,18 +70,34 @@ export const safeTrackWidgetClose = (): void => {
 // =============================
 
 export const safeTrackPhotoUpload = (options?: { productId?: string; productTitle?: string }): void => {
-  sendTrackingToParent('photo_upload', options);
-  safeTrack('trackPhotoUpload', options);
+  sendTrackingToParent('photo_uploaded', options);
+  safePublish('tryon:photo_uploaded', {
+    tryon: {
+      product_id: options?.productId,
+      product_title: options?.productTitle
+    }
+  });
 };
 
 export const safeTrackGarmentSelect = (productId: string, productTitle: string, productImageUrl: string): void => {
-  sendTrackingToParent('garment_select', { productId, productTitle, productImageUrl });
-  safeTrack('trackGarmentSelect', productId, productTitle, productImageUrl);
+  sendTrackingToParent('garment_selected', { productId, productTitle, productImageUrl });
+  safePublish('tryon:garment_selected', {
+    product: {
+      id: productId,
+      title: productTitle,
+      image_url: productImageUrl
+    }
+  });
 };
 
 export const safeTrackTryonStart = (productId: string, productTitle: string): void => {
-  sendTrackingToParent('tryon_start', { productId, productTitle });
-  safeTrack('trackTryonStart', productId, productTitle);
+  sendTrackingToParent('tryon_started', { productId, productTitle });
+  safePublish('tryon:started', {
+    product: {
+      id: productId,
+      title: productTitle
+    }
+  });
 };
 
 export const safeTrackTryonComplete = (
@@ -196,8 +106,15 @@ export const safeTrackTryonComplete = (
   productTitle: string,
   processingTimeMs: number
 ): void => {
-  sendTrackingToParent('tryon_complete', { tryonId, productId, productTitle, processingTimeMs });
-  safeTrack('trackTryonComplete', tryonId, productId, productTitle, processingTimeMs);
+  sendTrackingToParent('tryon_completed', { tryonId, productId, productTitle, processingTimeMs });
+  safePublish('tryon:completed', {
+    tryon: {
+      tryon_id: tryonId,
+      product_id: productId,
+      product_title: productTitle,
+      processing_time_ms: processingTimeMs
+    }
+  });
 };
 
 // =============================
@@ -205,42 +122,107 @@ export const safeTrackTryonComplete = (
 // =============================
 
 export const safeTrackResultView = (tryonId: number): void => {
-  sendTrackingToParent('result_view', { tryonId });
-  safeTrack('trackResultView', tryonId);
+  sendTrackingToParent('result_viewed', { tryonId });
+  safePublish('tryon:result_viewed', {
+    tryon: {
+      tryon_id: tryonId
+    }
+  });
 };
 
 export const safeTrackShare = (tryonId: number, platform: string): void => {
-  sendTrackingToParent('share', { tryonId, platform });
-  safeTrack('trackShare', tryonId, platform);
+  sendTrackingToParent('result_shared', { tryonId, platform });
+  safePublish('tryon:result_shared', {
+    tryon: {
+      tryon_id: tryonId,
+      share_platform: platform
+    }
+  });
 };
 
 export const safeTrackDownload = (tryonId: number): void => {
-  sendTrackingToParent('download', { tryonId });
-  safeTrack('trackDownload', tryonId);
+  sendTrackingToParent('result_downloaded', { tryonId });
+  safePublish('tryon:result_downloaded', {
+    tryon: {
+      tryon_id: tryonId
+    }
+  });
 };
 
 export const safeTrackFeedback = (tryonId: number, liked: boolean, text?: string): void => {
-  sendTrackingToParent('feedback', { tryonId, liked, text });
-  safeTrack('trackFeedback', tryonId, liked, text);
+  sendTrackingToParent('feedback_submitted', { tryonId, liked, text });
+  safePublish('tryon:feedback_submitted', {
+    tryon: {
+      tryon_id: tryonId,
+      feedback_liked: liked,
+      feedback_text: text
+    }
+  });
 };
 
 // =============================
 // Shopify Standard Events
 // =============================
 
+/**
+ * Track product view
+ * Note: Shopify automatically tracks product_viewed events, but we can also publish custom ones if needed
+ */
 export const safeTrackProductView = (product: any): void => {
-  sendTrackingToParent('product_view', { product });
-  safeTrack('trackProductView', product);
+  sendTrackingToParent('product_viewed', { product });
+  // Shopify automatically tracks product_viewed, but we can publish additional data if needed
+  safePublish('product_viewed', {
+    product: product || {}
+  });
 };
 
 /**
  * Track add to cart via Pixel (analytics/attribution)
- * Note: This is used alongside Cart Tracking API for business logic
+ * Note: Shopify automatically tracks product_added_to_cart events, but we can also publish custom ones if needed
+ * This is used alongside Cart Tracking API for business logic
  * - Pixel tracking: Works without customer login, includes session/client info
  * - Cart Tracking API: Requires customer login, used for business logic
  */
 export const safeTrackAddToCart = (product: any): void => {
   sendTrackingToParent('add_to_cart', { product });
-  safeTrack('trackAddToCart', product);
+  // Shopify automatically tracks product_added_to_cart, but we can publish additional data if needed
+  safePublish('product_added_to_cart', {
+    product: product || {}
+  });
 };
 
+// =============================
+// Session Management
+// =============================
+
+/**
+ * Get session ID from browser storage
+ * Used by other parts of the app that need session ID (e.g., tryonApi.ts)
+ */
+export const getSessionId = (): string => {
+  try {
+    if (typeof window === 'undefined') return '';
+    
+    // Try to get from localStorage first
+    let sessionId = localStorage.getItem('nulight_session_id');
+    
+    if (!sessionId) {
+      // Generate new UUID v4
+      sessionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+      localStorage.setItem('nulight_session_id', sessionId);
+    }
+    
+    return sessionId;
+  } catch (error) {
+    // Fallback to generating a new ID
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+};
