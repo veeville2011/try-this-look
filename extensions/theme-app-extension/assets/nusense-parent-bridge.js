@@ -332,7 +332,11 @@
       
       const response = await fetch(cartAddUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          // Use custom header to mark widget-initiated requests (more reliable than body property)
+          'X-Nusense-Widget': 'true'
+        },
         body: JSON.stringify(cartData),
       });
 
@@ -1911,16 +1915,24 @@
           const isCartAdd = typeof url === 'string' && url.includes('/cart/add.js');
           
           if (isCartAdd && args[1] && args[1].method === 'POST') {
-            // Check if this is a widget-initiated request (has _nusenseWidget flag in body)
+            // Check if this is a widget-initiated request (check custom header first, then body)
+            const headers = args[1].headers || {};
             const body = args[1].body;
             let isWidgetRequest = false;
             let isBuyNowRequest = false;
             
-            if (body) {
+            // Check custom header (preferred method - more reliable)
+            if (headers['X-Nusense-Widget'] === 'true' || headers['x-nusense-widget'] === 'true') {
+              isWidgetRequest = true;
+            }
+            
+            // Also check body for backward compatibility and Buy Now detection
+            if (body && !isWidgetRequest) {
               try {
                 // Try to parse body to check for widget flag or checkout parameter
                 if (typeof body === 'string') {
                   const parsed = JSON.parse(body);
+                  // Check for widget flag in body (fallback for older code)
                   isWidgetRequest = parsed._nusenseWidget === true;
                   // Check if this is a Buy Now request (might have checkout parameter)
                   isBuyNowRequest = parsed.checkout === true || parsed.checkout === 'true';
@@ -1945,7 +1957,7 @@
                   if (response.ok) {
                     clonedResponse.json()
                       .then(data => {
-                        if (data && data.items && !data._nusenseWidget) {
+                        if (data && data.items) {
                           // Determine action type based on request
                           const actionType = isBuyNowRequest ? 'buy_now' : 'add_to_cart';
                           trackNativeAddToCart(data, actionType);
