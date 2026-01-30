@@ -69,7 +69,7 @@ export const trackAddToCartEvent = async (
   const normalizedStoreName = normalizeShopDomain(storeName);
 
   const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/cart-tracking/track`;
+  const url = `${baseUrl}/api/cart-tracking/track`;
 
   const payload = {
     storeName: normalizedStoreName,
