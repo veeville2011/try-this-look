@@ -40,7 +40,6 @@ import { useStoreInfo } from "@/hooks/useStoreInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { addWatermarkToImage } from "@/utils/imageWatermark";
-import { trackAddToCartEvent } from "@/services/cartTrackingApi";
 import {
   Dialog,
   DialogContent,
@@ -836,36 +835,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               });
             }
 
-            // Track via Pixel (analytics/attribution) - works even without customer login
-            safeTrackAddToCart({
-              id: finalProductData.id,
-              title: finalProductData.title,
-              price: cartItem?.price || null,
-              quantity: cartItem?.quantity || 1,
-              variant: {
-                id: finalProductData.variantId,
-                price: cartItem?.price || null
-              }
-            });
-
-            // Track via Cart Tracking API (business logic) - requires customer login
-            if (customerInfo?.id) {
-              trackAddToCartEvent({
-                storeName: shopDomain,
-                actionType: "add_to_cart",
-                productId: finalProductData.id,
-                productTitle: finalProductData.title,
-                productUrl: finalProductData.url,
-                variantId: finalProductData.variantId,
-                customerId: customerInfo.id,
-              }).catch((trackingError) => {
-                // Show error toast if tracking fails
-                console.error("[CART_TRACKING] Failed to track add to cart event:", trackingError);
-                toast.error(t("tryOnWidget.resultDisplay.trackingError") || "Erreur de suivi", {
-                  description: t("tryOnWidget.resultDisplay.trackingErrorDescription") || "Impossible d'enregistrer l'événement. L'article a été ajouté au panier.",
-                });
-              });
-            }
+            // Tracking is now handled by parent bridge (shop domain) to prevent duplicate events
+            // Parent bridge receives NUSENSE_ACTION_SUCCESS and handles both Pixel and Cart API tracking
+            // This ensures tracking happens only once from the shop domain where the cart action occurred
           }
         } else if (event.data.action === "NUSENSE_BUY_NOW") {
           setIsBuyNowLoading(false);
@@ -935,34 +907,9 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
               });
             }
 
-            // Track via Pixel (analytics/attribution) - works even without customer login
-            safeTrackAddToCart({
-              id: finalProductData.id,
-              title: finalProductData.title,
-              price: cartItem?.price || null,
-              quantity: cartItem?.quantity || 1,
-              variant: {
-                id: finalProductData.variantId,
-                price: cartItem?.price || null
-              }
-            });
-
-            // Track via Cart Tracking API (business logic) - requires customer login
-            // Fire tracking request without awaiting - don't block checkout redirect
-            if (customerInfo?.id) {
-              trackAddToCartEvent({
-                storeName: shopDomain,
-                actionType: "buy_now",
-                productId: finalProductData.id,
-                productTitle: finalProductData.title,
-                productUrl: finalProductData.url,
-                variantId: finalProductData.variantId,
-                customerId: customerInfo.id,
-              }).catch((trackingError) => {
-                // Silently handle tracking errors - don't affect checkout flow
-                console.error("[CART_TRACKING] Failed to track buy now event:", trackingError);
-              });
-            }
+            // Tracking is now handled by parent bridge (shop domain) to prevent duplicate events
+            // Parent bridge receives NUSENSE_ACTION_SUCCESS and handles both Pixel and Cart API tracking
+            // This ensures tracking happens only once from the shop domain where the cart action occurred
           }
         } else if (event.data.action === "NUSENSE_NOTIFY_ME") {
           setIsNotifyMeLoading(false);

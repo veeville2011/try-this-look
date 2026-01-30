@@ -754,6 +754,94 @@
         console.log('[NUSENSE] Final Product Info for Tracking:', productInfo);
       }
 
+      // ============================================
+      // Track widget-initiated cart action (Pixel + Cart API)
+      // This happens on shop domain to prevent duplicate tracking
+      // ============================================
+      if (productInfo.productId && productInfo.variantId) {
+        try {
+          // 1. Pixel Tracking (Analytics/Attribution) - works even without customer login
+          if (window.Shopify?.analytics?.publish) {
+            try {
+              // Get price and quantity from cart data if available
+              const cartItem = data?.items?.[0] || null;
+              const productPrice = cartItem?.price || cartItem?.final_price || null;
+              const productQuantity = cartItem?.quantity || 1;
+
+              window.Shopify.analytics.publish('product_added_to_cart', {
+                product: {
+                  id: productInfo.productId,
+                  title: productInfo.productTitle,
+                  price: productPrice,
+                  quantity: productQuantity,
+                  variant: {
+                    id: productInfo.variantId,
+                    price: productPrice
+                  }
+                }
+              });
+              log('[NUSENSE] Tracked widget cart event via Pixel:', {
+                productId: productInfo.productId,
+                actionType: actionType
+              });
+            } catch (pixelError) {
+              warn('[NUSENSE] Failed to track widget cart event via Pixel:', pixelError);
+            }
+          }
+
+          // 2. Cart Tracking API (Business Logic) - requires customer login
+          const customerInfo = getCustomerInfo();
+          if (customerInfo && customerInfo.id) {
+            const shopDomain = window?.NUSENSE_CONFIG?.shopDomain || window.location.hostname;
+            if (shopDomain) {
+              const normalizedStoreName = normalizeShopDomain(shopDomain);
+              const apiBaseUrl = getApiBaseUrl();
+              const url = `${apiBaseUrl}/cart-tracking/track`;
+
+              const payload = {
+                storeName: normalizedStoreName,
+                actionType: actionType === 'NUSENSE_BUY_NOW' ? 'buy_now' : 'add_to_cart',
+                productId: productInfo.productId,
+                productTitle: productInfo.productTitle,
+                productUrl: productInfo.productUrl,
+                variantId: productInfo.variantId,
+                customerId: customerInfo.id,
+              };
+
+              // Fire and forget - don't block cart action
+              fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+              })
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                  }
+                  return response.json();
+                })
+                .then(trackingData => {
+                  log('[NUSENSE] Tracked widget cart event via Cart Tracking API:', {
+                    productId: productInfo.productId,
+                    productTitle: productInfo.productTitle,
+                    variantId: productInfo.variantId,
+                    actionType: actionType === 'NUSENSE_BUY_NOW' ? 'buy_now' : 'add_to_cart'
+                  });
+                })
+                .catch(error => {
+                  warn('[NUSENSE] Failed to track widget cart event via Cart Tracking API:', error);
+                });
+            }
+          } else {
+            log('[NUSENSE] Skipping Cart Tracking API for widget event - customer not logged in (Pixel tracking already sent)');
+          }
+        } catch (trackingError) {
+          warn('[NUSENSE] Error tracking widget cart event:', trackingError);
+        }
+      }
+
       if (actionType === 'NUSENSE_BUY_NOW') {
         // Send success message before redirect so tracking can happen
         // Use setTimeout to ensure message is sent before page redirects
@@ -1130,10 +1218,11 @@
                 });
                 break;
               case 'add_to_cart':
-                // Track via Pixel for analytics (Cart Tracking API handled separately in widget)
-                window.Shopify.analytics.publish('product_added_to_cart', {
-                  product: eventData?.product || {}
-                });
+                // Skip tracking here - widget-initiated cart actions are tracked in handleCartAction
+                // when NUSENSE_ACTION_SUCCESS is sent. This prevents duplicate tracking.
+                // Only track if this is a standalone event (not from widget cart action).
+                // For widget cart actions, tracking happens in handleCartAction after successful cart operation.
+                log('[NUSENSE] Received add_to_cart tracking event - skipping (handled in handleCartAction)');
                 break;
               default:
                 // Unknown event type - ignore

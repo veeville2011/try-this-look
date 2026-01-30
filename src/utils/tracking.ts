@@ -182,13 +182,22 @@ export const safeTrackProductView = (product: any): void => {
  * This is used alongside Cart Tracking API for business logic
  * - Pixel tracking: Works without customer login, includes session/client info
  * - Cart Tracking API: Requires customer login, used for business logic
+ * 
+ * IMPORTANT: When in iframe, only sends to parent - parent bridge handles all tracking to prevent duplicates.
+ * When not in iframe, publishes directly.
  */
 export const safeTrackAddToCart = (product: any): void => {
-  sendTrackingToParent('add_to_cart', { product });
-  // Shopify automatically tracks product_added_to_cart, but we can publish additional data if needed
-  safePublish('product_added_to_cart', {
-    product: product || {}
-  });
+  const isInIframe = window.parent !== window;
+  if (isInIframe) {
+    // In iframe: Only send to parent, parent will handle all tracking (Pixel + Cart API)
+    // This prevents double-tracking from widget domain
+    sendTrackingToParent('add_to_cart', { product });
+  } else {
+    // Not in iframe: Publish directly (standalone mode)
+    safePublish('product_added_to_cart', {
+      product: product || {}
+    });
+  }
 };
 
 // =============================
