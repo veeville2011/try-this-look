@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, Sparkles } from 'lucide-react';
+import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
@@ -1746,7 +1746,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                   {/* Generation Progress Card */}
                   <div className="flex-1 rounded-md border-2 border-dashed border-orange-200 bg-orange-50 relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px]">
-                    {step === 'idle' && !generatedImage && (
+                    {step === 'idle' && !generatedImage && !error && (
                       <div className="text-center px-4">
                         <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center">
                           <svg
@@ -1859,14 +1859,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {error && (
-                      <div className="text-center p-3 sm:p-4">
-                        <p className="text-red-600 text-xs sm:text-sm mb-1.5 sm:mb-2">{error}</p>
-                        <button
-                          onClick={handleReset}
-                          className="text-[10px] sm:text-xs text-gray-600 hover:text-gray-800 underline"
-                        >
-                          Start over
-                        </button>
+                      <div className="w-full h-full flex flex-col items-center justify-center p-6 sm:p-8 text-center">
+                        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 sm:p-8 max-w-md w-full">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-100 flex items-center justify-center">
+                              <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" strokeWidth={2} />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-base sm:text-lg font-semibold text-red-900">
+                                Oops! Something went wrong
+                              </h3>
+                              <p className="text-sm sm:text-base text-red-700 leading-relaxed">
+                                {error}
+                              </p>
+                            </div>
+                            <button
+                              onClick={handleReset}
+                              className="mt-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm sm:text-base font-medium transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
+                              aria-label="Start over"
+                              type="button"
+                            >
+                              <RotateCcw size={16} />
+                              Start over
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
