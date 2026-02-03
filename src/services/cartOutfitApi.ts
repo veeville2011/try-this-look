@@ -125,14 +125,17 @@ export async function generateCartTryOn(
         hasShop: !!storeName,
       });
 
-      // Use authenticated fetch if available, otherwise regular fetch
+      // For FormData requests, do NOT set Content-Type header
+      // The browser will automatically set it with the correct boundary
+      // Minimize custom headers to avoid CORS preflight issues
       response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-          "Content-Language": "fr",
+          "Accept": "application/json",
         },
         body: formData,
+        mode: "cors",
+        credentials: "omit",
       });
 
       const requestDuration = Date.now() - startTime;
@@ -340,14 +343,17 @@ export async function generateOutfitLook(
         hasShop: !!storeName,
       });
 
-      // Use authenticated fetch if available, otherwise regular fetch
+      // For FormData requests, do NOT set Content-Type header
+      // The browser will automatically set it with the correct boundary
+      // Minimize custom headers to avoid CORS preflight issues
       response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-          "Content-Language": "fr",
+          "Accept": "application/json",
         },
         body: formData,
+        mode: "cors",
+        credentials: "omit",
       });
 
       const requestDuration = Date.now() - startTime;

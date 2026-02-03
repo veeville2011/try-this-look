@@ -202,31 +202,25 @@ export async function generateTryOn(
         hasShop: !!storeName,
       });
 
-      // Get session ID for attribution header (non-intrusive - fails gracefully)
-      let sessionId: string | null = null;
-      try {
-        if (typeof window !== 'undefined') {
-          sessionId = getSessionId();
-        }
-      } catch (error) {
-        // Silently fail - session ID is optional
-      }
-
-      // Use authenticated fetch if available, otherwise regular fetch
+      // For FormData requests, do NOT set Content-Type header
+      // The browser will automatically set it with the correct boundary
+      // Also, minimize custom headers to avoid CORS preflight issues
+      // Only include headers that are safe and commonly allowed
       const headers: HeadersInit = {
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-        "Content-Language": "fr",
+        // Accept header is safe and commonly allowed
+        "Accept": "application/json",
       };
       
-      // Add session ID header if available (for attribution)
-      if (sessionId) {
-        headers["X-Session-ID"] = sessionId;
-      }
+      // Note: Removed custom headers (X-Session-ID, Accept-Language, Content-Language)
+      // to avoid CORS preflight issues. Session ID is still sent in FormData if needed.
       
       response = await authenticatedFetch(url, {
         method: "POST",
         headers,
         body: formData,
+        // Ensure CORS mode is set correctly
+        mode: "cors",
+        credentials: "omit", // Don't send cookies to avoid CORS issues
       });
 
       const requestDuration = Date.now() - startTime;
@@ -378,8 +372,10 @@ async function pollJobStatus(
       const response = await authenticatedFetch(statusEndpoint, {
         method: "GET",
         headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+          "Accept": "application/json",
         },
+        mode: "cors",
+        credentials: "omit",
       });
 
       if (!response.ok) {
@@ -427,8 +423,10 @@ async function pollJobStatus(
           const imageResponse = await authenticatedFetch(proxyUrl, {
             method: "GET",
             headers: {
-              "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+              "Accept": "image/*",
             },
+            mode: "cors",
+            credentials: "omit",
           });
 
           if (!imageResponse.ok) {
@@ -591,8 +589,9 @@ export async function fetchCustomerImageHistory(
       method: "GET",
       headers: {
         "Accept": "application/json",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
       },
+      mode: "cors",
+      credentials: "omit",
     });
 
     if (!response.ok) {
@@ -634,6 +633,8 @@ export async function getHealthStatus(): Promise<{ status: string; timestamp: st
       headers: {
         "Accept": "application/json",
       },
+      mode: "cors",
+      credentials: "omit",
     });
 
     if (!response.ok) {
@@ -781,8 +782,9 @@ export async function fetchCustomerImageGenerations(
       method: "GET",
       headers: {
         "Accept": "application/json",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
       },
+      mode: "cors",
+      credentials: "omit",
     });
 
     if (!response.ok) {
@@ -830,8 +832,9 @@ export async function fetchUploadedImages(
       method: "GET",
       headers: {
         "Accept": "application/json",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
       },
+      mode: "cors",
+      credentials: "omit",
     });
 
     if (!response.ok) {

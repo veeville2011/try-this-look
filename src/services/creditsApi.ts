@@ -82,8 +82,10 @@ export async function syncCredits(
       response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+          "Accept": "application/json",
         },
+        mode: "cors",
+        credentials: "omit",
       });
 
       const requestDuration = Date.now() - startTime;
@@ -219,8 +221,10 @@ export async function cancelCredits(
       response = await authenticatedFetch(url, {
         method: "POST",
         headers: {
-          "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+          "Accept": "application/json",
         },
+        mode: "cors",
+        credentials: "omit",
       });
 
       const requestDuration = Date.now() - startTime;
