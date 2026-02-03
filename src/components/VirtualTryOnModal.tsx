@@ -1750,7 +1750,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className="flex-1 rounded-md border-2 border-dashed border-orange-200 bg-orange-50 relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px]">
+                  <div className="flex-1 rounded-md border-2 border-dashed border-orange-200 bg-[#f5f4f0] relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px]">
                     {step === 'idle' && !generatedImage && !error && (
                       <div className="text-center px-4">
                         <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -1775,17 +1775,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'generating' && (
-                      <div className="text-center w-full px-6 sm:px-8">
-                        {/* Circular Spinner */}
+                      <div className="text-center w-full px-6 sm:px-8 py-8">
+                        {/* Circular Spinner - Upper Center */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
                           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="#f3f4f6" strokeWidth="8" />
+                            {/* Background circle - light gray */}
+                            <circle 
+                              cx="50" 
+                              cy="50" 
+                              r="45" 
+                              fill="none" 
+                              stroke="#e5e7eb" 
+                              strokeWidth="8" 
+                            />
+                            {/* Progress circle - warm orange-brown */}
                             <circle
                               cx="50"
                               cy="50"
                               r="45"
                               fill="none"
-                              stroke="#FF5722"
+                              stroke="#c96442"
                               strokeWidth="8"
                               strokeDasharray="283"
                               strokeDashoffset={283 - (283 * progress) / 100}
@@ -1793,72 +1802,94 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               strokeLinecap="round"
                             />
                           </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500 animate-spin" />
-                          </div>
                         </div>
                         
-                        {/* Status Text */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-4">
+                        {/* Status Text - Below Spinner */}
+                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-6">
                           {statusMessage || 'Creating your try-on...'}
                         </h3>
                         
-                        {/* Progress Bar */}
+                        {/* Progress Bar - Below Text */}
                         <div className="w-full max-w-xs mx-auto mb-2">
                           <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                             <div
-                              className="bg-orange-500 h-2.5 rounded-full transition-all duration-75 ease-linear"
+                              className="bg-[#c96442] h-2.5 rounded-full transition-all duration-75 ease-linear"
                               style={{ width: `${progress}%` }}
                             />
                           </div>
                         </div>
                         
-                        {/* Percentage */}
+                        {/* Percentage - Below Progress Bar */}
                         <p className="text-sm sm:text-base font-medium text-gray-700">{progress}%</p>
                       </div>
                     )}
 
                     {step === 'complete' && generatedImage && (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-yellow-50 via-orange-50/30 to-yellow-50 rounded-md border-2 border-green-200/50">
-                        {/* Celebration Particles/Orbs */}
+                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
+                        {/* Subtle background gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 rounded-md" />
+                        
+                        {/* Celebration Particles - Subtle and elegant */}
                         <div className="absolute inset-0 overflow-hidden rounded-md pointer-events-none">
                           {celebrationParticles.map((particle) => (
                             <div
                               key={particle.id}
-                              className="absolute rounded-full bg-yellow-400 opacity-60 animate-float"
+                              className="absolute rounded-full bg-gradient-to-br from-orange-200/40 to-orange-300/30 blur-sm"
                               style={{
                                 width: `${particle.width}px`,
                                 height: `${particle.height}px`,
                                 left: `${particle.left}%`,
                                 top: `${particle.top}%`,
-                                animationDelay: `${particle.animationDelay}s`,
-                                animationDuration: `${particle.animationDuration}s`,
+                                animation: `floatUp ${particle.animationDuration}s ease-out ${particle.animationDelay}s infinite`,
                               }}
                             />
                           ))}
                         </div>
 
-                        <div className="relative w-full max-w-xs h-auto shadow-2xl rounded-md mb-6 transform transition-all hover:scale-105 duration-500 z-10">
-                          <img
-                            src={generatedImage}
-                            className="w-full h-full object-contain rounded-md"
-                            alt="Try-on result"
-                          />
+                        {/* Success Badge - Animated fade-in from top */}
+                        <div className="relative z-10 mb-4 animate-fade-in-down">
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-green-100">
+                            <CheckCircle size={18} className="text-green-500 flex-shrink-0" fill="currentColor" />
+                            <span className="text-sm font-semibold text-gray-800">Try-on complete!</span>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-green-600 font-semibold mb-2 z-10">
-                          <CheckCircle size={18} className="text-white" fill="currentColor" />
-                          <span className="text-base">Try-on complete!</span>
+                        {/* Result Image - Smooth scale and fade animation */}
+                        <div className="relative z-10 w-full max-w-sm mb-4">
+                          <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100 animate-scale-in">
+                            {/* Shine effect overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shine pointer-events-none" />
+                            
+                            <img
+                              src={generatedImage}
+                              className="w-full h-auto object-contain rounded-lg"
+                              alt="Try-on result"
+                              style={{
+                                animation: 'fadeInScale 0.6s ease-out',
+                              }}
+                            />
+                            
+                            {/* Subtle border glow */}
+                            <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
+                          </div>
                         </div>
-                        <p className="text-sm text-orange-500 font-medium z-10">Select your size below</p>
 
+                        {/* Helper Text - Fade in with delay */}
+                        <div className="relative z-10 animate-fade-in-delay">
+                          <p className="text-xs sm:text-sm text-gray-600 font-medium text-center px-4">
+                            Select your size below to add to cart
+                          </p>
+                        </div>
+
+                        {/* Try Again Button - Subtle and unobtrusive */}
                         <button
                           onClick={handleReset}
-                          className="mt-6 text-xs text-gray-400 hover:text-gray-600 underline flex items-center gap-1 z-10"
+                          className="relative z-10 mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center gap-1.5 group"
                           aria-label="Try again"
                           type="button"
                         >
-                          <RotateCcw size={12} /> Not perfect? Try again
+                          <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
+                          <span>Not perfect? Try again</span>
                         </button>
                       </div>
                     )}
@@ -1985,21 +2016,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 )}
                 
                 {step !== 'generating' && step === 'complete' && (
-                  <>
-                    <p className="text-center text-[10px] text-gray-400 mt-2 px-2">
-                      Rendered for aesthetic purposes. Does not reflect actual dimensions.
-                    </p>
-                    <p className="text-center text-xs text-gray-500 mt-2">
-                      Free shipping on orders over $50
-                    </p>
-                    <button
-                      onClick={handleReset}
-                      className="text-center text-sm text-orange-500 hover:text-orange-600 underline mt-2 mx-auto"
-                      type="button"
-                    >
-                      Try another photo
-                    </button>
-                  </>
+                  <p className="text-center text-[10px] text-gray-400 mt-2 px-2">
+                    Rendered for aesthetic purposes. Does not reflect actual dimensions.
+                  </p>
                 )}
 
                 {step !== 'generating' && step !== 'complete' && (
