@@ -63,7 +63,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Track if first image has been auto-selected
   const hasAutoSelectedFirstImageRef = useRef(false);
   
-  // Recent photos from API
+  // Recent photos from API (using person images from history)
   const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; src: string }>>([]);
   const [isLoadingRecentPhotos, setIsLoadingRecentPhotos] = useState(false);
 
@@ -71,7 +71,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const demoModels = DEMO_PHOTOS_ARRAY;
 
   // History items from API
-  const [historyItems, setHistoryItems] = useState<Array<{ id: string; image: string }>>([]);
+  const [historyItems, setHistoryItems] = useState<Array<{ 
+    id: string; 
+    image: string; 
+    personImageUrl?: string; 
+    clothingImageUrl?: string; 
+  }>>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Extract sizes from product variants dynamically
@@ -512,38 +517,89 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, []);
 
-  // Fetch recent photos from API
+  // Fetch recent photos from API (using person images from history, same way as history)
   useEffect(() => {
-    if (!customerInfo?.email) return;
+    if (!customerInfo?.email) {
+      setRecentPhotos([]);
+      setIsLoadingRecentPhotos(false);
+      return;
+    }
+
+    let isMounted = true;
 
     const loadRecentPhotos = async () => {
+      if (!isMounted) return;
+      
       setIsLoadingRecentPhotos(true);
       try {
         const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-        const response = await fetchUploadedImages({
-          email: customerInfo.email!,
-          store: shopDomain || undefined,
-          page: 1,
-          limit: 20,
-        });
+        const response = await fetchCustomerImageHistory(
+          customerInfo.email,
+          1,
+          20, // Fetch more to ensure we get 5 unique person images
+          shopDomain || undefined
+        );
 
-        if (response.success && response.data) {
-          // Map API data to match UI structure
-          const photos = response.data.map((item, index) => ({
-            id: item.id || `photo-${index}`,
-            src: item.personImageUrl,
-          }));
-          setRecentPhotos(photos);
+        if (response.success && Array.isArray(response.data)) {
+          if (response.data.length > 0) {
+            // Extract unique person images from history (same way as history is accessed)
+            // Use a Set to track seen image URLs for efficient deduplication
+            const seenUrls = new Set<string>();
+            const photos = response.data
+              .map((item) => {
+                if (!item || !item.id || !item.personImageUrl) {
+                  return null;
+                }
+                return {
+                  id: item.id,
+                  src: item.personImageUrl, // Use person image instead of generated image
+                };
+              })
+              .filter((item): item is { id: string; src: string } => {
+                if (!item) return false;
+                // Check if we've already seen this image URL
+                if (seenUrls.has(item.src)) {
+                  return false; // Skip duplicate
+                }
+                seenUrls.add(item.src); // Mark as seen
+                return true;
+              })
+              .slice(0, 5); // Limit to 5 unique recent photos
+            
+            if (isMounted) {
+              setRecentPhotos(photos);
+            }
+          } else {
+            if (isMounted) {
+              setRecentPhotos([]);
+            }
+          }
+        } else {
+          if (isMounted) {
+            setRecentPhotos([]);
+          }
         }
       } catch (error) {
         console.error('[VirtualTryOnModal] Failed to fetch recent photos:', error);
-        // Keep empty array on error - UI will show empty state
+        if (isMounted) {
+          setRecentPhotos([]);
+        }
       } finally {
-        setIsLoadingRecentPhotos(false);
+        if (isMounted) {
+          setIsLoadingRecentPhotos(false);
+        }
       }
     };
 
-    loadRecentPhotos();
+    // Small delay to avoid race conditions
+    const timeoutId = setTimeout(() => {
+      loadRecentPhotos();
+    }, 100);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [customerInfo?.email, storeInfo]);
 
   // Fetch try-on history from API
@@ -597,10 +653,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 return {
                   id: item.id,
                   image: item.generatedImageUrl, // Use generated image for history display
+                  personImageUrl: item.personImageUrl, // Preserve person image URL
+                  clothingImageUrl: item.clothingImageUrl, // Preserve clothing image URL
                   createdAt: item.createdAt || item.updatedAt || '',
                 };
               })
-              .filter((item): item is { id: string; image: string; createdAt: string } => item !== null)
+              .filter((item): item is { id: string; image: string; personImageUrl?: string; clothingImageUrl?: string; createdAt: string } => item !== null)
               .sort((a, b) => {
                 // Sort by createdAt descending (newest first)
                 if (!a.createdAt && !b.createdAt) return 0;
@@ -608,7 +666,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 if (!b.createdAt) return -1;
                 return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
               })
-              .map(({ id, image }) => ({ id, image })); // Remove createdAt from final structure
+              .map(({ id, image, personImageUrl, clothingImageUrl }) => ({ 
+                id, 
+                image, 
+                personImageUrl, 
+                clothingImageUrl 
+              })); // Preserve all image URLs
             
             console.log('[VirtualTryOnModal] Setting history items:', history.length);
             if (isMounted) {
@@ -698,6 +761,88 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [handlePhotoUpload]);
 
   // Handle clothing selection
+  // Handle selecting a history item - prefill all images (user, clothing, and generated)
+  const handleHistoryItemSelect = useCallback(async (item: { 
+    id: string; 
+    image: string; 
+    personImageUrl?: string; 
+    clothingImageUrl?: string; 
+  }) => {
+    try {
+      // Load and set generated image
+      const proxiedGeneratedUrl = getProxiedImageUrl(item.image);
+      const generatedBlob = await fetch(proxiedGeneratedUrl).then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        return res.blob();
+      });
+      
+      const generatedReader = new FileReader();
+      const generatedDataURL = await new Promise<string>((resolve, reject) => {
+        generatedReader.onloadend = () => resolve(generatedReader.result as string);
+        generatedReader.onerror = reject;
+        generatedReader.readAsDataURL(generatedBlob);
+      });
+      
+      setGeneratedImage(generatedDataURL);
+      storage.saveGeneratedImage(generatedDataURL);
+      
+      // Load and set user image if available
+      if (item.personImageUrl) {
+        try {
+          const proxiedPersonUrl = getProxiedImageUrl(item.personImageUrl);
+          const personBlob = await fetch(proxiedPersonUrl).then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            return res.blob();
+          });
+          
+          const personReader = new FileReader();
+          const personDataURL = await new Promise<string>((resolve, reject) => {
+            personReader.onloadend = () => resolve(personReader.result as string);
+            personReader.onerror = reject;
+            personReader.readAsDataURL(personBlob);
+          });
+          
+          setUploadedImage(personDataURL);
+          storage.saveUploadedImage(personDataURL);
+          setSelectedDemoPhotoUrl(null);
+          setPhotoSelectionMethod('file');
+        } catch (error) {
+          console.warn('[VirtualTryOnModal] Failed to load person image from history:', error);
+          // Continue even if person image fails
+        }
+      }
+      
+      // Load and set clothing image if available
+      if (item.clothingImageUrl) {
+        try {
+          const proxiedClothingUrl = getProxiedImageUrl(item.clothingImageUrl);
+          const clothingBlob = await fetch(proxiedClothingUrl).then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            return res.blob();
+          });
+          
+          const clothingReader = new FileReader();
+          const clothingDataURL = await new Promise<string>((resolve, reject) => {
+            clothingReader.onloadend = () => resolve(clothingReader.result as string);
+            clothingReader.onerror = reject;
+            clothingReader.readAsDataURL(clothingBlob);
+          });
+          
+          setSelectedClothing(clothingDataURL);
+          storage.saveClothingUrl(clothingDataURL);
+        } catch (error) {
+          console.warn('[VirtualTryOnModal] Failed to load clothing image from history:', error);
+          // Continue even if clothing image fails
+        }
+      }
+      
+      setStep('complete');
+    } catch (error) {
+      console.error('[VirtualTryOnModal] Failed to load history item:', error);
+      toast.error('Failed to load try-on result');
+    }
+  }, [getProxiedImageUrl]);
+
   const handleClothingSelect = useCallback((imageUrl: string) => {
     setSelectedClothing(imageUrl);
     storage.saveClothingUrl(imageUrl);
@@ -1084,17 +1229,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       return {
                         id: item.id,
                         image: item.generatedImageUrl,
+                        personImageUrl: item.personImageUrl, // Preserve person image URL
+                        clothingImageUrl: item.clothingImageUrl, // Preserve clothing image URL
                         createdAt: item.createdAt || item.updatedAt || '',
                       };
                     })
-                    .filter((item): item is { id: string; image: string; createdAt: string } => item !== null)
+                    .filter((item): item is { id: string; image: string; personImageUrl?: string; clothingImageUrl?: string; createdAt: string } => item !== null)
                     .sort((a, b) => {
                       if (!a.createdAt && !b.createdAt) return 0;
                       if (!a.createdAt) return 1;
                       if (!b.createdAt) return -1;
                       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                     })
-                    .map(({ id, image }) => ({ id, image }));
+                    .map(({ id, image, personImageUrl, clothingImageUrl }) => ({ 
+                      id, 
+                      image, 
+                      personImageUrl, 
+                      clothingImageUrl 
+                    }));
                   setHistoryItems(history);
                 }
               }
@@ -2150,56 +2302,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           onTouchStart={handleTouchStart}
                           onTouchMove={handleTouchMove}
                           onTouchEnd={(e) => handleTouchEnd(e, () => {
-                            // Load the history image and set it as generated
-                            const proxiedUrl = getProxiedImageUrl(item.image);
-                            fetch(proxiedUrl)
-                              .then(res => {
-                                if (!res.ok) {
-                                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                                }
-                                return res.blob();
-                              })
-                              .then(blob => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  const dataURL = reader.result as string;
-                                  setGeneratedImage(dataURL);
-                                  storage.saveGeneratedImage(dataURL);
-                                  setStep('complete');
-                                };
-                                reader.readAsDataURL(blob);
-                              })
-                              .catch((error) => {
-                                console.error('[VirtualTryOnModal] Failed to load history image:', error);
-                                toast.error('Failed to load try-on result');
-                              });
+                            handleHistoryItemSelect(item);
                           })}
                           onClick={() => {
                             // Only handle click if not on touch device (touch events handle touch devices)
                             if (!('ontouchstart' in window)) {
-                              // Load the history image and set it as generated
-                              const proxiedUrl = getProxiedImageUrl(item.image);
-                              fetch(proxiedUrl)
-                                .then(res => {
-                                  if (!res.ok) {
-                                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                                  }
-                                  return res.blob();
-                                })
-                                .then(blob => {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    const dataURL = reader.result as string;
-                                    setGeneratedImage(dataURL);
-                                    storage.saveGeneratedImage(dataURL);
-                                    setStep('complete');
-                                  };
-                                  reader.readAsDataURL(blob);
-                                })
-                                .catch((error) => {
-                                  console.error('[VirtualTryOnModal] Failed to load history image:', error);
-                                  toast.error('Failed to load try-on result');
-                                });
+                              handleHistoryItemSelect(item);
                             }
                           }}
                           className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 ${

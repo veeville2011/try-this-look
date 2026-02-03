@@ -700,8 +700,43 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                 imageSize="xs"
                 showMetadata={true}
                 enableLightbox={true}
-                onImageClick={(image) => {
-                  // Optional: can add analytics or other actions here
+                onImageClick={async (image) => {
+                  // Prefill user image and clothing image from history metadata
+                  if (image.metadata?.personImageUrl) {
+                    try {
+                      // Load person image
+                      const personResponse = await fetch(image.metadata.personImageUrl);
+                      if (personResponse.ok) {
+                        const personBlob = await personResponse.blob();
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const dataURL = reader.result as string;
+                          setTestUploadedImage(dataURL);
+                        };
+                        reader.readAsDataURL(personBlob);
+                      }
+                    } catch (error) {
+                      console.warn('[NewTryon] Failed to load person image from history:', error);
+                    }
+                  }
+                  
+                  if (image.metadata?.clothingImageUrl) {
+                    try {
+                      // Load clothing image
+                      const clothingResponse = await fetch(image.metadata.clothingImageUrl);
+                      if (clothingResponse.ok) {
+                        const clothingBlob = await clothingResponse.blob();
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const dataURL = reader.result as string;
+                          setTestSelectedClothing(dataURL);
+                        };
+                        reader.readAsDataURL(clothingBlob);
+                      }
+                    } catch (error) {
+                      console.warn('[NewTryon] Failed to load clothing image from history:', error);
+                    }
+                  }
                 }}
               />
               {generatedImagesError && (

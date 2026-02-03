@@ -18,6 +18,50 @@
    */
   const INIT_FLAG = 'testExtensionInitialized';
 
+  // Safety mechanism: Check and restore any stuck styles on page load
+  // This ensures the page is never left in a broken state from previous sessions
+  (function checkAndRestoreStuckStyles() {
+    try {
+      // Check if body has overflow hidden but no overlay (stuck state)
+      const bodyOverflow = window.getComputedStyle(document.body).overflow;
+      const hasOverlay = !!document.querySelector('.test-extension-widget-overlay');
+      
+      if (bodyOverflow === 'hidden' && !hasOverlay) {
+        // Styles are stuck - restore them
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        if (document.body.dataset.nusenseTestScrollY) {
+          const scrollY = parseInt(document.body.dataset.nusenseTestScrollY, 10);
+          window.scrollTo(0, scrollY);
+          delete document.body.dataset.nusenseTestScrollY;
+        }
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  })();
+
+  // Safety mechanism: Always restore body overflow on page unload
+  window.addEventListener('beforeunload', function() {
+    try {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      delete window.__NUSENSE_TEST_PREVIOUS_OVERFLOW__;
+      delete window.__NUSENSE_TEST_PREVIOUS_POSITION__;
+      delete window.__NUSENSE_TEST_PREVIOUS_TOP__;
+    } catch (error) {
+      // Silently fail
+    }
+  });
+
   const normalizeUrl = (url) => {
     if (!url) return '';
     return String(url).trim().replace(/\/+$/, '');
@@ -609,7 +653,24 @@
     const existing = document.getElementById(overlayId);
     if (existing) existing.remove();
 
-    const previousOverflow = document.body.style.overflow || '';
+    // Safety: Check and restore any stuck styles from previous sessions
+    const bodyOverflow = window.getComputedStyle(document.body).overflow;
+    if (bodyOverflow === 'hidden' && !document.querySelector('.test-extension-widget-overlay')) {
+      // Styles are stuck - restore them
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+    }
+
+    // Store original overflow value (use computed style to get actual value)
+    const computedStyle = window.getComputedStyle(document.body);
+    const previousOverflow = document.body.style.overflow || computedStyle.overflow || '';
+    
+    // Store globally for safety restoration
+    window.__NUSENSE_TEST_PREVIOUS_OVERFLOW__ = previousOverflow;
     const overlay = document.createElement('div');
     overlay.id = overlayId;
     overlay.className = 'test-extension-widget-overlay';
@@ -721,9 +782,54 @@
       }
 
       try {
-        document.body.style.overflow = previousOverflow;
+        // Restore scroll position first
+        const scrollY = document.body.dataset.nusenseTestScrollY;
+        if (scrollY) {
+          delete document.body.dataset.nusenseTestScrollY;
+        }
+        
+        // Restore body styles
+        const restoredOverflow = previousOverflow || window.__NUSENSE_TEST_PREVIOUS_OVERFLOW__ || '';
+        document.body.style.overflow = restoredOverflow;
+        
+        const restoredPosition = window.__NUSENSE_TEST_PREVIOUS_POSITION__ || '';
+        const restoredTop = window.__NUSENSE_TEST_PREVIOUS_TOP__ || '';
+        if (restoredPosition) {
+          document.body.style.position = restoredPosition;
+        } else {
+          document.body.style.position = '';
+          document.body.style.top = restoredTop || '';
+          document.body.style.left = '';
+          document.body.style.right = '';
+          document.body.style.width = '';
+        }
+        
+        // Restore scroll position
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY, 10));
+        }
+        
+        // Clear global variables
+        delete window.__NUSENSE_TEST_PREVIOUS_OVERFLOW__;
+        delete window.__NUSENSE_TEST_PREVIOUS_POSITION__;
+        delete window.__NUSENSE_TEST_PREVIOUS_TOP__;
       } catch {
-        // ignore
+        // Fallback: try to restore manually
+        try {
+          document.body.style.overflow = '';
+          document.body.style.position = '';
+          document.body.style.top = '';
+          document.body.style.left = '';
+          document.body.style.right = '';
+          document.body.style.width = '';
+          if (document.body.dataset.nusenseTestScrollY) {
+            const scrollY = parseInt(document.body.dataset.nusenseTestScrollY, 10);
+            window.scrollTo(0, scrollY);
+            delete document.body.dataset.nusenseTestScrollY;
+          }
+        } catch {
+          // ignore
+        }
       }
 
       try {
@@ -782,6 +888,23 @@
     overlay.appendChild(container);
 
     document.body.appendChild(overlay);
+    
+    // Prevent body scroll using safer method
+    // Store scroll position before applying fixed position
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.dataset.nusenseTestScrollY = scrollY.toString();
+    
+    // Use position: fixed method to prevent scroll without breaking layout
+    const originalPosition = document.body.style.position || '';
+    const originalTop = document.body.style.top || '';
+    window.__NUSENSE_TEST_PREVIOUS_POSITION__ = originalPosition;
+    window.__NUSENSE_TEST_PREVIOUS_TOP__ = originalTop;
+    
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
     document.body.style.overflow = 'hidden';
   };
 

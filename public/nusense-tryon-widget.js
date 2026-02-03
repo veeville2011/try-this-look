@@ -24,8 +24,97 @@
 
   // Store original body overflow to restore it properly
   let originalBodyOverflow = null;
+  let originalBodyPosition = null;
   let currentResizeHandler = null;
   let isOpeningWidget = false; // Flag to prevent concurrent modal opens
+  let escapeHandler = null;
+  let closeMessageHandler = null;
+  
+  // Safety mechanism: Check and restore any stuck styles on page load
+  // This ensures the page is never left in a broken state from previous sessions
+  function checkAndRestoreStuckStyles() {
+    try {
+      // Check if overlay exists but shouldn't (page reloaded with stuck overlay)
+      const stuckOverlay = document.getElementById('nusense-widget-overlay');
+      if (stuckOverlay && !window.NUSENSE_WIDGET_OPEN) {
+        stuckOverlay.remove();
+      }
+      
+      // Check if body/html have overflow hidden but no overlay (stuck state)
+      const bodyOverflow = window.getComputedStyle(document.body).overflow;
+      const htmlOverflow = window.getComputedStyle(document.documentElement).overflow;
+      const hasOverlay = !!document.getElementById('nusense-widget-overlay');
+      
+      if ((bodyOverflow === 'hidden' || htmlOverflow === 'hidden') && !hasOverlay) {
+        // Styles are stuck - restore them
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        document.body.style.position = '';
+        if (document.documentElement.dataset.nusenseOriginalOverflow !== undefined) {
+          delete document.documentElement.dataset.nusenseOriginalOverflow;
+        }
+        if (config.debug) {
+          console.log('NUSENSE: Restored stuck styles on page load');
+        }
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+  
+  // Run check immediately and on DOM ready
+  checkAndRestoreStuckStyles();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkAndRestoreStuckStyles);
+  }
+  
+  // Safety mechanism: Always restore body overflow on page unload
+  window.addEventListener('beforeunload', function() {
+    restoreBodyScroll();
+  });
+  
+  // Safety mechanism: Restore body overflow if widget overlay is removed externally
+  function restoreBodyScroll() {
+    try {
+      // Always restore, even if variables are null (safety net)
+      if (originalBodyOverflow !== null && originalBodyOverflow !== undefined) {
+        document.body.style.overflow = originalBodyOverflow;
+      } else {
+        document.body.style.overflow = '';
+      }
+      
+      if (originalBodyPosition !== null && originalBodyPosition !== undefined) {
+        document.body.style.position = originalBodyPosition;
+      } else {
+        document.body.style.position = '';
+      }
+      
+      // Restore html element overflow
+      const htmlElement = document.documentElement;
+      if (htmlElement && htmlElement.dataset.nusenseOriginalOverflow !== undefined) {
+        htmlElement.style.overflow = htmlElement.dataset.nusenseOriginalOverflow;
+        delete htmlElement.dataset.nusenseOriginalOverflow;
+      } else {
+        htmlElement.style.overflow = '';
+      }
+      
+      // Reset variables
+      originalBodyOverflow = null;
+      originalBodyPosition = null;
+    } catch (error) {
+      // Fallback: try to restore manually
+      try {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.documentElement.style.overflow = '';
+      } catch (e) {
+        // Silently fail if restoration fails
+      }
+      if (config.debug) {
+        console.warn('NUSENSE: Error in restoreBodyScroll:', error);
+      }
+    }
+  }
 
   // Single delegated event listener on document body (more efficient and prevents duplicates)
   function handleButtonClick(e) {
@@ -130,7 +219,7 @@
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.id = 'nusense-widget-overlay';
-    overlay.style.cssText = `
+      overlay.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
@@ -141,36 +230,41 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      animation: fadeIn 0.2s ease;
+      animation: nusense-fadeIn 0.2s ease;
     `;
 
-    // Add fade-in animation and styles (only once)
-    const styleId = 'nusense-widget-styles';
-    let style = document.getElementById(styleId);
-    if (!style) {
-      style = document.createElement('style');
-      style.id = styleId;
-      style.textContent = `
-      @keyframes fadeIn {
+      // Add fade-in animation and styles (only once)
+      // Scope styles to NUSENSE-specific IDs to avoid conflicts with Shopify themes
+      const styleId = 'nusense-widget-styles';
+      let style = document.getElementById(styleId);
+      if (!style) {
+        style = document.createElement('style');
+        style.id = styleId;
+        // Scope all styles to NUSENSE-specific IDs to prevent conflicts
+        style.textContent = `
+      @keyframes nusense-fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
       }
-      @keyframes slideUp {
+      @keyframes nusense-slideUp {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
+      #nusense-widget-overlay {
+        animation: nusense-fadeIn 0.2s ease;
+      }
       #nusense-widget-container {
-        animation: slideUp 0.3s ease;
+        animation: nusense-slideUp 0.3s ease;
       }
       @media (min-width: 768px) {
-        #nusense-widget-container {
+        #nusense-widget-container[id="nusense-widget-container"] {
           width: 900px !important;
           max-width: 900px !important;
           min-width: 900px !important;
         }
       }
       @media (max-width: 767px) {
-        #nusense-widget-container {
+        #nusense-widget-container[id="nusense-widget-container"] {
           width: 95vw !important;
           max-width: 95vw !important;
         }
@@ -283,22 +377,47 @@
     };
     window.addEventListener('resize', currentResizeHandler);
 
-    // Prevent body scroll - store original value to restore later
-    originalBodyOverflow = document.body.style.overflow || '';
+    // Prevent body scroll using a safer method that preserves layout
+    // Store original values to restore later
+    const bodyComputedStyle = window.getComputedStyle(document.body);
+    originalBodyOverflow = document.body.style.overflow || bodyComputedStyle.overflow || '';
+    originalBodyPosition = document.body.style.position || bodyComputedStyle.position || '';
+    
+    // Use position: fixed method to prevent scroll without breaking layout
+    // This is safer than overflow: hidden which can cause layout recalculation issues
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    
+    // Store scroll position
+    document.body.dataset.nusenseScrollY = scrollY.toString();
+    
+    // Apply position fixed to prevent scroll (preserves layout better than overflow: hidden)
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    
+    // Only set overflow hidden on body (not html) to avoid breaking Shopify layouts
     document.body.style.overflow = 'hidden';
+    
+    // DO NOT modify html element overflow - this can break Shopify product page layouts
+    // The body overflow hidden is sufficient to prevent scrolling
 
     // Close on escape key
-    const escapeHandler = function(e) {
+    escapeHandler = function(e) {
       if (e.key === 'Escape') {
         closeWidget();
-        document.removeEventListener('keydown', escapeHandler);
+        if (escapeHandler) {
+          document.removeEventListener('keydown', escapeHandler);
+          escapeHandler = null;
+        }
       }
     };
     document.addEventListener('keydown', escapeHandler);
 
     // Listen for close messages from iframe
     // Use a namespaced handler to avoid conflicts with other apps
-    const closeMessageHandler = function(e) {
+    closeMessageHandler = function(e) {
       // Only handle NUSENSE messages to avoid interfering with stock alerts and other apps
       if (!e || !e.data || e.data.type !== 'NUSENSE_CLOSE_WIDGET') {
         return;
@@ -325,7 +444,10 @@
 
       if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {
         closeWidget();
-        window.removeEventListener('message', closeMessageHandler);
+        if (closeMessageHandler) {
+          window.removeEventListener('message', closeMessageHandler);
+          closeMessageHandler = null;
+        }
       }
     };
     window.addEventListener('message', closeMessageHandler);
@@ -336,29 +458,110 @@
   // Close widget
   function closeWidget() {
     const overlay = document.getElementById('nusense-widget-overlay');
+    
+    // Always restore body scroll FIRST, even if overlay not found
+    // This ensures the page is never left in a broken state
+    try {
+      // Restore scroll position first
+      const scrollY = document.body.dataset.nusenseScrollY;
+      if (scrollY) {
+        delete document.body.dataset.nusenseScrollY;
+      }
+      
+      // Restore body styles
+      if (originalBodyOverflow !== null && originalBodyOverflow !== undefined) {
+        document.body.style.overflow = originalBodyOverflow;
+      } else {
+        document.body.style.overflow = '';
+      }
+      
+      if (originalBodyPosition !== null && originalBodyPosition !== undefined) {
+        document.body.style.position = originalBodyPosition;
+      } else {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+      }
+      
+      // Restore scroll position
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY, 10));
+      }
+      
+      // Reset variables
+      originalBodyOverflow = null;
+      originalBodyPosition = null;
+      
+    } catch (error) {
+      if (config.debug) {
+        console.warn('NUSENSE: Error restoring body scroll:', error);
+      }
+      // Fallback: try to restore manually
+      try {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        if (document.body.dataset.nusenseScrollY) {
+          const scrollY = parseInt(document.body.dataset.nusenseScrollY, 10);
+          window.scrollTo(0, scrollY);
+          delete document.body.dataset.nusenseScrollY;
+        }
+      } catch (e) {
+        // Silently fail if restoration fails
+      }
+    }
+    
+    // Remove event listeners
+    if (escapeHandler) {
+      document.removeEventListener('keydown', escapeHandler);
+      escapeHandler = null;
+    }
+    
+    if (closeMessageHandler) {
+      window.removeEventListener('message', closeMessageHandler);
+      closeMessageHandler = null;
+    }
+    
+    // Remove resize handler
+    if (currentResizeHandler) {
+      window.removeEventListener('resize', currentResizeHandler);
+      currentResizeHandler = null;
+    }
+    
     if (overlay) {
       // Reset opening flags
       isOpeningWidget = false;
       window.NUSENSE_IS_OPENING = false;
       
-      // Remove resize handler
-      if (currentResizeHandler) {
-        window.removeEventListener('resize', currentResizeHandler);
-        currentResizeHandler = null;
+      // Add fadeOut animation if not already defined
+      const fadeOutStyleId = 'nusense-widget-fadeout-styles';
+      if (!document.getElementById(fadeOutStyleId)) {
+        const fadeOutStyle = document.createElement('style');
+        fadeOutStyle.id = fadeOutStyleId;
+        fadeOutStyle.textContent = `
+          @keyframes nusense-fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+          }
+        `;
+        document.head.appendChild(fadeOutStyle);
       }
-      
-      overlay.style.animation = 'fadeOut 0.2s ease';
+      overlay.style.animation = 'nusense-fadeOut 0.2s ease';
       setTimeout(function() {
-        if (overlay.parentNode) {
-          overlay.parentNode.removeChild(overlay);
+        try {
+          if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+        } catch (error) {
+          if (config.debug) {
+            console.warn('NUSENSE: Error removing overlay:', error);
+          }
         }
-        // Restore original overflow value instead of clearing it
-        if (originalBodyOverflow !== null) {
-          document.body.style.overflow = originalBodyOverflow;
-        } else {
-          document.body.style.overflow = '';
-        }
-        originalBodyOverflow = null;
       }, 200);
     } else {
       // Reset flags even if overlay not found
