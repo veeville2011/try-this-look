@@ -1019,10 +1019,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Smoothly animate to 100%
       const finalProgress = 100;
       const startProgress = currentProgressRef.current;
+      let completionIntervalRef: number | null = null;
+      
       if (startProgress < finalProgress) {
         const completionDuration = 500; // 500ms
         const completionStartTime = Date.now();
-        const completionInterval = setInterval(() => {
+        completionIntervalRef = window.setInterval(() => {
           const elapsed = Date.now() - completionStartTime;
           const completionProgress = Math.min(elapsed / completionDuration, 1);
           const newProgress = Math.round(startProgress + (finalProgress - startProgress) * completionProgress);
@@ -1030,7 +1032,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           setProgress(newProgress);
           
           if (completionProgress >= 1) {
-            clearInterval(completionInterval);
+            if (completionIntervalRef) {
+              clearInterval(completionIntervalRef);
+              completionIntervalRef = null;
+            }
             currentProgressRef.current = finalProgress;
             setProgress(finalProgress);
           }
@@ -1043,9 +1048,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       if (result.status === 'success' && result.image) {
         setGeneratedImage(result.image);
         storage.saveGeneratedImage(result.image);
-        setStep('complete');
+        
+        // When API completes, ensure progress is 100% and show finalizing state
+        // Clear any running completion interval and set progress immediately
+        if (completionIntervalRef) {
+          clearInterval(completionIntervalRef);
+        }
+        currentProgressRef.current = 100;
         setProgress(100);
-        setStatusMessage('Try-on complete!');
+        setStatusMessage('Finalizing your try-on...');
+        
+        // Show finalizing state for 800ms before transitioning to complete
+        setTimeout(() => {
+          setStep('complete');
+          setStatusMessage('Try-on complete!');
+        }, 800);
         
         // Refetch history to show the latest image first
         if (customerInfo?.email) {
@@ -1455,14 +1472,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Generate stable particle positions for celebration animation
   const celebrationParticles = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => ({
+    return Array.from({ length: 20 }, (_, i) => ({
       id: i,
-      width: Math.random() * 20 + 10,
-      height: Math.random() * 20 + 10,
+      width: Math.random() * 25 + 12,
+      height: Math.random() * 25 + 12,
       left: Math.random() * 100,
-      top: Math.random() * 100,
-      animationDelay: Math.random() * 2,
-      animationDuration: Math.random() * 3 + 2,
+      top: 60 + Math.random() * 30, // Start from middle-bottom area
+      animationDelay: Math.random() * 1.5, // Stagger bubbles over 1.5s
+      animationDuration: Math.random() * 2 + 3, // 3-5 seconds duration
     }));
   }, []);
 
@@ -1817,7 +1834,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     )}
 
-                    {step === 'generating' && (
+                    {step === 'generating' && progress < 100 && (
                       <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
                         {/* Circular Spinner - Continuous Rotation */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
@@ -1866,21 +1883,76 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     )}
 
+                    {step === 'generating' && progress === 100 && (
+                      <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
+                        {/* Checkmark Animation - Success indicator */}
+                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6 flex items-center justify-center">
+                          {/* Completed circle background */}
+                          <div className="absolute inset-0 rounded-full bg-orange-100 flex items-center justify-center animate-scale-in">
+                            <div className="w-full h-full rounded-full border-4 border-[#c96442]"></div>
+                          </div>
+                          {/* Checkmark icon - appears after circle */}
+                          <CheckCircle 
+                            size={56} 
+                            className="text-[#c96442] relative z-10 animate-scale-in-delayed"
+                            strokeWidth={2.5}
+                            fill="currentColor"
+                          />
+                        </div>
+                        
+                        {/* Status Text - Finalizing */}
+                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-6">
+                          {statusMessage || 'Finalizing your try-on...'}
+                        </h3>
+                        
+                        {/* Progress Bar - Full */}
+                        <div className="w-full max-w-xs mx-auto mb-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                            <div
+                              className="bg-[#c96442] h-2.5 rounded-full transition-all duration-300 ease-out"
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Percentage - 100% */}
+                        <p className="text-sm sm:text-base font-medium text-gray-700">100%</p>
+                      </div>
+                    )}
+
                     {step === 'complete' && generatedImage && (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden animate-slide-fade-in">
+                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
                         {/* Subtle background gradient */}
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 rounded-md" />
                         
-                        {/* Success Badge */}
-                        <div className="relative z-10 mb-4">
+                        {/* Celebration Bubbles - Floating particles */}
+                        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                          {celebrationParticles.map((particle) => (
+                            <div
+                              key={particle.id}
+                              className="absolute rounded-full bg-gradient-to-br from-orange-200/60 via-orange-100/40 to-orange-300/50 blur-sm"
+                              style={{
+                                width: `${particle.width}px`,
+                                height: `${particle.height}px`,
+                                left: `${particle.left}%`,
+                                top: `${particle.top}%`,
+                                animation: `bubbleFloatUp ${particle.animationDuration}s ease-out ${particle.animationDelay + 0.5}s forwards`,
+                                opacity: 0,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        
+                        {/* Success Badge - Fades in slowly */}
+                        <div className="relative z-10 mb-4" style={{ animation: 'fadeInSlow 1.2s ease-out 0.3s forwards', opacity: 0 }}>
                           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-green-100">
                             <CheckCircle size={18} className="text-green-500 flex-shrink-0" fill="currentColor" />
                             <span className="text-sm font-semibold text-gray-800">Try-on complete!</span>
                           </div>
                         </div>
 
-                        {/* Result Image */}
-                        <div className="relative z-10 w-full max-w-sm mb-4">
+                        {/* Result Image - Fades in slowly with scale */}
+                        <div className="relative z-10 w-full max-w-sm mb-4" style={{ animation: 'imageReveal 1.5s ease-out 0.5s forwards', opacity: 0, transform: 'scale(0.95)' }}>
                           <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100">
                             <img
                               src={generatedImage}
@@ -1892,19 +1964,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </div>
                         </div>
 
-                        {/* Helper Text */}
-                        <div className="relative z-10">
+                        {/* Helper Text - Fades in after image */}
+                        <div className="relative z-10" style={{ animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
                           <p className="text-xs sm:text-sm text-gray-600 font-medium text-center px-4">
                             Select your size below to add to cart
                           </p>
                         </div>
 
-                        {/* Try Again Button */}
+                        {/* Try Again Button - Fades in last */}
                         <button
                           onClick={handleReset}
                           className="relative z-10 mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center gap-1.5 group"
                           aria-label="Try again"
                           type="button"
+                          style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
                         >
                           <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
                           <span>Not perfect? Try again</span>
