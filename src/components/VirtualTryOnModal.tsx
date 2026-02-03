@@ -437,12 +437,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Fetch try-on history from API
   useEffect(() => {
-    if (!customerInfo?.email) return;
+    if (!customerInfo?.email) {
+      setHistoryItems([]);
+      setIsLoadingHistory(false);
+      return;
+    }
+
+    let isMounted = true;
 
     const loadHistory = async () => {
+      if (!isMounted) return;
+      
       setIsLoadingHistory(true);
       try {
         const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
+        console.log('[VirtualTryOnModal] Fetching history:', {
+          email: customerInfo.email,
+          shopDomain,
+          hasStoreInfo: !!storeInfo,
+        });
+        
         const response = await fetchCustomerImageHistory(
           customerInfo.email!,
           1,
@@ -450,48 +464,96 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           shopDomain || undefined
         );
 
-        if (response.success && response.data) {
-          // Map API data to match UI structure
-          const history = response.data.map((item) => {
-            const date = new Date(item.createdAt);
-            const now = new Date();
-            const diffTime = Math.abs(now.getTime() - date.getTime());
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            
-            let timeLabel = '';
-            if (diffDays === 0) {
-              timeLabel = 'Today';
-            } else if (diffDays === 1) {
-              timeLabel = '1 day ago';
-            } else if (diffDays < 7) {
-              timeLabel = `${diffDays} days ago`;
-            } else if (diffDays < 14) {
-              timeLabel = '1 week ago';
-            } else if (diffDays < 30) {
-              const weeks = Math.floor(diffDays / 7);
-              timeLabel = `${weeks} week${weeks > 1 ? 's' : ''} ago`;
-            } else {
-              const months = Math.floor(diffDays / 30);
-              timeLabel = `${months} month${months > 1 ? 's' : ''} ago`;
-            }
+        if (!isMounted) return;
 
-            return {
-              id: item.id,
-              image: item.generatedImageUrl, // Use generated image for history display
-              time: timeLabel,
-            };
+        console.log('[VirtualTryOnModal] History response:', {
+          success: response.success,
+          dataLength: response.data?.length || 0,
+          pagination: response.pagination,
+          firstItem: response.data?.[0],
+        });
+
+        if (response.success && Array.isArray(response.data)) {
+          if (response.data.length > 0) {
+            // Map API data to match UI structure
+            const history = response.data.map((item) => {
+              if (!item || !item.id || !item.generatedImageUrl) {
+                console.warn('[VirtualTryOnModal] Invalid history item:', item);
+                return null;
+              }
+
+              const date = new Date(item.createdAt);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - date.getTime());
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+              
+              let timeLabel = '';
+              if (diffDays === 0) {
+                timeLabel = 'Today';
+              } else if (diffDays === 1) {
+                timeLabel = '1 day ago';
+              } else if (diffDays < 7) {
+                timeLabel = `${diffDays} days ago`;
+              } else if (diffDays < 14) {
+                timeLabel = '1 week ago';
+              } else if (diffDays < 30) {
+                const weeks = Math.floor(diffDays / 7);
+                timeLabel = `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+              } else {
+                const months = Math.floor(diffDays / 30);
+                timeLabel = `${months} month${months > 1 ? 's' : ''} ago`;
+              }
+
+              return {
+                id: item.id,
+                image: item.generatedImageUrl, // Use generated image for history display
+                time: timeLabel,
+              };
+            }).filter((item): item is { id: string; image: string; time: string } => item !== null);
+            
+            console.log('[VirtualTryOnModal] Setting history items:', history.length);
+            if (isMounted) {
+              setHistoryItems(history);
+            }
+          } else {
+            console.log('[VirtualTryOnModal] History data is empty array');
+            if (isMounted) {
+              setHistoryItems([]);
+            }
+          }
+        } else {
+          console.warn('[VirtualTryOnModal] Invalid response structure:', {
+            success: response.success,
+            hasData: !!response.data,
+            isArray: Array.isArray(response.data),
           });
-          setHistoryItems(history);
+          if (isMounted) {
+            setHistoryItems([]);
+          }
         }
       } catch (error) {
         console.error('[VirtualTryOnModal] Failed to fetch history:', error);
-        // Keep empty array on error - UI will show empty state
+        if (isMounted) {
+          setHistoryItems([]);
+        }
       } finally {
-        setIsLoadingHistory(false);
+        if (isMounted) {
+          setIsLoadingHistory(false);
+        }
       }
     };
 
-    loadHistory();
+    // Add a small delay to ensure storeInfo is loaded if it's being fetched
+    // But don't wait too long - try immediately if storeInfo is already available
+    const delay = storeInfo ? 0 : 500;
+    const timeoutId = setTimeout(() => {
+      loadHistory();
+    }, delay);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [customerInfo?.email, storeInfo]);
 
   // Handle photo upload
