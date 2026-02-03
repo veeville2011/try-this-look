@@ -36,8 +36,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<string | null>(null);
   const [photoSelectionMethod, setPhotoSelectionMethod] = useState<'file' | 'demo' | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [personImageError, setPersonImageError] = useState<boolean>(false);
-  const [generatedImageError, setGeneratedImageError] = useState<boolean>(false);
   
   // Product images
   const [productImages, setProductImages] = useState<string[]>([]);
@@ -509,13 +507,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const savedResult = storage.getGeneratedImage();
 
     if (savedImage) {
-      setPersonImageError(false);
       setUploadedImage(savedImage);
     }
     // Don't restore savedClothing from storage - always use fresh product images from parent
     // The first product image will be auto-selected when images are received
     if (savedResult) {
-      setGeneratedImageError(false);
       setGeneratedImage(savedResult);
       setStep('complete');
     }
@@ -729,7 +725,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     demoPhotoUrl?: string,
     photoId?: string | number
   ) => {
-    setPersonImageError(false);
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
     setError(null);
@@ -788,7 +783,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         generatedReader.readAsDataURL(generatedBlob);
       });
       
-      setGeneratedImageError(false);
       setGeneratedImage(generatedDataURL);
       storage.saveGeneratedImage(generatedDataURL);
       
@@ -808,7 +802,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             personReader.readAsDataURL(personBlob);
           });
           
-          setPersonImageError(false);
           setUploadedImage(personDataURL);
           storage.saveUploadedImage(personDataURL);
           setSelectedDemoPhotoUrl(null);
@@ -1198,7 +1191,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
 
       if (result.status === 'success' && result.image) {
-        setGeneratedImageError(false);
         setGeneratedImage(result.image);
         storage.saveGeneratedImage(result.image);
         
@@ -1443,12 +1435,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const handleReset = useCallback(() => {
     setStep('idle');
     setUploadedImage(null);
-    setPersonImageError(false);
     // Don't clear selectedClothing and selectedClothingKey - keep the product image visible in "YOU'RE TRYING ON" section
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
     setGeneratedImage(null);
-    setGeneratedImageError(false);
     setProgress(0);
     currentProgressRef.current = 0;
     setElapsedTime(0);
@@ -1745,23 +1735,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                       </>
                     )}
-                    {uploadedImage && !personImageError ? (
+                    {uploadedImage ? (
                       <div className="w-full flex flex-col items-center gap-2">
                         <img
                           src={uploadedImage}
                           alt="Uploaded photo"
                           className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-orange-200"
-                          onError={() => {
-                            setPersonImageError(true);
-                            setUploadedImage(null);
-                            storage.saveUploadedImage(null);
-                          }}
                         />
                         <button
                           onClick={() => {
                             setUploadedImage(null);
                             setSelectedPhoto(null);
-                            setPersonImageError(false);
                             storage.saveUploadedImage(null);
                           }}
                           className="text-xs text-gray-500 hover:text-gray-700 underline"
@@ -2120,24 +2104,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
 
                         {/* Result Image - Fades in slowly with scale */}
-                        {!generatedImageError && (
-                          <div className="relative z-10 w-full max-w-sm mb-4" style={{ animation: 'imageReveal 1.5s ease-out 0.5s forwards', opacity: 0, transform: 'scale(0.95)' }}>
-                            <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100">
-                              <img
-                                src={generatedImage}
-                                className="w-full h-auto object-contain rounded-lg"
-                                alt="Try-on result"
-                                onError={() => {
-                                  setGeneratedImageError(true);
-                                  setGeneratedImage(null);
-                                  storage.saveGeneratedImage(null);
-                                }}
-                              />
-                              {/* Subtle border glow */}
-                              <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
-                            </div>
+                        <div className="relative z-10 w-full max-w-sm mb-4" style={{ animation: 'imageReveal 1.5s ease-out 0.5s forwards', opacity: 0, transform: 'scale(0.95)' }}>
+                          <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100">
+                            <img
+                              src={generatedImage}
+                              className="w-full h-auto object-contain rounded-lg"
+                              alt="Try-on result"
+                            />
+                            {/* Subtle border glow */}
+                            <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
                           </div>
-                        )}
+                        </div>
 
                         {/* Helper Text - Fades in after image */}
                         <div className="relative z-10" style={{ animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
