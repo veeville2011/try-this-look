@@ -74,7 +74,75 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [historyItems, setHistoryItems] = useState<Array<{ id: string; image: string }>>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  const sizes = ['S', 'M', 'L', 'XL'];
+  // Extract sizes from product variants dynamically
+  const extractSizesFromProduct = useCallback(() => {
+    // Access product data directly from state to avoid circular dependency
+    const currentProductData = storedProductData || productData || (() => {
+      if (typeof window === 'undefined') return null;
+      try {
+        if (window.parent !== window && (window.parent as any).NUSENSE_PRODUCT_DATA) {
+          return (window.parent as any).NUSENSE_PRODUCT_DATA;
+        }
+        if ((window as any).NUSENSE_PRODUCT_DATA) {
+          return (window as any).NUSENSE_PRODUCT_DATA;
+        }
+      } catch (error) {
+        // Cross-origin access might fail
+      }
+      return null;
+    })();
+    
+    if (!currentProductData) {
+      return []; // No fallback - return empty array if no product data
+    }
+
+    const variants = (currentProductData as any)?.variants?.nodes || 
+                     (currentProductData as any)?.variants || 
+                     [];
+    
+    if (variants.length === 0) {
+      return []; // No fallback - return empty array if no variants
+    }
+
+    // Find the size option from variants
+    const sizeValues = new Set<string>();
+    variants.forEach((variant: any) => {
+      const selectedOptions = variant?.selectedOptions || variant?.options || [];
+      const sizeOption = selectedOptions.find((opt: any) => 
+        opt?.name?.toLowerCase() === 'size' || 
+        opt?.name?.toLowerCase() === 'taille' ||
+        opt?.name?.toLowerCase() === 'sizes'
+      );
+      
+      if (sizeOption?.value) {
+        sizeValues.add(sizeOption.value.toUpperCase());
+      } else {
+        // Fallback: try to extract from variant title
+        const title = variant?.title || '';
+        const sizeMatch = title.match(/\b([XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|5XL]+)\b/i);
+        if (sizeMatch) {
+          sizeValues.add(sizeMatch[1].toUpperCase());
+        }
+      }
+    });
+
+    if (sizeValues.size > 0) {
+      // Sort sizes in a logical order
+      const sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '2XL', '3XL', '4XL', '5XL'];
+      return Array.from(sizeValues).sort((a, b) => {
+        const indexA = sizeOrder.findIndex(s => s === a);
+        const indexB = sizeOrder.findIndex(s => s === b);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a.localeCompare(b);
+      });
+    }
+
+    return []; // No fallback - return empty array if no sizes found
+  }, [storedProductData, productData]);
+
+  const sizes = useMemo(() => extractSizesFromProduct(), [extractSizesFromProduct]);
   const progressTimerRef = useRef<number | null>(null);
   const elapsedTimerRef = useRef<number | null>(null);
   const currentProgressRef = useRef<number>(0);
@@ -248,8 +316,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       if (event.data && event.data.type === 'NUSENSE_PRODUCT_DATA') {
         console.log('[VirtualTryOnModal] Received NUSENSE_PRODUCT_DATA:', event.data.productData);
         if (event.data.productData) {
-          setStoredProductData(event.data.productData);
-          setProductData(event.data.productData);
+          const newProductData = event.data.productData;
+          setStoredProductData(newProductData);
+          setProductData(newProductData);
+          
+          // Reset selected clothing when product changes to ensure we show the correct product image
+          // Only reset if the product ID actually changed
+          const currentProductId = storedProductData?.id || productData?.id;
+          const newProductId = newProductData?.id;
+          
+          if (currentProductId && newProductId && currentProductId !== newProductId) {
+            // Product changed - reset clothing selection
+            setSelectedClothing(null);
+            setSelectedClothingKey(null);
+            hasAutoSelectedFirstImageRef.current = false;
+          }
         }
       }
 
@@ -381,7 +462,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectedClothing, storedProductData, getProductData]);
+  }, [selectedClothing, storedProductData, getProductData, productData]);
 
   // Restore saved state from storage
   useEffect(() => {
@@ -575,10 +656,48 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     if (imageUrl) {
       const clothingId = productImagesWithIds.get(imageUrl) || null;
       setSelectedClothingKey(clothingId);
+      
+      // Update product data if we have variant-specific image
+      if (clothingId) {
+        // Get current product data
+        const currentProductData = storedProductData || productData || (() => {
+          if (typeof window === 'undefined') return null;
+          try {
+            if (window.parent !== window && (window.parent as any).NUSENSE_PRODUCT_DATA) {
+              return (window.parent as any).NUSENSE_PRODUCT_DATA;
+            }
+            if ((window as any).NUSENSE_PRODUCT_DATA) {
+              return (window as any).NUSENSE_PRODUCT_DATA;
+            }
+          } catch (error) {
+            // Cross-origin access might fail
+          }
+          return null;
+        })();
+        
+        if (currentProductData) {
+          const variants = (currentProductData as any)?.variants?.nodes || 
+                           (currentProductData as any)?.variants || 
+                           [];
+          const matchingVariant = variants.find((v: any) => 
+            String(v?.id) === String(clothingId) || 
+            String(v?.variant_id) === String(clothingId)
+          );
+          
+          if (matchingVariant) {
+            // Update selected variant in product data
+            setProductData((prev: any) => ({
+              ...prev,
+              selectedVariantId: matchingVariant.id || matchingVariant.variant_id,
+              variantId: matchingVariant.id || matchingVariant.variant_id,
+            }));
+          }
+        }
+      }
     } else {
       setSelectedClothingKey(null);
     }
-  }, [productImagesWithIds]);
+  }, [productImagesWithIds, storedProductData, productData]);
   
   // Get size availability for all sizes
   const getSizeAvailability = useCallback(() => {
@@ -587,8 +706,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return sizes.map(size => ({ size, isAvailable: false, variantId: null, inventoryQty: null }));
     }
 
-    const variants = (currentProductData as any)?.variants || 
-                     (currentProductData as any)?.variants?.nodes || 
+    const variants = (currentProductData as any)?.variants?.nodes || 
+                     (currentProductData as any)?.variants || 
                      [];
     
     return sizes.map(size => {
@@ -597,7 +716,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         // Check selectedOptions for size
         const selectedOptions = v?.selectedOptions || v?.options || [];
         const sizeOption = selectedOptions.find((opt: any) => 
-          opt?.name?.toLowerCase() === 'size' || opt?.name?.toLowerCase() === 'taille'
+          opt?.name?.toLowerCase() === 'size' || 
+          opt?.name?.toLowerCase() === 'taille' ||
+          opt?.name?.toLowerCase() === 'sizes'
         );
         
         if (sizeOption) {
@@ -606,14 +727,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         
         // Fallback: check if title contains the size
         const title = v?.title || '';
-        return title.toUpperCase().includes(size.toUpperCase());
+        // Match exact size or size in title (e.g., "M" or "Size M")
+        const sizeRegex = new RegExp(`\\b${size}\\b`, 'i');
+        return sizeRegex.test(title);
       });
 
       if (!variant) {
         return { size, isAvailable: false, variantId: null, inventoryQty: null };
       }
 
-      const isAvailable = variant.available !== false && variant.availableForSale !== false;
+      const isAvailable = variant.available !== false && 
+                         variant.availableForSale !== false &&
+                         (variant.inventoryQuantity === null || variant.inventoryQuantity > 0);
       const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? null;
       const variantId = variant.id || variant.variant_id || null;
 
@@ -624,10 +749,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         inventoryQty,
       };
     });
-  }, [storedProductData, getProductData]);
+  }, [storedProductData, getProductData, sizes]);
 
   // Memoize size availability to avoid recalculating multiple times
-  const sizeAvailability = useMemo(() => getSizeAvailability(), [getSizeAvailability]);
+  const sizeAvailability = useMemo(() => getSizeAvailability(), [getSizeAvailability, sizes]);
 
   // Check variant stock availability
   const checkVariantStock = useCallback(() => {
@@ -933,7 +1058,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Handle add to cart
   const handleAddToCart = useCallback(() => {
-    if (!selectedSize) {
+    // Only require size selection if sizes are available
+    if (sizes.length > 0 && !selectedSize) {
       toast.error('Please select a size');
       return;
     }
@@ -942,22 +1068,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const isInIframe = window.parent !== window;
     const currentProductData = getProductData() || productData;
 
-    // Get variant ID for selected size
-    const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
-    
-    if (!selectedSizeInfo || !selectedSizeInfo.isAvailable) {
-      setIsAddToCartLoading(false);
-      toast.error('Selected size is not available');
-      return;
+    // Get variant ID for selected size (if sizes are available)
+    let variantId: string | number | null = null;
+    if (sizes.length > 0 && selectedSize) {
+      const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+      
+      if (!selectedSizeInfo || !selectedSizeInfo.isAvailable) {
+        setIsAddToCartLoading(false);
+        toast.error('Selected size is not available');
+        return;
+      }
+      
+      variantId = selectedSizeInfo.variantId;
+    }
+
+    // Fallback to default variant if no size selection needed
+    if (!variantId) {
+      variantId = currentProductData?.variantId || 
+                  currentProductData?.variants?.[0]?.id || 
+                  currentProductData?.selectedVariantId ||
+                  null;
     }
 
     if (isInIframe) {
-      const variantId = selectedSizeInfo.variantId || 
-                        currentProductData?.variantId || 
-                        currentProductData?.variants?.[0]?.id || 
-                        null;
-      
-      if (!variantId) {
+      if (!variantId && sizes.length > 0) {
         setIsAddToCartLoading(false);
         toast.error('Product variant not available');
         return;
@@ -967,7 +1101,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         type: 'NUSENSE_ADD_TO_CART',
         ...(currentProductData && { product: currentProductData }),
         quantity: cartQuantity,
-        variantId: variantId,
+        ...(variantId && { variantId: variantId }),
       };
       window.parent.postMessage(message, '*');
 
@@ -977,15 +1111,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }, 10000);
     } else {
       setIsAddToCartLoading(false);
-      setToastMessage(`Added to cart (Size ${selectedSize})!`);
+      const sizeText = selectedSize ? ` (Size ${selectedSize})` : '';
+      setToastMessage(`Added to cart${sizeText}!`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
-  }, [selectedSize, productData, cartQuantity, getProductData, sizeAvailability]);
+  }, [selectedSize, sizes, productData, cartQuantity, getProductData, sizeAvailability]);
 
   // Handle buy now
   const handleBuyNow = useCallback(() => {
-    if (!selectedSize) {
+    // Only require size selection if sizes are available
+    if (sizes.length > 0 && !selectedSize) {
       toast.error('Please select a size');
       return;
     }
@@ -994,11 +1130,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const isInIframe = window.parent !== window;
     const currentProductData = storedProductData || getProductData();
 
+    // Get variant ID for selected size (if sizes are available)
+    let variantId: string | number | null = null;
+    if (sizes.length > 0 && selectedSize) {
+      const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+      variantId = selectedSizeInfo?.variantId || null;
+    }
+
+    // Fallback to default variant if no size selection needed
+    if (!variantId) {
+      variantId = currentProductData?.variantId || 
+                  currentProductData?.variants?.[0]?.id || 
+                  currentProductData?.selectedVariantId ||
+                  null;
+    }
+
     if (isInIframe) {
       const message = {
         type: 'NUSENSE_BUY_NOW',
         ...(currentProductData && { product: currentProductData }),
         quantity: cartQuantity,
+        ...(variantId && { variantId: variantId }),
       };
       window.parent.postMessage(message, '*');
 
@@ -1010,11 +1162,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setIsBuyNowLoading(false);
       toast.info('Buy now feature requires Shopify integration');
     }
-  }, [selectedSize, storedProductData, cartQuantity, getProductData]);
+  }, [selectedSize, sizes, storedProductData, cartQuantity, getProductData, sizeAvailability]);
 
   // Handle notify me
   const handleNotifyMe = useCallback(() => {
-    if (!selectedSize) {
+    // Only require size selection if sizes are available
+    if (sizes.length > 0 && !selectedSize) {
       toast.error('Please select a size');
       return;
     }
@@ -1023,19 +1176,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const isInIframe = window.parent !== window;
     const currentProductData = storedProductData || getProductData();
 
-    // Get variant ID for selected size
-    const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
-    const variantId = selectedSizeInfo?.variantId ?? 
-                      variantStockInfo?.variantId ?? 
-                      (currentProductData as any)?.selectedVariantId ?? 
-                      (currentProductData as any)?.variants?.[0]?.id ?? 
-                      null;
+    // Get variant ID for selected size (if sizes are available)
+    let variantId: string | number | null = null;
+    if (sizes.length > 0 && selectedSize) {
+      const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+      variantId = selectedSizeInfo?.variantId ?? null;
+    }
+
+    // Fallback to default variant if no size selection needed
+    if (!variantId) {
+      variantId = variantStockInfo?.variantId ?? 
+                  (currentProductData as any)?.selectedVariantId ?? 
+                  (currentProductData as any)?.variants?.[0]?.id ?? 
+                  null;
+    }
 
     if (isInIframe) {
       const message = {
         type: 'NUSENSE_NOTIFY_ME',
         ...(currentProductData && { product: currentProductData }),
-        variantId: variantId,
+        ...(variantId && { variantId: variantId }),
       };
       window.parent.postMessage(message, '*');
 
@@ -1046,7 +1206,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setIsNotifyMeLoading(false);
       toast.info('You will be notified when this item is back in stock!');
     }
-  }, [selectedSize, storedProductData, variantStockInfo, getProductData, sizeAvailability]);
+  }, [selectedSize, sizes, storedProductData, variantStockInfo, getProductData, sizeAvailability]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -1122,30 +1282,34 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       };
     }
     if (step === 'complete') {
-      if (!selectedSize) {
-        return {
-          text: 'Select a Size',
-          icon: null,
-          disabled: true,
-          action: () => {},
-          color: 'gray',
-        };
+      // If sizes are available, require size selection
+      if (sizes.length > 0) {
+        if (!selectedSize) {
+          return {
+            text: 'Select a Size',
+            icon: null,
+            disabled: true,
+            action: () => {},
+            color: 'gray',
+          };
+        }
+        
+        // Check if selected size is available
+        const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+        const isSizeAvailable = selectedSizeInfo?.isAvailable ?? false;
+        
+        if (!isSizeAvailable) {
+          return {
+            text: 'Notify Me',
+            icon: <Bell size={16} />,
+            disabled: isNotifyMeLoading,
+            action: handleNotifyMe,
+            color: 'orange',
+          };
+        }
       }
       
-      // Check if selected size is available
-      const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
-      const isSizeAvailable = selectedSizeInfo?.isAvailable ?? false;
-      
-      if (!isSizeAvailable) {
-        return {
-          text: 'Notify Me',
-          icon: <Bell size={16} />,
-          disabled: isNotifyMeLoading,
-          action: handleNotifyMe,
-          color: 'orange',
-        };
-      }
-      
+      // If no sizes available or size is selected and available, show add to cart
       return {
         text: currentCartQuantity > 0 ? `Add to Cart (${currentCartQuantity})` : 'Add to Cart',
         icon: <ShoppingCart size={16} />,
@@ -1161,14 +1325,75 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       action: handleGenerate,
       color: 'gray',
     };
-  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart]);
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart]);
 
   const btnState = getButtonState();
 
   // Get product info for display
   const currentProductData = getProductData() || productData;
-  const productTitle = currentProductData?.title || 'Product';
-  const productImage = selectedClothing || productImages[0] || 'https://assets.adidas.com/images/h_840,f_auto,q_auto,fl_lossy,c_fill,g_auto/3bbecbdf584e40398446a8bf0117cf62_9366/Tiro_19_Jersey_Black_DW9146_01_laydown.jpg';
+  const productTitle = currentProductData?.title || currentProductData?.name || 'Product';
+  
+  // Always use the currently selected clothing image, or first product image
+  const productImage = selectedClothing || productImages[0] || null;
+  
+  // Get variant information for display
+  const getVariantInfo = useCallback(() => {
+    if (!currentProductData) return null;
+    
+    // Try to get selected variant
+    let selectedVariant: any = null;
+    const variants = (currentProductData as any)?.variants?.nodes || 
+                     (currentProductData as any)?.variants || 
+                     [];
+    
+    // Check for selected variant ID
+    let selectedVariantId: string | number | null = null;
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const variantParam = urlParams.get('variant');
+        if (variantParam) selectedVariantId = variantParam;
+      }
+    } catch {}
+    
+    if (!selectedVariantId) {
+      selectedVariantId = (currentProductData as any)?.selectedVariantId ?? 
+                          (currentProductData as any)?.variantId ?? 
+                          null;
+    }
+    
+    if (selectedVariantId && variants.length > 0) {
+      selectedVariant = variants.find((v: any) =>
+        String(v?.id) === String(selectedVariantId) || 
+        String(v?.variant_id) === String(selectedVariantId)
+      );
+    }
+    
+    // If no selected variant, use first variant
+    if (!selectedVariant && variants.length > 0) {
+      selectedVariant = variants[0];
+    }
+    
+    if (!selectedVariant) return null;
+    
+    // Extract variant options (excluding size)
+    const selectedOptions = selectedVariant?.selectedOptions || selectedVariant?.options || [];
+    const variantInfo: string[] = [];
+    
+    selectedOptions.forEach((opt: any) => {
+      const optionName = opt?.name?.toLowerCase() || '';
+      const optionValue = opt?.value || '';
+      
+      // Skip size option as it's shown separately
+      if (optionName !== 'size' && optionName !== 'taille' && optionName !== 'sizes' && optionValue) {
+        variantInfo.push(`${opt.name}: ${optionValue}`);
+      }
+    });
+    
+    return variantInfo.length > 0 ? variantInfo.join(' • ') : null;
+  }, [currentProductData]);
+  
+  const variantInfo = useMemo(() => getVariantInfo(), [getVariantInfo]);
 
   // Generate stable particle positions for celebration animation
   const celebrationParticles = useMemo(() => {
@@ -1223,17 +1448,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </button>
           </div>
 
-          {selectedClothing && (
+          {selectedClothing && productImage && (
             <div className="w-full px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100">
               <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md">
                 <img
                   src={productImage}
-                  alt="Product"
+                  alt={productTitle}
                   className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 border-2 border-white rounded-md"
+                  onError={(e) => {
+                    // Fallback to first product image if selected clothing fails to load
+                    if (productImages[0] && (e.target as HTMLImageElement).src !== productImages[0]) {
+                      (e.target as HTMLImageElement).src = productImages[0];
+                    }
+                  }}
                 />
-                <div className="flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0 flex-1">
                   <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1">YOU'RE TRYING ON</div>
                   <div className="text-xs sm:text-sm font-semibold text-gray-800 leading-tight truncate">{productTitle}</div>
+                  {variantInfo && (
+                    <div className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate mt-0.5">{variantInfo}</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1624,58 +1858,61 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
               {/* Bottom Action Section */}
               <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-4 sm:py-5">
-                <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-                  <span className="text-xs sm:text-sm text-gray-500 mr-0.5 sm:mr-1 self-center">Size:</span>
-                  {sizes.map((size) => {
-                    const sizeInfo = sizeAvailability.find(s => s.size === size);
-                    const isAvailable = sizeInfo?.isAvailable ?? false;
-                    const isSelected = selectedSize === size;
-                    
-                    return (
-                      <button
-                        key={size}
-                        onClick={() => isAvailable && setSelectedSize(size)}
-                        disabled={!isAvailable}
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
-                          !isAvailable
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : isSelected
-                            ? 'bg-black text-white border-black'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                        }`}
-                        aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
-                        type="button"
-                      >
-                        {size}
-                      </button>
-                    );
-                  })}
-                  {(() => {
-                    const availableSizes = sizeAvailability.filter(s => s.isAvailable).map(s => s.size);
-                    const outOfStockSizes = sizeAvailability.filter(s => !s.isAvailable).map(s => s.size);
-                    
-                    if (availableSizes.length > 0 && outOfStockSizes.length > 0) {
+                {/* Only show size selection if sizes are available */}
+                {sizes.length > 0 && (
+                  <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+                    <span className="text-xs sm:text-sm text-gray-500 mr-0.5 sm:mr-1 self-center">Size:</span>
+                    {sizes.map((size) => {
+                      const sizeInfo = sizeAvailability.find(s => s.size === size);
+                      const isAvailable = sizeInfo?.isAvailable ?? false;
+                      const isSelected = selectedSize === size;
+                      
                       return (
-                        <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
-                          Available: {availableSizes.join(', ')} | Out of stock: {outOfStockSizes.join(', ')}
-                        </span>
+                        <button
+                          key={size}
+                          onClick={() => isAvailable && setSelectedSize(size)}
+                          disabled={!isAvailable}
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                            !isAvailable
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : isSelected
+                              ? 'bg-black text-white border-black'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                          }`}
+                          aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
+                          type="button"
+                        >
+                          {size}
+                        </button>
                       );
-                    } else if (availableSizes.length > 0) {
-                      return (
-                        <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
-                          Available in {availableSizes.join(', ')}
-                        </span>
-                      );
-                    } else if (outOfStockSizes.length > 0) {
-                      return (
-                        <span className="text-[10px] sm:text-xs text-red-400 ml-1 sm:ml-2">
-                          All sizes out of stock
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
+                    })}
+                    {(() => {
+                      const availableSizes = sizeAvailability.filter(s => s.isAvailable).map(s => s.size);
+                      const outOfStockSizes = sizeAvailability.filter(s => !s.isAvailable).map(s => s.size);
+                      
+                      if (availableSizes.length > 0 && outOfStockSizes.length > 0) {
+                        return (
+                          <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
+                            Available: {availableSizes.join(', ')} | Out of stock: {outOfStockSizes.join(', ')}
+                          </span>
+                        );
+                      } else if (availableSizes.length > 0) {
+                        return (
+                          <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
+                            Available in {availableSizes.join(', ')}
+                          </span>
+                        );
+                      } else if (outOfStockSizes.length > 0) {
+                        return (
+                          <span className="text-[10px] sm:text-xs text-red-400 ml-1 sm:ml-2">
+                            All sizes out of stock
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
 
                 <button
                   onClick={btnState.action}
