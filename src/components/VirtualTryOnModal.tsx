@@ -1231,8 +1231,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const handleReset = useCallback(() => {
     setStep('idle');
     setUploadedImage(null);
-    setSelectedClothing(null);
-    setSelectedClothingKey(null);
+    // Don't clear selectedClothing and selectedClothingKey - keep the product image visible in "YOU'RE TRYING ON" section
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
     setGeneratedImage(null);
@@ -1241,7 +1240,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setElapsedTime(0);
     setError(null);
     setSelectedSize(null);
-    storage.clearSession();
+    // Only clear uploaded image and generated result from storage, keep clothing selection
+    storage.saveUploadedImage(null);
+    storage.saveGeneratedImage(null);
   }, []);
 
   // Handle close
@@ -1470,12 +1471,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </button>
           </div>
 
-          {selectedClothing && (
+          {(selectedClothing || productImage) && (
             <div className="w-full px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100">
               <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md">
                 <img
-                  key={selectedClothing} // Force re-render when selectedClothing changes
-                  src={selectedClothing}
+                  key={selectedClothing || productImage} // Force re-render when selectedClothing changes
+                  src={selectedClothing || productImage || ''}
                   alt={productTitle}
                   className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 border-2 border-white rounded-md"
                   onError={(e) => {
@@ -1775,10 +1776,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'generating' && (
-                      <div className="text-center w-full px-6 sm:px-8 py-8">
-                        {/* Circular Spinner - Upper Center */}
+                      <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
+                        {/* Circular Spinner - Continuous Rotation */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
-                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                          <svg className="w-full h-full animate-spin-slow" viewBox="0 0 100 100">
                             {/* Background circle - light gray */}
                             <circle 
                               cx="50" 
@@ -1788,7 +1789,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               stroke="#e5e7eb" 
                               strokeWidth="8" 
                             />
-                            {/* Progress circle - warm orange-brown */}
+                            {/* Rotating arc - warm orange-brown */}
                             <circle
                               cx="50"
                               cy="50"
@@ -1796,10 +1797,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               fill="none"
                               stroke="#c96442"
                               strokeWidth="8"
-                              strokeDasharray="283"
-                              strokeDashoffset={283 - (283 * progress) / 100}
-                              className="transition-all duration-75 ease-linear"
+                              strokeDasharray="70 213"
                               strokeLinecap="round"
+                              className="origin-center"
                             />
                           </svg>
                         </div>
@@ -1825,63 +1825,39 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'complete' && generatedImage && (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
+                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden animate-slide-fade-in">
                         {/* Subtle background gradient */}
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 rounded-md" />
                         
-                        {/* Celebration Particles - Subtle and elegant */}
-                        <div className="absolute inset-0 overflow-hidden rounded-md pointer-events-none">
-                          {celebrationParticles.map((particle) => (
-                            <div
-                              key={particle.id}
-                              className="absolute rounded-full bg-gradient-to-br from-orange-200/40 to-orange-300/30 blur-sm"
-                              style={{
-                                width: `${particle.width}px`,
-                                height: `${particle.height}px`,
-                                left: `${particle.left}%`,
-                                top: `${particle.top}%`,
-                                animation: `floatUp ${particle.animationDuration}s ease-out ${particle.animationDelay}s infinite`,
-                              }}
-                            />
-                          ))}
-                        </div>
-
-                        {/* Success Badge - Animated fade-in from top */}
-                        <div className="relative z-10 mb-4 animate-fade-in-down">
+                        {/* Success Badge */}
+                        <div className="relative z-10 mb-4">
                           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-green-100">
                             <CheckCircle size={18} className="text-green-500 flex-shrink-0" fill="currentColor" />
                             <span className="text-sm font-semibold text-gray-800">Try-on complete!</span>
                           </div>
                         </div>
 
-                        {/* Result Image - Smooth scale and fade animation */}
+                        {/* Result Image */}
                         <div className="relative z-10 w-full max-w-sm mb-4">
-                          <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100 animate-scale-in">
-                            {/* Shine effect overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shine pointer-events-none" />
-                            
+                          <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100">
                             <img
                               src={generatedImage}
                               className="w-full h-auto object-contain rounded-lg"
                               alt="Try-on result"
-                              style={{
-                                animation: 'fadeInScale 0.6s ease-out',
-                              }}
                             />
-                            
                             {/* Subtle border glow */}
                             <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
                           </div>
                         </div>
 
-                        {/* Helper Text - Fade in with delay */}
-                        <div className="relative z-10 animate-fade-in-delay">
+                        {/* Helper Text */}
+                        <div className="relative z-10">
                           <p className="text-xs sm:text-sm text-gray-600 font-medium text-center px-4">
                             Select your size below to add to cart
                           </p>
                         </div>
 
-                        {/* Try Again Button - Subtle and unobtrusive */}
+                        {/* Try Again Button */}
                         <button
                           onClick={handleReset}
                           className="relative z-10 mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center gap-1.5 group"
