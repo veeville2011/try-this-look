@@ -188,6 +188,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Check if we're inside an iframe
   const isInIframe = typeof window !== 'undefined' && window.parent !== window;
 
+  // Helper function to get proxied image URL to avoid CORS issues
+  const getProxiedImageUrl = useCallback((imageUrl: string): string => {
+    // If URL is already from our domain or relative, return as-is
+    try {
+      const url = new URL(imageUrl, window.location.href);
+      // If it's from S3 or external domain, use proxy
+      if (url.hostname.includes('s3') || url.hostname !== window.location.hostname) {
+        return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+      }
+    } catch {
+      // If URL parsing fails, assume it's external and use proxy
+      return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+    }
+    return imageUrl;
+  }, []);
+
   // Format countdown timer
   const formatCountdownTimer = (elapsedSeconds: number): string => {
     const totalSeconds = 50;
@@ -661,6 +677,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setSelectedDemoPhotoUrl(null);
     }
   }, []);
+
+  // Trigger file input for photo upload (reusable function)
+  const triggerPhotoUpload = useCallback(() => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataURL = reader.result as string;
+          handlePhotoUpload(dataURL, false, undefined);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    fileInput.click();
+  }, [handlePhotoUpload]);
 
   // Handle clothing selection
   const handleClothingSelect = useCallback((imageUrl: string) => {
@@ -1555,24 +1590,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors w-full justify-center shadow-sm"
                         aria-label="Upload photo"
                         type="button"
-                        onClick={() => {
-                          // Trigger file input
-                          const fileInput = document.createElement('input');
-                          fileInput.type = 'file';
-                          fileInput.accept = 'image/*';
-                          fileInput.onchange = (e) => {
-                            const file = (e.target as HTMLInputElement).files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                const dataURL = reader.result as string;
-                                handlePhotoUpload(dataURL, false, undefined);
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          };
-                          fileInput.click();
-                        }}
+                        onClick={triggerPhotoUpload}
                       >
                         <Upload size={16} /> Upload Photo
                       </button>
@@ -1603,8 +1621,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             onTouchEnd={(e) => handleTouchEnd(e, () => {
                               setSelectedPhoto(photo.id);
                               // Load the photo and set it as uploaded
-                              fetch(photo.src)
-                                .then(res => res.blob())
+                              const proxiedUrl = getProxiedImageUrl(photo.src);
+                              fetch(proxiedUrl)
+                                .then(res => {
+                                  if (!res.ok) {
+                                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                                  }
+                                  return res.blob();
+                                })
                                 .then(blob => {
                                   const reader = new FileReader();
                                   reader.onloadend = () => {
@@ -1613,7 +1637,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   };
                                   reader.readAsDataURL(blob);
                                 })
-                                .catch(() => {
+                                .catch((error) => {
+                                  console.error('[VirtualTryOnModal] Failed to load recent photo:', error);
                                   toast.error('Failed to load photo');
                                 });
                             })}
@@ -1622,8 +1647,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               if (!('ontouchstart' in window)) {
                                 setSelectedPhoto(photo.id);
                                 // Load the photo and set it as uploaded
-                                fetch(photo.src)
-                                  .then(res => res.blob())
+                                const proxiedUrl = getProxiedImageUrl(photo.src);
+                                fetch(proxiedUrl)
+                                  .then(res => {
+                                    if (!res.ok) {
+                                      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                                  }
+                                    return res.blob();
+                                  })
                                   .then(blob => {
                                     const reader = new FileReader();
                                     reader.onloadend = () => {
@@ -1632,7 +1663,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     };
                                     reader.readAsDataURL(blob);
                                   })
-                                  .catch(() => {
+                                  .catch((error) => {
+                                    console.error('[VirtualTryOnModal] Failed to load recent photo:', error);
                                     toast.error('Failed to load photo');
                                   });
                               }
@@ -1645,7 +1677,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             aria-label={`Select photo ${photo.id}`}
                             type="button"
                           >
-                            <img src={photo.src} alt="User" className="h-full w-auto object-contain border-2 border-white rounded-md" />
+                            <img 
+                              src={getProxiedImageUrl(photo.src)} 
+                              alt="User" 
+                              className="h-full w-auto object-contain border-2 border-white rounded-md"
+                              onError={(e) => {
+                                // Fallback to direct URL if proxy fails
+                                if ((e.target as HTMLImageElement).src !== photo.src) {
+                                  (e.target as HTMLImageElement).src = photo.src;
+                                }
+                              }}
+                            />
                           </button>
                         ))
                       ) : (
@@ -2036,8 +2078,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           onTouchMove={handleTouchMove}
                           onTouchEnd={(e) => handleTouchEnd(e, () => {
                             // Load the history image and set it as generated
-                            fetch(item.image)
-                              .then(res => res.blob())
+                            const proxiedUrl = getProxiedImageUrl(item.image);
+                            fetch(proxiedUrl)
+                              .then(res => {
+                                if (!res.ok) {
+                                  throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                                }
+                                return res.blob();
+                              })
                               .then(blob => {
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
@@ -2048,7 +2096,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 };
                                 reader.readAsDataURL(blob);
                               })
-                              .catch(() => {
+                              .catch((error) => {
+                                console.error('[VirtualTryOnModal] Failed to load history image:', error);
                                 toast.error('Failed to load try-on result');
                               });
                           })}
@@ -2056,8 +2105,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             // Only handle click if not on touch device (touch events handle touch devices)
                             if (!('ontouchstart' in window)) {
                               // Load the history image and set it as generated
-                              fetch(item.image)
-                                .then(res => res.blob())
+                              const proxiedUrl = getProxiedImageUrl(item.image);
+                              fetch(proxiedUrl)
+                                .then(res => {
+                                  if (!res.ok) {
+                                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                                  }
+                                  return res.blob();
+                                })
                                 .then(blob => {
                                   const reader = new FileReader();
                                   reader.onloadend = () => {
@@ -2068,7 +2123,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   };
                                   reader.readAsDataURL(blob);
                                 })
-                                .catch(() => {
+                                .catch((error) => {
+                                  console.error('[VirtualTryOnModal] Failed to load history image:', error);
                                   toast.error('Failed to load try-on result');
                                 });
                             }
@@ -2082,20 +2138,71 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           type="button"
                         >
                           <img 
-                            src={item.image} 
+                            src={getProxiedImageUrl(item.image)} 
                             alt={`Try-on history ${item.id}`} 
                             className="h-full w-auto object-contain border-2 border-white rounded-md" 
+                            onError={(e) => {
+                              // Fallback to direct URL if proxy fails
+                              if ((e.target as HTMLImageElement).src !== item.image) {
+                                (e.target as HTMLImageElement).src = item.image;
+                              }
+                            }}
                           />
                         </button>
                       );
                     })}
-                    <div className="flex-shrink-0 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center bg-gray-50">
-                      <span className="text-gray-300 text-[10px] sm:text-xs">+</span>
-                    </div>
+                    <button
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={(e) => handleTouchEnd(e, () => {
+                        triggerPhotoUpload();
+                      })}
+                      onClick={() => {
+                        // Only handle click if not on touch device (touch events handle touch devices)
+                        if (!('ontouchstart' in window)) {
+                          triggerPhotoUpload();
+                        }
+                      }}
+                      className="flex-shrink-0 h-14 w-14 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer"
+                      aria-label="Upload new photo for try-on"
+                      type="button"
+                    >
+                      <Upload 
+                        size={18} 
+                        className="text-gray-400 group-hover:text-orange-500 transition-colors duration-200" 
+                        strokeWidth={2}
+                      />
+                      <span className="text-[9px] text-gray-400 group-hover:text-orange-500 font-medium mt-0.5 transition-colors duration-200">
+                        New
+                      </span>
+                    </button>
                   </>
                 ) : (
                   <div className="flex items-center justify-center w-full py-1.5 sm:py-2">
-                    <span className="text-xs text-gray-400 text-center px-2">No try-on history yet. Generate your first try-on to see it here.</span>
+                    <button
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={(e) => handleTouchEnd(e, () => {
+                        triggerPhotoUpload();
+                      })}
+                      onClick={() => {
+                        if (!('ontouchstart' in window)) {
+                          triggerPhotoUpload();
+                        }
+                      }}
+                      className="flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-md bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer"
+                      aria-label="Upload photo to start try-on"
+                      type="button"
+                    >
+                      <Upload 
+                        size={20} 
+                        className="text-gray-400 group-hover:text-orange-500 transition-colors duration-200" 
+                        strokeWidth={2}
+                      />
+                      <span className="text-xs text-gray-500 group-hover:text-orange-600 font-medium transition-colors duration-200">
+                        Upload photo to start
+                      </span>
+                    </button>
                   </div>
                 )}
                 </div>
