@@ -287,12 +287,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setProductImages(images);
         setProductImagesWithIds(new Map());
         
-        // Auto-select first clothing image if none is selected yet
-        if (images.length > 0 && !selectedClothing && !hasAutoSelectedFirstImageRef.current) {
+        // Always auto-select first clothing image (main product image) when extracted from page
+        // First image is the main/featured product image in Shopify
+        if (images.length > 0) {
           const firstImage = images[0];
-          setSelectedClothing(firstImage);
-          storage.saveClothingUrl(firstImage);
-          hasAutoSelectedFirstImageRef.current = true;
+          // Always select first image if none selected or if ref hasn't been set
+          if (!selectedClothing || !hasAutoSelectedFirstImageRef.current) {
+            setSelectedClothing(firstImage);
+            storage.saveClothingUrl(firstImage);
+            hasAutoSelectedFirstImageRef.current = true;
+          }
         }
       }
     }
@@ -326,9 +330,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           const newProductId = newProductData?.id;
           
           if (currentProductId && newProductId && currentProductId !== newProductId) {
-            // Product changed - reset clothing selection
+            // Product changed - reset clothing selection so new product's first image will be selected
             setSelectedClothing(null);
             setSelectedClothingKey(null);
+            hasAutoSelectedFirstImageRef.current = false;
+            // Clear saved clothing from storage to ensure fresh product image is used
+            storage.saveClothingUrl(null);
+          } else if (!currentProductId && newProductId) {
+            // First time receiving product data - reset to ensure first image is selected
             hasAutoSelectedFirstImageRef.current = false;
           }
         }
@@ -356,17 +365,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           setProductImagesWithIds(imageIdMap);
           setIsLoadingImages(false);
           
-          // Auto-select first clothing image if none is selected yet
-          // Use setTimeout to ensure handleClothingSelect is available
-          if (imageUrls.length > 0 && !selectedClothing && !hasAutoSelectedFirstImageRef.current) {
-            const firstImage = imageUrls[0];
-            setTimeout(() => {
+          // Always auto-select the first image (main/featured product image) when images are received from parent
+          // The first image in Shopify is typically the main/featured product image (position 1)
+          if (imageUrls.length > 0) {
+            const firstImage = imageUrls[0]; // First image is the main product image
+            const currentSelected = selectedClothing;
+            const isCurrentSelectionValid = currentSelected && imageUrls.includes(currentSelected);
+            
+            // Always select first image if:
+            // 1. No image is currently selected, OR
+            // 2. Current selection is not in the new images list (product changed), OR
+            // 3. This is the first time images are received (hasAutoSelectedFirstImageRef is false)
+            if (!isCurrentSelectionValid || !hasAutoSelectedFirstImageRef.current) {
               setSelectedClothing(firstImage);
               storage.saveClothingUrl(firstImage);
               const clothingId = imageIdMap.get(firstImage) || null;
               setSelectedClothingKey(clothingId);
               hasAutoSelectedFirstImageRef.current = true;
-            }, 0);
+            }
           }
         } else {
           setIsLoadingImages(false);
@@ -464,18 +480,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     return () => window.removeEventListener('message', handleMessage);
   }, [selectedClothing, storedProductData, getProductData, productData]);
 
-  // Restore saved state from storage
+  // Restore saved state from storage (but prioritize fresh product images from parent)
   useEffect(() => {
     const savedImage = storage.getUploadedImage();
-    const savedClothing = storage.getClothingUrl();
     const savedResult = storage.getGeneratedImage();
 
     if (savedImage) {
       setUploadedImage(savedImage);
     }
-    if (savedClothing) {
-      setSelectedClothing(savedClothing);
-    }
+    // Don't restore savedClothing from storage - always use fresh product images from parent
+    // The first product image will be auto-selected when images are received
     if (savedResult) {
       setGeneratedImage(savedResult);
       setStep('complete');
@@ -1334,7 +1348,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const productTitle = currentProductData?.title || currentProductData?.name || 'Product';
   
   // Always use the currently selected clothing image, or first product image
-  const productImage = selectedClothing || productImages[0] || null;
+  // Use useMemo to ensure it updates when selectedClothing or productImages change
+  const productImage = useMemo(() => {
+    return selectedClothing || productImages[0] || null;
+  }, [selectedClothing, productImages]);
   
   // Get variant information for display
   const getVariantInfo = useCallback(() => {
@@ -1448,11 +1465,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </button>
           </div>
 
-          {selectedClothing && productImage && (
+          {selectedClothing && (
             <div className="w-full px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100">
               <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md">
                 <img
-                  src={productImage}
+                  key={selectedClothing} // Force re-render when selectedClothing changes
+                  src={selectedClothing}
                   alt={productTitle}
                   className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 border-2 border-white rounded-md"
                   onError={(e) => {
