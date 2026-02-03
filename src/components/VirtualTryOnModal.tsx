@@ -475,18 +475,29 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
         if (response.success && Array.isArray(response.data)) {
           if (response.data.length > 0) {
-            // Map API data to match UI structure
-            const history = response.data.map((item) => {
-              if (!item || !item.id || !item.generatedImageUrl) {
-                console.warn('[VirtualTryOnModal] Invalid history item:', item);
-                return null;
-              }
+            // Map API data to match UI structure and sort by createdAt (newest first)
+            const history = response.data
+              .map((item) => {
+                if (!item || !item.id || !item.generatedImageUrl) {
+                  console.warn('[VirtualTryOnModal] Invalid history item:', item);
+                  return null;
+                }
 
-              return {
-                id: item.id,
-                image: item.generatedImageUrl, // Use generated image for history display
-              };
-            }).filter((item): item is { id: string; image: string } => item !== null);
+                return {
+                  id: item.id,
+                  image: item.generatedImageUrl, // Use generated image for history display
+                  createdAt: item.createdAt || item.updatedAt || '',
+                };
+              })
+              .filter((item): item is { id: string; image: string; createdAt: string } => item !== null)
+              .sort((a, b) => {
+                // Sort by createdAt descending (newest first)
+                if (!a.createdAt && !b.createdAt) return 0;
+                if (!a.createdAt) return 1;
+                if (!b.createdAt) return -1;
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+              })
+              .map(({ id, image }) => ({ id, image })); // Remove createdAt from final structure
             
             console.log('[VirtualTryOnModal] Setting history items:', history.length);
             if (isMounted) {
@@ -569,6 +580,55 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [productImagesWithIds]);
   
+  // Get size availability for all sizes
+  const getSizeAvailability = useCallback(() => {
+    const currentProductData = storedProductData || getProductData();
+    if (!currentProductData) {
+      return sizes.map(size => ({ size, isAvailable: false, variantId: null, inventoryQty: null }));
+    }
+
+    const variants = (currentProductData as any)?.variants || 
+                     (currentProductData as any)?.variants?.nodes || 
+                     [];
+    
+    return sizes.map(size => {
+      // Find variant matching this size
+      const variant = variants.find((v: any) => {
+        // Check selectedOptions for size
+        const selectedOptions = v?.selectedOptions || v?.options || [];
+        const sizeOption = selectedOptions.find((opt: any) => 
+          opt?.name?.toLowerCase() === 'size' || opt?.name?.toLowerCase() === 'taille'
+        );
+        
+        if (sizeOption) {
+          return sizeOption.value?.toUpperCase() === size.toUpperCase();
+        }
+        
+        // Fallback: check if title contains the size
+        const title = v?.title || '';
+        return title.toUpperCase().includes(size.toUpperCase());
+      });
+
+      if (!variant) {
+        return { size, isAvailable: false, variantId: null, inventoryQty: null };
+      }
+
+      const isAvailable = variant.available !== false && variant.availableForSale !== false;
+      const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? null;
+      const variantId = variant.id || variant.variant_id || null;
+
+      return {
+        size,
+        isAvailable,
+        variantId,
+        inventoryQty,
+      };
+    });
+  }, [storedProductData, getProductData]);
+
+  // Memoize size availability to avoid recalculating multiple times
+  const sizeAvailability = useMemo(() => getSizeAvailability(), [getSizeAvailability]);
+
   // Check variant stock availability
   const checkVariantStock = useCallback(() => {
     const currentProductData = storedProductData || getProductData();
@@ -807,6 +867,46 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setStep('complete');
         setProgress(100);
         setStatusMessage('Try-on complete!');
+        
+        // Refetch history to show the latest image first
+        if (customerInfo?.email) {
+          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
+          fetchCustomerImageHistory(
+            customerInfo.email,
+            1,
+            10,
+            shopDomain || undefined
+          )
+            .then((response) => {
+              if (response.success && Array.isArray(response.data)) {
+                if (response.data.length > 0) {
+                  const history = response.data
+                    .map((item) => {
+                      if (!item || !item.id || !item.generatedImageUrl) {
+                        return null;
+                      }
+                      return {
+                        id: item.id,
+                        image: item.generatedImageUrl,
+                        createdAt: item.createdAt || item.updatedAt || '',
+                      };
+                    })
+                    .filter((item): item is { id: string; image: string; createdAt: string } => item !== null)
+                    .sort((a, b) => {
+                      if (!a.createdAt && !b.createdAt) return 0;
+                      if (!a.createdAt) return 1;
+                      if (!b.createdAt) return -1;
+                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    })
+                    .map(({ id, image }) => ({ id, image }));
+                  setHistoryItems(history);
+                }
+              }
+            })
+            .catch((error) => {
+              console.error('[VirtualTryOnModal] Failed to refetch history after generation:', error);
+            });
+        }
       } else {
         throw new Error(result.error_message?.message || 'Generation failed');
       }
@@ -842,8 +942,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const isInIframe = window.parent !== window;
     const currentProductData = getProductData() || productData;
 
+    // Get variant ID for selected size
+    const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+    
+    if (!selectedSizeInfo || !selectedSizeInfo.isAvailable) {
+      setIsAddToCartLoading(false);
+      toast.error('Selected size is not available');
+      return;
+    }
+
     if (isInIframe) {
-      const variantId = currentProductData?.variantId || currentProductData?.variants?.[0]?.id || null;
+      const variantId = selectedSizeInfo.variantId || 
+                        currentProductData?.variantId || 
+                        currentProductData?.variants?.[0]?.id || 
+                        null;
+      
       if (!variantId) {
         setIsAddToCartLoading(false);
         toast.error('Product variant not available');
@@ -868,7 +981,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
-  }, [selectedSize, productData, cartQuantity, getProductData]);
+  }, [selectedSize, productData, cartQuantity, getProductData, sizeAvailability]);
 
   // Handle buy now
   const handleBuyNow = useCallback(() => {
@@ -901,15 +1014,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Handle notify me
   const handleNotifyMe = useCallback(() => {
+    if (!selectedSize) {
+      toast.error('Please select a size');
+      return;
+    }
+
     setIsNotifyMeLoading(true);
     const isInIframe = window.parent !== window;
     const currentProductData = storedProductData || getProductData();
 
+    // Get variant ID for selected size
+    const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+    const variantId = selectedSizeInfo?.variantId ?? 
+                      variantStockInfo?.variantId ?? 
+                      (currentProductData as any)?.selectedVariantId ?? 
+                      (currentProductData as any)?.variants?.[0]?.id ?? 
+                      null;
+
     if (isInIframe) {
-      const variantId = variantStockInfo?.variantId ?? 
-                        (currentProductData as any)?.selectedVariantId ?? 
-                        (currentProductData as any)?.variants?.[0]?.id ?? 
-                        null;
       const message = {
         type: 'NUSENSE_NOTIFY_ME',
         ...(currentProductData && { product: currentProductData }),
@@ -924,7 +1046,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setIsNotifyMeLoading(false);
       toast.info('You will be notified when this item is back in stock!');
     }
-  }, [storedProductData, variantStockInfo, getProductData]);
+  }, [selectedSize, storedProductData, variantStockInfo, getProductData, sizeAvailability]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -979,7 +1101,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [handleClose]);
 
   // Get button state
-  const getButtonState = () => {
+  const getButtonState = useCallback(() => {
     if (step === 'idle') {
       const canGenerate = uploadedImage && selectedClothing;
       return {
@@ -1009,7 +1131,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           color: 'gray',
         };
       }
-      if (selectedSize === 'XL') {
+      
+      // Check if selected size is available
+      const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+      const isSizeAvailable = selectedSizeInfo?.isAvailable ?? false;
+      
+      if (!isSizeAvailable) {
         return {
           text: 'Notify Me',
           icon: <Bell size={16} />,
@@ -1018,6 +1145,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           color: 'orange',
         };
       }
+      
       return {
         text: currentCartQuantity > 0 ? `Add to Cart (${currentCartQuantity})` : 'Add to Cart',
         icon: <ShoppingCart size={16} />,
@@ -1033,7 +1161,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       action: handleGenerate,
       color: 'gray',
     };
-  };
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart]);
 
   const btnState = getButtonState();
 
@@ -1058,8 +1186,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   return (
     <div className="w-full h-screen bg-white font-sans relative overflow-hidden">
       {/* Modal container */}
-      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center p-4 sm:p-6 md:p-8">
-        <div className="bg-white w-full max-w-[1200px] h-full max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] md:max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden relative shadow-2xl rounded-lg">
+      <div className="fixed inset-0 z-50 bg-white flex items-start justify-center">
+        <div className="bg-white w-full max-w-[1200px] h-full flex flex-col overflow-hidden relative shadow-2xl rounded-lg">
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -1498,25 +1626,55 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-4 sm:py-5">
                 <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                   <span className="text-xs sm:text-sm text-gray-500 mr-0.5 sm:mr-1 self-center">Size:</span>
-                  {sizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => size !== 'XL' && setSelectedSize(size)}
-                      disabled={size === 'XL'}
-                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
-                        size === 'XL'
-                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                          : selectedSize === size
-                          ? 'bg-black text-white border-black'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                      }`}
-                      aria-label={`Select size ${size}`}
-                      type="button"
-                    >
-                      {size}
-                    </button>
-                  ))}
-                  <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">Available in S-L</span>
+                  {sizes.map((size) => {
+                    const sizeInfo = sizeAvailability.find(s => s.size === size);
+                    const isAvailable = sizeInfo?.isAvailable ?? false;
+                    const isSelected = selectedSize === size;
+                    
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => isAvailable && setSelectedSize(size)}
+                        disabled={!isAvailable}
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                          !isAvailable
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-black text-white border-black'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                        }`}
+                        aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
+                        type="button"
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                  {(() => {
+                    const availableSizes = sizeAvailability.filter(s => s.isAvailable).map(s => s.size);
+                    const outOfStockSizes = sizeAvailability.filter(s => !s.isAvailable).map(s => s.size);
+                    
+                    if (availableSizes.length > 0 && outOfStockSizes.length > 0) {
+                      return (
+                        <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
+                          Available: {availableSizes.join(', ')} | Out of stock: {outOfStockSizes.join(', ')}
+                        </span>
+                      );
+                    } else if (availableSizes.length > 0) {
+                      return (
+                        <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
+                          Available in {availableSizes.join(', ')}
+                        </span>
+                      );
+                    } else if (outOfStockSizes.length > 0) {
+                      return (
+                        <span className="text-[10px] sm:text-xs text-red-400 ml-1 sm:ml-2">
+                          All sizes out of stock
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <button
@@ -1577,7 +1735,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
 
               {/* History Section */}
-              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 h-[80px] sm:h-[100px] flex flex-col justify-center overflow-hidden">
+              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 min-h-[120px] sm:min-h-[140px] flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-1.5 sm:mb-2">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
                   <button className="text-[10px] sm:text-xs text-orange-500 font-medium hover:underline" type="button">
@@ -1586,39 +1744,88 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 <div 
-                  className="flex gap-2 sm:gap-3 overflow-x-auto overflow-y-hidden pb-2 scrollbar-hide"
+                  className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide"
                   style={{ 
                     scrollbarWidth: 'none', 
                     msOverflowStyle: 'none',
                     WebkitOverflowScrolling: 'touch',
                     touchAction: 'pan-x',
-                    overscrollBehaviorX: 'contain',
-                    overscrollBehaviorY: 'none'
+                    overscrollBehaviorX: 'contain'
                   }}
                 >
                 {isLoadingHistory ? (
-                  <div className="text-[10px] sm:text-xs text-gray-500">Loading...</div>
+                  <div className="text-xs text-gray-500">Loading...</div>
                 ) : historyItems.length > 0 ? (
                   <>
-                    {historyItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 bg-gray-50 rounded-md border border-gray-100 flex items-center justify-center cursor-pointer hover:border-orange-200 transition-colors"
-                      >
-                        <img
-                          src={item.image}
-                          className="w-full h-full object-contain rounded-md"
-                          alt={`Try-on history ${item.id}`}
-                        />
-                      </div>
-                    ))}
-                    <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 border border-dashed border-gray-200 rounded-md flex items-center justify-center">
+                    {historyItems.map((item) => {
+                      const isSelected = generatedImage === item.image;
+                      return (
+                        <button
+                          key={item.id}
+                          onTouchStart={handleTouchStart}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={(e) => handleTouchEnd(e, () => {
+                            // Load the history image and set it as generated
+                            fetch(item.image)
+                              .then(res => res.blob())
+                              .then(blob => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  const dataURL = reader.result as string;
+                                  setGeneratedImage(dataURL);
+                                  storage.saveGeneratedImage(dataURL);
+                                  setStep('complete');
+                                };
+                                reader.readAsDataURL(blob);
+                              })
+                              .catch(() => {
+                                toast.error('Failed to load try-on result');
+                              });
+                          })}
+                          onClick={() => {
+                            // Only handle click if not on touch device (touch events handle touch devices)
+                            if (!('ontouchstart' in window)) {
+                              // Load the history image and set it as generated
+                              fetch(item.image)
+                                .then(res => res.blob())
+                                .then(blob => {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const dataURL = reader.result as string;
+                                    setGeneratedImage(dataURL);
+                                    storage.saveGeneratedImage(dataURL);
+                                    setStep('complete');
+                                  };
+                                  reader.readAsDataURL(blob);
+                                })
+                                .catch(() => {
+                                  toast.error('Failed to load try-on result');
+                                });
+                            }
+                          }}
+                          className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 ${
+                            isSelected
+                              ? 'border-orange-500 ring-2 ring-orange-100 scale-105'
+                              : 'border-transparent hover:border-gray-200'
+                          }`}
+                          aria-label={`Select try-on result ${item.id}`}
+                          type="button"
+                        >
+                          <img 
+                            src={item.image} 
+                            alt={`Try-on history ${item.id}`} 
+                            className="h-full w-auto object-contain border-2 border-white rounded-md" 
+                          />
+                        </button>
+                      );
+                    })}
+                    <div className="flex-shrink-0 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center bg-gray-50">
                       <span className="text-gray-300 text-[10px] sm:text-xs">+</span>
                     </div>
                   </>
                 ) : (
                   <div className="flex items-center justify-center w-full py-1.5 sm:py-2">
-                    <span className="text-[10px] sm:text-xs text-gray-400 text-center px-2">No try-on history yet. Generate your first try-on to see it here.</span>
+                    <span className="text-xs text-gray-400 text-center px-2">No try-on history yet. Generate your first try-on to see it here.</span>
                   </div>
                 )}
                 </div>
