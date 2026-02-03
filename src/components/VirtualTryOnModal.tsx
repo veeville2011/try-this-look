@@ -71,7 +71,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const demoModels = DEMO_PHOTOS_ARRAY;
 
   // History items from API
-  const [historyItems, setHistoryItems] = useState<Array<{ id: string; image: string; time: string }>>([]);
+  const [historyItems, setHistoryItems] = useState<Array<{ id: string; image: string }>>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const sizes = ['S', 'M', 'L', 'XL'];
@@ -482,34 +482,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 return null;
               }
 
-              const date = new Date(item.createdAt);
-              const now = new Date();
-              const diffTime = Math.abs(now.getTime() - date.getTime());
-              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-              
-              let timeLabel = '';
-              if (diffDays === 0) {
-                timeLabel = 'Today';
-              } else if (diffDays === 1) {
-                timeLabel = '1 day ago';
-              } else if (diffDays < 7) {
-                timeLabel = `${diffDays} days ago`;
-              } else if (diffDays < 14) {
-                timeLabel = '1 week ago';
-              } else if (diffDays < 30) {
-                const weeks = Math.floor(diffDays / 7);
-                timeLabel = `${weeks} week${weeks > 1 ? 's' : ''} ago`;
-              } else {
-                const months = Math.floor(diffDays / 30);
-                timeLabel = `${months} month${months > 1 ? 's' : ''} ago`;
-              }
-
               return {
                 id: item.id,
                 image: item.generatedImageUrl, // Use generated image for history display
-                time: timeLabel,
               };
-            }).filter((item): item is { id: string; image: string; time: string } => item !== null);
+            }).filter((item): item is { id: string; image: string } => item !== null);
             
             console.log('[VirtualTryOnModal] Setting history items:', history.length);
             if (isMounted) {
@@ -1079,13 +1056,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, []);
 
   return (
-    <div className="w-full h-full min-h-screen bg-white font-sans relative">
-      {/* Overlay backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/40" aria-hidden="true" />
-
+    <div className="w-full h-screen bg-white font-sans relative overflow-hidden">
       {/* Modal container */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-        <div className="bg-white w-full max-w-5xl rounded-md shadow-2xl overflow-hidden relative flex flex-col h-[600px] sm:h-[700px] md:h-[800px] max-h-[95vh] sm:max-h-[90vh]">
+      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center p-4 sm:p-6 md:p-8">
+        <div className="bg-white w-full max-w-[1200px] h-full max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] md:max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden relative shadow-2xl rounded-lg">
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -1603,7 +1577,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
 
               {/* History Section */}
-              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 min-h-[100px] sm:h-[120px] flex flex-col justify-center">
+              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 h-[80px] sm:h-[100px] flex flex-col justify-center overflow-hidden">
                 <div className="flex justify-between items-center mb-1.5 sm:mb-2">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
                   <button className="text-[10px] sm:text-xs text-orange-500 font-medium hover:underline" type="button">
@@ -1612,13 +1586,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 <div 
-                  className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide"
+                  className="flex gap-2 sm:gap-3 overflow-x-auto overflow-y-hidden pb-2 scrollbar-hide"
                   style={{ 
                     scrollbarWidth: 'none', 
                     msOverflowStyle: 'none',
                     WebkitOverflowScrolling: 'touch',
                     touchAction: 'pan-x',
-                    overscrollBehaviorX: 'contain'
+                    overscrollBehaviorX: 'contain',
+                    overscrollBehaviorY: 'none'
                   }}
                 >
                 {isLoadingHistory ? (
@@ -1628,17 +1603,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     {historyItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex-shrink-0 w-12 h-16 sm:w-16 sm:h-20 bg-gray-50 rounded-md border border-gray-100 flex flex-col items-center justify-center cursor-pointer hover:border-orange-200 transition-colors"
+                        className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 bg-gray-50 rounded-md border border-gray-100 flex items-center justify-center cursor-pointer hover:border-orange-200 transition-colors"
                       >
                         <img
                           src={item.image}
-                          className="w-6 h-6 sm:w-8 sm:h-8 object-contain mb-0.5 sm:mb-1 rounded-md"
+                          className="w-full h-full object-contain rounded-md"
                           alt={`Try-on history ${item.id}`}
                         />
-                        <span className="text-[9px] sm:text-[10px] text-gray-400">{item.time}</span>
                       </div>
                     ))}
-                    <div className="flex-shrink-0 w-12 h-16 sm:w-16 sm:h-20 border border-dashed border-gray-200 rounded-md flex items-center justify-center">
+                    <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 border border-dashed border-gray-200 rounded-md flex items-center justify-center">
                       <span className="text-gray-300 text-[10px] sm:text-xs">+</span>
                     </div>
                   </>
