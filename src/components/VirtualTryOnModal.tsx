@@ -750,10 +750,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return { size, isAvailable: false, variantId: null, inventoryQty: null };
       }
 
-      const isAvailable = variant.available !== false && 
-                         variant.availableForSale !== false &&
-                         (variant.inventoryQuantity === null || variant.inventoryQuantity > 0);
-      const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? null;
+      // Use availableForSale as the primary check (correct Shopify field)
+      // availableForSale is true when variant can be purchased, false otherwise
+      // It considers inventory quantity, inventory policy, and sales channel availability
+      const isAvailable = variant.availableForSale === true;
+      const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? variant.quantityAvailable ?? null;
       const variantId = variant.id || variant.variant_id || null;
 
       return {
@@ -802,8 +803,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       );
 
       if (variant) {
-        const isAvailable = variant.available !== false && variant.availableForSale !== false;
-        const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? null;
+        // Use availableForSale as the primary check (correct Shopify field)
+        // availableForSale considers inventory quantity, inventory policy, and sales channel availability
+        const isAvailable = variant.availableForSale === true;
+        const inventoryQty = variant.inventoryQuantity ?? variant.inventory_quantity ?? variant.quantityAvailable ?? null;
+        // Check if there's enough stock for the requested quantity
+        // If inventoryQty is null, it means inventory tracking is disabled or unlimited
         const hasEnoughStock = inventoryQty === null || inventoryQty >= cartQuantity;
 
         setVariantStockInfo({
@@ -1901,20 +1906,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
                       const isAvailable = sizeInfo?.isAvailable ?? false;
                       const isSelected = selectedSize === size;
+                      // Disable size selection until generation is complete
+                      const isDisabled = step !== 'complete';
                       
                       return (
                         <button
                           key={size}
-                          onClick={() => isAvailable && setSelectedSize(size)}
-                          disabled={!isAvailable}
+                          onClick={() => !isDisabled && setSelectedSize(size)}
+                          disabled={isDisabled}
                           className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
-                            !isAvailable
-                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            isDisabled
+                              ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
+                              : !isAvailable
+                              ? 'bg-gray-50 text-gray-400 border-gray-300 opacity-75'
                               : isSelected
                               ? 'bg-black text-white border-black'
                               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                           }`}
-                          aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
+                          aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}${isDisabled ? ' (disabled until generation complete)' : ''}`}
                           type="button"
                         >
                           {size}
@@ -1935,12 +1944,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         return (
                           <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
                             Available in {availableSizes.join(', ')}
-                          </span>
-                        );
-                      } else if (outOfStockSizes.length > 0) {
-                        return (
-                          <span className="text-[10px] sm:text-xs text-red-400 ml-1 sm:ml-2">
-                            All sizes out of stock
                           </span>
                         );
                       }
