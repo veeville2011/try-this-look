@@ -26,6 +26,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [elapsedTime, setElapsedTime] = useState(0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | number | null>(null);
+  const [selectedHistoryItemId, setSelectedHistoryItemId] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -992,6 +993,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Set viewing past try-on state
       setViewingPastTryOn(true);
       setViewingHistoryItem(item);
+      setSelectedHistoryItemId(item.id); // Track selected history item for highlighting
       setStep('complete');
       setSelectedSize(null); // Reset size selection when viewing past try-on
     } catch (error) {
@@ -1489,6 +1491,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const handleBackToCurrent = useCallback(() => {
     setViewingPastTryOn(false);
     setViewingHistoryItem(null);
+    setSelectedHistoryItemId(null); // Clear history selection
     // Keep the current generated image if it exists
   }, []);
   
@@ -1499,6 +1502,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     // Reset to idle state
     setViewingPastTryOn(false);
     setViewingHistoryItem(null);
+    setSelectedHistoryItemId(null); // Clear history selection
     setStep('idle');
     setGeneratedImage(null);
     setProgress(0);
@@ -1679,6 +1683,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setElapsedTime(0);
     setError(null);
     setSelectedSize(null);
+    setSelectedHistoryItemId(null); // Clear history selection
+    setViewingPastTryOn(false);
+    setViewingHistoryItem(null);
     // Only clear uploaded image and generated result from storage, keep clothing selection
     storage.saveUploadedImage(null);
     storage.saveGeneratedImage(null);
@@ -2841,7 +2848,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 ) : historyItems.length > 0 ? (
                   <>
                     {historyItems.map((item) => {
-                      const isSelected = generatedImage === item.image;
+                      const isSelected = selectedHistoryItemId === item.id;
                       return (
                         <button
                           key={item.id}
