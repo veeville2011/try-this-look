@@ -170,6 +170,100 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const touchStartYRef = useRef<number | null>(null);
   const isScrollingRef = useRef<boolean>(false);
   
+  // Refs for auto-scrolling and focusing (defined early to avoid initialization errors)
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const generatedImageRef = useRef<HTMLDivElement>(null);
+  const rightColumnRef = useRef<HTMLDivElement>(null);
+  const clothingSelectionRef = useRef<HTMLDivElement>(null);
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
+  const sizeSelectionRef = useRef<HTMLDivElement>(null);
+  const addToCartButtonRef = useRef<HTMLButtonElement>(null);
+  const photoUploadRef = useRef<HTMLDivElement>(null);
+
+  // Detect mobile device (defined early to avoid initialization errors)
+  const isMobileDevice = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (window.innerWidth < 768) ||
+           ('ontouchstart' in window);
+  }, []);
+
+  // Helper function for smooth scrolling to an element - optimized for desktop and mobile (defined early)
+  const scrollToElement = useCallback((elementRef: React.RefObject<HTMLElement>, offset: number = 20, behavior?: ScrollBehavior) => {
+    if (!elementRef.current || !mainContentRef.current) return;
+    
+    const element = elementRef.current;
+    const container = mainContentRef.current;
+    const isMobile = isMobileDevice();
+    
+    // Check if element is already visible
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    
+    const isElementVisible = 
+      elementRect.top >= containerRect.top &&
+      elementRect.bottom <= containerRect.bottom &&
+      elementRect.left >= containerRect.left &&
+      elementRect.right <= containerRect.right;
+    
+    if (!isElementVisible) {
+      // Mobile: Use smaller offset, instant scroll for better UX
+      // Desktop: Use smooth scroll with offset
+      const scrollOffset = isMobile ? 10 : offset;
+      const scrollBehavior = behavior || (isMobile ? 'auto' : 'smooth');
+      
+      const scrollPosition = 
+        element.offsetTop - 
+        container.offsetTop - 
+        scrollOffset;
+      
+      // Use requestAnimationFrame for better mobile performance
+      if (isMobile) {
+        requestAnimationFrame(() => {
+          container.scrollTo({
+            top: Math.max(0, scrollPosition),
+            behavior: scrollBehavior
+          });
+        });
+      } else {
+        container.scrollTo({
+          top: Math.max(0, scrollPosition),
+          behavior: scrollBehavior
+        });
+      }
+    }
+  }, [isMobileDevice]);
+
+  // Helper function to focus an element - optimized for desktop and mobile (defined early)
+  const focusElement = useCallback((elementRef: React.RefObject<HTMLElement>, delay: number = 100) => {
+    const isMobile = isMobileDevice();
+    
+    // On mobile, skip focus to avoid keyboard popup (unless it's an input field)
+    // Focus is more important for keyboard navigation on desktop
+    setTimeout(() => {
+      if (elementRef.current && typeof elementRef.current.focus === 'function') {
+        const element = elementRef.current;
+        const isInputElement = element.tagName === 'INPUT' || 
+                              element.tagName === 'TEXTAREA' || 
+                              element.tagName === 'SELECT' ||
+                              element.getAttribute('contenteditable') === 'true';
+        
+        // Only focus on mobile if it's an input element (user expects keyboard)
+        // Always focus on desktop for keyboard navigation
+        if (!isMobile || isInputElement) {
+          element.focus();
+          
+          // On mobile, scroll element into view after focus (handles keyboard popup)
+          if (isMobile && isInputElement && element.scrollIntoView) {
+            setTimeout(() => {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+          }
+        }
+      }
+    }, delay);
+  }, [isMobileDevice]);
+  
   // Helper to handle touch events and prevent accidental clicks during scroll
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
@@ -1729,100 +1823,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [currentProductData]);
   
   const variantInfo = useMemo(() => getVariantInfo(), [getVariantInfo]);
-
-  // Refs for auto-scrolling and focusing
-  const mainContentRef = useRef<HTMLDivElement>(null);
-  const generatedImageRef = useRef<HTMLDivElement>(null);
-  const rightColumnRef = useRef<HTMLDivElement>(null);
-  const clothingSelectionRef = useRef<HTMLDivElement>(null);
-  const generateButtonRef = useRef<HTMLButtonElement>(null);
-  const sizeSelectionRef = useRef<HTMLDivElement>(null);
-  const addToCartButtonRef = useRef<HTMLButtonElement>(null);
-  const photoUploadRef = useRef<HTMLDivElement>(null);
-
-  // Detect mobile device
-  const isMobileDevice = useCallback(() => {
-    if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           (window.innerWidth < 768) ||
-           ('ontouchstart' in window);
-  }, []);
-
-  // Helper function for smooth scrolling to an element - optimized for desktop and mobile
-  const scrollToElement = useCallback((elementRef: React.RefObject<HTMLElement>, offset: number = 20, behavior?: ScrollBehavior) => {
-    if (!elementRef.current || !mainContentRef.current) return;
-    
-    const element = elementRef.current;
-    const container = mainContentRef.current;
-    const isMobile = isMobileDevice();
-    
-    // Check if element is already visible
-    const containerRect = container.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-    
-    const isElementVisible = 
-      elementRect.top >= containerRect.top &&
-      elementRect.bottom <= containerRect.bottom &&
-      elementRect.left >= containerRect.left &&
-      elementRect.right <= containerRect.right;
-    
-    if (!isElementVisible) {
-      // Mobile: Use smaller offset, instant scroll for better UX
-      // Desktop: Use smooth scroll with offset
-      const scrollOffset = isMobile ? 10 : offset;
-      const scrollBehavior = behavior || (isMobile ? 'auto' : 'smooth');
-      
-      const scrollPosition = 
-        element.offsetTop - 
-        container.offsetTop - 
-        scrollOffset;
-      
-      // Use requestAnimationFrame for better mobile performance
-      if (isMobile) {
-        requestAnimationFrame(() => {
-          container.scrollTo({
-            top: Math.max(0, scrollPosition),
-            behavior: scrollBehavior
-          });
-        });
-      } else {
-        container.scrollTo({
-          top: Math.max(0, scrollPosition),
-          behavior: scrollBehavior
-        });
-      }
-    }
-  }, [isMobileDevice]);
-
-  // Helper function to focus an element - optimized for desktop and mobile
-  const focusElement = useCallback((elementRef: React.RefObject<HTMLElement>, delay: number = 100) => {
-    const isMobile = isMobileDevice();
-    
-    // On mobile, skip focus to avoid keyboard popup (unless it's an input field)
-    // Focus is more important for keyboard navigation on desktop
-    setTimeout(() => {
-      if (elementRef.current && typeof elementRef.current.focus === 'function') {
-        const element = elementRef.current;
-        const isInputElement = element.tagName === 'INPUT' || 
-                              element.tagName === 'TEXTAREA' || 
-                              element.tagName === 'SELECT' ||
-                              element.getAttribute('contenteditable') === 'true';
-        
-        // Only focus on mobile if it's an input element (user expects keyboard)
-        // Always focus on desktop for keyboard navigation
-        if (!isMobile || isInputElement) {
-          element.focus();
-          
-          // On mobile, scroll element into view after focus (handles keyboard popup)
-          if (isMobile && isInputElement && element.scrollIntoView) {
-            setTimeout(() => {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300);
-          }
-        }
-      }
-    }, delay);
-  }, [isMobileDevice]);
 
   // Generate stable particle positions for celebration animation
   const celebrationParticles = useMemo(() => {
