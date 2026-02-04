@@ -1279,10 +1279,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setError(null);
     setStatusMessage('Preparing your try-on...');
     
-    // Auto-scroll to generating section immediately (forward only)
-    setTimeout(() => {
-      scrollToElement(rightColumnRef, 20, undefined, 'generating-section');
-    }, 100);
+    // Auto-scroll to generating section immediately on both mobile and desktop
+    // Use requestAnimationFrame for smooth, immediate scroll
+    const isMobile = isMobileDevice();
+    requestAnimationFrame(() => {
+      if (rightColumnRef.current && mainContentRef.current) {
+        const element = rightColumnRef.current;
+        const container = mainContentRef.current;
+        const scrollOffset = isMobile ? 10 : 20;
+        const scrollPosition = Math.max(0, element.offsetTop - container.offsetTop - scrollOffset);
+        
+        // Update last scroll position and target
+        lastScrollPositionRef.current = scrollPosition;
+        lastScrollTargetRef.current = 'generating-section';
+        
+        // Scroll immediately - use 'auto' for mobile (instant), 'smooth' for desktop
+        container.scrollTo({
+          top: scrollPosition,
+          behavior: isMobile ? 'auto' : 'smooth'
+        });
+      }
+    });
 
     // Clear old timers
     if (progressTimerRef.current) {
@@ -1942,20 +1959,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [step, generatedImage, isMobileDevice]);
 
-  // Auto-scroll to right column when generating starts - optimized for mobile and desktop
-  useEffect(() => {
-    if (step === 'generating' && rightColumnRef.current && mainContentRef.current) {
-      const isMobile = isMobileDevice();
-      // Mobile: Faster scroll (200ms), Desktop: Smooth scroll (300ms)
-      const delay = isMobile ? 200 : 300;
-      
-      const scrollTimeout = setTimeout(() => {
-        scrollToElement(rightColumnRef, isMobile ? 10 : 20, undefined, 'generating-section');
-      }, delay);
-
-      return () => clearTimeout(scrollTimeout);
-    }
-  }, [step, scrollToElement, isMobileDevice]);
+  // Note: Auto-scroll to generating section is handled directly in handleGenerate
+  // for immediate, reliable scrolling on both mobile and desktop
 
   // Auto-scroll/focus after photo selection - optimized for mobile and desktop
   // Only scroll forward, prevent reverse scrolling
@@ -2592,13 +2597,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Background gradient matching screenshots - light yellow/orange to white */}
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-md" />
                         
-                        {/* Celebration Bubbles - Floating particles (only show for new generations, not past try-ons) */}
+                        {/* Celebration Bubbles - Real transparent bubbles with borders and highlights (only show for new generations, not past try-ons) */}
                         {!viewingPastTryOn && (
                           <div className="absolute inset-0 overflow-hidden pointer-events-none">
                             {celebrationParticles.map((particle) => (
                               <div
                                 key={particle.id}
-                                className="absolute rounded-full bg-gradient-to-br from-orange-200/60 via-orange-100/40 to-orange-300/50 blur-sm"
+                                className="absolute rounded-full"
                                 style={{
                                   width: `${particle.width}px`,
                                   height: `${particle.height}px`,
@@ -2606,8 +2611,33 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   top: `${particle.top}%`,
                                   animation: `bubbleFloatUp ${particle.animationDuration}s ease-out ${particle.animationDelay + 0.5}s forwards`,
                                   opacity: 0,
+                                  // Real bubble effect: transparent background with border
+                                  background: `radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 20%, rgba(255, 152, 0, 0.1) 40%, transparent 70%)`,
+                                  border: `2px solid rgba(255, 255, 255, 0.6)`,
+                                  boxShadow: `
+                                    inset -10px -10px 20px rgba(255, 255, 255, 0.5),
+                                    inset 10px 10px 20px rgba(255, 152, 0, 0.1),
+                                    0 0 15px rgba(255, 255, 255, 0.3),
+                                    0 0 30px rgba(255, 152, 0, 0.2)
+                                  `,
+                                  backdropFilter: 'blur(1px)',
+                                  filter: 'blur(0.5px)',
                                 }}
-                              />
+                              >
+                                {/* Bubble highlight/reflection */}
+                                <div
+                                  className="absolute rounded-full"
+                                  style={{
+                                    width: '35%',
+                                    height: '35%',
+                                    top: '15%',
+                                    left: '15%',
+                                    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%)',
+                                    borderRadius: '50%',
+                                    animation: `bubbleShimmer ${particle.animationDuration * 0.8}s ease-in-out ${particle.animationDelay + 0.5}s infinite`,
+                                  }}
+                                />
+                              </div>
                             ))}
                           </div>
                         )}
