@@ -11,39 +11,39 @@ All colors MUST be HSL.
     /* Light Theme Colors */
     --background: 48 25% 98%;  /* #faf9f5 */
     --foreground: 42 23% 20%;  /* #3d3929 */
-    
+
     --card: 48 25% 98%;  /* #faf9f5 */
     --card-foreground: 42 7% 8%;  /* #141413 */
-    
+
     --popover: 0 0% 100%;  /* #ffffff */
     --popover-foreground: 42 22% 14%;  /* #28261b */
-    
+
     --primary: 14 56% 52%;  /* #c96442 */
     --primary-foreground: 0 0% 100%;  /* #ffffff */
-    
+
     --secondary: 48 20% 91%;  /* #e9e6dc */
     --secondary-foreground: 42 12% 28%;  /* #535146 */
-    
+
     --muted: 48 23% 92%;  /* #ede9de */
     --muted-foreground: 42 3% 50%;  /* #83827d */
-    
+
     --accent: 48 20% 91%;  /* #e9e6dc */
     --accent-foreground: 42 22% 14%;  /* #28261b */
-    
+
     --destructive: 42 7% 8%;  /* #141413 */
     --destructive-foreground: 0 0% 100%;  /* #ffffff */
-    
+
     --border: 48 8% 83%;  /* #dad9d4 */
     --input: 42 8% 68%;  /* #b4b2a7 */
     --ring: 14 56% 52%;  /* #c96442 */
-    
+
     /* Chart Colors */
     --chart-1: 14 58% 42%;  /* #b05730 */
     --chart-2: 254 88% 77%;  /* #9c87f5 */
     --chart-3: 48 20% 81%;  /* #ded8c4 */
     --chart-4: 258 55% 90%;  /* #dbd3f0 */
     --chart-5: 14 58% 40%;  /* #b4552d */
-    
+
     /* Sidebar Colors */
     --sidebar: 48 22% 95%;  /* #f5f4ee */
     --sidebar-foreground: 0 0% 24%;  /* #3d3d3a */
@@ -53,15 +53,15 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 0 0% 20%;  /* #343434 */
     --sidebar-border: 0 0% 92%;  /* #ebebeb */
     --sidebar-ring: 0 0% 71%;  /* #b5b5b5 */
-    
+
     /* Fonts */
     --font-sans: 'Montserrat', Helvetica, Arial, sans-serif;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    
+
     /* Radius */
     --radius: 0.25rem;
-    
+
     /* Shadows */
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -71,10 +71,10 @@ All colors MUST be HSL.
     --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    
+
     /* Spacing */
     --spacing: 0.25rem;
-    
+
     /* Status Colors (fallbacks for backward compatibility) */
     --success: 151 55% 42%;  /* Green */
     --success-foreground: 0 0% 100%;
@@ -84,11 +84,11 @@ All colors MUST be HSL.
     --error-foreground: 0 0% 100%;
     --info: 221 83% 53%;  /* Blue */
     --info-foreground: 0 0% 100%;
-    
+
     /* Primary variants (for backward compatibility) */
     --primary-light: 14 60% 60%;  /* Lighter primary */
     --primary-dark: 14 50% 42%;  /* Darker primary */
-    
+
     /* Secondary variants (for backward compatibility) */
     --secondary-light: 48 22% 94%;  /* Lighter secondary */
     --secondary-dark: 48 18% 85%;  /* Darker secondary */
@@ -97,39 +97,39 @@ All colors MUST be HSL.
   .dark {
     --background: 0 0% 15%;  /* #262624 */
     --foreground: 42 8% 71%;  /* #c3c0b6 */
-    
+
     --card: 0 0% 15%;  /* #262624 */
     --card-foreground: 48 25% 98%;  /* #faf9f5 */
-    
+
     --popover: 0 0% 19%;  /* #30302e */
     --popover-foreground: 42 6% 88%;  /* #e5e5e2 */
-    
+
     --primary: 14 58% 58%;  /* #d97757 */
     --primary-foreground: 0 0% 100%;  /* #ffffff */
-    
+
     --secondary: 48 25% 98%;  /* #faf9f5 */
     --secondary-foreground: 0 0% 19%;  /* #30302e */
-    
+
     --muted: 42 8% 10%;  /* #1b1b19 */
     --muted-foreground: 42 8% 64%;  /* #b7b5a9 */
-    
+
     --accent: 42 7% 8%;  /* #1a1915 */
     --accent-foreground: 48 22% 95%;  /* #f5f4ee */
-    
+
     --destructive: 0 84% 60%;  /* #ef4444 */
     --destructive-foreground: 0 0% 100%;  /* #ffffff */
-    
+
     --border: 42 8% 22%;  /* #3e3e38 */
     --input: 42 8% 32%;  /* #52514a */
     --ring: 14 58% 58%;  /* #d97757 */
-    
+
     /* Chart Colors */
     --chart-1: 14 58% 42%;  /* #b05730 */
     --chart-2: 254 88% 77%;  /* #9c87f5 */
     --chart-3: 42 7% 8%;  /* #1a1915 */
     --chart-4: 254 30% 28%;  /* #2f2b48 */
     --chart-5: 14 58% 40%;  /* #b4552d */
-    
+
     /* Sidebar Colors */
     --sidebar: 42 7% 12%;  /* #1f1e1d */
     --sidebar-foreground: 42 8% 71%;  /* #c3c0b6 */
@@ -139,15 +139,15 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 42 8% 71%;  /* #c3c0b6 */
     --sidebar-border: 0 0% 92%;  /* #ebebeb */
     --sidebar-ring: 0 0% 71%;  /* #b5b5b5 */
-    
+
     /* Fonts */
     --font-sans: 'Montserrat', Helvetica, Arial, sans-serif;
     --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    
+
     /* Radius */
     --radius: 0.25rem;
-    
+
     /* Shadows */
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
     --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
@@ -157,7 +157,7 @@ All colors MUST be HSL.
     --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    
+
     /* Status Colors (for backward compatibility) */
     --success: 151 55% 42%;
     --success-foreground: 0 0% 100%;
@@ -167,14 +167,17 @@ All colors MUST be HSL.
     --error-foreground: 0 0% 100%;
     --info: 221 83% 53%;
     --info-foreground: 0 0% 100%;
-    
+
     /* Primary variants (for backward compatibility) */
     --primary-light: 14 58% 58%;  /* Lighter primary for dark theme */
     --primary-dark: 14 50% 42%;  /* Darker primary */
-    
+
     /* Secondary variants (for backward compatibility) */
     --secondary-light: 48 25% 98%;  /* Lighter secondary for dark theme */
     --secondary-dark: 48 18% 85%;  /* Darker secondary */
+  }
+  .theme {
+    --animate-shine: shine var(--duration) infinite linear;
   }
 }
 
@@ -388,11 +391,18 @@ All colors MUST be HSL.
 
 @keyframes shine {
   0% {
-    transform: translateX(-100%);
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
   100% {
-    transform: translateX(100%);
+    background-position: 0% 50%;
   }
+}
+
+.animate-shine {
+  animation: shine var(--duration, 14s) ease-in-out infinite;
 }
 
 @keyframes floatUp {
@@ -531,15 +541,16 @@ All colors MUST be HSL.
   }
 }
 
-/* Image reveal with gentle scale and fade */
-@keyframes imageReveal {
+/* Glowing bulb buildup animation - happens BEFORE image reveal */
+/* Optimized timing for smoother UX */
+@keyframes glowBuildup {
   0% {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.85);
   }
-  60% {
+  50% {
     opacity: 0.7;
-    transform: scale(1);
+    transform: scale(0.98);
   }
   100% {
     opacity: 1;
@@ -547,40 +558,302 @@ All colors MUST be HSL.
   }
 }
 
-/* Bulb glow animation for generated image */
+/* Image reveal with glowing bulb - image appears WITHIN the glow */
+/* Optimized for smoother reveal and better performance */
+@keyframes imageReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(8px);
+  }
+  25% {
+    opacity: 0;
+    transform: scale(0.94);
+    filter: blur(6px);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.97);
+    filter: blur(4px);
+  }
+  75% {
+    opacity: 0.7;
+    transform: scale(0.99);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Container glow buildup - starts immediately */
+.glow-buildup-container {
+  opacity: 0;
+  transform: scale(0.8);
+  animation: glowBuildup 1s ease-out forwards;
+  will-change: opacity, transform;
+}
+
+/* Image reveal animation class - starts AFTER glow buildup */
+.image-reveal-animation {
+  opacity: 0;
+  transform: scale(0.9);
+  filter: blur(8px);
+  animation: imageReveal 1.5s ease-out 0.6s forwards;
+  will-change: opacity, transform, filter;
+}
+
+/* Optimize for mobile - reduce blur intensity for better performance */
+@media (max-width: 640px) {
+  .image-reveal-animation {
+    filter: blur(6px);
+    animation: imageRevealMobile 1.3s ease-out 0.6s forwards;
+  }
+}
+
+@keyframes imageRevealMobile {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(6px);
+  }
+  40% {
+    opacity: 0.3;
+    transform: scale(0.96);
+    filter: blur(3px);
+  }
+  80% {
+    opacity: 0.8;
+    transform: scale(1);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-buildup-container,
+  .image-reveal-animation {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+}
+
+/* Bulb glow animation for generated image - Enhanced with Magic UI-inspired effects */
+/* Starts building up immediately, then pulses */
 @keyframes bulbGlow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(255, 152, 0, 0.3),
-                0 0 40px rgba(255, 152, 0, 0.2),
-                0 0 60px rgba(255, 152, 0, 0.1);
+  0% {
+    opacity: 0;
+    box-shadow: 0 0 5px rgba(255, 152, 0, 0.2),
+                0 0 10px rgba(255, 152, 0, 0.1);
   }
-  50% {
-    box-shadow: 0 0 30px rgba(255, 152, 0, 0.5),
-                0 0 60px rgba(255, 152, 0, 0.3),
-                0 0 90px rgba(255, 152, 0, 0.2);
+  30% {
+    opacity: 0.5;
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.3),
+                0 0 30px rgba(255, 152, 0, 0.2),
+                0 0 45px rgba(255, 152, 0, 0.1);
   }
-}
-
-.animate-bulb-glow {
-  animation: bulbGlow 2s ease-in-out infinite;
-}
-
-/* Enhanced glow with multiple layers */
-@keyframes bulbGlowPulse {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(255, 152, 0, 0.4),
-                0 0 30px rgba(255, 152, 0, 0.3),
-                0 0 45px rgba(255, 152, 0, 0.2),
-                0 0 60px rgba(255, 152, 0, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(255, 152, 0, 0.6),
+  60% {
+    opacity: 0.8;
+    box-shadow: 0 0 25px rgba(255, 152, 0, 0.5),
                 0 0 50px rgba(255, 152, 0, 0.4),
                 0 0 75px rgba(255, 152, 0, 0.3),
                 0 0 100px rgba(255, 152, 0, 0.2);
   }
+  100% {
+    opacity: 0.7;
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.4),
+                0 0 40px rgba(255, 152, 0, 0.3),
+                0 0 60px rgba(255, 152, 0, 0.2),
+                0 0 80px rgba(255, 152, 0, 0.1);
+  }
+}
+
+.animate-bulb-glow {
+  animation: bulbGlow 1s ease-out forwards, bulbGlowPulse 2s ease-in-out 1s infinite;
+  will-change: opacity, box-shadow;
+}
+
+/* Enhanced glow with multiple layers - Magic UI-inspired bulb effect */
+/* Builds up first, then pulses continuously */
+@keyframes bulbGlowPulseBuild {
+  0% {
+    box-shadow: 0 0 5px rgba(255, 152, 0, 0.3),
+                0 0 10px rgba(255, 152, 0, 0.2),
+                0 0 15px rgba(255, 152, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.6),
+                0 0 40px rgba(255, 152, 0, 0.5),
+                0 0 60px rgba(255, 152, 0, 0.4),
+                0 0 80px rgba(255, 152, 0, 0.3),
+                0 0 100px rgba(255, 152, 0, 0.2),
+                inset 0 0 25px rgba(255, 152, 0, 0.15);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.5),
+                0 0 30px rgba(255, 152, 0, 0.4),
+                0 0 45px rgba(255, 152, 0, 0.3),
+                0 0 60px rgba(255, 152, 0, 0.2),
+                0 0 90px rgba(255, 152, 0, 0.1),
+                inset 0 0 20px rgba(255, 152, 0, 0.1);
+  }
+}
+
+@keyframes bulbGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.5),
+                0 0 30px rgba(255, 152, 0, 0.4),
+                0 0 45px rgba(255, 152, 0, 0.3),
+                0 0 60px rgba(255, 152, 0, 0.2),
+                0 0 90px rgba(255, 152, 0, 0.1),
+                inset 0 0 20px rgba(255, 152, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 152, 0, 0.7),
+                0 0 50px rgba(255, 152, 0, 0.55),
+                0 0 75px rgba(255, 152, 0, 0.4),
+                0 0 100px rgba(255, 152, 0, 0.3),
+                0 0 130px rgba(255, 152, 0, 0.2),
+                inset 0 0 30px rgba(255, 152, 0, 0.15);
+  }
 }
 
 .animate-bulb-glow-pulse {
-  animation: bulbGlowPulse 2.5s ease-in-out infinite;
+  animation: bulbGlowPulseBuild 1s ease-out forwards, bulbGlowPulse 2.5s ease-in-out 1s infinite;
+  will-change: box-shadow;
+}
+
+/* Border beam effect - Magic UI-inspired animated border */
+/* Builds up opacity first, then animates */
+@keyframes borderBeamBuild {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes borderBeam {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.border-beam-effect {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 152, 0, 0.4),
+    rgba(255, 87, 34, 0.6),
+    rgba(255, 152, 0, 0.4),
+    transparent
+  );
+  background-size: 200% 100%;
+  opacity: 0;
+  animation: borderBeamBuild 0.6s ease-out forwards, borderBeam 3s linear 0.6s infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  z-index: 1;
+  will-change: opacity, background-position;
+}
+
+/* Shine border effect - Alternative Magic UI-inspired effect */
+/* Builds up opacity first, then animates */
+@keyframes shineBorderBuild {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes shineBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.shine-border-effect {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--shine-x, 50%) var(--shine-y, 50%),
+    rgba(255, 152, 0, 0.6) 0%,
+    rgba(255, 87, 34, 0.4) 30%,
+    transparent 70%
+  );
+  background-size: 300% 300%;
+  opacity: 0;
+  animation: shineBorderBuild 0.6s ease-out forwards, shineBorder 4s ease-in-out 0.6s infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  z-index: 1;
+  will-change: opacity, background-position;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bulb-glow,
+  .animate-bulb-glow-pulse,
+  .border-beam-effect,
+  .shine-border-effect {
+    animation: none;
+  }
+
+  .animate-bulb-glow,
+  .animate-bulb-glow-pulse {
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.3);
+  }
+
+  @keyframes imageReveal {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+}
+/* ---break---
+*/
+@theme inline {
+  @keyframes shine {
+  0% {
+    background-position: 0% 0%;
+    }
+  50% {
+    background-position: 100% 100%;
+    }
+  to {
+    background-position: 0% 0%;
+    }
+  }
 }

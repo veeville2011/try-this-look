@@ -8,6 +8,8 @@ import { storage } from '@/utils/storage';
 import { detectStoreOrigin, extractProductImages, getStoreOriginFromPostMessage, requestStoreInfoFromParent, extractShopifyProductInfo, type StoreInfo } from '@/utils/shopifyIntegration';
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
 import type { ProductImage } from '@/types/tryon';
+import { BorderBeam } from '@/components/ui/border-beam';
+import { ShineBorder } from '@/components/ui/shine-border';
 
 interface VirtualTryOnModalProps {
   customerInfo?: {
@@ -758,7 +760,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setPhotoSelectionMethod('file');
       setSelectedDemoPhotoUrl(null);
     }
-  }, []);
+    
+    // Auto-scroll to clothing selection after photo is selected
+    setTimeout(() => {
+      scrollToElement(clothingSelectionRef, 20);
+    }, 300);
+  }, [scrollToElement]);
 
   // Trigger file input for photo upload (reusable function)
   const triggerPhotoUpload = useCallback(() => {
@@ -939,7 +946,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     } else {
       setSelectedClothingKey(null);
     }
-  }, [productImagesWithIds, storedProductData, productData]);
+    
+    // Auto-scroll to generate button after clothing is selected
+    setTimeout(() => {
+      if (uploadedImage) {
+        // Only scroll if photo is already selected
+        scrollToElement(generateButtonRef, 20);
+        focusElement(generateButtonRef, 400);
+      } else {
+        // If no photo, scroll to photo upload section
+        scrollToElement(photoUploadRef, 20);
+      }
+    }, 300);
+  }, [productImagesWithIds, storedProductData, productData, uploadedImage, scrollToElement, focusElement]);
   
   // Get size availability for all sizes
   const getSizeAvailability = useCallback(() => {
@@ -1106,6 +1125,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       toast.error('Missing requirements', {
         description: 'Please upload a photo and select a clothing item.',
       });
+      // Scroll to missing requirement
+      if (!uploadedImage) {
+        scrollToElement(photoUploadRef, 20);
+      } else if (!selectedClothing) {
+        scrollToElement(clothingSelectionRef, 20);
+      }
       return;
     }
 
@@ -1115,6 +1140,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setElapsedTime(0);
     setError(null);
     setStatusMessage('Preparing your try-on...');
+    
+    // Auto-scroll to generating section immediately
+    setTimeout(() => {
+      scrollToElement(rightColumnRef, 20);
+    }, 100);
 
     // Clear old timers
     if (progressTimerRef.current) {
@@ -1251,11 +1281,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setProgress(100);
         setStatusMessage('Finalizing your try-on...');
         
-        // Show finalizing state for 800ms before transitioning to complete
+        // Show finalizing state for 600ms (reduced for better UX) before transitioning to complete
+        // This gives time for the checkmark animation while keeping the reveal smooth
         setTimeout(() => {
           setStep('complete');
           setStatusMessage('Try-on complete!');
-        }, 800);
+        }, 600);
         
         // Refetch history to show the latest image first
         if (customerInfo?.email) {
@@ -1575,7 +1606,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     if (step === 'generating') {
       return {
-        text: `Generating... ${progress}%`,
+        text: 'Generating...',
         icon: <Loader2 size={16} className="animate-spin" />,
         disabled: true,
         action: () => {},
@@ -1699,6 +1730,100 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   
   const variantInfo = useMemo(() => getVariantInfo(), [getVariantInfo]);
 
+  // Refs for auto-scrolling and focusing
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const generatedImageRef = useRef<HTMLDivElement>(null);
+  const rightColumnRef = useRef<HTMLDivElement>(null);
+  const clothingSelectionRef = useRef<HTMLDivElement>(null);
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
+  const sizeSelectionRef = useRef<HTMLDivElement>(null);
+  const addToCartButtonRef = useRef<HTMLButtonElement>(null);
+  const photoUploadRef = useRef<HTMLDivElement>(null);
+
+  // Detect mobile device
+  const isMobileDevice = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (window.innerWidth < 768) ||
+           ('ontouchstart' in window);
+  }, []);
+
+  // Helper function for smooth scrolling to an element - optimized for desktop and mobile
+  const scrollToElement = useCallback((elementRef: React.RefObject<HTMLElement>, offset: number = 20, behavior?: ScrollBehavior) => {
+    if (!elementRef.current || !mainContentRef.current) return;
+    
+    const element = elementRef.current;
+    const container = mainContentRef.current;
+    const isMobile = isMobileDevice();
+    
+    // Check if element is already visible
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    
+    const isElementVisible = 
+      elementRect.top >= containerRect.top &&
+      elementRect.bottom <= containerRect.bottom &&
+      elementRect.left >= containerRect.left &&
+      elementRect.right <= containerRect.right;
+    
+    if (!isElementVisible) {
+      // Mobile: Use smaller offset, instant scroll for better UX
+      // Desktop: Use smooth scroll with offset
+      const scrollOffset = isMobile ? 10 : offset;
+      const scrollBehavior = behavior || (isMobile ? 'auto' : 'smooth');
+      
+      const scrollPosition = 
+        element.offsetTop - 
+        container.offsetTop - 
+        scrollOffset;
+      
+      // Use requestAnimationFrame for better mobile performance
+      if (isMobile) {
+        requestAnimationFrame(() => {
+          container.scrollTo({
+            top: Math.max(0, scrollPosition),
+            behavior: scrollBehavior
+          });
+        });
+      } else {
+        container.scrollTo({
+          top: Math.max(0, scrollPosition),
+          behavior: scrollBehavior
+        });
+      }
+    }
+  }, [isMobileDevice]);
+
+  // Helper function to focus an element - optimized for desktop and mobile
+  const focusElement = useCallback((elementRef: React.RefObject<HTMLElement>, delay: number = 100) => {
+    const isMobile = isMobileDevice();
+    
+    // On mobile, skip focus to avoid keyboard popup (unless it's an input field)
+    // Focus is more important for keyboard navigation on desktop
+    setTimeout(() => {
+      if (elementRef.current && typeof elementRef.current.focus === 'function') {
+        const element = elementRef.current;
+        const isInputElement = element.tagName === 'INPUT' || 
+                              element.tagName === 'TEXTAREA' || 
+                              element.tagName === 'SELECT' ||
+                              element.getAttribute('contenteditable') === 'true';
+        
+        // Only focus on mobile if it's an input element (user expects keyboard)
+        // Always focus on desktop for keyboard navigation
+        if (!isMobile || isInputElement) {
+          element.focus();
+          
+          // On mobile, scroll element into view after focus (handles keyboard popup)
+          if (isMobile && isInputElement && element.scrollIntoView) {
+            setTimeout(() => {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+          }
+        }
+      }
+    }, delay);
+  }, [isMobileDevice]);
+
   // Generate stable particle positions for celebration animation
   const celebrationParticles = useMemo(() => {
     return Array.from({ length: 20 }, (_, i) => ({
@@ -1712,19 +1837,172 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }));
   }, []);
 
+  // Auto-scroll to generated image when it appears - optimized for mobile and desktop
+  useEffect(() => {
+    if (step === 'complete' && generatedImage && generatedImageRef.current && mainContentRef.current) {
+      const isMobile = isMobileDevice();
+      // Delay scroll to allow glow animation to start
+      // Mobile: Shorter delay (600ms), Desktop: Full delay (800ms) for glow effect
+      const delay = isMobile ? 600 : 800;
+      
+      const scrollTimeout = setTimeout(() => {
+        const imageElement = generatedImageRef.current;
+        const container = mainContentRef.current;
+        
+        if (imageElement && container) {
+          // Calculate position relative to scroll container
+          const containerRect = container.getBoundingClientRect();
+          const imageRect = imageElement.getBoundingClientRect();
+          
+          // Only scroll if image is not already visible in viewport
+          const isImageVisible = 
+            imageRect.top >= containerRect.top &&
+            imageRect.bottom <= containerRect.bottom;
+          
+          if (!isImageVisible) {
+            // Mobile: Scroll to top of image, Desktop: Center the image
+            const scrollOffset = isMobile 
+              ? 10 
+              : (container.clientHeight / 2) - (imageElement.clientHeight / 2);
+            
+            const scrollPosition = 
+              imageElement.offsetTop - 
+              container.offsetTop - 
+              scrollOffset;
+            
+            const scrollBehavior = isMobile ? 'auto' : 'smooth';
+            
+            if (isMobile) {
+              requestAnimationFrame(() => {
+                container.scrollTo({
+                  top: Math.max(0, scrollPosition),
+                  behavior: scrollBehavior
+                });
+              });
+            } else {
+              container.scrollTo({
+                top: Math.max(0, scrollPosition),
+                behavior: scrollBehavior
+              });
+            }
+          }
+        }
+      }, delay);
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [step, generatedImage, isMobileDevice]);
+
+  // Auto-scroll to right column when generating starts - optimized for mobile and desktop
+  useEffect(() => {
+    if (step === 'generating' && rightColumnRef.current && mainContentRef.current) {
+      const isMobile = isMobileDevice();
+      // Mobile: Faster scroll (200ms), Desktop: Smooth scroll (300ms)
+      const delay = isMobile ? 200 : 300;
+      
+      const scrollTimeout = setTimeout(() => {
+        scrollToElement(rightColumnRef, isMobile ? 10 : 20);
+      }, delay);
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [step, scrollToElement, isMobileDevice]);
+
+  // Auto-scroll/focus after photo selection - optimized for mobile and desktop
+  useEffect(() => {
+    if (uploadedImage && !selectedClothing && clothingSelectionRef.current) {
+      const isMobile = isMobileDevice();
+      // Mobile: Faster scroll (200ms), Desktop: Smooth scroll (300ms)
+      const delay = isMobile ? 200 : 300;
+      
+      const scrollTimeout = setTimeout(() => {
+        scrollToElement(clothingSelectionRef, isMobile ? 10 : 20);
+      }, delay);
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [uploadedImage, selectedClothing, scrollToElement, isMobileDevice]);
+
+  // Auto-scroll/focus after clothing selection (if photo already selected)
+  useEffect(() => {
+    if (selectedClothing && uploadedImage && step === 'idle' && generateButtonRef.current) {
+      const isMobile = isMobileDevice();
+      const delay = isMobile ? 200 : 300;
+      
+      const scrollTimeout = setTimeout(() => {
+        scrollToElement(generateButtonRef, isMobile ? 10 : 20);
+        // Only focus on desktop (mobile focus causes keyboard popup)
+        if (!isMobile) {
+          focusElement(generateButtonRef, 400);
+        }
+      }, delay);
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [selectedClothing, uploadedImage, step, scrollToElement, focusElement, isMobileDevice]);
+
+  // Auto-scroll/focus after size selection - optimized for mobile and desktop
+  useEffect(() => {
+    if (selectedSize && step === 'complete' && addToCartButtonRef.current) {
+      const isMobile = isMobileDevice();
+      const delay = isMobile ? 200 : 300;
+      
+      const scrollTimeout = setTimeout(() => {
+        scrollToElement(addToCartButtonRef, isMobile ? 10 : 20);
+        // Only focus on desktop (mobile focus causes keyboard popup)
+        if (!isMobile) {
+          focusElement(addToCartButtonRef, 400);
+        }
+      }, delay);
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [selectedSize, step, scrollToElement, focusElement, isMobileDevice]);
+
   return (
     <div className="w-full h-screen bg-white font-sans relative overflow-hidden">
+      {/* Skip to main content link for keyboard navigation */}
+      <a
+        href="#main-content"
+        className="sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:w-auto focus:h-auto focus:px-4 focus:py-2 focus:bg-orange-500 focus:text-white focus:rounded-md focus:font-medium focus:shadow-lg focus:m-0"
+      >
+        Skip to main content
+      </a>
+
+      {/* ARIA Live Region for Status Updates */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        role="status"
+      >
+        {statusMessage || (step === 'idle' ? 'Ready to generate try-on' : step === 'generating' ? `Generating try-on: ${progress}% complete` : 'Try-on complete')}
+      </div>
+
+      {/* ARIA Live Region for Errors */}
+      {error && (
+        <div
+          aria-live="assertive"
+          aria-atomic="true"
+          className="sr-only"
+          role="alert"
+        >
+          Error: {error}
+        </div>
+      )}
+
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-start justify-center">
-        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-2xl rounded-lg">
+        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           {showToast && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-lg md:shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               <span className="text-xs sm:text-sm">{toastMessage}</span>
               <button
                 onClick={() => setShowToast(false)}
-                className="ml-2 sm:ml-4 text-gray-400 hover:text-white underline text-xs sm:text-sm flex-shrink-0"
+                className="ml-2 sm:ml-4 text-gray-400 hover:text-white underline text-xs sm:text-sm flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800 rounded"
                 aria-label="Close notification"
+                type="button"
               >
                 Close
               </button>
@@ -1739,12 +2017,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 className="h-4 sm:h-5 w-auto flex-shrink-0"
                 aria-label="NUSENSE Logo"
               />
-              <span className="font-normal text-gray-500 text-xs sm:text-sm flex items-center">Virtual Try-On</span>
+              <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">Virtual Try-On</span>
             </div>
 
             <button
               onClick={handleClose}
-              className="flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              className="flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
               aria-label="Close modal"
               type="button"
             >
@@ -1764,14 +2042,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 <div className="flex gap-2 sm:gap-3 md:flex-shrink-0">
                   <button
                     onClick={handleRegeneratePastTryOn}
-                    className="px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-md text-sm font-medium transition-colors border border-yellow-300"
+                    className="px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-md text-sm font-medium transition-colors border border-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2"
                     type="button"
                   >
                     Regenerate
                   </button>
                   <button
                     onClick={handleBackToCurrent}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-medium transition-colors"
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                     type="button"
                   >
                     Back to current
@@ -1782,13 +2060,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           )}
 
           {(selectedClothing || productImage) && (
-            <div className="w-full px-4 sm:px-6 md:px-8 border-b border-gray-100">
+            <div className="w-full px-4 sm:px-6 md:px-8 border-b border-gray-100" ref={clothingSelectionRef}>
               <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md">
                 <img
                   key={selectedClothing || productImage} // Force re-render when selectedClothing changes
                   src={selectedClothing || productImage || ''}
                   alt={productTitle}
-                  className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 border-2 border-white rounded-md"
+                  className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 border-2 border-white rounded-md shadow-sm md:shadow-md"
                   onError={(e) => {
                     // Fallback to first product image if selected clothing fails to load
                     if (productImages[0] && (e.target as HTMLImageElement).src !== productImages[0]) {
@@ -1797,12 +2075,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   }}
                 />
                 <div className="flex flex-col min-w-0 flex-1">
-                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1">
+                  <div className="text-[9px] sm:text-[10px] text-gray-700 uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1">
                     {viewingPastTryOn ? 'PREVIOUSLY TRIED ON' : "YOU'RE TRYING ON"}
                   </div>
-                  <div className="text-xs sm:text-sm font-semibold text-gray-800 leading-tight truncate">{productTitle}</div>
+                  <div className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight truncate">{productTitle}</div>
                   {variantInfo && (
-                    <div className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate mt-0.5">{variantInfo}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate mt-0.5">{variantInfo}</div>
                   )}
                 </div>
               </div>
@@ -1810,7 +2088,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           )}
 
           <div className="flex flex-1 overflow-hidden">
-            <div className="w-full overflow-y-auto smooth-scroll [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-gray-400/15 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/30" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.15) transparent' }}>
+            <div 
+              id="main-content" 
+              ref={mainContentRef}
+              className="w-full overflow-y-auto smooth-scroll [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-gray-400/15 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/30" 
+              style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.15) transparent' }}
+            >
               <div className="p-4 sm:p-6 md:p-8">
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-4 sm:mb-6">
                 {/* Left Column - Step 1 */}
@@ -1823,7 +2106,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     <h2 className="font-semibold text-base sm:text-lg md:text-xl text-gray-800">Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
-                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 md:p-6 flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6">
+                  <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 md:p-6 flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6">
                     {!uploadedImage && (
                       <>
                         <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-3 sm:mb-4 uppercase tracking-wide">For best results</h3>
@@ -1848,7 +2131,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <img
                           src={uploadedImage}
                           alt="Uploaded photo"
-                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-orange-200"
+                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg"
                         />
                         <button
                           onClick={() => {
@@ -1864,7 +2147,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     ) : (
                       <button
-                        className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors w-full justify-center shadow-sm"
+                        className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                         aria-label="Upload photo"
                         type="button"
                         onClick={triggerPhotoUpload}
@@ -1888,7 +2171,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       }}
                     >
                       {isLoadingRecentPhotos ? (
-                        <div className="text-xs text-gray-500">Loading...</div>
+                        <div className="flex gap-3">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex-shrink-0 h-14 w-14 rounded-md bg-gray-200 animate-pulse" />
+                          ))}
+                        </div>
                       ) : recentPhotos.length > 0 ? (
                         recentPhotos.map((photo) => (
                           <button
@@ -1911,6 +2198,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   reader.onloadend = () => {
                                     const dataURL = reader.result as string;
                                     handlePhotoUpload(dataURL, false, undefined, photo.id);
+                                    // Auto-scroll to clothing selection after photo loads
+                                    setTimeout(() => {
+                                      scrollToElement(clothingSelectionRef, 20);
+                                    }, 500);
                                   };
                                   reader.readAsDataURL(blob);
                                 })
@@ -1929,7 +2220,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   .then(res => {
                                     if (!res.ok) {
                                       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                                  }
+                                    }
                                     return res.blob();
                                   })
                                   .then(blob => {
@@ -1937,6 +2228,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     reader.onloadend = () => {
                                       const dataURL = reader.result as string;
                                       handlePhotoUpload(dataURL, false, undefined, photo.id);
+                                      // Auto-scroll to clothing selection after photo loads
+                                      setTimeout(() => {
+                                        scrollToElement(clothingSelectionRef, 20);
+                                      }, 500);
                                     };
                                     reader.readAsDataURL(blob);
                                   })
@@ -1946,10 +2241,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   });
                               }
                             }}
-                            className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 ${
-                              uploadedImage && selectedPhoto === photo.id
-                                ? 'border-orange-500 ring-2 ring-orange-100 scale-105'
-                                : 'border-transparent hover:border-gray-200'
+                            className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                              selectedPhoto === photo.id
+                                ? 'border-orange-500 ring-2 ring-orange-100 scale-105 shadow-md md:shadow-lg'
+                                : 'border-transparent hover:border-gray-200 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
                             }`}
                             aria-label={`Select photo ${photo.id}`}
                             type="button"
@@ -1957,7 +2252,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             <img 
                               src={getProxiedImageUrl(photo.src)} 
                               alt="User" 
-                              className="h-full w-auto object-contain border-2 border-white rounded-md"
+                              className="h-full w-auto object-contain border-2 border-white rounded-md shadow-sm"
                               onError={(e) => {
                                 // Fallback to direct URL if proxy fails
                                 if ((e.target as HTMLImageElement).src !== photo.src) {
@@ -2004,6 +2299,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   reader.onloadend = () => {
                                     const dataURL = reader.result as string;
                                     handlePhotoUpload(dataURL, true, model.url, modelIndex);
+                                    // Auto-scroll to clothing selection after photo loads
+                                    setTimeout(() => {
+                                      scrollToElement(clothingSelectionRef, 20);
+                                    }, 500);
                                   };
                                   reader.readAsDataURL(blob);
                                 })
@@ -2023,6 +2322,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     reader.onloadend = () => {
                                       const dataURL = reader.result as string;
                                       handlePhotoUpload(dataURL, true, model.url, modelIndex);
+                                      // Auto-scroll to clothing selection after photo loads
+                                      setTimeout(() => {
+                                        scrollToElement(clothingSelectionRef, 20);
+                                      }, 500);
                                     };
                                     reader.readAsDataURL(blob);
                                   })
@@ -2031,15 +2334,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   });
                               }
                             }}
-                            className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 ${
-                              uploadedImage && selectedPhoto === modelIndex
-                                ? 'border-orange-500 ring-2 ring-orange-100 scale-105'
-                                : 'border-transparent hover:border-gray-200'
+                            className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                              selectedPhoto === modelIndex
+                                ? 'border-orange-500 ring-2 ring-orange-100 scale-105 shadow-md md:shadow-lg'
+                                : 'border-transparent hover:border-gray-200 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
                             }`}
                             aria-label={`Select demo model ${model.id}`}
                             type="button"
                           >
-                            <img src={model.url} alt={`Demo model ${model.id}`} className="h-full w-auto object-contain border-2 border-white rounded-md" />
+                            <img src={model.url} alt={`Demo model ${model.id}`} className="h-full w-auto object-contain border-2 border-white rounded-md shadow-sm" />
                           </button>
                         );
                       })}
@@ -2048,7 +2351,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 {/* Right Column - Step 2 */}
-                <div className="flex flex-col w-full">
+                  <div className="flex flex-col w-full" ref={rightColumnRef}>
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 mb-4">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold ${
@@ -2091,9 +2394,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                     {step === 'generating' && progress < 100 && (
                       <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
-                        {/* Circular Progress Indicator with Percentage in Center */}
+                        {/* Continuous Circular Rotation Loader */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
-                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                          <svg className="w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '1.4s' }}>
                             {/* Background circle - light gray */}
                             <circle 
                               cx="50" 
@@ -2103,40 +2406,48 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               stroke="#e5e7eb" 
                               strokeWidth="8" 
                             />
-                            {/* Progress arc - orange */}
+                            {/* Animated arc - orange with gradient effect */}
                             <circle
                               cx="50"
                               cy="50"
                               r="45"
                               fill="none"
-                              stroke="#FF5722"
+                              stroke="url(#spinner-gradient)"
                               strokeWidth="8"
-                              strokeDasharray={`${2 * Math.PI * 45}`}
-                              strokeDashoffset={`${2 * Math.PI * 45 * (1 - progress / 100)}`}
+                              strokeDasharray="70 282"
+                              strokeDashoffset="0"
                               strokeLinecap="round"
-                              className="transition-all duration-75 ease-linear"
+                              className="origin-center"
                             />
+                            {/* Gradient definition for spinner */}
+                            <defs>
+                              <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#FF5722" stopOpacity="1" />
+                                <stop offset="100%" stopColor="#FF8A65" stopOpacity="0.3" />
+                              </linearGradient>
+                            </defs>
                           </svg>
-                          {/* Percentage in center */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-lg sm:text-xl font-bold text-orange-500">{progress}%</span>
-                          </div>
                         </div>
                         
-                        {/* Status Text - Below Circular Progress */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
+                        {/* Status Text - Below Circular Loader */}
+                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-4">
                           {statusMessage || 'Creating your try-on...'}
                         </h3>
                         
-                        {/* Progress Bar - Below Text */}
-                        <div className="w-full max-w-xs mx-auto mb-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        {/* Linear Progress Bar - Shows actual progress */}
+                        <div className="w-full max-w-xs mx-auto mb-3">
+                          <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 overflow-hidden shadow-sm">
                             <div
-                              className="bg-[#FF5722] h-2.5 rounded-full transition-all duration-75 ease-linear"
+                              className="bg-[#FF5722] h-full rounded-full transition-all duration-75 ease-linear shadow-sm"
                               style={{ width: `${progress}%` }}
                             />
                           </div>
                         </div>
+                        
+                        {/* Progress Percentage */}
+                        <p className="text-sm sm:text-base font-semibold text-orange-500">
+                          {progress}%
+                        </p>
                       </div>
                     )}
 
@@ -2212,24 +2523,51 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </div>
                         )}
 
-                        {/* Result Image - Fades in slowly with scale and bulb glow */}
-                        <div className={`relative z-10 w-full max-w-sm mb-4 ${viewingPastTryOn ? '' : ''}`} style={viewingPastTryOn ? {} : { animation: 'imageReveal 1.5s ease-out 0.5s forwards', opacity: 0, transform: 'scale(0.95)' }}>
-                          <div className={`relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100 ${!viewingPastTryOn ? 'animate-bulb-glow-pulse' : ''}`}>
-                            <img
-                              src={generatedImage}
-                              className="w-full h-auto object-contain rounded-lg"
-                              alt="Try-on result"
-                            />
-                            {/* Enhanced border glow with bulb effect */}
+                        {/* Result Image - Glowing bulb reveal animation */}
+                        <div 
+                          ref={generatedImageRef}
+                          className={`relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md mb-4 ${viewingPastTryOn ? '' : 'glow-buildup-container'}`}
+                        >
+                          <div className={`relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white border border-gray-100 ${!viewingPastTryOn ? 'animate-bulb-glow-pulse' : ''}`}>
+                            {/* Enhanced border glow with bulb effect - Using Magic UI components */}
                             {!viewingPastTryOn && (
                               <>
-                                <div className="absolute inset-0 rounded-lg ring-2 ring-orange-300/60 pointer-events-none animate-bulb-glow" />
-                                <div className="absolute inset-0 rounded-lg ring-4 ring-orange-200/40 pointer-events-none animate-bulb-glow" style={{ animationDelay: '0.5s' }} />
+                                {/* Border beam effect - Magic UI component */}
+                                <BorderBeam
+                                  size={60}
+                                  duration={3}
+                                  delay={0}
+                                  colorFrom="#ff9800"
+                                  colorTo="#ff5722"
+                                  borderWidth={2}
+                                  className="rounded-lg"
+                                />
+                                
+                                {/* Multi-layer ring glow effects - Build up first */}
+                                <div className="absolute inset-0 rounded-lg ring-2 ring-orange-300/70 pointer-events-none animate-bulb-glow z-20" style={{ willChange: 'opacity, box-shadow' }} />
+                                <div className="absolute inset-0 rounded-lg ring-4 ring-orange-200/50 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.3s', willChange: 'opacity, box-shadow' }} />
+                                <div className="absolute inset-0 rounded-lg ring-6 ring-orange-100/30 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.6s', willChange: 'opacity, box-shadow' }} />
+                                
+                                {/* Shine border effect - Magic UI component */}
+                                <ShineBorder
+                                  borderWidth={2}
+                                  duration={4}
+                                  shineColor={["rgba(255, 152, 0, 0.6)", "rgba(255, 87, 34, 0.4)"]}
+                                  className="rounded-lg"
+                                />
                               </>
                             )}
                             {viewingPastTryOn && (
-                              <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
+                              <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none z-20" />
                             )}
+                            
+                            {/* Image reveals WITHIN the glow - starts blurred and fades in */}
+                            <img
+                              src={generatedImage}
+                              className={`w-full h-auto object-contain rounded-lg border-2 border-white shadow-inner relative z-10 ${viewingPastTryOn ? '' : 'image-reveal-animation'}`}
+                              alt="Try-on result"
+                              loading="eager"
+                            />
                           </div>
                         </div>
 
@@ -2243,7 +2581,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                         {/* Helper Text - Fades in after image */}
                         <div className="relative z-10" style={viewingPastTryOn ? {} : { animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
-                          <p className="text-xs sm:text-sm text-gray-600 font-medium text-center px-4">
+                          <p className="text-xs sm:text-sm text-gray-700 font-medium text-center px-4">
                             {viewingPastTryOn ? 'Select a size to add to cart' : 'Select your size below'}
                           </p>
                         </div>
@@ -2252,7 +2590,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {!viewingPastTryOn && (
                           <button
                             onClick={handleReset}
-                            className="relative z-10 mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center gap-1.5 group"
+                            className="relative z-10 mt-4 text-xs text-gray-600 hover:text-gray-800 transition-colors duration-200 flex items-center gap-1.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded"
                             aria-label="Try again"
                             type="button"
                             style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
@@ -2265,24 +2603,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {error && (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-6 sm:p-8 text-center">
+                      <div className="w-full h-full flex flex-col items-center justify-center p-6 sm:p-8 text-center" role="alert">
                         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 sm:p-8 max-w-md w-full">
                           <div className="flex flex-col items-center gap-4">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-100 flex items-center justify-center">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-100 flex items-center justify-center" aria-hidden="true">
                               <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" strokeWidth={2} />
                             </div>
                             <div className="space-y-2">
                               <h3 className="text-base sm:text-lg font-semibold text-red-900">
                                 Oops! Something went wrong
                               </h3>
-                              <p className="text-sm sm:text-base text-red-700 leading-relaxed">
+                              <p className="text-sm sm:text-base text-red-800 leading-relaxed">
                                 {error}
+                              </p>
+                              <p className="text-xs sm:text-sm text-red-700 mt-2">
+                                Please try uploading a different photo or check your internet connection.
                               </p>
                             </div>
                             <button
                               onClick={handleReset}
-                              className="mt-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm sm:text-base font-medium transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
-                              aria-label="Start over"
+                              className="mt-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm sm:text-base font-medium transition-colors flex items-center gap-2 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                              aria-label="Start over and try again"
                               type="button"
                             >
                               <RotateCcw size={16} />
@@ -2301,8 +2642,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-4 sm:py-5">
                 {/* Only show size selection if sizes are available */}
                 {sizes.length > 0 && (
-                  <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-                    <span className="text-xs sm:text-sm text-gray-500 mr-0.5 sm:mr-1 self-center">Size:</span>
+                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+                    <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">Size:</span>
                     {sizes.map((size) => {
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
                       const isAvailable = sizeInfo?.isAvailable ?? false;
@@ -2313,16 +2654,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       return (
                         <button
                           key={size}
-                          onClick={() => !isDisabled && setSelectedSize(size)}
+                          onClick={() => {
+                            if (!isDisabled) {
+                              setSelectedSize(size);
+                              // Auto-scroll/focus to add to cart button after size selection
+                              setTimeout(() => {
+                                scrollToElement(addToCartButtonRef, 20);
+                                focusElement(addToCartButtonRef, 400);
+                              }, 300);
+                            }
+                          }}
                           disabled={isDisabled}
-                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
                             isDisabled
                               ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
                               : !isAvailable
-                              ? 'bg-gray-50 text-gray-400 border-gray-300 opacity-75'
+                              ? 'bg-gray-50 text-gray-700 border-gray-300 opacity-75 shadow-sm'
                               : isSelected
-                              ? 'bg-black text-white border-black'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                              ? 'bg-black text-white border-black shadow-md md:shadow-lg'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
                           }`}
                           aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}${isDisabled ? ' (disabled until generation complete)' : ''}`}
                           type="button"
@@ -2354,14 +2704,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 )}
 
                 <button
+                  ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`w-full h-12 rounded-md flex items-center justify-center gap-2 font-semibold text-base transition-all ${
+                  className={`w-full h-12 rounded-md flex items-center justify-center gap-2 font-semibold text-base transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white'
                       : btnState.color === 'orange'
-                      ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg'
-                      : 'bg-gray-500 hover:bg-gray-600 text-white shadow-md hover:shadow-lg'
+                      ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl'
+                      : 'bg-gray-500 hover:bg-gray-600 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl'
                   }`}
                   aria-label={btnState.text}
                   type="button"
@@ -2369,7 +2720,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {step === 'generating' ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Generating... {progress}%</span>
+                      <span>Generating...</span>
                     </>
                   ) : (
                     <>
@@ -2389,12 +2740,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   <>
                     {!viewingPastTryOn && (
                       <>
-                        <p className="text-center text-xs text-gray-500 mt-2">
+                        <p className="text-center text-xs text-gray-700 mt-2">
                           Free shipping on orders over €50
                         </p>
                         <button
                           onClick={handleReset}
-                          className="text-center text-sm text-orange-600 hover:text-orange-700 underline mt-1 mx-auto block"
+                          className="text-center text-sm text-orange-600 hover:text-orange-700 underline mt-1 mx-auto block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded"
                           type="button"
                         >
                           Try another photo
@@ -2402,18 +2753,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </>
                     )}
                     {viewingPastTryOn && (
-                      <p className="text-center text-xs text-gray-500 mt-2">
+                      <p className="text-center text-xs text-gray-700 mt-2">
                         This item is still available!
                       </p>
                     )}
-                    <p className="text-center text-[10px] text-gray-400 mt-2 px-2">
+                    <p className="text-center text-[10px] text-gray-600 mt-2 px-2">
                       Rendered for aesthetic purposes. Does not reflect actual dimensions.
                     </p>
                   </>
                 )}
 
                 {step !== 'generating' && step !== 'complete' && (
-                  <p className="text-center text-[10px] text-gray-400 mt-2 px-2">
+                  <p className="text-center text-[10px] text-gray-600 mt-2 px-2">
                     Rendered for aesthetic purposes. Does not reflect actual dimensions.
                   </p>
                 )}
@@ -2439,7 +2790,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   }}
                 >
                 {isLoadingHistory ? (
-                  <div className="text-xs text-gray-500">Loading...</div>
+                  <div className="flex gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex-shrink-0 h-14 w-14 rounded-md bg-gray-200 animate-pulse" />
+                    ))}
+                  </div>
                 ) : historyItems.length > 0 ? (
                   <>
                     {historyItems.map((item) => {
@@ -2458,10 +2813,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               handleHistoryItemSelect(item);
                             }
                           }}
-                          className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 ${
+                          className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
                             isSelected
-                              ? 'border-orange-500 ring-2 ring-orange-100 scale-105'
-                              : 'border-transparent hover:border-gray-200'
+                              ? 'border-orange-500 ring-2 ring-orange-100 scale-105 shadow-md md:shadow-lg'
+                              : 'border-transparent hover:border-gray-200 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
                           }`}
                           aria-label={`Select try-on result ${item.id}`}
                           type="button"
@@ -2469,7 +2824,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <img 
                             src={getProxiedImageUrl(item.image)} 
                             alt={`Try-on history ${item.id}`} 
-                            className="h-full w-auto object-contain border-2 border-white rounded-md" 
+                            className="h-full w-auto object-contain border-2 border-white rounded-md shadow-sm" 
                             onError={(e) => {
                               // Fallback to direct URL if proxy fails
                               if ((e.target as HTMLImageElement).src !== item.image) {
@@ -2492,7 +2847,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="flex-shrink-0 h-14 w-14 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer"
+                      className="flex-shrink-0 h-14 w-14 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg"
                       aria-label="Upload new photo for try-on"
                       type="button"
                     >
@@ -2519,7 +2874,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-md bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer"
+                      className="flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-md bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg"
                       aria-label="Upload photo to start try-on"
                       type="button"
                     >
