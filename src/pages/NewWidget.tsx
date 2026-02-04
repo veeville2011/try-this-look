@@ -70,8 +70,23 @@ export default function NewWidget() {
     };
   }, []);
 
+  useEffect(() => {
+    // Disable default scrolling on body and html for widget-test route
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    // Cleanup on unmount to restore scrolling
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+    };
+  }, []);
+
   return (
-    <div className="w-full h-full min-h-screen">
+    <div className="w-full h-full min-h-screen overflow-hidden">
       <VirtualTryOnModal customerInfo={customerInfo} />
     </div>
   );
