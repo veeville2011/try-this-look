@@ -2086,14 +2086,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-start justify-center">
-        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-md" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-lg md:shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               <span className="text-xs sm:text-sm">{toastMessage}</span>
               <button
                 onClick={() => setShowToast(false)}
-                className="ml-2 sm:ml-4 text-gray-400 hover:text-white underline text-xs sm:text-sm flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800 rounded"
+                className="ml-2 sm:ml-4 text-gray-400 hover:text-white underline text-xs sm:text-sm flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800 rounded-md"
                 aria-label="Close notification"
                 type="button"
               >
@@ -2161,13 +2161,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               role="region"
               aria-label="Selected clothing preview"
             >
-              <div className="group flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-5 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-in-out hover:border-primary/20 hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/5 active:scale-[0.98] touch-manipulation hover:scale-[1.01]">
+              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-5 rounded-md border border-gray-100 shadow-sm">
                 <div className="relative flex-shrink-0">
                   <img
                     key={selectedClothing || productImage} // Force re-render when selectedClothing changes
                     src={selectedClothing || productImage || ''}
                     alt={productTitle}
-                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-2 border-white rounded-md shadow-sm md:shadow-md transition-all duration-300 ease-in-out group-hover:scale-110 group-hover:shadow-lg group-hover:ring-2 group-hover:ring-primary/20"
+                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-2 border-white rounded-md shadow-sm md:shadow-md"
                     loading="lazy"
                     onError={(e) => {
                       // Fallback to first product image if selected clothing fails to load
@@ -2240,7 +2240,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <img
                           src={uploadedImage}
                           alt="Uploaded photo"
-                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg"
                         />
                         <button
                           onClick={() => {
@@ -2690,11 +2690,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             show={!viewingPastTryOn}
                             className="p-4 sm:p-6"
                           >
-                            <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50">
+                            <div className="relative rounded-md overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50">
                               {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
                               <img
                                 src={generatedImage}
-                                className="w-full h-auto object-contain rounded-lg relative z-10"
+                                className="w-full h-auto object-contain rounded-md relative z-10"
                                 alt="Try-on result"
                                 loading="eager"
                               />
@@ -2721,7 +2721,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {!viewingPastTryOn && (
                           <button
                             onClick={handleReset}
-                            className="group relative z-10 mt-4 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded hover:scale-105 active:scale-95 px-2 py-1 hover:bg-primary/5 rounded-md"
+                            className="group relative z-10 mt-4 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 px-2 py-1 hover:bg-primary/5 rounded-md"
                             aria-label="Try again"
                             type="button"
                             style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
@@ -2735,7 +2735,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                     {error && (
                       <div className="w-full h-full flex flex-col items-center justify-center p-6 sm:p-8 text-center" role="alert">
-                        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 sm:p-8 max-w-md w-full">
+                        <div className="bg-red-50 border-2 border-red-200 rounded-md p-6 sm:p-8 max-w-md w-full">
                           <div className="flex flex-col items-center gap-4">
                             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-100 flex items-center justify-center" aria-hidden="true">
                               <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" strokeWidth={2} />
