@@ -803,7 +803,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   createdAt: item.createdAt || item.updatedAt || '',
                 };
               })
-              .filter((item): item is { id: string; image: string; personImageUrl?: string; clothingImageUrl?: string; createdAt: string } => item !== null)
+              .filter((item) => item !== null)
               .sort((a, b) => {
                 // Sort by createdAt descending (newest first)
                 if (!a.createdAt && !b.createdAt) return 0;
@@ -1451,7 +1451,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         createdAt: item.createdAt || item.updatedAt || '',
                       };
                     })
-                    .filter((item): item is { id: string; image: string; personImageUrl?: string; clothingImageUrl?: string; createdAt: string } => item !== null)
+                    .filter((item) => item !== null)
                     .sort((a, b) => {
                       if (!a.createdAt && !b.createdAt) return 0;
                       if (!a.createdAt) return 1;
@@ -2074,11 +2074,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
             <button
               onClick={handleClose}
-              className="flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+              className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
               aria-label="Close modal"
               type="button"
             >
-              <X className="text-gray-400" size={20} />
+              <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={20} />
             </button>
           </div>
 
@@ -2094,17 +2094,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 <div className="flex gap-2 sm:gap-3 md:flex-shrink-0">
                   <button
                     onClick={handleRegeneratePastTryOn}
-                    className="px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-md text-sm font-medium transition-colors border border-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2"
+                    className="group relative px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-md text-sm font-medium transition-all duration-300 ease-in-out border border-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
                   >
-                    Regenerate
+                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-yellow-300/20 to-transparent"></span>
+                    <span className="relative z-10">Regenerate</span>
                   </button>
                   <button
                     onClick={handleBackToCurrent}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                    className="group relative px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
                   >
-                    Back to current
+                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+                    <span className="relative z-10">Back to current</span>
                   </button>
                 </div>
               </div>
@@ -2118,13 +2120,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               role="region"
               aria-label="Selected clothing preview"
             >
-              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-3 sm:px-4 py-2.5 sm:py-3 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ease-in-out hover:border-primary/20 hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/5 active:scale-[0.98] touch-manipulation">
+              <div className="group flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-3 sm:px-4 py-2.5 sm:py-3 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-in-out hover:border-primary/20 hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/5 active:scale-[0.98] touch-manipulation hover:scale-[1.01]">
                 <div className="relative flex-shrink-0">
                   <img
                     key={selectedClothing || productImage} // Force re-render when selectedClothing changes
                     src={selectedClothing || productImage || ''}
                     alt={productTitle}
-                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-2 border-white rounded-md shadow-sm md:shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-md"
+                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-2 border-white rounded-md shadow-sm md:shadow-md transition-all duration-300 ease-in-out group-hover:scale-110 group-hover:shadow-lg group-hover:ring-2 group-hover:ring-primary/20"
                     loading="lazy"
                     onError={(e) => {
                       // Fallback to first product image if selected clothing fails to load
@@ -2133,10 +2135,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       }
                     }}
                   />
-                  {/* Selection indicator */}
-                  <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-primary rounded-full border-2 border-white shadow-sm flex items-center justify-center animate-in zoom-in duration-200">
-                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white rounded-full"></div>
-                  </div>
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1 transition-colors duration-200">
@@ -2201,7 +2199,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <img
                           src={uploadedImage}
                           alt="Uploaded photo"
-                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg"
+                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
                         />
                         <button
                           onClick={() => {
@@ -2209,7 +2207,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             setSelectedPhoto(null);
                             storage.saveUploadedImage(null);
                           }}
-                          className="text-xs text-gray-500 hover:text-gray-700 underline"
+                          className="group text-xs text-muted-foreground hover:text-foreground underline transition-all duration-200 hover:scale-105 active:scale-95"
                           type="button"
                         >
                           Remove
@@ -2217,12 +2215,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     ) : (
                       <button
-                        className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                        className="group relative bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden"
                         aria-label="Upload photo"
                         type="button"
                         onClick={triggerPhotoUpload}
                       >
-                        <Upload size={16} /> Upload Photo
+                        {/* Shimmer effect on hover */}
+                        <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+                        <Upload size={16} className="relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
+                        <span className="relative z-10">Upload Photo</span>
                       </button>
                     )}
                   </div>
@@ -2311,18 +2312,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   });
                               }
                             }}
-                            className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                            className={`group relative flex-shrink-0 h-14 rounded-md border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                               selectedPhoto === photo.id
-                                ? 'border-orange-500 ring-2 ring-orange-100 scale-105 shadow-md md:shadow-lg'
-                                : 'border-transparent hover:border-gray-200 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
+                                ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
+                                : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                             }`}
                             aria-label={`Select photo ${photo.id}`}
                             type="button"
                           >
+                            {/* Hover overlay effect */}
+                            {selectedPhoto !== photo.id && (
+                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-md z-10"></div>
+                            )}
                             <img 
                               src={getProxiedImageUrl(photo.src)} 
                               alt="User" 
-                              className="h-full w-auto object-contain border-2 border-white rounded-md shadow-sm"
+                              className={`h-full w-auto object-contain border-2 border-white rounded-md shadow-sm transition-all duration-300 relative z-0 ${
+                                selectedPhoto === photo.id 
+                                  ? 'ring-2 ring-primary/20' 
+                                  : 'group-hover:scale-105 group-hover:shadow-md'
+                              }`}
                               onError={(e) => {
                                 // Fallback to direct URL if proxy fails
                                 if ((e.target as HTMLImageElement).src !== photo.src) {
@@ -2330,6 +2339,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 }
                               }}
                             />
+                            {/* Selection indicator */}
+                            {selectedPhoto === photo.id && (
+                              <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
+                            )}
                           </button>
                         ))
                       ) : (
@@ -2404,15 +2417,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   });
                               }
                             }}
-                            className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                            className={`group relative flex-shrink-0 h-14 rounded-md border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                               selectedPhoto === modelIndex
-                                ? 'border-orange-500 ring-2 ring-orange-100 scale-105 shadow-md md:shadow-lg'
-                                : 'border-transparent hover:border-gray-200 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
+                                ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
+                                : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                             }`}
                             aria-label={`Select demo model ${model.id}`}
                             type="button"
                           >
-                            <img src={model.url} alt={`Demo model ${model.id}`} className="h-full w-auto object-contain border-2 border-white rounded-md shadow-sm" />
+                            {/* Hover overlay effect */}
+                            {selectedPhoto !== modelIndex && (
+                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-md z-10"></div>
+                            )}
+                            <img 
+                              src={model.url} 
+                              alt={`Demo model ${model.id}`} 
+                              className={`h-full w-auto object-contain border-2 border-white rounded-md shadow-sm transition-all duration-300 relative z-0 ${
+                                selectedPhoto === modelIndex 
+                                  ? 'ring-2 ring-primary/20' 
+                                  : 'group-hover:scale-105 group-hover:shadow-md'
+                              }`} 
+                            />
+                            {/* Selection indicator */}
+                            {selectedPhoto === modelIndex && (
+                              <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
+                            )}
                           </button>
                         );
                       })}
@@ -2426,17 +2455,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   <div className="flex items-center gap-2 mb-4">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       step === 'complete' || generatedImage
-                        ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
+                        ? 'bg-primary text-primary-foreground shadow-md' // Completed - primary color
                         : step === 'generating'
-                        ? 'bg-orange-500 text-white shadow-md' // Current/Active - primary color
-                        : uploadedImage
-                        ? 'bg-orange-500 text-white shadow-md' // Ready/Current - primary color (photo selected, ready to generate)
-                        : 'bg-gray-300 text-gray-500' // Incomplete - grey background (no photo uploaded yet)
+                        ? 'bg-primary text-primary-foreground shadow-md' // Current/Active - primary color (generation started)
+                        : 'bg-gray-300 text-gray-500' // Grey until generation starts
                     }`}>
                       2
                     </div>
                     <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
-                      step === 'complete' || generatedImage || step === 'generating' || uploadedImage
+                      step === 'complete' || generatedImage || step === 'generating'
                         ? 'text-gray-800'
                         : 'text-gray-400'
                     }`}>
@@ -2447,15 +2474,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {/* Generation Progress Card */}
                   <div className="flex-1 rounded-md border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px] md:min-h-[400px]">
                     {step === 'idle' && !generatedImage && !error && (
-                      <div className="text-center px-4 sm:px-6 py-8 sm:py-12">
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-                          <RotateCcw className="w-16 h-16 sm:w-20 sm:h-20 text-primary" strokeWidth={2} />
+                      <div className="text-center px-4 sm:px-6 py-8 sm:py-12 animate-fade-in">
+                        {/* Icon with subtle background glow */}
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center bg-primary/5 relative group">
+                          <div className="absolute inset-0 rounded-full bg-primary/10 blur-xl group-hover:bg-primary/15 transition-colors duration-300"></div>
+                          <RotateCcw className="w-16 h-16 sm:w-20 sm:h-20 text-primary relative z-10 transition-transform duration-300 group-hover:scale-110" strokeWidth={2.5} />
                         </div>
-                        <p className="text-foreground text-base sm:text-lg font-semibold mb-2">
+                        {/* Primary message */}
+                        <p className="text-foreground text-base sm:text-lg font-semibold mb-2 transition-colors duration-200">
                           Ready to generate
                         </p>
-                        <p className="text-muted-foreground text-sm sm:text-base">
-                          Click the button below
+                        {/* Secondary instruction */}
+                        <p className="text-muted-foreground text-sm sm:text-base max-w-xs mx-auto leading-relaxed">
+                          Click the button below to see your virtual try-on
                         </p>
                       </div>
                     )}
@@ -2622,13 +2653,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {!viewingPastTryOn && (
                           <button
                             onClick={handleReset}
-                            className="relative z-10 mt-4 text-xs text-gray-600 hover:text-gray-800 transition-colors duration-200 flex items-center gap-1.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded"
+                            className="group relative z-10 mt-4 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded hover:scale-105 active:scale-95 px-2 py-1 hover:bg-primary/5 rounded-md"
                             aria-label="Try again"
                             type="button"
                             style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
                           >
-                            <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
-                            <span>Not perfect? Try again</span>
+                            <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
+                            <span className="relative z-10">Not perfect? Try again</span>
                           </button>
                         )}
                       </div>
@@ -2654,12 +2685,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             </div>
                             <button
                               onClick={handleReset}
-                              className="mt-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm sm:text-base font-medium transition-colors flex items-center gap-2 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                              className="group relative mt-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm sm:text-base font-medium transition-all duration-300 ease-in-out flex items-center gap-2 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 overflow-hidden"
                               aria-label="Start over and try again"
                               type="button"
                             >
-                              <RotateCcw size={16} />
-                              Start over
+                              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+                              <RotateCcw size={16} className="relative z-10 group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
+                              <span className="relative z-10">Start over</span>
                             </button>
                           </div>
                         </div>
@@ -2692,17 +2724,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               focusElement(addToCartButtonRef, 400);
                             }, 300);
                           }}
-                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                          className={`group relative w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                             !isAvailable
-                              ? 'bg-gray-50 text-gray-700 border-gray-300 opacity-75 shadow-sm'
+                              ? 'bg-gray-50 text-gray-700 border-gray-300 opacity-75 shadow-sm cursor-not-allowed'
                               : isSelected
-                              ? 'bg-black text-white border-black shadow-md md:shadow-lg'
-                              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
+                              ? 'bg-foreground text-background border-foreground shadow-md md:shadow-lg scale-105'
+                              : 'bg-white text-gray-700 border-border hover:border-primary/50 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 hover:bg-primary/5'
                           }`}
                           aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
                           type="button"
                         >
-                          {size}
+                          {/* Hover shimmer effect */}
+                          {!isSelected && isAvailable && (
+                            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-primary/10 to-transparent"></span>
+                          )}
+                          <span className="relative z-10">{size}</span>
                         </button>
                       );
                     })}
@@ -2732,25 +2768,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`w-full h-12 rounded-md flex items-center justify-center gap-2 font-semibold text-base transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                  className={`group relative w-full h-12 rounded-md flex items-center justify-center gap-2 font-semibold text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white'
                       : btnState.color === 'orange'
-                      ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl'
-                      : 'bg-gray-500 hover:bg-gray-600 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl'
+                      ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                      : 'bg-gray-500 hover:bg-gray-600 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                   }`}
                   aria-label={btnState.text}
                   type="button"
                 >
+                  {/* Shimmer effect on hover for enabled buttons */}
+                  {!btnState.disabled && (
+                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+                  )}
                   {step === 'generating' ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Generating...</span>
+                      <Loader2 className="w-4 h-4 animate-spin relative z-10" />
+                      <span className="relative z-10">Generating...</span>
                     </>
                   ) : (
                     <>
-                      {btnState.icon}
-                      {btnState.text}
+                      <span className="relative z-10 transition-transform duration-300 group-hover:scale-110">
+                        {btnState.icon}
+                      </span>
+                      <span className="relative z-10">{btnState.text}</span>
                     </>
                   )}
                 </button>
@@ -2785,8 +2827,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 min-h-[120px] sm:min-h-[140px] flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-1.5 sm:mb-2">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
-                  <button className="text-[10px] sm:text-xs text-orange-500 font-medium hover:underline" type="button">
-                    View all
+                  <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
+                    <span className="relative">
+                      View all
+                      <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-primary group-hover:w-full transition-all duration-300"></span>
+                    </span>
                   </button>
                 </div>
 
@@ -2824,18 +2869,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               handleHistoryItemSelect(item);
                             }
                           }}
-                          className={`flex-shrink-0 h-14 rounded-md border-2 transition-all flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
+                          className={`group relative flex-shrink-0 h-14 rounded-md border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
-                              ? 'border-orange-500 ring-2 ring-orange-100 scale-105 shadow-md md:shadow-lg'
-                              : 'border-transparent hover:border-gray-200 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
+                              ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
+                              : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                           }`}
                           aria-label={`Select try-on result ${item.id}`}
                           type="button"
                         >
+                          {/* Hover overlay effect */}
+                          {!isSelected && (
+                            <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-md z-10"></div>
+                          )}
                           <img 
                             src={getProxiedImageUrl(item.image)} 
                             alt={`Try-on history ${item.id}`} 
-                            className="h-full w-auto object-contain border-2 border-white rounded-md shadow-sm" 
+                            className={`h-full w-auto object-contain border-2 border-white rounded-md shadow-sm transition-all duration-300 relative z-0 ${
+                              isSelected 
+                                ? 'ring-2 ring-primary/20' 
+                                : 'group-hover:scale-105 group-hover:shadow-md'
+                            }`}
                             onError={(e) => {
                               // Fallback to direct URL if proxy fails
                               if ((e.target as HTMLImageElement).src !== item.image) {
@@ -2843,6 +2896,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               }
                             }}
                           />
+                          {/* Selection indicator */}
+                          {isSelected && (
+                            <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
+                          )}
                         </button>
                       );
                     })}
@@ -2858,16 +2915,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="flex-shrink-0 h-14 w-14 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg"
+                      className="group relative flex-shrink-0 h-14 w-14 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
                       aria-label="Upload new photo for try-on"
                       type="button"
                     >
+                      {/* Shimmer effect */}
+                      <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-primary/10 to-transparent"></span>
                       <Upload 
                         size={18} 
-                        className="text-gray-400 group-hover:text-orange-500 transition-colors duration-200" 
+                        className="text-muted-foreground group-hover:text-primary relative z-10 transition-all duration-300 group-hover:scale-110" 
                         strokeWidth={2}
                       />
-                      <span className="text-[9px] text-gray-400 group-hover:text-orange-500 font-medium mt-0.5 transition-colors duration-200">
+                      <span className="text-[9px] text-muted-foreground group-hover:text-primary font-medium mt-0.5 relative z-10 transition-all duration-300">
                         New
                       </span>
                     </button>
@@ -2885,16 +2944,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-md bg-white hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg"
+                      className="group relative flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-md bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95 overflow-hidden"
                       aria-label="Upload photo to start try-on"
                       type="button"
                     >
+                      {/* Shimmer effect */}
+                      <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-primary/10 to-transparent"></span>
                       <Upload 
                         size={20} 
-                        className="text-gray-400 group-hover:text-orange-500 transition-colors duration-200" 
+                        className="text-muted-foreground group-hover:text-primary relative z-10 transition-all duration-300 group-hover:scale-110" 
                         strokeWidth={2}
                       />
-                      <span className="text-xs text-gray-500 group-hover:text-orange-600 font-medium transition-colors duration-200">
+                      <span className="text-xs text-muted-foreground group-hover:text-primary font-medium relative z-10 transition-all duration-300">
                         Upload photo to start
                       </span>
                     </button>

@@ -29,27 +29,27 @@ export const GlowingBubblesReveal: React.FC<GlowingBubblesRevealProps> = ({
   const [imageRevealed, setImageRevealed] = useState(false)
 
   useEffect(() => {
-    // Generate fewer, more impactful bubbles for better UX
+    // Generate fewer, more elegant bubbles for premium UX feel
     const generateBubbles = (): Bubble[] => {
-      const bubbleCount = 10 // Reduced from 15 for less visual noise
+      const bubbleCount = 6 // Reduced significantly for cleaner, more elegant feel
       return Array.from({ length: bubbleCount }, (_, i) => ({
         id: i,
-        size: Math.random() * 120 + 70, // 70-190px for varied bubble sizes
+        size: Math.random() * 140 + 80, // 80-220px for varied bubble sizes
         x: Math.random() * 100, // 0-100%
-        y: 100 + Math.random() * 20, // Start from bottom (100-120%)
-        delay: Math.random() * 0.4, // 0-0.4s faster staggered start
-        duration: Math.random() * 1.5 + 1.8, // 1.8-3.3s faster bubble travel
-        opacity: Math.random() * 0.5 + 0.4, // 0.4-0.9 visibility
+        y: 100 + Math.random() * 25, // Start from bottom (100-125%)
+        delay: Math.random() * 0.8 + 0.2, // 0.2-1.0s staggered start for elegant reveal
+        duration: Math.random() * 2.5 + 4.5, // 4.5-7s slower, smoother bubble travel
+        opacity: Math.random() * 0.4 + 0.5, // 0.5-0.9 visibility for elegant glow
       }))
     }
 
     setBubbles(generateBubbles())
     
-    // Start revealing image faster - users want to see results quickly
+    // Start revealing image after bubbles begin their elegant journey
     if (show) {
       const revealTimer = setTimeout(() => {
         setImageRevealed(true)
-      }, 500) // Reduced from 900ms - faster reveal start
+      }, 1200) // Slower start for more anticipation and elegance
       
       return () => clearTimeout(revealTimer)
     } else {
@@ -59,7 +59,7 @@ export const GlowingBubblesReveal: React.FC<GlowingBubblesRevealProps> = ({
 
   return (
     <div className={cn("relative overflow-hidden rounded-lg", className)}>
-      {/* Bubbles layer - bubbles move upward and expand, then fade out */}
+      {/* Bubbles layer - bubbles move upward gracefully and expand smoothly */}
       {bubbles.map((bubble) => (
         <motion.div
           key={bubble.id}
@@ -68,46 +68,46 @@ export const GlowingBubblesReveal: React.FC<GlowingBubblesRevealProps> = ({
             width: `${bubble.size}px`,
             height: `${bubble.size}px`,
             left: `${bubble.x}%`,
-            background: "radial-gradient(circle, rgba(255, 235, 59, 0.85) 0%, rgba(255, 245, 157, 0.6) 30%, rgba(139, 195, 74, 0.4) 60%, transparent 85%)",
-            filter: "blur(20px)",
-            boxShadow: "0 0 30px rgba(255, 235, 59, 0.6), 0 0 60px rgba(139, 195, 74, 0.4)",
+            background: "radial-gradient(circle, rgba(255, 235, 59, 0.8) 0%, rgba(255, 245, 157, 0.6) 25%, rgba(139, 195, 74, 0.4) 55%, transparent 85%)",
+            filter: "blur(25px)",
+            boxShadow: "0 0 40px rgba(255, 235, 59, 0.5), 0 0 80px rgba(139, 195, 74, 0.3)",
           }}
           initial={{ 
             opacity: 0, 
-            scale: 0.3,
+            scale: 0.2,
             y: 0,
             x: "-50%"
           }}
           animate={
             show
               ? {
-                  opacity: [0, bubble.opacity, bubble.opacity * 0.5, 0], // Fade out as image reveals
-                  scale: [0.3, 1.0, 1.6, 2.0], // Expand as bubble rises
-                  y: [0, -bubble.y * 0.4, -bubble.y * 0.75, -bubble.y], // Move upward smoothly
+                  opacity: [0, bubble.opacity, bubble.opacity * 0.7, bubble.opacity * 0.4, 0], // Smooth fade out
+                  scale: [0.2, 0.7, 1.2, 1.8, 2.2], // Gradual, smooth expansion
+                  y: [0, -bubble.y * 0.2, -bubble.y * 0.5, -bubble.y * 0.8, -bubble.y], // Smooth upward movement
                   x: "-50%",
                 }
               : { 
                   opacity: 0, 
-                  scale: 0.3,
+                  scale: 0.2,
                   y: 0 
                 }
           }
           transition={{
             delay: bubble.delay,
             duration: bubble.duration,
-            ease: [0.19, 1, 0.22, 1],
-            times: [0, 0.3, 0.7, 1], // Faster fade out
+            ease: [0.25, 0.46, 0.45, 0.94], // Smooth, elegant ease-out curve
+            times: [0, 0.2, 0.5, 0.8, 1], // Smooth keyframe timing
           }}
         />
       ))}
 
-      {/* Fewer smaller bubbles for subtle depth */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        const size = Math.random() * 45 + 25 // 25-70px
+      {/* Fewer smaller bubbles for subtle, elegant depth */}
+      {Array.from({ length: 6 }).map((_, i) => {
+        const size = Math.random() * 50 + 30 // 30-80px
         const x = Math.random() * 100
-        const startY = 100 + Math.random() * 25
-        const delay = Math.random() * 0.8
-        const duration = Math.random() * 1.8 + 1.5
+        const startY = 100 + Math.random() * 30
+        const delay = Math.random() * 1.2 + 0.3 // 0.3-1.5s staggered start
+        const duration = Math.random() * 2.5 + 3.5 // 3.5-6s slower, smoother
 
         return (
           <motion.div
@@ -117,54 +117,58 @@ export const GlowingBubblesReveal: React.FC<GlowingBubblesRevealProps> = ({
               width: `${size}px`,
               height: `${size}px`,
               left: `${x}%`,
-              background: "radial-gradient(circle, rgba(255, 235, 59, 0.7) 0%, rgba(255, 245, 157, 0.4) 50%, transparent 75%)",
-              filter: "blur(12px)",
+              background: "radial-gradient(circle, rgba(255, 235, 59, 0.65) 0%, rgba(255, 245, 157, 0.45) 45%, transparent 75%)",
+              filter: "blur(15px)",
             }}
             initial={{ 
               opacity: 0, 
-              scale: 0.2,
+              scale: 0.15,
               y: 0,
               x: "-50%"
             }}
             animate={
               show
                 ? {
-                    opacity: [0, 0.4, 0.3, 0], // Fade out quickly
-                    scale: [0.2, 0.8, 1.4, 1.8],
-                    y: [0, -startY * 0.3, -startY * 0.65, -startY],
+                    opacity: [0, 0.5, 0.4, 0.2, 0], // Smooth fade
+                    scale: [0.15, 0.6, 1.1, 1.6, 2.0], // Smooth expansion
+                    y: [0, -startY * 0.25, -startY * 0.5, -startY * 0.75, -startY], // Smooth upward
                     x: "-50%",
                   }
                 : { 
                     opacity: 0, 
-                    scale: 0.2,
+                    scale: 0.15,
                     y: 0 
                   }
             }
             transition={{
               delay: delay,
               duration: duration,
-              ease: [0.19, 1, 0.22, 1],
-              times: [0, 0.3, 0.7, 1],
+              ease: [0.25, 0.46, 0.45, 0.94], // Smooth, elegant ease-out
+              times: [0, 0.25, 0.55, 0.8, 1], // Smooth keyframe timing
             }}
           />
         )
       })}
 
-      {/* Content (image) - faster, smoother reveal */}
+      {/* Content (image) - smooth, elegant reveal */}
       <motion.div 
         className="relative z-10"
-        initial={{ opacity: 0, filter: "blur(18px) brightness(0.4)" }}
-        animate={imageRevealed ? { 
+        initial={!show ? { opacity: 1, filter: "blur(0px) brightness(1)" } : { opacity: 0, filter: "blur(20px) brightness(0.3)" }}
+        animate={imageRevealed || !show ? { 
+          // If show is false (viewing past try-on), always show image immediately
           opacity: 1, 
           filter: "blur(0px) brightness(1)",
         } : { 
           opacity: 0, 
-          filter: "blur(18px) brightness(0.4)" 
+          filter: "blur(20px) brightness(0.3)" 
         }}
-        transition={{
-          duration: 1.6, // Reduced from 2.2s for faster reveal
-          delay: 0.2, // Reduced from 0.5s
-          ease: [0.16, 1, 0.3, 1],
+        transition={!show ? {
+          // Instant reveal for past try-ons
+          duration: 0,
+        } : {
+          duration: 2.8, // Slower, more elegant reveal
+          delay: 0.8, // Delayed start for anticipation
+          ease: [0.16, 1, 0.3, 1], // Smooth, elegant ease-out curve
         }}
       >
         {children}
