@@ -1074,19 +1074,29 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setSelectedClothingKey(null);
     }
     
-    // Auto-scroll to generate button after clothing is selected
+    // Auto-scroll to preview section after clothing is selected
     // Only scroll forward, prevent reverse scrolling
+    const isMobile = isMobileDevice();
+    const scrollDelay = isMobile ? 400 : 300; // Slightly longer delay on mobile for better UX
+    
     setTimeout(() => {
       if (uploadedImage) {
-        // Only scroll if photo is already selected
-        scrollToElement(generateButtonRef, 20, undefined, 'generate-button');
-        focusElement(generateButtonRef, 400);
+        // If photo is already selected, scroll to preview section to show selected clothing
+        scrollToElement(clothingSelectionRef, isMobile ? 15 : 20, undefined, 'clothing-preview');
+        // Focus generate button for accessibility (desktop only - mobile doesn't need focus)
+        if (!isMobile) {
+          setTimeout(() => {
+            if (generateButtonRef.current) {
+              generateButtonRef.current.focus();
+            }
+          }, 600);
+        }
       } else {
         // If no photo, scroll to photo upload section (forward only)
-        scrollToElement(photoUploadRef, 20, undefined, 'photo-upload');
+        scrollToElement(photoUploadRef, isMobile ? 15 : 20, undefined, 'photo-upload');
       }
-    }, 300);
-  }, [productImagesWithIds, storedProductData, productData, uploadedImage, scrollToElement, focusElement]);
+    }, scrollDelay);
+  }, [productImagesWithIds, storedProductData, productData, uploadedImage, scrollToElement, focusElement, isMobileDevice]);
   
   // Get size availability for all sizes
   const getSizeAvailability = useCallback(() => {
@@ -2102,27 +2112,39 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           )}
 
           {(selectedClothing || productImage) && (
-            <div className="w-full px-4 sm:px-6 md:px-8 border-b border-gray-100" ref={clothingSelectionRef}>
-              <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md">
-                <img
-                  key={selectedClothing || productImage} // Force re-render when selectedClothing changes
-                  src={selectedClothing || productImage || ''}
-                  alt={productTitle}
-                  className="h-12 sm:h-14 md:h-16 w-auto object-contain flex-shrink-0 border-2 border-white rounded-md shadow-sm md:shadow-md"
-                  onError={(e) => {
-                    // Fallback to first product image if selected clothing fails to load
-                    if (productImages[0] && (e.target as HTMLImageElement).src !== productImages[0]) {
-                      (e.target as HTMLImageElement).src = productImages[0];
-                    }
-                  }}
-                />
+            <div 
+              className="w-full px-4 sm:px-6 md:px-8 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2" 
+              ref={clothingSelectionRef}
+              role="region"
+              aria-label="Selected clothing preview"
+            >
+              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-3 sm:px-4 py-2.5 sm:py-3 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ease-in-out hover:border-primary/20 hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/5 active:scale-[0.98] touch-manipulation">
+                <div className="relative flex-shrink-0">
+                  <img
+                    key={selectedClothing || productImage} // Force re-render when selectedClothing changes
+                    src={selectedClothing || productImage || ''}
+                    alt={productTitle}
+                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-2 border-white rounded-md shadow-sm md:shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-md"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Fallback to first product image if selected clothing fails to load
+                      if (productImages[0] && (e.target as HTMLImageElement).src !== productImages[0]) {
+                        (e.target as HTMLImageElement).src = productImages[0];
+                      }
+                    }}
+                  />
+                  {/* Selection indicator */}
+                  <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-primary rounded-full border-2 border-white shadow-sm flex items-center justify-center animate-in zoom-in duration-200">
+                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white rounded-full"></div>
+                  </div>
+                </div>
                 <div className="flex flex-col min-w-0 flex-1">
-                  <div className="text-[9px] sm:text-[10px] text-gray-700 uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1">
+                  <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1 transition-colors duration-200">
                     {viewingPastTryOn ? 'PREVIOUSLY TRIED ON' : "YOU'RE TRYING ON"}
                   </div>
-                  <div className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight truncate">{productTitle}</div>
+                  <div className="text-xs sm:text-sm font-semibold text-foreground leading-tight truncate transition-colors duration-200">{productTitle}</div>
                   {variantInfo && (
-                    <div className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate mt-0.5">{variantInfo}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight truncate mt-0.5 transition-colors duration-200">{variantInfo}</div>
                   )}
                 </div>
               </div>
@@ -2423,16 +2445,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className="flex-1 rounded-md border-2 border-dashed border-orange-200 bg-[#f5f4f0] relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px] md:min-h-[400px]">
+                  <div className="flex-1 rounded-md border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px] md:min-h-[400px]">
                     {step === 'idle' && !generatedImage && !error && (
                       <div className="text-center px-4 sm:px-6 py-8 sm:py-12">
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-                          <RotateCcw className="w-16 h-16 sm:w-20 sm:h-20 text-pink-500" strokeWidth={2} />
+                          <RotateCcw className="w-16 h-16 sm:w-20 sm:h-20 text-primary" strokeWidth={2} />
                         </div>
-                        <p className="text-red-600 text-base sm:text-lg font-semibold mb-2">
+                        <p className="text-foreground text-base sm:text-lg font-semibold mb-2">
                           Ready to generate
                         </p>
-                        <p className="text-gray-500 text-sm sm:text-base">
+                        <p className="text-muted-foreground text-sm sm:text-base">
                           Click the button below
                         </p>
                       </div>
@@ -2570,10 +2592,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             className="p-4 sm:p-6"
                           >
                             <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50">
-                              {/* Image reveals WITHIN the glowing bubbles - starts blurred and fades in */}
+                              {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
                               <img
                                 src={generatedImage}
-                                className={`w-full h-auto object-contain rounded-lg relative z-10 ${viewingPastTryOn ? '' : 'image-reveal-animation'}`}
+                                className="w-full h-auto object-contain rounded-lg relative z-10"
                                 alt="Try-on result"
                                 loading="eager"
                               />
@@ -2650,8 +2672,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
               {/* Bottom Action Section */}
               <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-4 sm:py-5">
-                {/* Only show size selection if sizes are available */}
-                {sizes.length > 0 && (
+                {/* Only show size selection if sizes are available and generation is complete */}
+                {sizes.length > 0 && (step === 'complete' || generatedImage) && (
                   <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                     <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">Size:</span>
                     {sizes.map((size) => {

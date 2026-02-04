@@ -26,118 +26,149 @@ export const GlowingBubblesReveal: React.FC<GlowingBubblesRevealProps> = ({
   show = true,
 }) => {
   const [bubbles, setBubbles] = useState<Bubble[]>([])
+  const [imageRevealed, setImageRevealed] = useState(false)
 
   useEffect(() => {
-    // Generate random bubbles - larger and more prominent for bokeh effect
+    // Generate fewer, more impactful bubbles for better UX
     const generateBubbles = (): Bubble[] => {
-      const bubbleCount = 10
+      const bubbleCount = 10 // Reduced from 15 for less visual noise
       return Array.from({ length: bubbleCount }, (_, i) => ({
         id: i,
-        size: Math.random() * 150 + 100, // 100-250px for larger bubbles
+        size: Math.random() * 120 + 70, // 70-190px for varied bubble sizes
         x: Math.random() * 100, // 0-100%
-        y: Math.random() * 100, // 0-100%
-        delay: Math.random() * 1.2, // 0-1.2s staggered reveal
-        duration: Math.random() * 3 + 4, // 4-7s slower pulse
-        opacity: Math.random() * 0.4 + 0.3, // 0.3-0.7 more visible
+        y: 100 + Math.random() * 20, // Start from bottom (100-120%)
+        delay: Math.random() * 0.4, // 0-0.4s faster staggered start
+        duration: Math.random() * 1.5 + 1.8, // 1.8-3.3s faster bubble travel
+        opacity: Math.random() * 0.5 + 0.4, // 0.4-0.9 visibility
       }))
     }
 
     setBubbles(generateBubbles())
-  }, [])
+    
+    // Start revealing image faster - users want to see results quickly
+    if (show) {
+      const revealTimer = setTimeout(() => {
+        setImageRevealed(true)
+      }, 500) // Reduced from 900ms - faster reveal start
+      
+      return () => clearTimeout(revealTimer)
+    } else {
+      setImageRevealed(false)
+    }
+  }, [show])
 
   return (
     <div className={cn("relative overflow-hidden rounded-lg", className)}>
-      {/* Glowing gradient background - yellow to green-yellow */}
-      <motion.div
-        className={cn(
-          "absolute inset-0 rounded-lg",
-          show ? "opacity-100" : "opacity-0"
-        )}
-        initial={{ opacity: 0 }}
-        animate={show ? { opacity: 1 } : { opacity: 0 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-        style={{
-          background: "radial-gradient(ellipse at center, rgba(255, 235, 59, 0.5) 0%, rgba(255, 245, 157, 0.4) 30%, rgba(139, 195, 74, 0.3) 60%, rgba(76, 175, 80, 0.2) 100%)",
-        }}
-      />
-
-      {/* Glowing bubbles - large bokeh effect */}
+      {/* Bubbles layer - bubbles move upward and expand, then fade out */}
       {bubbles.map((bubble) => (
         <motion.div
           key={bubble.id}
-          className="absolute rounded-full pointer-events-none"
+          className="absolute rounded-full pointer-events-none z-[5]"
           style={{
             width: `${bubble.size}px`,
             height: `${bubble.size}px`,
             left: `${bubble.x}%`,
-            top: `${bubble.y}%`,
-            transform: "translate(-50%, -50%)",
-            background: "radial-gradient(circle, rgba(255, 235, 59, 0.7) 0%, rgba(255, 245, 157, 0.5) 30%, rgba(139, 195, 74, 0.4) 60%, transparent 80%)",
-            filter: "blur(30px)",
-            boxShadow: "0 0 60px rgba(255, 235, 59, 0.6), 0 0 120px rgba(139, 195, 74, 0.4), 0 0 180px rgba(76, 175, 80, 0.2)",
+            background: "radial-gradient(circle, rgba(255, 235, 59, 0.85) 0%, rgba(255, 245, 157, 0.6) 30%, rgba(139, 195, 74, 0.4) 60%, transparent 85%)",
+            filter: "blur(20px)",
+            boxShadow: "0 0 30px rgba(255, 235, 59, 0.6), 0 0 60px rgba(139, 195, 74, 0.4)",
           }}
-          initial={{ opacity: 0, scale: 0 }}
+          initial={{ 
+            opacity: 0, 
+            scale: 0.3,
+            y: 0,
+            x: "-50%"
+          }}
           animate={
             show
               ? {
-                  opacity: [0, bubble.opacity, bubble.opacity * 0.8],
-                  scale: [0, 1.3, 1],
+                  opacity: [0, bubble.opacity, bubble.opacity * 0.5, 0], // Fade out as image reveals
+                  scale: [0.3, 1.0, 1.6, 2.0], // Expand as bubble rises
+                  y: [0, -bubble.y * 0.4, -bubble.y * 0.75, -bubble.y], // Move upward smoothly
+                  x: "-50%",
                 }
-              : { opacity: 0, scale: 0 }
+              : { 
+                  opacity: 0, 
+                  scale: 0.3,
+                  y: 0 
+                }
           }
           transition={{
             delay: bubble.delay,
             duration: bubble.duration,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut",
+            ease: [0.19, 1, 0.22, 1],
+            times: [0, 0.3, 0.7, 1], // Faster fade out
           }}
         />
       ))}
 
-      {/* Additional smaller glowing particles for depth */}
-      {Array.from({ length: 15 }).map((_, i) => {
-        const size = Math.random() * 60 + 30 // 30-90px
+      {/* Fewer smaller bubbles for subtle depth */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        const size = Math.random() * 45 + 25 // 25-70px
         const x = Math.random() * 100
-        const y = Math.random() * 100
-        const delay = Math.random() * 1.5
-        const duration = Math.random() * 2.5 + 2.5
+        const startY = 100 + Math.random() * 25
+        const delay = Math.random() * 0.8
+        const duration = Math.random() * 1.8 + 1.5
 
         return (
           <motion.div
-            key={`particle-${i}`}
-            className="absolute rounded-full pointer-events-none"
+            key={`small-bubble-${i}`}
+            className="absolute rounded-full pointer-events-none z-[5]"
             style={{
               width: `${size}px`,
               height: `${size}px`,
               left: `${x}%`,
-              top: `${y}%`,
-              transform: "translate(-50%, -50%)",
-              background: "radial-gradient(circle, rgba(255, 235, 59, 0.9) 0%, rgba(255, 245, 157, 0.6) 40%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(255, 235, 59, 0.7) 0%, rgba(255, 245, 157, 0.4) 50%, transparent 75%)",
               filter: "blur(12px)",
             }}
-            initial={{ opacity: 0, scale: 0 }}
+            initial={{ 
+              opacity: 0, 
+              scale: 0.2,
+              y: 0,
+              x: "-50%"
+            }}
             animate={
               show
                 ? {
-                    opacity: [0, 0.7, 0],
-                    scale: [0, 1.8, 0],
+                    opacity: [0, 0.4, 0.3, 0], // Fade out quickly
+                    scale: [0.2, 0.8, 1.4, 1.8],
+                    y: [0, -startY * 0.3, -startY * 0.65, -startY],
+                    x: "-50%",
                   }
-                : { opacity: 0, scale: 0 }
+                : { 
+                    opacity: 0, 
+                    scale: 0.2,
+                    y: 0 
+                  }
             }
             transition={{
               delay: delay,
               duration: duration,
-              repeat: Infinity,
-              ease: "easeInOut",
+              ease: [0.19, 1, 0.22, 1],
+              times: [0, 0.3, 0.7, 1],
             }}
           />
         )
       })}
 
-      {/* Content (image) */}
-      <div className="relative z-10">{children}</div>
+      {/* Content (image) - faster, smoother reveal */}
+      <motion.div 
+        className="relative z-10"
+        initial={{ opacity: 0, filter: "blur(18px) brightness(0.4)" }}
+        animate={imageRevealed ? { 
+          opacity: 1, 
+          filter: "blur(0px) brightness(1)",
+        } : { 
+          opacity: 0, 
+          filter: "blur(18px) brightness(0.4)" 
+        }}
+        transition={{
+          duration: 1.6, // Reduced from 2.2s for faster reveal
+          delay: 0.2, // Reduced from 0.5s
+          ease: [0.16, 1, 0.3, 1],
+        }}
+      >
+        {children}
+      </motion.div>
     </div>
   )
 }
-
