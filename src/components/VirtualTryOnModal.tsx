@@ -2085,8 +2085,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       )}
 
       {/* Modal container */}
-      <div className="fixed inset-0 z-50 bg-white flex items-center justify-center p-0">
-        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-screen md:h-[95vh] max-h-screen flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl md:rounded-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div className="fixed inset-0 z-50 bg-white flex items-start justify-center">
+        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-lg md:shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -2102,7 +2102,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </div>
           )}
 
-          <div className="flex justify-between items-center px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 border-b border-gray-100 flex-shrink-0">
+          <div className="flex justify-between items-center px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
                 src="/assets/NUSENSE_LOGO.svg"
@@ -2156,7 +2156,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
           {(selectedClothing || productImage) && (
             <div 
-              className="w-full px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2 flex-shrink-0" 
+              className="w-full px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2" 
               ref={clothingSelectionRef}
               role="region"
               aria-label="Selected clothing preview"
@@ -2190,19 +2190,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </div>
           )}
 
-          <div className="flex flex-1 overflow-hidden min-h-0">
+          <div className="flex flex-1 overflow-hidden">
             <div 
               id="main-content" 
               ref={mainContentRef}
-              className="w-full overflow-y-auto overflow-x-hidden md:overflow-hidden flex flex-col min-h-0 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-300/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-300/50 md:[&::-webkit-scrollbar]:w-0 md:[&::-webkit-scrollbar]:h-0"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.3) transparent' }}
+              className="w-full overflow-y-auto smooth-scroll [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-gray-400/15 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/30" 
+              style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.15) transparent' }}
             >
-              <div className="p-3 sm:p-4 md:p-6 flex-1 flex flex-col min-h-0 md:overflow-hidden">
-                <div className="flex flex-col md:grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6 flex-1 min-h-0 md:overflow-hidden">
+              <div className="p-4 sm:p-6 md:p-8">
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-4 sm:mb-6">
                 {/* Left Column - Step 1 */}
-                <div className="flex flex-col w-full min-h-0 md:overflow-y-auto md:overflow-x-hidden md:[&::-webkit-scrollbar]:w-0 md:[&::-webkit-scrollbar]:h-0 md:scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="flex flex-col w-full">
                   {/* Step 1 Header */}
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 mb-4">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       uploadedImage 
                         ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
@@ -2215,11 +2215,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     }`}>Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
-                  <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-3 sm:p-4 md:p-5 flex flex-col items-center text-center mb-3 sm:mb-4 flex-shrink-0">
+                  <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 md:p-6 flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6">
                     {!uploadedImage && (
                       <>
-                        <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-2 sm:mb-3 uppercase tracking-wide">For best results</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-xs text-gray-600 mb-3 sm:mb-4 w-full">
+                        <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-3 sm:mb-4 uppercase tracking-wide">For best results</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 mb-4 w-full">
                           <span className="flex items-center gap-1.5 justify-start">
                             <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Front-facing pose
                           </span>
@@ -2240,7 +2240,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <img
                           src={uploadedImage}
                           alt="Uploaded photo"
-                          className="max-w-full max-h-[140px] sm:max-h-[160px] md:max-h-[180px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
                         />
                         <button
                           onClick={() => {
@@ -2270,8 +2270,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Recent Photos Section */}
-                  <div className="mb-2 sm:mb-3 flex-shrink-0">
-                    <label className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 block">Recent photos</label>
+                  <div className="mb-4 sm:mb-5">
+                    <label className="text-sm font-semibold text-gray-700 mb-3 block">Recent photos</label>
                     <div 
                       className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide" 
                       style={{ 
@@ -2394,8 +2394,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Use a Demo Model Section */}
-                  <div className="flex-shrink-0">
-                    <label className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 block">Use a demo model</label>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-3 block">Use a demo model</label>
                     <div 
                       className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide" 
                       style={{ 
@@ -2494,9 +2494,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 {/* Right Column - Step 2 */}
-                  <div className="flex flex-col w-full min-h-0 md:overflow-y-auto md:overflow-x-hidden md:[&::-webkit-scrollbar]:w-0 md:[&::-webkit-scrollbar]:h-0 md:scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} ref={rightColumnRef}>
+                  <div className="flex flex-col w-full" ref={rightColumnRef}>
                   {/* Step 2 Header */}
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 mb-4">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       step === 'complete' || generatedImage
                         ? 'bg-primary text-primary-foreground shadow-md' // Completed - primary color
@@ -2516,19 +2516,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className="flex-1 rounded-md border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-0">
+                  <div className="flex-1 rounded-md border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px] md:min-h-[400px]">
                     {step === 'idle' && !generatedImage && !error && (
-                      <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
+                      <div className="text-center px-4 sm:px-6 py-8 sm:py-12 animate-fade-in flex flex-col items-center justify-center h-full">
                         {/* Eye icon with circular background */}
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-gray-100 relative">
-                          <Eye className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-gray-400" strokeWidth={2} />
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center bg-gray-100 relative">
+                          <Eye className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" strokeWidth={2} />
                         </div>
                         {/* Primary message */}
-                        <p className="text-gray-600 text-sm sm:text-base md:text-lg font-medium mb-1.5 sm:mb-2 transition-colors duration-200">
+                        <p className="text-gray-600 text-base sm:text-lg font-medium mb-2 transition-colors duration-200">
                           Your result will appear here
                         </p>
                         {/* Secondary instruction */}
-                        <p className="text-gray-500 text-xs sm:text-sm md:text-base max-w-xs mx-auto leading-relaxed">
+                        <p className="text-gray-500 text-sm sm:text-base max-w-xs mx-auto leading-relaxed">
                           Upload a photo to get started
                         </p>
                       </div>
@@ -2767,14 +2767,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
                   </div>
                 </div>
-                </div>
+              </div>
               </div>
 
               {/* Bottom Action Section */}
-              <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 flex-shrink-0">
+              <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-4 sm:py-5">
                 {/* Only show size selection if sizes are available and generation is complete */}
                 {sizes.length > 0 && (step === 'complete' || generatedImage) && (
-                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                     <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">Size:</span>
                     {sizes.map((size) => {
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
@@ -2855,7 +2855,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`group relative w-full h-11 sm:h-12 md:h-14 rounded-md flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                  className={`group relative w-full h-12 sm:h-14 rounded-md flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white shadow-sm'
                       : btnState.color === 'orange'
@@ -2893,28 +2893,28 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </button>
 
                 {step === 'generating' && (
-                  <p className="text-center text-[10px] sm:text-xs text-gray-400 mt-1.5">
+                  <p className="text-center text-xs text-gray-400 mt-2">
                     Please wait while we create your try-on.
                   </p>
                 )}
                 
                 {step !== 'generating' && step === 'complete' && (
-                  <p className="text-center text-[9px] sm:text-[10px] md:text-xs text-gray-600 mt-1.5 px-2">
+                  <p className="text-center text-[10px] sm:text-xs text-gray-600 mt-2 px-2">
                     Rendered for aesthetic purposes. Does not reflect actual dimensions.
                   </p>
                 )}
 
                 {step !== 'generating' && step !== 'complete' && (
-                  <p className="text-center text-[9px] sm:text-[10px] md:text-xs text-gray-600 mt-1.5 px-2">
+                  <p className="text-center text-[10px] text-gray-600 mt-2 px-2">
                     Rendered for aesthetic purposes. Does not reflect actual dimensions.
                   </p>
                 )}
               </div>
 
               {/* History Section */}
-              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 flex-shrink-0">
+              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 min-h-[120px] sm:min-h-[140px] flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-1.5 sm:mb-2">
-                  <h4 className="text-[9px] sm:text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
+                  <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
                   <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
                     <span className="relative">
                       View all
