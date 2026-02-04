@@ -588,28 +588,29 @@ All colors MUST be HSL.
   }
 }
 
-/* Container glow buildup - starts immediately */
+/* Container glow buildup - starts immediately BEFORE image reveal */
 .glow-buildup-container {
   opacity: 0;
   transform: scale(0.8);
-  animation: glowBuildup 1s ease-out forwards;
+  animation: glowBuildup 1.2s ease-out forwards;
   will-change: opacity, transform;
 }
 
-/* Image reveal animation class - starts AFTER glow buildup */
+/* Image reveal animation class - starts DURING glow buildup (at 0.4s) */
+/* This ensures bulbs glow BEFORE and DURING image reveal */
 .image-reveal-animation {
   opacity: 0;
   transform: scale(0.9);
-  filter: blur(8px);
-  animation: imageReveal 1.5s ease-out 0.6s forwards;
+  filter: blur(10px);
+  animation: imageReveal 1.8s ease-out 0.4s forwards;
   will-change: opacity, transform, filter;
 }
 
 /* Optimize for mobile - reduce blur intensity for better performance */
 @media (max-width: 640px) {
   .image-reveal-animation {
-    filter: blur(6px);
-    animation: imageRevealMobile 1.3s ease-out 0.6s forwards;
+    filter: blur(8px);
+    animation: imageRevealMobile 1.6s ease-out 0.4s forwards;
   }
 }
 
@@ -647,37 +648,52 @@ All colors MUST be HSL.
 }
 
 /* Bulb glow animation for generated image - Enhanced with Magic UI-inspired effects */
-/* Starts building up immediately, then pulses */
+/* Starts building up BEFORE image reveal, peaks during reveal, then pulses */
 @keyframes bulbGlow {
   0% {
     opacity: 0;
     box-shadow: 0 0 5px rgba(255, 152, 0, 0.2),
                 0 0 10px rgba(255, 152, 0, 0.1);
   }
-  30% {
-    opacity: 0.5;
-    box-shadow: 0 0 15px rgba(255, 152, 0, 0.3),
-                0 0 30px rgba(255, 152, 0, 0.2),
-                0 0 45px rgba(255, 152, 0, 0.1);
+  20% {
+    opacity: 0.3;
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.3),
+                0 0 20px rgba(255, 152, 0, 0.2),
+                0 0 30px rgba(255, 152, 0, 0.1);
+  }
+  40% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5),
+                0 0 40px rgba(255, 152, 0, 0.4),
+                0 0 60px rgba(255, 152, 0, 0.3),
+                0 0 80px rgba(255, 152, 0, 0.2);
   }
   60% {
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(255, 152, 0, 0.7),
+                0 0 60px rgba(255, 152, 0, 0.6),
+                0 0 90px rgba(255, 152, 0, 0.5),
+                0 0 120px rgba(255, 152, 0, 0.4),
+                0 0 150px rgba(255, 152, 0, 0.3);
+  }
+  80% {
     opacity: 0.8;
-    box-shadow: 0 0 25px rgba(255, 152, 0, 0.5),
-                0 0 50px rgba(255, 152, 0, 0.4),
-                0 0 75px rgba(255, 152, 0, 0.3),
-                0 0 100px rgba(255, 152, 0, 0.2);
+    box-shadow: 0 0 25px rgba(255, 152, 0, 0.6),
+                0 0 50px rgba(255, 152, 0, 0.5),
+                0 0 75px rgba(255, 152, 0, 0.4),
+                0 0 100px rgba(255, 152, 0, 0.3);
   }
   100% {
     opacity: 0.7;
-    box-shadow: 0 0 20px rgba(255, 152, 0, 0.4),
-                0 0 40px rgba(255, 152, 0, 0.3),
-                0 0 60px rgba(255, 152, 0, 0.2),
-                0 0 80px rgba(255, 152, 0, 0.1);
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5),
+                0 0 40px rgba(255, 152, 0, 0.4),
+                0 0 60px rgba(255, 152, 0, 0.3),
+                0 0 80px rgba(255, 152, 0, 0.2);
   }
 }
 
 .animate-bulb-glow {
-  animation: bulbGlow 1s ease-out forwards, bulbGlowPulse 2s ease-in-out 1s infinite;
+  animation: bulbGlow 1.2s ease-out forwards, bulbGlowPulse 2.5s ease-in-out 1.2s infinite;
   will-change: opacity, box-shadow;
 }
 
@@ -727,7 +743,7 @@ All colors MUST be HSL.
 }
 
 .animate-bulb-glow-pulse {
-  animation: bulbGlowPulseBuild 1s ease-out forwards, bulbGlowPulse 2.5s ease-in-out 1s infinite;
+  animation: bulbGlowPulseBuild 1.2s ease-out forwards, bulbGlowPulse 2.5s ease-in-out 1.2s infinite;
   will-change: box-shadow;
 }
 

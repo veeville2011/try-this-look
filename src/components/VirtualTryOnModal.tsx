@@ -170,6 +170,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const touchStartYRef = useRef<number | null>(null);
   const isScrollingRef = useRef<boolean>(false);
   
+  // Track scroll direction to prevent reverse scrolling
+  const lastScrollPositionRef = useRef<number>(0);
+  const lastScrollTargetRef = useRef<string | null>(null);
+  
   // Refs for auto-scrolling and focusing (defined early to avoid initialization errors)
   const mainContentRef = useRef<HTMLDivElement>(null);
   const generatedImageRef = useRef<HTMLDivElement>(null);
@@ -189,12 +193,38 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, []);
 
   // Helper function for smooth scrolling to an element - optimized for desktop and mobile (defined early)
-  const scrollToElement = useCallback((elementRef: React.RefObject<HTMLElement>, offset: number = 20, behavior?: ScrollBehavior) => {
+  // Prevents reverse scrolling - only allows forward progression
+  const scrollToElement = useCallback((elementRef: React.RefObject<HTMLElement>, offset: number = 20, behavior?: ScrollBehavior, targetId?: string) => {
     if (!elementRef.current || !mainContentRef.current) return;
     
     const element = elementRef.current;
     const container = mainContentRef.current;
     const isMobile = isMobileDevice();
+    
+    // Get current scroll position
+    const currentScrollPosition = container.scrollTop;
+    
+    // Calculate target scroll position
+    const scrollPosition = 
+      element.offsetTop - 
+      container.offsetTop - 
+      (isMobile ? 10 : offset);
+    
+    // Prevent reverse scrolling - only allow forward progression
+    if (lastScrollPositionRef.current > 0 && scrollPosition < lastScrollPositionRef.current) {
+      // If scrolling backwards and we have a last target, check if it's the same target
+      if (targetId && lastScrollTargetRef.current === targetId) {
+        // Same target, allow it (user might be re-selecting)
+        // But only if it's significantly different position
+        const scrollDiff = Math.abs(scrollPosition - lastScrollPositionRef.current);
+        if (scrollDiff < 50) {
+          return; // Too close to last position, skip
+        }
+      } else if (scrollPosition < lastScrollPositionRef.current - 20) {
+        // Different target and scrolling backwards significantly, prevent it
+        return;
+      }
+    }
     
     // Check if element is already visible
     const containerRect = container.getBoundingClientRect();
@@ -212,10 +242,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const scrollOffset = isMobile ? 10 : offset;
       const scrollBehavior = behavior || (isMobile ? 'auto' : 'smooth');
       
-      const scrollPosition = 
-        element.offsetTop - 
-        container.offsetTop - 
-        scrollOffset;
+      // Update last scroll position and target
+      lastScrollPositionRef.current = scrollPosition;
+      if (targetId) {
+        lastScrollTargetRef.current = targetId;
+      }
       
       // Use requestAnimationFrame for better mobile performance
       if (isMobile) {
@@ -856,8 +887,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     // Auto-scroll to clothing selection after photo is selected
+    // Only scroll forward, prevent reverse scrolling
     setTimeout(() => {
-      scrollToElement(clothingSelectionRef, 20);
+      scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
     }, 300);
   }, [scrollToElement]);
 
@@ -1042,14 +1074,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     // Auto-scroll to generate button after clothing is selected
+    // Only scroll forward, prevent reverse scrolling
     setTimeout(() => {
       if (uploadedImage) {
         // Only scroll if photo is already selected
-        scrollToElement(generateButtonRef, 20);
+        scrollToElement(generateButtonRef, 20, undefined, 'generate-button');
         focusElement(generateButtonRef, 400);
       } else {
-        // If no photo, scroll to photo upload section
-        scrollToElement(photoUploadRef, 20);
+        // If no photo, scroll to photo upload section (forward only)
+        scrollToElement(photoUploadRef, 20, undefined, 'photo-upload');
       }
     }, 300);
   }, [productImagesWithIds, storedProductData, productData, uploadedImage, scrollToElement, focusElement]);
@@ -1219,11 +1252,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       toast.error('Missing requirements', {
         description: 'Please upload a photo and select a clothing item.',
       });
-      // Scroll to missing requirement
+      // Scroll to missing requirement (forward only)
       if (!uploadedImage) {
-        scrollToElement(photoUploadRef, 20);
+        scrollToElement(photoUploadRef, 20, undefined, 'photo-upload');
       } else if (!selectedClothing) {
-        scrollToElement(clothingSelectionRef, 20);
+        scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
       }
       return;
     }
@@ -1235,9 +1268,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setError(null);
     setStatusMessage('Preparing your try-on...');
     
-    // Auto-scroll to generating section immediately
+    // Auto-scroll to generating section immediately (forward only)
     setTimeout(() => {
-      scrollToElement(rightColumnRef, 20);
+      scrollToElement(rightColumnRef, 20, undefined, 'generating-section');
     }, 100);
 
     // Clear old timers
@@ -1901,7 +1934,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const delay = isMobile ? 200 : 300;
       
       const scrollTimeout = setTimeout(() => {
-        scrollToElement(rightColumnRef, isMobile ? 10 : 20);
+        scrollToElement(rightColumnRef, isMobile ? 10 : 20, undefined, 'generating-section');
       }, delay);
 
       return () => clearTimeout(scrollTimeout);
@@ -1909,6 +1942,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [step, scrollToElement, isMobileDevice]);
 
   // Auto-scroll/focus after photo selection - optimized for mobile and desktop
+  // Only scroll forward, prevent reverse scrolling
   useEffect(() => {
     if (uploadedImage && !selectedClothing && clothingSelectionRef.current) {
       const isMobile = isMobileDevice();
@@ -1916,7 +1950,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const delay = isMobile ? 200 : 300;
       
       const scrollTimeout = setTimeout(() => {
-        scrollToElement(clothingSelectionRef, isMobile ? 10 : 20);
+        scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, undefined, 'clothing-selection');
       }, delay);
 
       return () => clearTimeout(scrollTimeout);
@@ -1924,13 +1958,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [uploadedImage, selectedClothing, scrollToElement, isMobileDevice]);
 
   // Auto-scroll/focus after clothing selection (if photo already selected)
+  // Only scroll if we haven't already scrolled to generate button
   useEffect(() => {
     if (selectedClothing && uploadedImage && step === 'idle' && generateButtonRef.current) {
+      // Only scroll if we're not already past the generate button area
       const isMobile = isMobileDevice();
       const delay = isMobile ? 200 : 300;
       
       const scrollTimeout = setTimeout(() => {
-        scrollToElement(generateButtonRef, isMobile ? 10 : 20);
+        scrollToElement(generateButtonRef, isMobile ? 10 : 20, undefined, 'generate-button');
         // Only focus on desktop (mobile focus causes keyboard popup)
         if (!isMobile) {
           focusElement(generateButtonRef, 400);
@@ -1948,7 +1984,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const delay = isMobile ? 200 : 300;
       
       const scrollTimeout = setTimeout(() => {
-        scrollToElement(addToCartButtonRef, isMobile ? 10 : 20);
+        scrollToElement(addToCartButtonRef, isMobile ? 10 : 20, undefined, 'add-to-cart');
         // Only focus on desktop (mobile focus causes keyboard popup)
         if (!isMobile) {
           focusElement(addToCartButtonRef, 400);
@@ -2100,10 +2136,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 <div className="flex flex-col w-full">
                   {/* Step 1 Header */}
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold bg-orange-500 text-white">
-                      1
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
+                      uploadedImage 
+                        ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
+                        : 'bg-orange-500 text-white shadow-md' // Current - primary color (active step)
+                    }`}>
+                      {uploadedImage ? (
+                        <CheckCircle size={16} className="md:w-5 md:h-5" fill="currentColor" />
+                      ) : (
+                        '1'
+                      )}
                     </div>
-                    <h2 className="font-semibold text-base sm:text-lg md:text-xl text-gray-800">Choose your photo</h2>
+                    <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
+                      uploadedImage ? 'text-gray-800' : 'text-gray-800'
+                    }`}>Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
                   <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 md:p-6 flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6">
@@ -2198,9 +2244,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   reader.onloadend = () => {
                                     const dataURL = reader.result as string;
                                     handlePhotoUpload(dataURL, false, undefined, photo.id);
-                                    // Auto-scroll to clothing selection after photo loads
+                                    // Auto-scroll to clothing selection after photo loads (forward only)
                                     setTimeout(() => {
-                                      scrollToElement(clothingSelectionRef, 20);
+                                      scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
                                     }, 500);
                                   };
                                   reader.readAsDataURL(blob);
@@ -2228,9 +2274,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     reader.onloadend = () => {
                                       const dataURL = reader.result as string;
                                       handlePhotoUpload(dataURL, false, undefined, photo.id);
-                                      // Auto-scroll to clothing selection after photo loads
+                                      // Auto-scroll to clothing selection after photo loads (forward only)
                                       setTimeout(() => {
-                                        scrollToElement(clothingSelectionRef, 20);
+                                        scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
                                       }, 500);
                                     };
                                     reader.readAsDataURL(blob);
@@ -2322,9 +2368,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     reader.onloadend = () => {
                                       const dataURL = reader.result as string;
                                       handlePhotoUpload(dataURL, true, model.url, modelIndex);
-                                      // Auto-scroll to clothing selection after photo loads
+                                      // Auto-scroll to clothing selection after photo loads (forward only)
                                       setTimeout(() => {
-                                        scrollToElement(clothingSelectionRef, 20);
+                                        scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
                                       }, 500);
                                     };
                                     reader.readAsDataURL(blob);
@@ -2354,12 +2400,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   <div className="flex flex-col w-full" ref={rightColumnRef}>
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold ${
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       step === 'complete' || generatedImage
-                        ? 'bg-green-500 text-white'
+                        ? 'bg-orange-500 text-white' // Completed - primary color
                         : step === 'generating'
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-gray-300 text-gray-500'
+                        ? 'bg-orange-500 text-white' // Current - primary color
+                        : uploadedImage
+                        ? 'bg-orange-500 text-white' // Ready to start - primary color
+                        : 'bg-gray-300 text-gray-500' // Incomplete - grey
                     }`}>
                       {step === 'complete' || generatedImage ? (
                         <CheckCircle size={16} className="md:w-5 md:h-5" fill="currentColor" />
@@ -2367,8 +2415,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         '2'
                       )}
                     </div>
-                    <h2 className={`font-semibold text-base sm:text-lg md:text-xl ${
-                      step === 'complete' || generatedImage || step === 'generating'
+                    <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
+                      step === 'complete' || generatedImage || step === 'generating' || uploadedImage
                         ? 'text-gray-800'
                         : 'text-gray-400'
                     }`}>
@@ -2543,10 +2591,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   className="rounded-lg"
                                 />
                                 
-                                {/* Multi-layer ring glow effects - Build up first */}
+                                {/* Multi-layer ring glow effects - 3 bulbs glowing BEFORE image reveal */}
+                                {/* First bulb - starts immediately (0s) */}
                                 <div className="absolute inset-0 rounded-lg ring-2 ring-orange-300/70 pointer-events-none animate-bulb-glow z-20" style={{ willChange: 'opacity, box-shadow' }} />
-                                <div className="absolute inset-0 rounded-lg ring-4 ring-orange-200/50 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.3s', willChange: 'opacity, box-shadow' }} />
-                                <div className="absolute inset-0 rounded-lg ring-6 ring-orange-100/30 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.6s', willChange: 'opacity, box-shadow' }} />
+                                {/* Second bulb - starts at 0.2s */}
+                                <div className="absolute inset-0 rounded-lg ring-4 ring-orange-200/50 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.2s', willChange: 'opacity, box-shadow' }} />
+                                {/* Third bulb - starts at 0.4s (when image starts revealing) */}
+                                <div className="absolute inset-0 rounded-lg ring-6 ring-orange-100/30 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.4s', willChange: 'opacity, box-shadow' }} />
                                 
                                 {/* Shine border effect - Magic UI component */}
                                 <ShineBorder
@@ -2657,9 +2708,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           onClick={() => {
                             if (!isDisabled) {
                               setSelectedSize(size);
-                              // Auto-scroll/focus to add to cart button after size selection
+                              // Auto-scroll/focus to add to cart button after size selection (forward only)
                               setTimeout(() => {
-                                scrollToElement(addToCartButtonRef, 20);
+                                scrollToElement(addToCartButtonRef, 20, undefined, 'add-to-cart');
                                 focusElement(addToCartButtonRef, 400);
                               }, 300);
                             }
