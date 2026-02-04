@@ -2139,16 +2139,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       uploadedImage 
                         ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
-                        : 'bg-orange-500 text-white shadow-md' // Current - primary color (active step)
+                        : 'bg-gray-300 text-gray-500' // Incomplete - grey background
                     }`}>
-                      {uploadedImage ? (
-                        <CheckCircle size={16} className="md:w-5 md:h-5" fill="currentColor" />
-                      ) : (
-                        '1'
-                      )}
+                      1
                     </div>
                     <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
-                      uploadedImage ? 'text-gray-800' : 'text-gray-800'
+                      uploadedImage ? 'text-gray-800' : 'text-gray-400'
                     }`}>Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
@@ -2402,18 +2398,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   <div className="flex items-center gap-2 mb-4">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       step === 'complete' || generatedImage
-                        ? 'bg-orange-500 text-white' // Completed - primary color
+                        ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
                         : step === 'generating'
-                        ? 'bg-orange-500 text-white' // Current - primary color
+                        ? 'bg-orange-500 text-white shadow-md' // Current/Active - primary color
                         : uploadedImage
-                        ? 'bg-orange-500 text-white' // Ready to start - primary color
-                        : 'bg-gray-300 text-gray-500' // Incomplete - grey
+                        ? 'bg-orange-500 text-white shadow-md' // Ready/Current - primary color (photo selected, ready to generate)
+                        : 'bg-gray-300 text-gray-500' // Incomplete - grey background (no photo uploaded yet)
                     }`}>
-                      {step === 'complete' || generatedImage ? (
-                        <CheckCircle size={16} className="md:w-5 md:h-5" fill="currentColor" />
-                      ) : (
-                        '2'
-                      )}
+                      2
                     </div>
                     <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
                       step === 'complete' || generatedImage || step === 'generating' || uploadedImage
