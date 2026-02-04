@@ -707,7 +707,6 @@
       'width: 95vw',
       'max-width: 900px',
       'height: 94vh',
-      'max-height: 650px',
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',

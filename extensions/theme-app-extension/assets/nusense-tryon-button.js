@@ -26,7 +26,6 @@
     MIN_CLICK_TARGET_PX: 44,
     OVERLAY_Z_INDEX: 9999,
     DEFAULT_MODAL_WIDTH: 900,
-    DEFAULT_MODAL_HEIGHT: 650,
   };
 
   // Credit check cache and shared promise to prevent race conditions
@@ -880,7 +879,6 @@
       'width: 95vw',
       `max-width: ${CONSTANTS.DEFAULT_MODAL_WIDTH}px`,
       'height: 94vh',
-      `max-height: ${CONSTANTS.DEFAULT_MODAL_HEIGHT}px`,
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',

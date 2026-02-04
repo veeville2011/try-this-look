@@ -287,7 +287,6 @@
       width: ${containerWidth};
       max-width: ${containerMaxWidth};
       height: 94vh;
-      max-height: 650px;
       position: relative;
       background: white;
       border-radius: 0.75rem;
