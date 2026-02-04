@@ -546,3 +546,41 @@ All colors MUST be HSL.
     transform: scale(1);
   }
 }
+
+/* Bulb glow animation for generated image */
+@keyframes bulbGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.3),
+                0 0 40px rgba(255, 152, 0, 0.2),
+                0 0 60px rgba(255, 152, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 152, 0, 0.5),
+                0 0 60px rgba(255, 152, 0, 0.3),
+                0 0 90px rgba(255, 152, 0, 0.2);
+  }
+}
+
+.animate-bulb-glow {
+  animation: bulbGlow 2s ease-in-out infinite;
+}
+
+/* Enhanced glow with multiple layers */
+@keyframes bulbGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.4),
+                0 0 30px rgba(255, 152, 0, 0.3),
+                0 0 45px rgba(255, 152, 0, 0.2),
+                0 0 60px rgba(255, 152, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 152, 0, 0.6),
+                0 0 50px rgba(255, 152, 0, 0.4),
+                0 0 75px rgba(255, 152, 0, 0.3),
+                0 0 100px rgba(255, 152, 0, 0.2);
+  }
+}
+
+.animate-bulb-glow-pulse {
+  animation: bulbGlowPulse 2.5s ease-in-out infinite;
+}

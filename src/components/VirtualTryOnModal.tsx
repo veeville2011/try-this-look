@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
@@ -75,9 +75,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     id: string; 
     image: string; 
     personImageUrl?: string; 
-    clothingImageUrl?: string; 
+    clothingImageUrl?: string;
+    createdAt?: string;
   }>>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  
+  // Viewing past try-on state
+  const [viewingPastTryOn, setViewingPastTryOn] = useState(false);
+  const [viewingHistoryItem, setViewingHistoryItem] = useState<{
+    id: string;
+    image: string;
+    personImageUrl?: string;
+    clothingImageUrl?: string;
+    createdAt?: string;
+  } | null>(null);
 
   // Extract sizes from product variants dynamically
   const extractSizesFromProduct = useCallback(() => {
@@ -470,7 +481,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           }
           
           setCartQuantity(1); // Reset local quantity selector
-          toast.success('Added to cart successfully!');
+          
+          // Show toast with product name and size
+          const currentProductData = storedProductData || getProductData();
+          const productTitle = currentProductData?.title || currentProductData?.name || 'item';
+          const sizeText = selectedSize ? ` (Size ${selectedSize})` : '';
+          setToastMessage(`Added ${productTitle}${sizeText} to cart!`);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
         } else if (event.data.action === 'NUSENSE_BUY_NOW') {
           setIsBuyNowLoading(false);
         } else if (event.data.action === 'NUSENSE_NOTIFY_ME') {
@@ -666,12 +684,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 if (!b.createdAt) return -1;
                 return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
               })
-              .map(({ id, image, personImageUrl, clothingImageUrl }) => ({ 
+              .map(({ id, image, personImageUrl, clothingImageUrl, createdAt }) => ({ 
                 id, 
                 image, 
                 personImageUrl, 
-                clothingImageUrl 
-              })); // Preserve all image URLs
+                clothingImageUrl,
+                createdAt
+              })); // Preserve all image URLs and timestamps
             
             console.log('[VirtualTryOnModal] Setting history items:', history.length);
             if (isMounted) {
@@ -766,7 +785,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     id: string; 
     image: string; 
     personImageUrl?: string; 
-    clothingImageUrl?: string; 
+    clothingImageUrl?: string;
+    createdAt?: string;
   }) => {
     try {
       // Load and set generated image
@@ -836,12 +856,40 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
+      // Set viewing past try-on state
+      setViewingPastTryOn(true);
+      setViewingHistoryItem(item);
       setStep('complete');
+      setSelectedSize(null); // Reset size selection when viewing past try-on
     } catch (error) {
       console.error('[VirtualTryOnModal] Failed to load history item:', error);
       toast.error('Failed to load try-on result');
     }
   }, [getProxiedImageUrl]);
+  
+  // Get formatted time ago string
+  const getTimeAgo = useCallback((dateString?: string): string => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return '1 day ago';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 14) return '1 week ago';
+      if (diffDays < 21) return '2 weeks ago';
+      if (diffDays < 30) return '3 weeks ago';
+      const diffMonths = Math.floor(diffDays / 30);
+      if (diffMonths === 1) return '1 month ago';
+      return `${diffMonths} months ago`;
+    } catch {
+      return '';
+    }
+  }, []);
 
   const handleClothingSelect = useCallback((imageUrl: string) => {
     setSelectedClothing(imageUrl);
@@ -1051,7 +1099,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [storedProductData, generatedImage, requestCartState, getProductData]);
 
-  // Generate try-on
+  // Generate try-on (moved before handleRegeneratePastTryOn to avoid initialization error)
   const handleGenerate = useCallback(async () => {
     if (!uploadedImage || !selectedClothing) {
       setError('Please upload a photo and select clothing');
@@ -1279,6 +1327,34 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData]);
 
+  // Handle going back to current try-on
+  const handleBackToCurrent = useCallback(() => {
+    setViewingPastTryOn(false);
+    setViewingHistoryItem(null);
+    // Keep the current generated image if it exists
+  }, []);
+  
+  // Handle regenerating past try-on
+  const handleRegeneratePastTryOn = useCallback(async () => {
+    if (!viewingHistoryItem) return;
+    
+    // Reset to idle state
+    setViewingPastTryOn(false);
+    setViewingHistoryItem(null);
+    setStep('idle');
+    setGeneratedImage(null);
+    setProgress(0);
+    setError(null);
+    
+    // Auto-trigger generation with the same images
+    if (uploadedImage && selectedClothing) {
+      // Small delay to ensure state is reset
+      setTimeout(() => {
+        void handleGenerate();
+      }, 100);
+    }
+  }, [viewingHistoryItem, uploadedImage, selectedClothing, handleGenerate]);
+
   // Handle add to cart
   const handleAddToCart = useCallback(() => {
     // Only require size selection if sizes are available
@@ -1334,8 +1410,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }, 10000);
     } else {
       setIsAddToCartLoading(false);
+      const productTitle = currentProductData?.title || currentProductData?.name || 'item';
       const sizeText = selectedSize ? ` (Size ${selectedSize})` : '';
-      setToastMessage(`Added to cart${sizeText}!`);
+      setToastMessage(`Added ${productTitle}${sizeText} to cart!`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
@@ -1490,7 +1567,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const canGenerate = uploadedImage && selectedClothing;
       return {
         text: 'Generate Try-On',
-        icon: <Sparkles size={16} />,
+        icon: <Zap size={16} />,
         disabled: !canGenerate,
         action: handleGenerate,
         color: canGenerate ? 'orange' : 'gray',
@@ -1639,7 +1716,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     <div className="w-full h-screen bg-white font-sans relative overflow-hidden">
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-start justify-center">
-        <div className="bg-white w-full max-w-[1200px] h-full flex flex-col overflow-hidden relative shadow-2xl rounded-lg">
+        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-2xl rounded-lg">
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -1675,6 +1752,35 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </button>
           </div>
 
+          {/* Viewing Past Try-On Banner */}
+          {viewingPastTryOn && viewingHistoryItem && (
+            <div className="w-full px-4 sm:px-6 md:px-8 border-b border-yellow-200 bg-yellow-50">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 py-3 sm:py-4">
+                <div className="flex items-center gap-2 text-sm sm:text-base">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-700 flex-shrink-0" />
+                  <span className="font-medium text-yellow-900">Viewing past try-on</span>
+                  <span className="text-yellow-700">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
+                </div>
+                <div className="flex gap-2 sm:gap-3 md:flex-shrink-0">
+                  <button
+                    onClick={handleRegeneratePastTryOn}
+                    className="px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-md text-sm font-medium transition-colors border border-yellow-300"
+                    type="button"
+                  >
+                    Regenerate
+                  </button>
+                  <button
+                    onClick={handleBackToCurrent}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-medium transition-colors"
+                    type="button"
+                  >
+                    Back to current
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {(selectedClothing || productImage) && (
             <div className="w-full px-4 sm:px-6 md:px-8 border-b border-gray-100">
               <div className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-md">
@@ -1691,7 +1797,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   }}
                 />
                 <div className="flex flex-col min-w-0 flex-1">
-                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1">YOU'RE TRYING ON</div>
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1">
+                    {viewingPastTryOn ? 'PREVIOUSLY TRIED ON' : "YOU'RE TRYING ON"}
+                  </div>
                   <div className="text-xs sm:text-sm font-semibold text-gray-800 leading-tight truncate">{productTitle}</div>
                   {variantInfo && (
                     <div className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate mt-0.5">{variantInfo}</div>
@@ -1704,18 +1812,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           <div className="flex flex-1 overflow-hidden">
             <div className="w-full overflow-y-auto smooth-scroll [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-gray-400/15 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/30" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.15) transparent' }}>
               <div className="p-4 sm:p-6 md:p-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-4 sm:mb-6">
                 {/* Left Column - Step 1 */}
-                <div className="flex flex-col">
+                <div className="flex flex-col w-full">
                   {/* Step 1 Header */}
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-sm sm:text-base font-bold bg-orange-500 text-white">
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold bg-orange-500 text-white">
                       1
                     </div>
-                    <h2 className="font-semibold text-base sm:text-lg text-gray-800">Choose your photo</h2>
+                    <h2 className="font-semibold text-base sm:text-lg md:text-xl text-gray-800">Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
-                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 flex flex-col items-center text-center mb-4 sm:mb-5">
+                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 md:p-6 flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6">
                     {!uploadedImage && (
                       <>
                         <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-3 sm:mb-4 uppercase tracking-wide">For best results</h3>
@@ -1940,19 +2048,23 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 {/* Right Column - Step 2 */}
-                <div className="flex flex-col">
+                <div className="flex flex-col w-full">
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-sm sm:text-base font-bold ${
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold ${
                       step === 'complete' || generatedImage
-                        ? 'bg-orange-500 text-white'
+                        ? 'bg-green-500 text-white'
                         : step === 'generating'
                         ? 'bg-orange-500 text-white'
-                        : 'border-2 border-gray-300 text-gray-400'
+                        : 'bg-gray-300 text-gray-500'
                     }`}>
-                      2
+                      {step === 'complete' || generatedImage ? (
+                        <CheckCircle size={16} className="md:w-5 md:h-5" fill="currentColor" />
+                      ) : (
+                        '2'
+                      )}
                     </div>
-                    <h2 className={`font-semibold text-base sm:text-lg ${
+                    <h2 className={`font-semibold text-base sm:text-lg md:text-xl ${
                       step === 'complete' || generatedImage || step === 'generating'
                         ? 'text-gray-800'
                         : 'text-gray-400'
@@ -1962,35 +2074,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className="flex-1 rounded-md border-2 border-dashed border-orange-200 bg-[#f5f4f0] relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px]">
+                  <div className="flex-1 rounded-md border-2 border-dashed border-orange-200 bg-[#f5f4f0] relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px] md:min-h-[400px]">
                     {step === 'idle' && !generatedImage && !error && (
-                      <div className="text-center px-4">
-                        <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center">
-                          <svg
-                            className="w-16 h-16 text-gray-300"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={1.5} fill="none" />
-                            <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth={1.5} fill="none" />
-                            <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth={1.5} fill="currentColor" />
-                          </svg>
+                      <div className="text-center px-4 sm:px-6 py-8 sm:py-12">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center">
+                          <RotateCcw className="w-16 h-16 sm:w-20 sm:h-20 text-pink-500" strokeWidth={2} />
                         </div>
-                        <p className="text-gray-400 text-sm">
-                          Your result will appear here.
-                          <br />
-                          Upload a photo to get started.
+                        <p className="text-red-600 text-base sm:text-lg font-semibold mb-2">
+                          Ready to generate
+                        </p>
+                        <p className="text-gray-500 text-sm sm:text-base">
+                          Click the button below
                         </p>
                       </div>
                     )}
 
                     {step === 'generating' && progress < 100 && (
                       <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
-                        {/* Circular Spinner - Continuous Rotation */}
+                        {/* Circular Progress Indicator with Percentage in Center */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
-                          <svg className="w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                             {/* Background circle - light gray */}
                             <circle 
                               cx="50" 
@@ -2000,23 +2103,28 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               stroke="#e5e7eb" 
                               strokeWidth="8" 
                             />
-                            {/* Rotating arc - warm orange-brown */}
+                            {/* Progress arc - orange */}
                             <circle
                               cx="50"
                               cy="50"
                               r="45"
                               fill="none"
-                              stroke="#c96442"
+                              stroke="#FF5722"
                               strokeWidth="8"
-                              strokeDasharray="70 213"
+                              strokeDasharray={`${2 * Math.PI * 45}`}
+                              strokeDashoffset={`${2 * Math.PI * 45 * (1 - progress / 100)}`}
                               strokeLinecap="round"
-                              className="origin-center"
+                              className="transition-all duration-75 ease-linear"
                             />
                           </svg>
+                          {/* Percentage in center */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-lg sm:text-xl font-bold text-orange-500">{progress}%</span>
+                          </div>
                         </div>
                         
-                        {/* Status Text - Below Spinner */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-6">
+                        {/* Status Text - Below Circular Progress */}
+                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
                           {statusMessage || 'Creating your try-on...'}
                         </h3>
                         
@@ -2024,14 +2132,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <div className="w-full max-w-xs mx-auto mb-2">
                           <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                             <div
-                              className="bg-[#c96442] h-2.5 rounded-full transition-all duration-75 ease-linear"
+                              className="bg-[#FF5722] h-2.5 rounded-full transition-all duration-75 ease-linear"
                               style={{ width: `${progress}%` }}
                             />
                           </div>
                         </div>
-                        
-                        {/* Percentage - Below Progress Bar */}
-                        <p className="text-sm sm:text-base font-medium text-gray-700">{progress}%</p>
                       </div>
                     )}
 
@@ -2073,67 +2178,89 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'complete' && generatedImage && (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
-                        {/* Subtle background gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 rounded-md" />
+                      <div className={`relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-md' : ''}`}>
+                        {/* Background gradient matching screenshots - light yellow/orange to white */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-md" />
                         
-                        {/* Celebration Bubbles - Floating particles */}
-                        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                          {celebrationParticles.map((particle) => (
-                            <div
-                              key={particle.id}
-                              className="absolute rounded-full bg-gradient-to-br from-orange-200/60 via-orange-100/40 to-orange-300/50 blur-sm"
-                              style={{
-                                width: `${particle.width}px`,
-                                height: `${particle.height}px`,
-                                left: `${particle.left}%`,
-                                top: `${particle.top}%`,
-                                animation: `bubbleFloatUp ${particle.animationDuration}s ease-out ${particle.animationDelay + 0.5}s forwards`,
-                                opacity: 0,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        
-                        {/* Success Badge - Fades in slowly */}
-                        <div className="relative z-10 mb-4" style={{ animation: 'fadeInSlow 1.2s ease-out 0.3s forwards', opacity: 0 }}>
-                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-green-100">
-                            <CheckCircle size={18} className="text-green-500 flex-shrink-0" fill="currentColor" />
-                            <span className="text-sm font-semibold text-gray-800">Try-on complete!</span>
+                        {/* Celebration Bubbles - Floating particles (only show for new generations, not past try-ons) */}
+                        {!viewingPastTryOn && (
+                          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                            {celebrationParticles.map((particle) => (
+                              <div
+                                key={particle.id}
+                                className="absolute rounded-full bg-gradient-to-br from-orange-200/60 via-orange-100/40 to-orange-300/50 blur-sm"
+                                style={{
+                                  width: `${particle.width}px`,
+                                  height: `${particle.height}px`,
+                                  left: `${particle.left}%`,
+                                  top: `${particle.top}%`,
+                                  animation: `bubbleFloatUp ${particle.animationDuration}s ease-out ${particle.animationDelay + 0.5}s forwards`,
+                                  opacity: 0,
+                                }}
+                              />
+                            ))}
                           </div>
-                        </div>
+                        )}
+                        
+                        {/* Success Badge - Fades in slowly (only for new generations) */}
+                        {!viewingPastTryOn && (
+                          <div className="relative z-10 mb-4" style={{ animation: 'fadeInSlow 1.2s ease-out 0.3s forwards', opacity: 0 }}>
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-green-100">
+                              <CheckCircle size={18} className="text-green-500 flex-shrink-0" fill="currentColor" />
+                              <span className="text-sm font-semibold text-gray-800">Try-on complete!</span>
+                            </div>
+                          </div>
+                        )}
 
-                        {/* Result Image - Fades in slowly with scale */}
-                        <div className="relative z-10 w-full max-w-sm mb-4" style={{ animation: 'imageReveal 1.5s ease-out 0.5s forwards', opacity: 0, transform: 'scale(0.95)' }}>
-                          <div className="relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100">
+                        {/* Result Image - Fades in slowly with scale and bulb glow */}
+                        <div className={`relative z-10 w-full max-w-sm mb-4 ${viewingPastTryOn ? '' : ''}`} style={viewingPastTryOn ? {} : { animation: 'imageReveal 1.5s ease-out 0.5s forwards', opacity: 0, transform: 'scale(0.95)' }}>
+                          <div className={`relative rounded-lg overflow-hidden shadow-2xl bg-white border border-gray-100 ${!viewingPastTryOn ? 'animate-bulb-glow-pulse' : ''}`}>
                             <img
                               src={generatedImage}
                               className="w-full h-auto object-contain rounded-lg"
                               alt="Try-on result"
                             />
-                            {/* Subtle border glow */}
-                            <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
+                            {/* Enhanced border glow with bulb effect */}
+                            {!viewingPastTryOn && (
+                              <>
+                                <div className="absolute inset-0 rounded-lg ring-2 ring-orange-300/60 pointer-events-none animate-bulb-glow" />
+                                <div className="absolute inset-0 rounded-lg ring-4 ring-orange-200/40 pointer-events-none animate-bulb-glow" style={{ animationDelay: '0.5s' }} />
+                              </>
+                            )}
+                            {viewingPastTryOn && (
+                              <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none" />
+                            )}
                           </div>
                         </div>
 
+                        {/* Past try-on timestamp */}
+                        {viewingPastTryOn && viewingHistoryItem && (
+                          <div className="relative z-10 flex items-center gap-2 text-sm text-orange-600 mb-2">
+                            <Clock className="w-4 h-4" />
+                            <span>From {getTimeAgo(viewingHistoryItem.createdAt)}</span>
+                          </div>
+                        )}
+
                         {/* Helper Text - Fades in after image */}
-                        <div className="relative z-10" style={{ animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
+                        <div className="relative z-10" style={viewingPastTryOn ? {} : { animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
                           <p className="text-xs sm:text-sm text-gray-600 font-medium text-center px-4">
-                            Select your size below to add to cart
+                            {viewingPastTryOn ? 'Select a size to add to cart' : 'Select your size below'}
                           </p>
                         </div>
 
-                        {/* Try Again Button - Fades in last */}
-                        <button
-                          onClick={handleReset}
-                          className="relative z-10 mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center gap-1.5 group"
-                          aria-label="Try again"
-                          type="button"
-                          style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
-                        >
-                          <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
-                          <span>Not perfect? Try again</span>
-                        </button>
+                        {/* Try Again Button - Fades in last (only for new generations) */}
+                        {!viewingPastTryOn && (
+                          <button
+                            onClick={handleReset}
+                            className="relative z-10 mt-4 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center gap-1.5 group"
+                            aria-label="Try again"
+                            type="button"
+                            style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
+                          >
+                            <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-300" />
+                            <span>Not perfect? Try again</span>
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -2259,9 +2386,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 )}
                 
                 {step !== 'generating' && step === 'complete' && (
-                  <p className="text-center text-[10px] text-gray-400 mt-2 px-2">
-                    Rendered for aesthetic purposes. Does not reflect actual dimensions.
-                  </p>
+                  <>
+                    {!viewingPastTryOn && (
+                      <>
+                        <p className="text-center text-xs text-gray-500 mt-2">
+                          Free shipping on orders over €50
+                        </p>
+                        <button
+                          onClick={handleReset}
+                          className="text-center text-sm text-orange-600 hover:text-orange-700 underline mt-1 mx-auto block"
+                          type="button"
+                        >
+                          Try another photo
+                        </button>
+                      </>
+                    )}
+                    {viewingPastTryOn && (
+                      <p className="text-center text-xs text-gray-500 mt-2">
+                        This item is still available!
+                      </p>
+                    )}
+                    <p className="text-center text-[10px] text-gray-400 mt-2 px-2">
+                      Rendered for aesthetic purposes. Does not reflect actual dimensions.
+                    </p>
+                  </>
                 )}
 
                 {step !== 'generating' && step !== 'complete' && (
