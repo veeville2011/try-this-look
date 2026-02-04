@@ -286,10 +286,6 @@ const VirtualTryOnModal = () => {
                     <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 -z-10"></div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-green-600 font-semibold mb-2">
-                    <CheckCircle size={18} fill="currentColor" className="text-white" />
-                    Try-on complete!
-                  </div>
                   <p className="text-sm text-orange-500 font-medium animate-pulse">Select a size below</p>
 
                   <button

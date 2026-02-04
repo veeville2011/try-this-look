@@ -8,8 +8,7 @@ import { storage } from '@/utils/storage';
 import { detectStoreOrigin, extractProductImages, getStoreOriginFromPostMessage, requestStoreInfoFromParent, extractShopifyProductInfo, type StoreInfo } from '@/utils/shopifyIntegration';
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
 import type { ProductImage } from '@/types/tryon';
-import { BorderBeam } from '@/components/ui/border-beam';
-import { ShineBorder } from '@/components/ui/shine-border';
+import { GlowingBubblesReveal } from '@/components/ui/glowing-bubbles-reveal';
 
 interface VirtualTryOnModalProps {
   customerInfo?: {
@@ -1414,7 +1413,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         // This gives time for the checkmark animation while keeping the reveal smooth
         setTimeout(() => {
           setStep('complete');
-          setStatusMessage('Try-on complete!');
+          setStatusMessage('');
         }, 600);
         
         // Refetch history to show the latest image first
@@ -2019,7 +2018,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         className="sr-only"
         role="status"
       >
-        {statusMessage || (step === 'idle' ? 'Ready to generate try-on' : step === 'generating' ? `Generating try-on: ${progress}% complete` : 'Try-on complete')}
+        {statusMessage || (step === 'idle' ? 'Ready to generate try-on' : step === 'generating' ? `Generating try-on: ${progress}% complete` : '')}
       </div>
 
       {/* ARIA Live Region for Errors */}
@@ -2560,65 +2559,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </div>
                         )}
                         
-                        {/* Success Badge - Fades in slowly (only for new generations) */}
-                        {!viewingPastTryOn && (
-                          <div className="relative z-10 mb-4" style={{ animation: 'fadeInSlow 1.2s ease-out 0.3s forwards', opacity: 0 }}>
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border border-green-100">
-                              <CheckCircle size={18} className="text-green-500 flex-shrink-0" fill="currentColor" />
-                              <span className="text-sm font-semibold text-gray-800">Try-on complete!</span>
-                            </div>
-                          </div>
-                        )}
 
-                        {/* Result Image - Glowing bulb reveal animation */}
+                        {/* Result Image - Glowing bubbles reveal animation */}
                         <div 
                           ref={generatedImageRef}
-                          className={`relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md mb-4 ${viewingPastTryOn ? '' : 'glow-buildup-container'}`}
+                          className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md mb-4"
                         >
-                          <div className={`relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white border border-gray-100 ${!viewingPastTryOn ? 'animate-bulb-glow-pulse' : ''}`}>
-                            {/* Enhanced border glow with bulb effect - Using Magic UI components */}
-                            {!viewingPastTryOn && (
-                              <>
-                                {/* Border beam effect - Magic UI component */}
-                                <BorderBeam
-                                  size={60}
-                                  duration={3}
-                                  delay={0}
-                                  colorFrom="#ff9800"
-                                  colorTo="#ff5722"
-                                  borderWidth={2}
-                                  className="rounded-lg"
-                                />
-                                
-                                {/* Multi-layer ring glow effects - 3 bulbs glowing BEFORE image reveal */}
-                                {/* First bulb - starts immediately (0s) */}
-                                <div className="absolute inset-0 rounded-lg ring-2 ring-orange-300/70 pointer-events-none animate-bulb-glow z-20" style={{ willChange: 'opacity, box-shadow' }} />
-                                {/* Second bulb - starts at 0.2s */}
-                                <div className="absolute inset-0 rounded-lg ring-4 ring-orange-200/50 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.2s', willChange: 'opacity, box-shadow' }} />
-                                {/* Third bulb - starts at 0.4s (when image starts revealing) */}
-                                <div className="absolute inset-0 rounded-lg ring-6 ring-orange-100/30 pointer-events-none animate-bulb-glow z-20" style={{ animationDelay: '0.4s', willChange: 'opacity, box-shadow' }} />
-                                
-                                {/* Shine border effect - Magic UI component */}
-                                <ShineBorder
-                                  borderWidth={2}
-                                  duration={4}
-                                  shineColor={["rgba(255, 152, 0, 0.6)", "rgba(255, 87, 34, 0.4)"]}
-                                  className="rounded-lg"
-                                />
-                              </>
-                            )}
-                            {viewingPastTryOn && (
-                              <div className="absolute inset-0 rounded-lg ring-2 ring-orange-200/50 pointer-events-none z-20" />
-                            )}
-                            
-                            {/* Image reveals WITHIN the glow - starts blurred and fades in */}
-                            <img
-                              src={generatedImage}
-                              className={`w-full h-auto object-contain rounded-lg border-2 border-white shadow-inner relative z-10 ${viewingPastTryOn ? '' : 'image-reveal-animation'}`}
-                              alt="Try-on result"
-                              loading="eager"
-                            />
-                          </div>
+                          <GlowingBubblesReveal
+                            show={!viewingPastTryOn}
+                            className="p-4 sm:p-6"
+                          >
+                            <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50">
+                              {/* Image reveals WITHIN the glowing bubbles - starts blurred and fades in */}
+                              <img
+                                src={generatedImage}
+                                className={`w-full h-auto object-contain rounded-lg relative z-10 ${viewingPastTryOn ? '' : 'image-reveal-animation'}`}
+                                alt="Try-on result"
+                                loading="eager"
+                              />
+                            </div>
+                          </GlowingBubblesReveal>
                         </div>
 
                         {/* Past try-on timestamp */}
@@ -2698,33 +2658,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
                       const isAvailable = sizeInfo?.isAvailable ?? false;
                       const isSelected = selectedSize === size;
-                      // Disable size selection until generation is complete
-                      const isDisabled = step !== 'complete';
                       
                       return (
                         <button
                           key={size}
                           onClick={() => {
-                            if (!isDisabled) {
-                              setSelectedSize(size);
-                              // Auto-scroll/focus to add to cart button after size selection (forward only)
-                              setTimeout(() => {
-                                scrollToElement(addToCartButtonRef, 20, undefined, 'add-to-cart');
-                                focusElement(addToCartButtonRef, 400);
-                              }, 300);
-                            }
+                            setSelectedSize(size);
+                            // Auto-scroll/focus to add to cart button after size selection (forward only)
+                            setTimeout(() => {
+                              scrollToElement(addToCartButtonRef, 20, undefined, 'add-to-cart');
+                              focusElement(addToCartButtonRef, 400);
+                            }, 300);
                           }}
-                          disabled={isDisabled}
                           className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${
-                            isDisabled
-                              ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed opacity-50'
-                              : !isAvailable
+                            !isAvailable
                               ? 'bg-gray-50 text-gray-700 border-gray-300 opacity-75 shadow-sm'
                               : isSelected
                               ? 'bg-black text-white border-black shadow-md md:shadow-lg'
                               : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg'
                           }`}
-                          aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}${isDisabled ? ' (disabled until generation complete)' : ''}`}
+                          aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
                           type="button"
                         >
                           {size}
@@ -2788,20 +2741,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 
                 {step !== 'generating' && step === 'complete' && (
                   <>
-                    {!viewingPastTryOn && (
-                      <>
-                        <p className="text-center text-xs text-gray-700 mt-2">
-                          Free shipping on orders over €50
-                        </p>
-                        <button
-                          onClick={handleReset}
-                          className="text-center text-sm text-orange-600 hover:text-orange-700 underline mt-1 mx-auto block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded"
-                          type="button"
-                        >
-                          Try another photo
-                        </button>
-                      </>
-                    )}
                     {viewingPastTryOn && (
                       <p className="text-center text-xs text-gray-700 mt-2">
                         This item is still available!
