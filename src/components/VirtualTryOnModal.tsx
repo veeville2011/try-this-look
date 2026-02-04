@@ -2085,7 +2085,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       )}
 
       {/* Modal container */}
-      <div className="fixed inset-0 z-50 bg-white flex items-start justify-center">
+      <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
         <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-md" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-md shadow-lg md:shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
@@ -2102,7 +2102,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </div>
           )}
 
-          <div className="flex justify-between items-center px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100">
+          <div className="flex justify-between items-center px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 border-b border-gray-100">
             <div className="flex items-center gap-2 sm:gap-3">
               <img
                 src="/assets/NUSENSE_LOGO.svg"
@@ -2156,12 +2156,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
           {(selectedClothing || productImage) && (
             <div 
-              className="w-full px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2" 
+              className="w-full px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2" 
               ref={clothingSelectionRef}
               role="region"
               aria-label="Selected clothing preview"
             >
-              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-5 rounded-md border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-3 sm:px-4 py-2.5 sm:py-3 rounded-md border border-gray-100 shadow-sm">
                 <div className="relative flex-shrink-0">
                   <img
                     key={selectedClothing || productImage} // Force re-render when selectedClothing changes
@@ -2197,12 +2197,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               className="w-full overflow-y-auto smooth-scroll [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-gray-400/15 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/30" 
               style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.15) transparent' }}
             >
-              <div className="p-4 sm:p-6 md:p-8">
-                <div className="flex flex-col md:grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-4 sm:mb-6">
+              <div className="p-3 sm:p-4">
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-3 sm:gap-4 mb-3">
                 {/* Left Column - Step 1 */}
                 <div className="flex flex-col w-full">
                   {/* Step 1 Header */}
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       uploadedImage 
                         ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
@@ -2215,11 +2215,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     }`}>Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
-                  <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-4 sm:p-5 md:p-6 flex flex-col items-center text-center mb-4 sm:mb-5 md:mb-6">
+                  <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-md p-3 sm:p-4 flex flex-col items-center text-center mb-3">
                     {!uploadedImage && (
                       <>
-                        <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-3 sm:mb-4 uppercase tracking-wide">For best results</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 mb-4 w-full">
+                        <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-2 uppercase tracking-wide">For best results</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 mb-3 w-full">
                           <span className="flex items-center gap-1.5 justify-start">
                             <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Front-facing pose
                           </span>
@@ -2270,18 +2270,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Recent Photos Section */}
-                  <div className="mb-4 sm:mb-5">
-                    <label className="text-sm font-semibold text-gray-700 mb-3 block">Recent photos</label>
-                    <div 
-                      className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide" 
-                      style={{ 
-                        scrollbarWidth: 'none', 
-                        msOverflowStyle: 'none',
-                        WebkitOverflowScrolling: 'touch',
-                        touchAction: 'pan-x',
-                        overscrollBehaviorX: 'contain'
-                      }}
-                    >
+                  <div className="mb-3">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Recent photos</label>
+                    <div className="bg-white border border-gray-200 rounded-md p-2 sm:p-3 shadow-sm">
+                      <div 
+                        className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide" 
+                        style={{ 
+                          scrollbarWidth: 'none', 
+                          msOverflowStyle: 'none',
+                          WebkitOverflowScrolling: 'touch',
+                          touchAction: 'pan-x',
+                          overscrollBehaviorX: 'contain'
+                        }}
+                      >
                       {isLoadingRecentPhotos ? (
                         <div className="flex gap-3">
                           {[1, 2, 3].map((i) => (
@@ -2390,22 +2391,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       ) : (
                         <div className="text-xs text-gray-500">No recent photos</div>
                       )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Use a Demo Model Section */}
                   <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-3 block">Use a demo model</label>
-                    <div 
-                      className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide" 
-                      style={{ 
-                        scrollbarWidth: 'none', 
-                        msOverflowStyle: 'none',
-                        WebkitOverflowScrolling: 'touch',
-                        touchAction: 'pan-x',
-                        overscrollBehaviorX: 'contain'
-                      }}
-                    >
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Use a demo model</label>
+                    <div className="bg-white border border-gray-200 rounded-md p-2 sm:p-3 shadow-sm">
+                      <div 
+                        className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide" 
+                        style={{ 
+                          scrollbarWidth: 'none', 
+                          msOverflowStyle: 'none',
+                          WebkitOverflowScrolling: 'touch',
+                          touchAction: 'pan-x',
+                          overscrollBehaviorX: 'contain'
+                        }}
+                      >
                       {demoModels.map((model) => {
                         // Use a unique identifier for selection tracking
                         const modelIndex = DEMO_PHOTOS_ARRAY.findIndex(p => p.url === model.url);
@@ -2489,6 +2492,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </button>
                         );
                       })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2496,7 +2500,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 {/* Right Column - Step 2 */}
                   <div className="flex flex-col w-full" ref={rightColumnRef}>
                   {/* Step 2 Header */}
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
                       step === 'complete' || generatedImage
                         ? 'bg-primary text-primary-foreground shadow-md' // Completed - primary color
@@ -2516,11 +2520,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className="flex-1 rounded-md border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-[300px] sm:min-h-[350px] md:min-h-[400px]">
+                  <div className="flex-1 rounded-md border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-[250px] sm:min-h-[280px]">
                     {step === 'idle' && !generatedImage && !error && (
-                      <div className="text-center px-4 sm:px-6 py-8 sm:py-12 animate-fade-in flex flex-col items-center justify-center h-full">
+                      <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
                         {/* Eye icon with circular background */}
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center bg-gray-100 relative">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-gray-100 relative">
                           <Eye className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" strokeWidth={2} />
                         </div>
                         {/* Primary message */}
@@ -2535,9 +2539,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'generating' && progress < 100 && (
-                      <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
+                      <div className="text-center w-full px-4 sm:px-6 py-6 animate-fade-in">
                         {/* Continuous Circular Rotation Loader */}
-                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
+                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4">
                           <svg className="w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '1.4s' }}>
                             {/* Background circle - light gray */}
                             <circle 
@@ -2572,7 +2576,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Status Text - Below Circular Loader */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-4">
+                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-3">
                           {statusMessage || 'Creating your try-on...'}
                         </h3>
                         
@@ -2594,7 +2598,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'generating' && progress === 100 && (
-                      <div className="text-center w-full px-6 sm:px-8 py-8 animate-fade-in">
+                      <div className="text-center w-full px-4 sm:px-6 py-6 animate-fade-in">
                         {/* Checkmark Animation - Success indicator */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6 flex items-center justify-center">
                           {/* Completed circle background */}
@@ -2611,7 +2615,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Status Text - Finalizing */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-6">
+                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-4">
                           {statusMessage || 'Finalizing your try-on...'}
                         </h3>
                         
@@ -2770,11 +2774,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
               </div>
 
-              {/* Bottom Action Section */}
-              <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-4 sm:py-5">
+                {/* Bottom Action Section */}
+              <div className="border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4">
                 {/* Only show size selection if sizes are available and generation is complete */}
                 {sizes.length > 0 && (step === 'complete' || generatedImage) && (
-                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
+                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
                     <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">Size:</span>
                     {sizes.map((size) => {
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
@@ -2912,7 +2916,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
 
               {/* History Section */}
-              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 min-h-[120px] sm:min-h-[140px] flex flex-col justify-center">
+              <div className="bg-white border-t border-gray-100 px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 min-h-[100px] sm:min-h-[110px] flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-1.5 sm:mb-2">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
                   <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
