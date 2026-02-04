@@ -65,6 +65,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Track if first image has been auto-selected
   const hasAutoSelectedFirstImageRef = useRef(false);
   
+  // Track previous uploadedImage to detect changes
+  const prevUploadedImageRef = useRef<string | null>(null);
+  
   // Recent photos from API (using person images from history)
   const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; src: string }>>([]);
   const [isLoadingRecentPhotos, setIsLoadingRecentPhotos] = useState(false);
@@ -237,10 +240,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       elementRect.right <= containerRect.right;
     
     if (!isElementVisible) {
-      // Mobile: Use smaller offset, instant scroll for better UX
-      // Desktop: Use smooth scroll with offset
+      // Use smooth scroll for both mobile and desktop - immediate but smooth
       const scrollOffset = isMobile ? 10 : offset;
-      const scrollBehavior = behavior || (isMobile ? 'auto' : 'smooth');
+      const scrollBehavior = behavior || 'smooth'; // Always use smooth for better UX
       
       // Update last scroll position and target
       lastScrollPositionRef.current = scrollPosition;
@@ -248,20 +250,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         lastScrollTargetRef.current = targetId;
       }
       
-      // Use requestAnimationFrame for better mobile performance
-      if (isMobile) {
-        requestAnimationFrame(() => {
-          container.scrollTo({
-            top: Math.max(0, scrollPosition),
-            behavior: scrollBehavior
-          });
-        });
-      } else {
+      // Use requestAnimationFrame for immediate smooth scroll
+      requestAnimationFrame(() => {
         container.scrollTo({
           top: Math.max(0, scrollPosition),
           behavior: scrollBehavior
         });
-      }
+      });
     }
   }, [isMobileDevice]);
 
@@ -886,12 +881,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setSelectedDemoPhotoUrl(null);
     }
     
-    // Auto-scroll to clothing selection after photo is selected
+    // Auto-scroll to clothing selection after photo is selected - immediate smooth scroll
     // Only scroll forward, prevent reverse scrolling
-    setTimeout(() => {
-      scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
-    }, 300);
-  }, [scrollToElement]);
+    const isMobile = isMobileDevice();
+    // Use requestAnimationFrame for immediate but smooth scroll
+    requestAnimationFrame(() => {
+      scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, 'smooth', 'clothing-selection');
+    });
+  }, [scrollToElement, isMobileDevice]);
 
   // Trigger file input for photo upload (reusable function)
   const triggerPhotoUpload = useCallback(() => {
@@ -1075,27 +1072,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     // Auto-scroll to preview section after clothing is selected
-    // Only scroll forward, prevent reverse scrolling
+    // Only scroll forward, prevent reverse scrolling - immediate smooth scroll
     const isMobile = isMobileDevice();
-    const scrollDelay = isMobile ? 400 : 300; // Slightly longer delay on mobile for better UX
     
-    setTimeout(() => {
+    // Use requestAnimationFrame for immediate but smooth scroll
+    requestAnimationFrame(() => {
       if (uploadedImage) {
         // If photo is already selected, scroll to preview section to show selected clothing
-        scrollToElement(clothingSelectionRef, isMobile ? 15 : 20, undefined, 'clothing-preview');
+        scrollToElement(clothingSelectionRef, isMobile ? 15 : 20, 'smooth', 'clothing-preview');
         // Focus generate button for accessibility (desktop only - mobile doesn't need focus)
         if (!isMobile) {
-          setTimeout(() => {
+          requestAnimationFrame(() => {
             if (generateButtonRef.current) {
               generateButtonRef.current.focus();
             }
-          }, 600);
+          });
         }
       } else {
         // If no photo, scroll to photo upload section (forward only)
-        scrollToElement(photoUploadRef, isMobile ? 15 : 20, undefined, 'photo-upload');
+        scrollToElement(photoUploadRef, isMobile ? 15 : 20, 'smooth', 'photo-upload');
       }
-    }, scrollDelay);
+    });
   }, [productImagesWithIds, storedProductData, productData, uploadedImage, scrollToElement, focusElement, isMobileDevice]);
   
   // Get size availability for all sizes
@@ -1263,12 +1260,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       toast.error('Missing requirements', {
         description: 'Please upload a photo and select a clothing item.',
       });
-      // Scroll to missing requirement (forward only)
-      if (!uploadedImage) {
-        scrollToElement(photoUploadRef, 20, undefined, 'photo-upload');
-      } else if (!selectedClothing) {
-        scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
-      }
+      // Scroll to missing requirement (forward only) - immediate smooth scroll
+      const isMobile = isMobileDevice();
+      requestAnimationFrame(() => {
+        if (!uploadedImage) {
+          scrollToElement(photoUploadRef, isMobile ? 10 : 20, 'smooth', 'photo-upload');
+        } else if (!selectedClothing) {
+          scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, 'smooth', 'clothing-selection');
+        }
+      });
       return;
     }
 
@@ -1293,10 +1293,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         lastScrollPositionRef.current = scrollPosition;
         lastScrollTargetRef.current = 'generating-section';
         
-        // Scroll immediately - use 'auto' for mobile (instant), 'smooth' for desktop
+        // Scroll immediately with smooth behavior for both mobile and desktop
         container.scrollTo({
           top: scrollPosition,
-          behavior: isMobile ? 'auto' : 'smooth'
+          behavior: 'smooth'
         });
       }
     });
@@ -1512,6 +1512,44 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       });
     }
   }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData]);
+
+  // Reset complete state when person image changes - works for both mobile and desktop
+  useEffect(() => {
+    // Skip on initial mount (when prevUploadedImageRef.current is null and uploadedImage is also null)
+    if (prevUploadedImageRef.current === null && uploadedImage === null) {
+      prevUploadedImageRef.current = uploadedImage;
+      return;
+    }
+    
+    // Reset if the image changed (from one image to another, or from image to null, or from null to image)
+    if (prevUploadedImageRef.current !== uploadedImage) {
+      // Clear any running timers
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
+      
+      // Reset all complete state
+      setStep('idle');
+      setGeneratedImage(null);
+      setProgress(0);
+      currentProgressRef.current = 0;
+      setElapsedTime(0);
+      setStatusMessage(null);
+      setError(null);
+      setSelectedSize(null); // Reset size selection since it's a new person
+      setViewingPastTryOn(false);
+      setViewingHistoryItem(null);
+      setSelectedHistoryItemId(null);
+    }
+    
+    // Update the ref for next comparison
+    prevUploadedImageRef.current = uploadedImage;
+  }, [uploadedImage]);
 
   // Handle going back to current try-on
   const handleBackToCurrent = useCallback(() => {
@@ -1962,59 +2000,57 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Note: Auto-scroll to generating section is handled directly in handleGenerate
   // for immediate, reliable scrolling on both mobile and desktop
 
-  // Auto-scroll/focus after photo selection - optimized for mobile and desktop
+  // Auto-scroll/focus after photo selection - immediate smooth scroll
   // Only scroll forward, prevent reverse scrolling
   useEffect(() => {
     if (uploadedImage && !selectedClothing && clothingSelectionRef.current) {
       const isMobile = isMobileDevice();
-      // Mobile: Faster scroll (200ms), Desktop: Smooth scroll (300ms)
-      const delay = isMobile ? 200 : 300;
-      
-      const scrollTimeout = setTimeout(() => {
-        scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, undefined, 'clothing-selection');
-      }, delay);
-
-      return () => clearTimeout(scrollTimeout);
+      // Use requestAnimationFrame for immediate but smooth scroll
+      requestAnimationFrame(() => {
+        scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, 'smooth', 'clothing-selection');
+      });
     }
   }, [uploadedImage, selectedClothing, scrollToElement, isMobileDevice]);
 
-  // Auto-scroll/focus after clothing selection (if photo already selected)
+  // Auto-scroll/focus after clothing selection (if photo already selected) - immediate smooth scroll
   // Only scroll if we haven't already scrolled to generate button
   useEffect(() => {
     if (selectedClothing && uploadedImage && step === 'idle' && generateButtonRef.current) {
       // Only scroll if we're not already past the generate button area
       const isMobile = isMobileDevice();
-      const delay = isMobile ? 200 : 300;
-      
-      const scrollTimeout = setTimeout(() => {
-        scrollToElement(generateButtonRef, isMobile ? 10 : 20, undefined, 'generate-button');
+      // Use requestAnimationFrame for immediate but smooth scroll
+      requestAnimationFrame(() => {
+        scrollToElement(generateButtonRef, isMobile ? 10 : 20, 'smooth', 'generate-button');
         // Only focus on desktop (mobile focus causes keyboard popup)
         if (!isMobile) {
-          focusElement(generateButtonRef, 400);
+          requestAnimationFrame(() => {
+            if (generateButtonRef.current) {
+              generateButtonRef.current.focus();
+            }
+          });
         }
-      }, delay);
-
-      return () => clearTimeout(scrollTimeout);
+      });
     }
-  }, [selectedClothing, uploadedImage, step, scrollToElement, focusElement, isMobileDevice]);
+  }, [selectedClothing, uploadedImage, step, scrollToElement, isMobileDevice]);
 
-  // Auto-scroll/focus after size selection - optimized for mobile and desktop
+  // Auto-scroll/focus after size selection - immediate smooth scroll
   useEffect(() => {
     if (selectedSize && step === 'complete' && addToCartButtonRef.current) {
       const isMobile = isMobileDevice();
-      const delay = isMobile ? 200 : 300;
-      
-      const scrollTimeout = setTimeout(() => {
-        scrollToElement(addToCartButtonRef, isMobile ? 10 : 20, undefined, 'add-to-cart');
+      // Use requestAnimationFrame for immediate but smooth scroll
+      requestAnimationFrame(() => {
+        scrollToElement(addToCartButtonRef, isMobile ? 10 : 20, 'smooth', 'add-to-cart');
         // Only focus on desktop (mobile focus causes keyboard popup)
         if (!isMobile) {
-          focusElement(addToCartButtonRef, 400);
+          requestAnimationFrame(() => {
+            if (addToCartButtonRef.current) {
+              addToCartButtonRef.current.focus();
+            }
+          });
         }
-      }, delay);
-
-      return () => clearTimeout(scrollTimeout);
+      });
     }
-  }, [selectedSize, step, scrollToElement, focusElement, isMobileDevice]);
+  }, [selectedSize, step, scrollToElement, isMobileDevice]);
 
   return (
     <div className="w-full h-screen bg-white font-sans relative overflow-hidden">
@@ -2274,10 +2310,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   reader.onloadend = () => {
                                     const dataURL = reader.result as string;
                                     handlePhotoUpload(dataURL, false, undefined, photo.id);
-                                    // Auto-scroll to clothing selection after photo loads (forward only)
-                                    setTimeout(() => {
-                                      scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
-                                    }, 500);
+                                    // Auto-scroll to clothing selection after photo loads (forward only) - immediate smooth scroll
+                                    const isMobile = isMobileDevice();
+                                    requestAnimationFrame(() => {
+                                      scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, 'smooth', 'clothing-selection');
+                                    });
                                   };
                                   reader.readAsDataURL(blob);
                                 })
@@ -2387,10 +2424,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   reader.onloadend = () => {
                                     const dataURL = reader.result as string;
                                     handlePhotoUpload(dataURL, true, model.url, modelIndex);
-                                    // Auto-scroll to clothing selection after photo loads
-                                    setTimeout(() => {
-                                      scrollToElement(clothingSelectionRef, 20);
-                                    }, 500);
+                                    // Auto-scroll to clothing selection after photo loads - immediate smooth scroll
+                                    const isMobile = isMobileDevice();
+                                    requestAnimationFrame(() => {
+                                      scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, 'smooth', 'clothing-selection');
+                                    });
                                   };
                                   reader.readAsDataURL(blob);
                                 })
@@ -2410,10 +2448,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     reader.onloadend = () => {
                                       const dataURL = reader.result as string;
                                       handlePhotoUpload(dataURL, true, model.url, modelIndex);
-                                      // Auto-scroll to clothing selection after photo loads (forward only)
-                                      setTimeout(() => {
-                                        scrollToElement(clothingSelectionRef, 20, undefined, 'clothing-selection');
-                                      }, 500);
+                                      // Auto-scroll to clothing selection after photo loads (forward only) - immediate smooth scroll
+                                      const isMobile = isMobileDevice();
+                                      requestAnimationFrame(() => {
+                                        scrollToElement(clothingSelectionRef, isMobile ? 10 : 20, 'smooth', 'clothing-selection');
+                                      });
                                     };
                                     reader.readAsDataURL(blob);
                                   })
@@ -2742,33 +2781,52 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
                       const isAvailable = sizeInfo?.isAvailable ?? false;
                       const isSelected = selectedSize === size;
+                      const isMobile = isMobileDevice();
                       
                       return (
                         <button
                           key={size}
                           onClick={() => {
                             setSelectedSize(size);
-                            // Auto-scroll/focus to add to cart button after size selection (forward only)
-                            setTimeout(() => {
-                              scrollToElement(addToCartButtonRef, 20, undefined, 'add-to-cart');
-                              focusElement(addToCartButtonRef, 400);
-                            }, 300);
+                            // Auto-scroll to button after size selection - immediate smooth scroll
+                            const currentIsMobile = isMobileDevice();
+                            requestAnimationFrame(() => {
+                              scrollToElement(addToCartButtonRef, currentIsMobile ? 10 : 20, 'smooth', 'add-to-cart');
+                              // Only focus on desktop (mobile focus causes keyboard popup)
+                              if (!currentIsMobile) {
+                                requestAnimationFrame(() => {
+                                  if (addToCartButtonRef.current) {
+                                    addToCartButtonRef.current.focus();
+                                  }
+                                });
+                              }
+                            });
                           }}
-                          className={`group relative w-8 h-8 sm:w-10 sm:h-10 rounded-md border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
-                            !isAvailable
-                              ? 'bg-gray-50 text-gray-700 border-gray-300 opacity-75 shadow-sm cursor-not-allowed'
-                              : isSelected
-                              ? 'bg-foreground text-background border-foreground shadow-md md:shadow-lg scale-105'
+                          className={`group relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-md border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                            isSelected
+                              ? isAvailable
+                                ? 'bg-foreground text-background border-foreground shadow-md md:shadow-lg scale-105'
+                                : 'bg-gray-600 text-white border-gray-600 shadow-md md:shadow-lg scale-105'
+                              : !isAvailable
+                              ? 'bg-white text-gray-500 border-gray-300 shadow-sm hover:border-gray-400 hover:bg-gray-50 hover:shadow-md hover:scale-105 active:scale-95 cursor-pointer'
                               : 'bg-white text-gray-700 border-border hover:border-primary/50 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 hover:bg-primary/5'
                           }`}
                           aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
                           type="button"
                         >
-                          {/* Hover shimmer effect */}
+                          {/* Hover shimmer effect for available sizes */}
                           {!isSelected && isAvailable && (
                             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-primary/10 to-transparent"></span>
                           )}
-                          <span className="relative z-10">{size}</span>
+                          {/* Hover effect for out of stock sizes */}
+                          {!isSelected && !isAvailable && (
+                            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-gray-200/30 to-transparent"></span>
+                          )}
+                          <span className="relative z-10 flex items-center justify-center h-full">{size}</span>
+                          {/* Out of stock indicator */}
+                          {!isAvailable && !isSelected && (
+                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-gray-400 rounded-full border border-white"></span>
+                          )}
                         </button>
                       );
                     })}
@@ -2798,12 +2856,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`group relative w-full h-12 rounded-md flex items-center justify-center gap-2 font-semibold text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                  className={`group relative w-full h-12 sm:h-14 rounded-md flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
-                      ? 'bg-gray-300 cursor-not-allowed text-white'
+                      ? 'bg-gray-300 cursor-not-allowed text-white shadow-sm'
                       : btnState.color === 'orange'
-                      ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
-                      : 'bg-gray-500 hover:bg-gray-600 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                      ? 'bg-primary hover:bg-primary/90 active:bg-primary/95 text-primary-foreground shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
+                      : 'bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]'
                   }`}
                   aria-label={btnState.text}
                   type="button"
@@ -2812,17 +2870,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {!btnState.disabled && (
                     <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
                   )}
+                  {/* Ripple effect on click */}
+                  {!btnState.disabled && (
+                    <span className="absolute inset-0 rounded-md opacity-0 group-active:opacity-30 group-active:bg-white transition-opacity duration-200"></span>
+                  )}
                   {step === 'generating' ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin relative z-10" />
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin relative z-10" />
                       <span className="relative z-10">Generating...</span>
                     </>
                   ) : (
                     <>
-                      <span className="relative z-10 transition-transform duration-300 group-hover:scale-110">
-                        {btnState.icon}
+                      {btnState.icon && (
+                        <span className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-active:scale-95">
+                          {btnState.icon}
+                        </span>
+                      )}
+                      <span className="relative z-10 transition-transform duration-300 group-hover:scale-105 group-active:scale-95">
+                        {btnState.text}
                       </span>
-                      <span className="relative z-10">{btnState.text}</span>
                     </>
                   )}
                 </button>
@@ -2834,16 +2900,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 )}
                 
                 {step !== 'generating' && step === 'complete' && (
-                  <>
-                    {viewingPastTryOn && (
-                      <p className="text-center text-xs text-gray-700 mt-2">
-                        This item is still available!
-                      </p>
-                    )}
-                    <p className="text-center text-[10px] text-gray-600 mt-2 px-2">
-                      Rendered for aesthetic purposes. Does not reflect actual dimensions.
-                    </p>
-                  </>
+                  <p className="text-center text-[10px] sm:text-xs text-gray-600 mt-2 px-2">
+                    Rendered for aesthetic purposes. Does not reflect actual dimensions.
+                  </p>
                 )}
 
                 {step !== 'generating' && step !== 'complete' && (
