@@ -1952,13 +1952,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }));
   }, []);
 
-  // Auto-scroll to generated image when it appears - optimized for mobile and desktop
+  // Auto-scroll to generated image when it appears - ONLY for mobile, disabled for desktop
   useEffect(() => {
     if (step === 'complete' && generatedImage && generatedImageRef.current && mainContentRef.current) {
       const isMobile = isMobileDevice();
-      // Delay scroll to allow glow animation to start
-      // Mobile: Shorter delay (600ms), Desktop: Full delay (800ms) for glow effect
-      const delay = isMobile ? 600 : 800;
+      
+      // Disable auto-scroll completely for desktop layout
+      if (!isMobile) {
+        return;
+      }
+      
+      // Delay scroll to allow glow animation to start (mobile only)
+      const delay = 600;
       
       const scrollTimeout = setTimeout(() => {
         const imageElement = generatedImageRef.current;
@@ -1975,31 +1980,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             imageRect.bottom <= containerRect.bottom;
           
           if (!isImageVisible) {
-            // Mobile: Scroll to top of image, Desktop: Center the image
-            const scrollOffset = isMobile 
-              ? 10 
-              : (container.clientHeight / 2) - (imageElement.clientHeight / 2);
+            // Mobile: Scroll to top of image
+            const scrollOffset = 10;
             
             const scrollPosition = 
               imageElement.offsetTop - 
               container.offsetTop - 
               scrollOffset;
             
-            const scrollBehavior = isMobile ? 'auto' : 'smooth';
-            
-            if (isMobile) {
-              requestAnimationFrame(() => {
-                container.scrollTo({
-                  top: Math.max(0, scrollPosition),
-                  behavior: scrollBehavior
-                });
-              });
-            } else {
+            requestAnimationFrame(() => {
               container.scrollTo({
                 top: Math.max(0, scrollPosition),
-                behavior: scrollBehavior
+                behavior: 'auto'
               });
-            }
+            });
           }
         }
       }, delay);
@@ -2068,7 +2062,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       {/* Skip to main content link for keyboard navigation */}
       <a
         href="#main-content"
-        className="sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:w-auto focus:h-auto focus:px-4 focus:py-2 focus:bg-orange-500 focus:text-white focus:rounded-lg focus:font-medium focus:shadow-lg focus:m-0"
+        className="sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:w-auto focus:h-auto focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:font-medium focus:shadow-lg focus:m-0"
       >
         Skip to main content
       </a>
@@ -2126,7 +2120,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
             <button
               onClick={handleClose}
-              className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
+              className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
               aria-label="Close modal"
               type="button"
             >
@@ -2154,7 +2148,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </button>
                   <button
                     onClick={handleBackToCurrent}
-                    className="group relative px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
+                    className="group relative px-4 py-2 bg-primary hover:bg-primary-dark text-primary-foreground rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
                   >
                     <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
@@ -2224,7 +2218,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                       uploadedImage 
-                        ? 'bg-green-500 text-white shadow-sm' // Completed - green background with checkmark
+                        ? 'bg-primary text-primary-foreground shadow-sm' // Step 1 completed - primary background with checkmark
                         : 'bg-gray-300 text-gray-500' // Incomplete - grey background with number
                     }`}>
                       {uploadedImage ? (
@@ -2238,10 +2232,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     }`}>Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
-                  <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2">
+                  <div ref={photoUploadRef} className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2">
                     {!uploadedImage && (
                       <>
-                        <h3 className="text-[10px] sm:text-xs font-semibold text-orange-800 mb-1.5 uppercase tracking-wide">For best results</h3>
+                        <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">For best results</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gray-600 mb-2 w-full">
                           <span className="flex items-center gap-1.5 justify-start">
                             <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Front-facing pose
@@ -2277,7 +2271,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/image-container:opacity-100 transition-opacity duration-200">
                             <button
                               onClick={triggerPhotoUpload}
-                              className="group flex items-center justify-center h-8 w-8 rounded-full bg-white/95 hover:bg-white text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg backdrop-blur-sm transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                              className="group flex items-center justify-center h-8 w-8 rounded-full bg-white/95 hover:bg-white text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg backdrop-blur-sm transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
                               aria-label="Edit photo"
                               type="button"
                             >
@@ -2300,7 +2294,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     ) : (
                       <button
-                        className="group relative bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden"
+                        className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
                         aria-label="Upload photo"
                         type="button"
                         onClick={triggerPhotoUpload}
@@ -2392,7 +2386,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   });
                               }
                             }}
-                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                               selectedPhoto === photo.id
                                 ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                 : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
@@ -2494,7 +2488,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   });
                               }
                             }}
-                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                               selectedPhoto === modelIndex
                                 ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                 : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
@@ -2556,7 +2550,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {/* Generation Progress Card */}
                   <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden min-h-[250px] sm:min-h-[280px] ${
                     step === 'idle' && uploadedImage && !generatedImage && !error
-                      ? 'bg-orange-50 border-orange-200'
+                      ? 'bg-primary/5 border-primary/20'
                       : 'border-border bg-card'
                   }`}>
                     {step === 'idle' && !uploadedImage && !generatedImage && !error && (
@@ -2579,15 +2573,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     {step === 'idle' && uploadedImage && !generatedImage && !error && (
                       <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
                         {/* Circular icon with refresh/generate arrows */}
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-orange-100 relative">
-                          <RefreshCw className="w-10 h-10 sm:w-12 sm:h-12 text-orange-600" strokeWidth={2.5} />
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-primary/10 relative">
+                          <RefreshCw className="w-10 h-10 sm:w-12 sm:h-12 text-primary" strokeWidth={2.5} />
                         </div>
                         {/* Primary message */}
-                        <p className="text-orange-700 text-xs sm:text-sm font-semibold mb-2 transition-colors duration-200">
+                        <p className="text-primary text-xs sm:text-sm font-semibold mb-2 transition-colors duration-200">
                           Ready to generate
                         </p>
                         {/* Secondary instruction */}
-                        <p className="text-orange-600 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
+                        <p className="text-primary/80 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
                           Click the button below
                         </p>
                       </div>
@@ -2623,8 +2617,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             {/* Gradient definition for spinner */}
                             <defs>
                               <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#FF5722" stopOpacity="1" />
-                                <stop offset="100%" stopColor="#FF8A65" stopOpacity="0.3" />
+                                <stop offset="0%" stopColor="#FF4F00" stopOpacity="1" />
+                                <stop offset="100%" stopColor="#FF7F33" stopOpacity="0.3" />
                               </linearGradient>
                             </defs>
                           </svg>
@@ -2637,16 +2631,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         
                         {/* Linear Progress Bar - Shows actual progress */}
                         <div className="w-full max-w-xs mx-auto mb-3">
-                          <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 overflow-hidden shadow-sm">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 overflow-hidden shadow-sm">
                             <div
-                              className="bg-[#FF5722] h-full rounded-full transition-all duration-75 ease-linear shadow-sm"
+                              className="bg-primary h-full rounded-full transition-all duration-75 ease-linear shadow-sm"
                               style={{ width: `${progress}%` }}
                             />
                           </div>
                         </div>
                         
                         {/* Progress Percentage */}
-                        <p className="text-xs sm:text-sm font-medium text-orange-500">
+                        <p className="text-xs sm:text-sm font-medium text-primary">
                           {progress}%
                         </p>
                       </div>
@@ -2657,13 +2651,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Checkmark Animation - Success indicator */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6 flex items-center justify-center">
                           {/* Completed circle background */}
-                          <div className="absolute inset-0 rounded-full bg-orange-100 flex items-center justify-center animate-scale-in">
-                            <div className="w-full h-full rounded-full border-4 border-[#c96442]"></div>
+                          <div className="absolute inset-0 rounded-full bg-primary/10 flex items-center justify-center animate-scale-in">
+                            <div className="w-full h-full rounded-full border-4 border-primary"></div>
                           </div>
                           {/* Checkmark icon - appears after circle */}
                           <CheckCircle 
                             size={56} 
-                            className="text-[#c96442] relative z-10 animate-scale-in-delayed"
+                            className="text-primary relative z-10 animate-scale-in-delayed"
                             strokeWidth={2.5}
                             fill="currentColor"
                           />
@@ -2678,7 +2672,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <div className="w-full max-w-xs mx-auto mb-2">
                           <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                             <div
-                              className="bg-[#c96442] h-2.5 rounded-full transition-all duration-300 ease-out"
+                              className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out"
                               style={{ width: '100%' }}
                             />
                           </div>
@@ -2709,13 +2703,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   animation: `bubbleFloatUp ${particle.animationDuration}s ease-out ${particle.animationDelay + 0.5}s forwards`,
                                   opacity: 0,
                                   // Real bubble effect: transparent background with border
-                                  background: `radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 20%, rgba(255, 152, 0, 0.1) 40%, transparent 70%)`,
+                                  background: `radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 20%, hsl(var(--primary) / 0.1) 40%, transparent 70%)`,
                                   border: `2px solid rgba(255, 255, 255, 0.6)`,
                                   boxShadow: `
                                     inset -10px -10px 20px rgba(255, 255, 255, 0.5),
-                                    inset 10px 10px 20px rgba(255, 152, 0, 0.1),
+                                    inset 10px 10px 20px hsl(var(--primary) / 0.1),
                                     0 0 15px rgba(255, 255, 255, 0.3),
-                                    0 0 30px rgba(255, 152, 0, 0.2)
+                                    0 0 30px hsl(var(--primary) / 0.2)
                                   `,
                                   backdropFilter: 'blur(1px)',
                                   filter: 'blur(0.5px)',
@@ -2763,7 +2757,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                         {/* Past try-on timestamp */}
                         {viewingPastTryOn && viewingHistoryItem && (
-                          <div className="relative z-10 flex items-center gap-2 text-sm text-orange-600 mb-2">
+                          <div className="relative z-10 flex items-center gap-2 text-sm text-primary mb-2">
                             <Clock className="w-4 h-4" />
                             <span>From {getTimeAgo(viewingHistoryItem.createdAt)}</span>
                           </div>
@@ -2780,7 +2774,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {!viewingPastTryOn && (
                           <button
                             onClick={handleReset}
-                            className="group relative z-10 mt-4 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 px-2 py-1 hover:bg-primary/5 rounded-lg"
+                            className="group relative z-10 mt-4 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-105 active:scale-95 px-2 py-1 hover:bg-primary/5 rounded-lg"
                             aria-label="Try again"
                             type="button"
                             style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
@@ -2860,7 +2854,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               }
                             });
                           }}
-                          className={`group relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                          className={`group relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
                               ? isAvailable
                                 ? 'bg-foreground text-background border-foreground shadow-md md:shadow-lg scale-105'
@@ -2914,7 +2908,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`group relative w-full h-10 sm:h-11 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                  className={`group relative w-full h-10 sm:h-11 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white shadow-sm'
                       : btnState.color === 'orange'
@@ -3009,7 +3003,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               handleHistoryItemSelect(item);
                             }
                           }}
-                          className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                          className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
                               ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                               : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
@@ -3055,7 +3049,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="group relative flex-shrink-0 h-14 w-14 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
+                      className="group relative flex-shrink-0 h-14 w-14 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
                       aria-label="Upload new photo for try-on"
                       type="button"
                     >
@@ -3084,7 +3078,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="group relative flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95 overflow-hidden"
+                      className="group relative flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95 overflow-hidden"
                       aria-label="Upload photo to start try-on"
                       type="button"
                     >

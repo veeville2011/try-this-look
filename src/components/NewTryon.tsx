@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { X, LogIn, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,10 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
   // Redirect state
   const [isRedirecting, setIsRedirecting] = useState(false);
   
+  // Refs for scrolling to photo upload and clothing selection sections
+  const photoUploadSectionRef = useRef<HTMLDivElement>(null);
+  const clothingSelectionSectionRef = useRef<HTMLDivElement>(null);
+  
   // Tutorial demo animation state - 4 steps
   const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1);
   const [progress, setProgress] = useState(0);
@@ -55,6 +59,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
   // Test widget state - photo upload and clothing selection
   const [testUploadedImage, setTestUploadedImage] = useState<string | null>(null);
   const [testSelectedClothing, setTestSelectedClothing] = useState<string | null>(null);
+  const [testGeneratedImage, setTestGeneratedImage] = useState<string | null>(null);
   const [testProductImages, setTestProductImages] = useState<string[]>([]);
   const [testLoadingImages, setTestLoadingImages] = useState(false);
   
@@ -380,9 +385,9 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                           className={cn(
                             "h-2 rounded-full transition-all duration-500",
                             tutorialStep === step
-                              ? "w-8 bg-[#564646]"
+                              ? "w-8 bg-primary"
                               : tutorialStep > step
-                              ? "w-2 bg-[#564646]/40"
+                              ? "w-2 bg-primary/40"
                               : "w-2 bg-slate-200"
                           )}
                           aria-hidden="true"
@@ -394,7 +399,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                     <div className="text-center mb-6 min-h-[72px] flex flex-col items-center justify-center gap-2">
                       <p
                         className={cn(
-                          "text-xs sm:text-sm font-medium text-[#564646]/70 uppercase tracking-wider transition-opacity duration-500",
+                          "text-xs sm:text-sm font-medium text-primary/70 uppercase tracking-wider transition-opacity duration-500",
                           "opacity-100"
                         )}
                         key={`step-number-${tutorialStep}`}
@@ -406,7 +411,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                       </p>
                       <p
                         className={cn(
-                          "text-lg sm:text-xl font-bold text-[#564646] leading-tight transition-opacity duration-500",
+                          "text-lg sm:text-xl font-bold text-primary leading-tight transition-opacity duration-500",
                           "opacity-100"
                         )}
                         key={`step-text-${tutorialStep}`}
@@ -433,7 +438,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                             alt={t("tryOnWidget.authGate.personImageAlt") || "Example person photo"}
                             className="w-full h-full object-contain"
                           />
-                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                          <div className="absolute inset-0 bg-primary/10 border-2 border-primary rounded-lg animate-pulse" />
                         </div>
                       )}
 
@@ -445,7 +450,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                             alt={t("tryOnWidget.authGate.clothingImageAlt") || "Example clothing item"}
                             className="w-full h-full object-contain"
                           />
-                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                          <div className="absolute inset-0 bg-primary/10 border-2 border-primary rounded-lg animate-pulse" />
                         </div>
                       )}
 
@@ -482,7 +487,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                             alt={t("tryOnWidget.authGate.generatedImageAlt") || "Example of generated virtual try-on result"}
                             className="w-full h-full object-contain"
                           />
-                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                          <div className="absolute inset-0 bg-primary/10 border-2 border-primary rounded-lg animate-pulse" />
                         </div>
                       )}
                     </div>
@@ -506,42 +511,42 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                   <div className="w-full space-y-6 flex-shrink-0">
                     {/* Title Section */}
                     <div className="space-y-4 text-left">
-                      <h2 id="auth-heading" className="text-2xl sm:text-3xl md:text-3xl font-bold text-[#564646] leading-tight tracking-tight">
+                      <h2 id="auth-heading" className="text-2xl sm:text-3xl md:text-3xl font-bold text-primary leading-tight tracking-tight">
                         {t("tryOnWidget.authGate.title") || "Continue to Virtual Try-On"}
                       </h2>
-                      <p className="text-sm sm:text-base text-[#564646]/75 leading-relaxed max-w-md">
+                      <p className="text-sm sm:text-base text-primary/75 leading-relaxed max-w-md">
                         {t("tryOnWidget.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
                       </p>
                       
                       {/* Virtual Try-On Benefits */}
                       <div className="space-y-2.5 pt-3">
                         <div className="flex items-center justify-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                          <span className="text-xs text-[#564646]/60">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+                          <span className="text-xs text-primary/60">
                             {t("tryOnWidget.authGate.benefit1") || "See how it looks"}
                           </span>
                         </div>
                         <div className="flex items-center justify-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                          <span className="text-xs text-[#564646]/60">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+                          <span className="text-xs text-primary/60">
                             {t("tryOnWidget.authGate.benefit2") || "Before you buy"}
                           </span>
                         </div>
                         <div className="flex items-center justify-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                          <span className="text-xs text-[#564646]/60">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+                          <span className="text-xs text-primary/60">
                             {t("tryOnWidget.authGate.benefit3") || "Save time"}
                           </span>
                         </div>
                         <div className="flex items-center justify-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                          <span className="text-xs text-[#564646]/60">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+                          <span className="text-xs text-primary/60">
                             {t("tryOnWidget.authGate.benefit4") || "Try multiple styles"}
                           </span>
                         </div>
                         <div className="flex items-center justify-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                          <span className="text-xs text-[#564646]/60">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+                          <span className="text-xs text-primary/60">
                             {t("tryOnWidget.authGate.benefit5") || "AI-powered"}
                           </span>
                         </div>
@@ -554,7 +559,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                     <Button
                       onClick={handleLoginClick}
                       disabled={isRedirecting}
-                      className="w-full h-12 sm:h-13 bg-[#564646] hover:bg-[#453939] text-white text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full h-12 sm:h-13 bg-primary hover:bg-primary-dark text-primary-foreground text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
                       aria-label={t("tryOnWidget.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}
                     >
                       {isRedirecting ? (
@@ -571,12 +576,12 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                     </Button>
 
                     {/* Redirect Notice */}
-                    <p className="text-xs text-left text-[#564646]/55 leading-relaxed">
+                    <p className="text-xs text-left text-primary/55 leading-relaxed">
                       {t("tryOnWidget.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
                     </p>
 
                     {/* Sign Up Link */}
-                    <div className="text-left text-xs sm:text-sm text-[#564646]/75 space-y-1.5">
+                    <div className="text-left text-xs sm:text-sm text-primary/75 space-y-1.5">
                       <p className="leading-relaxed">{t("tryOnWidget.authGate.accountLink") || "Don't have an account?"}</p>
                       <a
                         href="#"
@@ -616,7 +621,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                             window.location.href = signUpUrl;
                           }
                         }}
-                        className="inline-block text-[#564646] hover:text-[#453939] font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#564646] focus-visible:ring-offset-2 rounded-sm transition-colors"
+                        className="inline-block text-primary hover:text-primary-dark font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-sm transition-colors"
                         aria-label={t("tryOnWidget.authGate.signUpLinkAriaLabel") || "Create a new account"}
                       >
                         {t("tryOnWidget.authGate.signUpLink") || "Create one"}
@@ -645,7 +650,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
             {/* Second Row: Photo Upload + Clothing Selection */}
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
               {/* Left Half: Choose a photo of yourself */}
-              <div className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+              <div ref={photoUploadSectionRef} className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex-shrink-0">
                   {t("tryOnWidget.photoUpload.choosePhoto") || "Choose a photo of yourself"}
                 </h3>
@@ -660,7 +665,7 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
               </div>
 
               {/* Right Half: You are trying on */}
-              <div className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+              <div ref={clothingSelectionSectionRef} className="flex flex-col min-h-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex-shrink-0">
                   {t("tryOnWidget.clothingSelection.tryingOn") || "You are trying on"}
                 </h3>
@@ -701,10 +706,28 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                 showMetadata={true}
                 enableLightbox={true}
                 onImageClick={async (image) => {
-                  // Prefill user image and clothing image from history metadata
+                  // Load all three images: person, clothing, and generated
+                  // Load generated image first (main image from history)
+                  if (image.imageUrl) {
+                    try {
+                      const generatedResponse = await fetch(image.imageUrl);
+                      if (generatedResponse.ok) {
+                        const generatedBlob = await generatedResponse.blob();
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const dataURL = reader.result as string;
+                          setTestGeneratedImage(dataURL);
+                        };
+                        reader.readAsDataURL(generatedBlob);
+                      }
+                    } catch (error) {
+                      console.warn('[NewTryon] Failed to load generated image from history:', error);
+                    }
+                  }
+                  
+                  // Load person image
                   if (image.metadata?.personImageUrl) {
                     try {
-                      // Load person image
                       const personResponse = await fetch(image.metadata.personImageUrl);
                       if (personResponse.ok) {
                         const personBlob = await personResponse.blob();
@@ -720,9 +743,9 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                     }
                   }
                   
+                  // Load clothing image
                   if (image.metadata?.clothingImageUrl) {
                     try {
-                      // Load clothing image
                       const clothingResponse = await fetch(image.metadata.clothingImageUrl);
                       if (clothingResponse.ok) {
                         const clothingBlob = await clothingResponse.blob();
@@ -737,6 +760,16 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                       console.warn('[NewTryon] Failed to load clothing image from history:', error);
                     }
                   }
+                  
+                  // Scroll to photo upload section when history image is clicked
+                  setTimeout(() => {
+                    if (photoUploadSectionRef.current) {
+                      photoUploadSectionRef.current.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                      });
+                    }
+                  }, 200);
                 }}
               />
               {generatedImagesError && (

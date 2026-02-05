@@ -30,9 +30,9 @@ export default function NewWidget() {
   }, []);
 
   useEffect(() => {
-    // Override primary color to #FF4F00 for widget-test route only
+    // Override primary color to International Orange #FF4F00 for widget-test route only
     // HSL Conversion: #FF4F00 (RGB: 255, 79, 0) = hsl(19, 100%, 50%)
-    // Calculation: H=19° (orange-red), S=100% (fully saturated), L=50% (medium lightness)
+    // International Orange color palette with related shades
     const styleId = 'widget-test-primary-color-override';
     
     // Check if style already exists to prevent duplicates
@@ -44,19 +44,72 @@ export default function NewWidget() {
     style.id = styleId;
     style.textContent = `
       :root {
+        /* International Orange Primary Colors */
         --primary: 19 100% 50%; /* #FF4F00 - Main primary color */
         --primary-foreground: 0 0% 100%; /* White text on primary */
         --ring: 19 100% 50%; /* #FF4F00 - Focus ring color */
-        --primary-light: 19 100% 60%; /* Lighter variant for hover states */
-        --primary-dark: 19 100% 40%; /* Darker variant for active states */
+        
+        /* Related Shades - Lighter variants */
+        --primary-light: 19 100% 60%; /* #FF7F33 - Lighter for hover states */
+        --primary-lighter: 19 100% 70%; /* #FF9F66 - Even lighter for subtle backgrounds */
+        --primary-lightest: 19 50% 90%; /* #FFE5D9 - Very light tint for backgrounds */
+        
+        /* Related Shades - Darker variants */
+        --primary-dark: 19 100% 40%; /* #CC3F00 - Darker for active/pressed states */
+        --primary-darker: 19 100% 30%; /* #992F00 - Even darker for emphasis */
+        
+        /* Muted/Saturated variants */
+        --primary-muted: 19 80% 50%; /* Less saturated variant */
+        --primary-saturated: 19 100% 50%; /* Fully saturated (same as primary) */
       }
       
       .dark {
-        --primary: 19 100% 50%; /* #FF4F00 - Same primary color in dark theme */
+        /* International Orange Primary Colors for Dark Theme */
+        --primary: 19 100% 55%; /* Slightly lighter for dark theme visibility */
         --primary-foreground: 0 0% 100%; /* White text on primary */
-        --ring: 19 100% 50%; /* #FF4F00 - Focus ring color */
-        --primary-light: 19 100% 60%; /* Lighter variant for dark theme */
-        --primary-dark: 19 100% 40%; /* Darker variant for dark theme */
+        --ring: 19 100% 55%; /* Focus ring color */
+        
+        /* Related Shades - Lighter variants for dark theme */
+        --primary-light: 19 100% 65%; /* Lighter for hover states */
+        --primary-lighter: 19 100% 75%; /* Even lighter */
+        --primary-lightest: 19 30% 20%; /* Dark theme background tint */
+        
+        /* Related Shades - Darker variants for dark theme */
+        --primary-dark: 19 100% 45%; /* Darker for active states */
+        --primary-darker: 19 100% 35%; /* Even darker */
+        
+        /* Muted/Saturated variants */
+        --primary-muted: 19 80% 55%; /* Less saturated variant */
+        --primary-saturated: 19 100% 55%; /* Fully saturated */
+      }
+      
+      /* Widget-specific color utilities */
+      .widget-primary {
+        color: hsl(var(--primary));
+      }
+      
+      .widget-primary-bg {
+        background-color: hsl(var(--primary));
+      }
+      
+      .widget-primary-border {
+        border-color: hsl(var(--primary));
+      }
+      
+      .widget-primary-hover:hover {
+        background-color: hsl(var(--primary-dark));
+      }
+      
+      .widget-primary-text {
+        color: hsl(var(--primary));
+      }
+      
+      .widget-primary-text-light {
+        color: hsl(var(--primary-light));
+      }
+      
+      .widget-primary-text-muted {
+        color: hsl(var(--primary-muted));
       }
     `;
     document.head.appendChild(style);
