@@ -706,7 +706,7 @@
       // - Desktop: max-width keeps the modal at 900px for consistent UI/UX
       'width: 95vw',
       'max-width: 900px',
-      'height: 94vh',
+      'height: 98vh',
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',

@@ -878,7 +878,7 @@
       // - Desktop: max-width keeps the modal at consistent size for UI/UX
       'width: 95vw',
       `max-width: ${CONSTANTS.DEFAULT_MODAL_WIDTH}px`,
-      'height: 94vh',
+      'height: 98vh',
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',
