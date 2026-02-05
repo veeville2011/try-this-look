@@ -922,107 +922,52 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     createdAt?: string;
   }) => {
     try {
-      // Load and set generated image
-      if (item.image) {
-        try {
-          // Check if it's already a data URL
-          if (item.image.startsWith('data:image/')) {
-            // Already a data URL, use it directly
-            setGeneratedImage(item.image);
-            storage.saveGeneratedImage(item.image);
-            setGeneratedImageError(false);
-          } else {
-            // It's a regular URL, fetch and convert to data URL
-            const proxiedGeneratedUrl = getProxiedImageUrl(item.image);
-            const generatedBlob = await fetch(proxiedGeneratedUrl).then(res => {
-              if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-              return res.blob();
-            });
-            
-            const generatedReader = new FileReader();
-            const generatedDataURL = await new Promise<string>((resolve, reject) => {
-              generatedReader.onloadend = () => resolve(generatedReader.result as string);
-              generatedReader.onerror = reject;
-              generatedReader.readAsDataURL(generatedBlob);
-            });
-            
-            // Validate the generated image data URL before setting
-            if (generatedDataURL && typeof generatedDataURL === 'string' && generatedDataURL.trim().length > 0 && generatedDataURL.startsWith('data:image/')) {
-              setGeneratedImage(generatedDataURL);
-              storage.saveGeneratedImage(generatedDataURL);
-              setGeneratedImageError(false);
-            } else {
-              console.error('[VirtualTryOnModal] Invalid generated image data URL from history:', generatedDataURL);
-              setGeneratedImageError(true);
-              setGeneratedImage(null);
-            }
-          }
-        } catch (error) {
-          console.error('[VirtualTryOnModal] Failed to load generated image from history:', error);
-          setGeneratedImageError(true);
-          setGeneratedImage(null);
-          // Continue loading other images even if generated image fails
+      // Helper function to load an image from URL or data URL
+      const loadImageAsDataURL = async (imageUrl: string | undefined): Promise<string | null> => {
+        if (!imageUrl) return null;
+        
+        // If already a data URL, return it directly
+        if (imageUrl.startsWith('data:image/')) {
+          return imageUrl;
         }
-      } else {
-        console.warn('[VirtualTryOnModal] No generated image URL in history item');
-        setGeneratedImage(null);
-        setGeneratedImageError(false);
-      }
-      
-      // Load and set user image if available
-      if (item.personImageUrl) {
+        
+        // Otherwise, fetch and convert to data URL
         try {
-          const proxiedPersonUrl = getProxiedImageUrl(item.personImageUrl);
-          const personBlob = await fetch(proxiedPersonUrl).then(res => {
+          const proxiedUrl = getProxiedImageUrl(imageUrl);
+          const blob = await fetch(proxiedUrl).then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             return res.blob();
           });
           
-          const personReader = new FileReader();
-          const personDataURL = await new Promise<string>((resolve, reject) => {
-            personReader.onloadend = () => resolve(personReader.result as string);
-            personReader.onerror = reject;
-            personReader.readAsDataURL(personBlob);
+          const reader = new FileReader();
+          const dataURL = await new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
           });
           
-          // Validate that personDataURL is a valid data URL before setting
-          if (personDataURL && typeof personDataURL === 'string' && personDataURL.trim().length > 0 && personDataURL.startsWith('data:image/')) {
-            setUploadedImage(personDataURL);
-            storage.saveUploadedImage(personDataURL);
-          } else {
-            console.warn('[VirtualTryOnModal] Invalid person image data URL from history');
+          // Validate data URL
+          if (dataURL && typeof dataURL === 'string' && dataURL.trim().length > 0 && dataURL.startsWith('data:image/')) {
+            return dataURL;
           }
-          setSelectedDemoPhotoUrl(null);
-          setPhotoSelectionMethod('file');
+          return null;
         } catch (error) {
-          console.warn('[VirtualTryOnModal] Failed to load person image from history:', error);
-          // Continue even if person image fails
+          console.warn('[VirtualTryOnModal] Failed to load image:', error);
+          return null;
         }
-      }
+      };
       
-      // Load and set clothing image if available
-      if (item.clothingImageUrl) {
-        try {
-          const proxiedClothingUrl = getProxiedImageUrl(item.clothingImageUrl);
-          const clothingBlob = await fetch(proxiedClothingUrl).then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            return res.blob();
-          });
-          
-          const clothingReader = new FileReader();
-          const clothingDataURL = await new Promise<string>((resolve, reject) => {
-            clothingReader.onloadend = () => resolve(clothingReader.result as string);
-            clothingReader.onerror = reject;
-            clothingReader.readAsDataURL(clothingBlob);
-          });
-          
-          setSelectedClothing(clothingDataURL);
-          storage.saveClothingUrl(clothingDataURL);
-        } catch (error) {
-          console.warn('[VirtualTryOnModal] Failed to load clothing image from history:', error);
-          // Continue even if clothing image fails
-        }
-      }
+      // Load all images in parallel
+      const [generatedDataURL, personDataURL, clothingDataURL] = await Promise.allSettled([
+        loadImageAsDataURL(item.image),
+        loadImageAsDataURL(item.personImageUrl),
+        loadImageAsDataURL(item.clothingImageUrl),
+      ]);
+      
+      // Extract results from Promise.allSettled
+      const generatedImageResult = generatedDataURL.status === 'fulfilled' ? generatedDataURL.value : null;
+      const personImageResult = personDataURL.status === 'fulfilled' ? personDataURL.value : null;
+      const clothingImageResult = clothingDataURL.status === 'fulfilled' ? clothingDataURL.value : null;
       
       // Save current generation and images before switching to history (if not already viewing history)
       if (!viewingPastTryOn) {
@@ -1037,20 +982,57 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
+      // Update all state atomically after all images are loaded
+      if (generatedImageResult) {
+        setGeneratedImage(generatedImageResult);
+        storage.saveGeneratedImage(generatedImageResult);
+        setGeneratedImageError(false);
+      } else {
+        if (item.image) {
+          // Only set error if there was supposed to be an image
+          setGeneratedImageError(true);
+        }
+        setGeneratedImage(null);
+      }
+      
+      if (personImageResult) {
+        setUploadedImage(personImageResult);
+        storage.saveUploadedImage(personImageResult);
+        setSelectedDemoPhotoUrl(null);
+        setPhotoSelectionMethod('file');
+      }
+      
+      if (clothingImageResult) {
+        setSelectedClothing(clothingImageResult);
+        storage.saveClothingUrl(clothingImageResult);
+      }
+      
       // Set viewing past try-on state
       setViewingPastTryOn(true);
       setViewingHistoryItem(item);
       setSelectedHistoryItemId(item.id); // Track selected history item for highlighting
       
       // Set step to 'complete' - the rendering logic will handle error states
-      // If generatedImageError is true, the error UI will show instead of the image
       setStep('complete');
       setSelectedSize(null); // Reset size selection when viewing past try-on
+      
+      // Auto-scroll to top after state updates
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (mainContentRef.current) {
+            mainContentRef.current.scrollTo({
+              top: 0,
+              behavior: 'smooth',
+            });
+          }
+        }, 100); // Small delay to ensure state updates have rendered
+      });
     } catch (error) {
       console.error('[VirtualTryOnModal] Failed to load history item:', error);
       toast.error('Failed to load try-on result');
     }
-  }, [getProxiedImageUrl]);
+  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl]);
   
   // Get formatted time ago string
   const getTimeAgo = useCallback((dateString?: string): string => {
