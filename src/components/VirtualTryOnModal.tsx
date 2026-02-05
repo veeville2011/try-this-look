@@ -983,17 +983,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Update all state atomically after all images are loaded
-      // CRITICAL FIX: Set all state updates together in the same synchronous block
-      // React 18+ will batch them, but we ensure generatedImage is set before step changes
+      // React 18+ automatically batches all these updates together
       
-      // Update generated image state FIRST
+      // Update generated image state
       if (generatedImageResult) {
         setGeneratedImage(generatedImageResult);
         storage.saveGeneratedImage(generatedImageResult);
         setGeneratedImageError(false);
       } else {
         if (item.image) {
-          // Only set error if there was supposed to be an image
           setGeneratedImageError(true);
         }
         setGeneratedImage(null);
@@ -1006,8 +1004,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
       } else if (item.personImageUrl) {
-        // If personImageUrl was provided but failed to load, clear the state
-        // If personImageUrl was not provided, keep current image (don't clear)
         setUploadedImage(null);
         storage.saveUploadedImage(null);
         setSelectedDemoPhotoUrl(null);
@@ -1019,8 +1015,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setSelectedClothing(clothingImageResult);
         storage.saveClothingUrl(clothingImageResult);
       } else if (item.clothingImageUrl) {
-        // If clothingImageUrl was provided but failed to load, clear the state
-        // If clothingImageUrl was not provided, keep current image (don't clear)
         setSelectedClothing(null);
         storage.saveClothingUrl(null);
       }
@@ -1028,14 +1022,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Set viewing past try-on state
       setViewingPastTryOn(true);
       setViewingHistoryItem(item);
-      setSelectedHistoryItemId(item.id); // Track selected history item for highlighting
+      setSelectedHistoryItemId(item.id);
       
-      // CRITICAL: Set step to 'complete' in the same batch as image updates
-      // React 18+ batches all these updates together, ensuring they're applied atomically
-      // The key is that generatedImage is set BEFORE step, so when React renders with step='complete',
-      // generatedImage will also be set in the same render cycle
+      // Set step to 'complete' - React batches this with all above updates
       setStep('complete');
-      setSelectedSize(null); // Reset size selection when viewing past try-on
+      setSelectedSize(null);
       
       // Auto-scroll to top after state updates
       // Use double requestAnimationFrame to ensure DOM has fully updated after React renders
@@ -2137,10 +2128,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, []);
 
   // Ensure step is 'complete' when viewing history and generatedImage is set
-  // This is a safeguard to ensure state consistency when loading history items
+  // Simple safeguard to ensure state consistency
   useEffect(() => {
     if (viewingPastTryOn && generatedImage && !generatedImageError && step !== 'complete') {
-      // If we're viewing history and have a generated image, ensure step is 'complete'
       setStep('complete');
     }
   }, [viewingPastTryOn, generatedImage, generatedImageError, step]);
