@@ -2293,20 +2293,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
           {/* Viewing Past Try-On Banner */}
           {viewingPastTryOn && viewingHistoryItem && (
-            <div className="w-full px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 border-b border-yellow-200 bg-yellow-50">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="w-full px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 border-b border-gray-100 transition-all duration-300 ease-in-out">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2 text-sm sm:text-base">
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-700 flex-shrink-0" />
-                  <span className="font-medium text-yellow-900">Viewing past try-on</span>
-                  <span className="text-yellow-700">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
+                  <span className="font-medium text-foreground">Viewing past try-on</span>
+                  <span className="text-muted-foreground">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
                 </div>
                 <div className="flex gap-2 sm:gap-3 md:flex-shrink-0">
                   <button
                     onClick={handleRegeneratePastTryOn}
-                    className="group relative px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out border border-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
+                    className="group relative px-4 py-2 bg-white hover:bg-gray-50 text-foreground rounded-lg text-sm font-medium transition-all duration-300 ease-in-out border border-gray-200 hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
                   >
-                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-yellow-300/20 to-transparent"></span>
+                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-gray-200/20 to-transparent"></span>
                     <span className="relative z-10">Regenerate</span>
                   </button>
                   <button
