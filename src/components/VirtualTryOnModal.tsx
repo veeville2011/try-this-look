@@ -182,6 +182,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const mainContentRef = useRef<HTMLDivElement>(null);
   const generatedImageRef = useRef<HTMLDivElement>(null);
   const currentGenerationRef = useRef<string | null>(null); // Track current generation before viewing history
+  const isLoadingHistoryRef = useRef<boolean>(false); // Flag to prevent reset useEffect during history loading
   const currentUploadedImageRef = useRef<string | null>(null); // Track current uploaded image before viewing history
   const currentSelectedClothingRef = useRef<string | null>(null); // Track current selected clothing before viewing history
   const rightColumnRef = useRef<HTMLDivElement>(null);
@@ -922,6 +923,29 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     createdAt?: string;
   }) => {
     try {
+      // CRITICAL: Set flag to prevent reset useEffect from interfering
+      // This must be set BEFORE any state updates to prevent the useEffect from resetting state
+      isLoadingHistoryRef.current = true;
+      
+      // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
+      // This makes the red radio indicator appear instantly when user clicks
+      setSelectedHistoryItemId(item.id);
+      setViewingPastTryOn(true);
+      setViewingHistoryItem(item);
+      
+      // Save current generation and images before switching to history (if not already viewing history)
+      if (!viewingPastTryOn) {
+        if (generatedImage) {
+          currentGenerationRef.current = generatedImage;
+        }
+        if (uploadedImage) {
+          currentUploadedImageRef.current = uploadedImage;
+        }
+        if (selectedClothing) {
+          currentSelectedClothingRef.current = selectedClothing;
+        }
+      }
+      
       // Helper function to load an image from URL or data URL
       const loadImageAsDataURL = async (imageUrl: string | undefined): Promise<string | null> => {
         if (!imageUrl) return null;
@@ -957,7 +981,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       };
       
-      // Load all images in parallel
+      // Load all images in parallel (happens in background after selection is shown)
       const [generatedDataURL, personDataURL, clothingDataURL] = await Promise.allSettled([
         loadImageAsDataURL(item.image),
         loadImageAsDataURL(item.personImageUrl),
@@ -969,20 +993,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const personImageResult = personDataURL.status === 'fulfilled' ? personDataURL.value : null;
       const clothingImageResult = clothingDataURL.status === 'fulfilled' ? clothingDataURL.value : null;
       
-      // Save current generation and images before switching to history (if not already viewing history)
-      if (!viewingPastTryOn) {
-        if (generatedImage) {
-          currentGenerationRef.current = generatedImage;
-        }
-        if (uploadedImage) {
-          currentUploadedImageRef.current = uploadedImage;
-        }
-        if (selectedClothing) {
-          currentSelectedClothingRef.current = selectedClothing;
-        }
-      }
-      
-      // Update all state atomically after all images are loaded
+      // Update all image states atomically after all images are loaded
       // CRITICAL: Set generatedImage FIRST, then other states, then step LAST
       // This ensures generatedImage is available when step changes to 'complete'
       
@@ -1020,21 +1031,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         storage.saveClothingUrl(null);
       }
       
-      // Set viewing past try-on state
-      setViewingPastTryOn(true);
-      setViewingHistoryItem(item);
-      setSelectedHistoryItemId(item.id);
-      
       // CRITICAL: Set step to 'complete' LAST - React batches all updates together
       // But by setting generatedImage first, it will be available when step changes
       setStep('complete');
       setSelectedSize(null);
+      
+      // CRITICAL: Reset flag AFTER all states are updated
+      // This allows the reset useEffect to work normally for user uploads
+      isLoadingHistoryRef.current = false;
       
       // Note: Auto-scroll is handled by useEffect watching selectedHistoryItemId
       // This ensures scroll happens after the selection indicator (red radio) is visible
     } catch (error) {
       console.error('[VirtualTryOnModal] Failed to load history item:', error);
       toast.error('Failed to load try-on result');
+      // Reset selection on error
+      setSelectedHistoryItemId(null);
+      setViewingPastTryOn(false);
+      setViewingHistoryItem(null);
+      // Reset flag on error
+      isLoadingHistoryRef.current = false;
     }
   }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl]);
   
@@ -1546,6 +1562,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Reset complete state when person image changes - works for both mobile and desktop
   useEffect(() => {
+    // CRITICAL: Skip reset when loading history items
+    // This prevents the reset from interfering with history loading
+    if (isLoadingHistoryRef.current) {
+      // Update ref but don't reset state when loading history
+      prevUploadedImageRef.current = uploadedImage;
+      return;
+    }
+    
     // Skip on initial mount (when prevUploadedImageRef.current is null and uploadedImage is also null)
     if (prevUploadedImageRef.current === null && uploadedImage === null) {
       prevUploadedImageRef.current = uploadedImage;
@@ -1553,6 +1577,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     // Reset if the image changed (from one image to another, or from image to null, or from null to image)
+    // This only happens for user uploads, not history loading
     if (prevUploadedImageRef.current !== uploadedImage) {
       // Clear any running timers
       if (progressTimerRef.current) {
@@ -2389,9 +2414,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               }}
             >
               <div className="px-4 sm:px-5 md:px-6 pt-2 sm:pt-2.5 pb-0" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginLeft: 0, marginRight: 0 }}>
-                <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch">
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch md:h-auto">
                 {/* Left Column - Step 1 */}
-                <div className="flex flex-col w-full h-full min-h-0">
+                <div className="flex flex-col w-full md:h-full min-h-0">
                   {/* Step 1 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -2685,7 +2710,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 {/* Right Column - Step 2 */}
-                  <div className="flex flex-col w-full h-full min-h-0" ref={rightColumnRef}>
+                  <div className="flex flex-col w-full md:h-full min-h-0" ref={rightColumnRef}>
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -2711,7 +2736,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden h-full min-h-0 ${
+                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden min-h-0 ${
                     step === 'idle' && uploadedImage && !generatedImage && !error
                       ? 'bg-primary/5 border-primary/20'
                       : 'border-border bg-card'
@@ -2848,7 +2873,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                     {/* Show generated image when: step is complete OR (viewing history AND we have generated image) */}
                     {((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError && (
-                      <div className={`relative w-full h-full flex flex-col items-center p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
+                      <div className={`relative w-full h-full flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
                         {/* Background gradient matching screenshots - light yellow/orange to white */}
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-lg" />
                         
@@ -2899,25 +2924,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         
 
                         {/* Result Image - Glowing bubbles reveal animation */}
-                        {/* CRITICAL: Use flex-1 with min-h-0 to take available space, but respect parent height */}
+                        {/* CRITICAL: Container height is fixed by left section, image uses object-contain with auto width */}
                         <div 
                           ref={generatedImageRef}
-                          className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md flex-1 min-h-0 flex items-center justify-center"
-                          style={{ maxHeight: '100%' }}
+                          className="relative z-10 flex-1 min-h-0 flex items-center justify-center w-full"
+                          style={{ height: '100%', maxHeight: '100%' }}
                         >
-                          <div className="w-full h-full flex items-center justify-center" style={{ maxHeight: '100%', overflow: 'hidden' }}>
-                            <div className="w-full h-full flex items-center justify-center" style={{ maxHeight: '100%' }}>
-                              <GlowingBubblesReveal
-                                show={!viewingPastTryOn}
-                                className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
-                              >
-                                <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 w-full h-full flex items-center justify-center" style={{ maxHeight: '100%', overflow: 'hidden' }}>
+                          <div className="w-full h-full flex items-center justify-center" style={{ height: '100%', maxHeight: '100%', overflow: 'hidden' }}>
+                            <div className="w-full h-full flex items-center justify-center" style={{ height: '100%', maxHeight: '100%' }}>
+                              <div className="w-full h-full flex items-center justify-center" style={{ height: '100%', maxHeight: '100%' }}>
+                                <GlowingBubblesReveal
+                                  show={!viewingPastTryOn}
+                                  className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
+                                >
+                                  <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center" style={{ height: '100%', maxHeight: '100%', width: 'auto', overflow: 'hidden' }}>
                                   {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
-                                  {/* CRITICAL: Image must respect container height - use object-contain with max-height */}
+                                  {/* CRITICAL: Height fixed by left section, width auto, object-contain prevents cut/stretch */}
                                   <img
                                     src={generatedImage}
-                                    className="w-full h-auto object-contain rounded-lg relative z-10"
-                                    style={{ maxHeight: '100%', width: 'auto' }}
+                                    className="h-full w-auto object-contain rounded-lg relative z-10"
+                                    style={{ height: '100%', maxHeight: '100%', width: 'auto' }}
                                     alt="Try-on result"
                                     loading="eager"
                                     onError={(e) => {
@@ -2933,8 +2959,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       setGeneratedImageError(false);
                                     }}
                                   />
-                                </div>
-                              </GlowingBubblesReveal>
+                                  </div>
+                                </GlowingBubblesReveal>
+                              </div>
                             </div>
                           </div>
                         </div>
