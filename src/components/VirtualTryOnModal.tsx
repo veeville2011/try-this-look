@@ -646,7 +646,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const savedImage = storage.getUploadedImage();
     const savedResult = storage.getGeneratedImage();
 
-    if (savedImage) {
+    // Validate that savedImage is a valid non-empty string and looks like a data URL
+    if (savedImage && typeof savedImage === 'string' && savedImage.trim().length > 0 && savedImage.startsWith('data:image/')) {
       setUploadedImage(savedImage);
     }
     // Don't restore savedClothing from storage - always use fresh product images from parent
@@ -866,6 +867,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     demoPhotoUrl?: string,
     photoId?: string | number
   ) => {
+    // Validate that dataURL is a valid non-empty string and looks like a data URL
+    if (!dataURL || typeof dataURL !== 'string' || dataURL.trim().length === 0 || !dataURL.startsWith('data:image/')) {
+      console.warn('[VirtualTryOnModal] Invalid image data URL provided to handlePhotoUpload');
+      return;
+    }
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
     setError(null);
@@ -952,8 +958,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             personReader.readAsDataURL(personBlob);
           });
           
-          setUploadedImage(personDataURL);
-          storage.saveUploadedImage(personDataURL);
+          // Validate that personDataURL is a valid data URL before setting
+          if (personDataURL && typeof personDataURL === 'string' && personDataURL.trim().length > 0 && personDataURL.startsWith('data:image/')) {
+            setUploadedImage(personDataURL);
+            storage.saveUploadedImage(personDataURL);
+          } else {
+            console.warn('[VirtualTryOnModal] Invalid person image data URL from history');
+          }
           setSelectedDemoPhotoUrl(null);
           setPhotoSelectionMethod('file');
         } catch (error) {
@@ -2197,7 +2208,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               className="w-full overflow-y-auto smooth-scroll [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-gray-400/15 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-gray-400/30" 
               style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(156, 163, 175, 0.15) transparent' }}
             >
-              <div className="p-3 sm:p-4">
+              <div className="px-4 sm:px-6 md:px-8 pt-3 sm:pt-4 pb-0">
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-3 sm:gap-4 mb-3">
                 {/* Left Column - Step 1 */}
                 <div className="flex flex-col w-full">
@@ -2241,6 +2252,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           src={uploadedImage}
                           alt="Uploaded photo"
                           className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-md border-2 border-white shadow-md md:shadow-lg"
+                          onError={(e) => {
+                            // If image fails to load, clear it and show upload button instead
+                            console.warn('[VirtualTryOnModal] Failed to load uploaded image, clearing it');
+                            setUploadedImage(null);
+                            setSelectedPhoto(null);
+                            storage.saveUploadedImage(null);
+                          }}
                         />
                         <button
                           onClick={() => {
