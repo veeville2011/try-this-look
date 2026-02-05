@@ -983,9 +983,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Update all state atomically after all images are loaded
-      // React 18+ automatically batches all these updates together
+      // CRITICAL: Set generatedImage FIRST, then other states, then step LAST
+      // This ensures generatedImage is available when step changes to 'complete'
       
-      // Update generated image state
+      // Update generated image state FIRST
       if (generatedImageResult) {
         setGeneratedImage(generatedImageResult);
         storage.saveGeneratedImage(generatedImageResult);
@@ -1024,23 +1025,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setViewingHistoryItem(item);
       setSelectedHistoryItemId(item.id);
       
-      // Set step to 'complete' - React batches this with all above updates
+      // CRITICAL: Set step to 'complete' LAST - React batches all updates together
+      // But by setting generatedImage first, it will be available when step changes
       setStep('complete');
       setSelectedSize(null);
       
-      // Auto-scroll to top after state updates
-      // Use double requestAnimationFrame to ensure DOM has fully updated after React renders
-      // This ensures all images are rendered before scrolling
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (mainContentRef.current) {
-            mainContentRef.current.scrollTo({
-              top: 0,
-              behavior: 'smooth',
-            });
-          }
-        });
-      });
+      // Note: Auto-scroll is handled by useEffect watching selectedHistoryItemId
+      // This ensures scroll happens after the selection indicator (red radio) is visible
     } catch (error) {
       console.error('[VirtualTryOnModal] Failed to load history item:', error);
       toast.error('Failed to load try-on result');
@@ -2128,12 +2119,33 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, []);
 
   // Ensure step is 'complete' when viewing history and generatedImage is set
-  // Simple safeguard to ensure state consistency
+  // CRITICAL FIX: This ensures that whenever generatedImage changes while viewing history,
+  // step is set to 'complete' so the image renders immediately
   useEffect(() => {
     if (viewingPastTryOn && generatedImage && !generatedImageError && step !== 'complete') {
+      // If we're viewing history and have a generated image, ensure step is 'complete'
       setStep('complete');
     }
   }, [viewingPastTryOn, generatedImage, generatedImageError, step]);
+
+  // Auto-scroll to top when a history item is selected
+  // This happens AFTER the selection indicator (red radio with white border) is visible
+  // The indicator has a 200ms animation, so we wait for that + React rendering time
+  useEffect(() => {
+    if (selectedHistoryItemId && viewingPastTryOn && mainContentRef.current) {
+      // Wait for selection indicator animation to complete (200ms) + React rendering buffer
+      const scrollTimeout = setTimeout(() => {
+        if (mainContentRef.current) {
+          mainContentRef.current.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+          });
+        }
+      }, 250); // 200ms animation + 50ms buffer for React rendering
+
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [selectedHistoryItemId, viewingPastTryOn]);
 
   // Auto-scroll to generated image when it appears - ONLY for mobile, disabled for desktop
   useEffect(() => {
@@ -2834,7 +2846,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     )}
 
-                    {step === 'complete' && generatedImage && !generatedImageError && (
+                    {/* Show generated image when: step is complete OR (viewing history AND we have generated image) */}
+                    {((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError && (
                       <div className={`relative w-full h-full flex flex-col items-center p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
                         {/* Background gradient matching screenshots - light yellow/orange to white */}
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-lg" />
@@ -2886,40 +2899,43 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         
 
                         {/* Result Image - Glowing bubbles reveal animation */}
-                        {/* CRITICAL: Use flex-1 to take available space, accounting for timestamp if present */}
+                        {/* CRITICAL: Use flex-1 with min-h-0 to take available space, but respect parent height */}
                         <div 
                           ref={generatedImageRef}
                           className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md flex-1 min-h-0 flex items-center justify-center"
+                          style={{ maxHeight: '100%' }}
                         >
-                          <div className="w-full h-full flex items-center justify-center" style={{ maxHeight: '100%' }}>
-                            <GlowingBubblesReveal
-                              show={!viewingPastTryOn}
-                              className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
-                            >
-                              <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 w-full h-full flex items-center justify-center" style={{ maxHeight: '100%' }}>
-                                {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
-                                {/* CRITICAL: Image must respect container height - use object-contain with max-height */}
-                                <img
-                                  src={generatedImage}
-                                  className="w-full h-auto object-contain rounded-lg relative z-10"
-                                  style={{ maxHeight: '100%' }}
-                                  alt="Try-on result"
-                                  loading="eager"
-                                  onError={(e) => {
-                                    console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
-                                    setGeneratedImageError(true);
-                                    setGeneratedImage(null);
-                                    setStep('idle');
-                                    // Don't set general error state - generatedImageError handles this
-                                    toast.error('Failed to load try-on result');
-                                  }}
-                                  onLoad={() => {
-                                    // Reset error state when image loads successfully
-                                    setGeneratedImageError(false);
-                                  }}
-                                />
-                              </div>
-                            </GlowingBubblesReveal>
+                          <div className="w-full h-full flex items-center justify-center" style={{ maxHeight: '100%', overflow: 'hidden' }}>
+                            <div className="w-full h-full flex items-center justify-center" style={{ maxHeight: '100%' }}>
+                              <GlowingBubblesReveal
+                                show={!viewingPastTryOn}
+                                className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
+                              >
+                                <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 w-full h-full flex items-center justify-center" style={{ maxHeight: '100%', overflow: 'hidden' }}>
+                                  {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
+                                  {/* CRITICAL: Image must respect container height - use object-contain with max-height */}
+                                  <img
+                                    src={generatedImage}
+                                    className="w-full h-auto object-contain rounded-lg relative z-10"
+                                    style={{ maxHeight: '100%', width: 'auto' }}
+                                    alt="Try-on result"
+                                    loading="eager"
+                                    onError={(e) => {
+                                      console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
+                                      setGeneratedImageError(true);
+                                      setGeneratedImage(null);
+                                      setStep('idle');
+                                      // Don't set general error state - generatedImageError handles this
+                                      toast.error('Failed to load try-on result');
+                                    }}
+                                    onLoad={() => {
+                                      // Reset error state when image loads successfully
+                                      setGeneratedImageError(false);
+                                    }}
+                                  />
+                                </div>
+                              </GlowingBubblesReveal>
+                            </div>
                           </div>
                         </div>
 
