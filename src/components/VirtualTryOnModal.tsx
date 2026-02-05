@@ -983,6 +983,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Update all state atomically after all images are loaded
+      // React 18+ automatically batches these updates since they're in an async function
+      // All state updates happen synchronously in this block, so React will batch them together
+      
+      // Update generated image state
       if (generatedImageResult) {
         setGeneratedImage(generatedImageResult);
         storage.saveGeneratedImage(generatedImageResult);
@@ -995,16 +999,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setGeneratedImage(null);
       }
       
+      // Update person image state
       if (personImageResult) {
         setUploadedImage(personImageResult);
         storage.saveUploadedImage(personImageResult);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
+      } else if (item.personImageUrl) {
+        // If personImageUrl was provided but failed to load, clear the state
+        // If personImageUrl was not provided, keep current image (don't clear)
+        setUploadedImage(null);
+        storage.saveUploadedImage(null);
+        setSelectedDemoPhotoUrl(null);
+        setPhotoSelectionMethod(null);
       }
       
+      // Update clothing image state
       if (clothingImageResult) {
         setSelectedClothing(clothingImageResult);
         storage.saveClothingUrl(clothingImageResult);
+      } else if (item.clothingImageUrl) {
+        // If clothingImageUrl was provided but failed to load, clear the state
+        // If clothingImageUrl was not provided, keep current image (don't clear)
+        setSelectedClothing(null);
+        storage.saveClothingUrl(null);
       }
       
       // Set viewing past try-on state
@@ -1012,21 +1030,23 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setViewingHistoryItem(item);
       setSelectedHistoryItemId(item.id); // Track selected history item for highlighting
       
-      // Set step to 'complete' - the rendering logic will handle error states
+      // Set step to 'complete' - React will batch this with all above updates
+      // This ensures all images are set before step changes, so they render together
       setStep('complete');
       setSelectedSize(null); // Reset size selection when viewing past try-on
       
       // Auto-scroll to top after state updates
-      // Use requestAnimationFrame to ensure DOM has updated
+      // Use double requestAnimationFrame to ensure DOM has fully updated after React renders
+      // This ensures all images are rendered before scrolling
       requestAnimationFrame(() => {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           if (mainContentRef.current) {
             mainContentRef.current.scrollTo({
               top: 0,
               behavior: 'smooth',
             });
           }
-        }, 100); // Small delay to ensure state updates have rendered
+        });
       });
     } catch (error) {
       console.error('[VirtualTryOnModal] Failed to load history item:', error);
@@ -2358,7 +2378,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               <div className="px-4 sm:px-5 md:px-6 pt-2 sm:pt-2.5 pb-0" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginLeft: 0, marginRight: 0 }}>
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch">
                 {/* Left Column - Step 1 */}
-                <div className="flex flex-col w-full h-full">
+                <div className="flex flex-col w-full h-full min-h-0">
                   {/* Step 1 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -2652,7 +2672,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 {/* Right Column - Step 2 */}
-                  <div className="flex flex-col w-full h-full" ref={rightColumnRef}>
+                  <div className="flex flex-col w-full h-full min-h-0" ref={rightColumnRef}>
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -2678,7 +2698,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden h-full ${
+                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden h-full min-h-0 ${
                     step === 'idle' && uploadedImage && !generatedImage && !error
                       ? 'bg-primary/5 border-primary/20'
                       : 'border-border bg-card'
@@ -2814,7 +2834,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'complete' && generatedImage && !generatedImageError && (
-                      <div className={`relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-auto ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
+                      <div className={`relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
                         {/* Background gradient matching screenshots - light yellow/orange to white */}
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-lg" />
                         
@@ -2867,17 +2887,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Result Image - Glowing bubbles reveal animation */}
                         <div 
                           ref={generatedImageRef}
-                          className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md mb-4"
+                          className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md mb-4 flex-shrink-0 max-h-full flex items-center justify-center"
                         >
                           <GlowingBubblesReveal
                             show={!viewingPastTryOn}
-                            className="p-4 sm:p-6"
+                            className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
                           >
-                            <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50">
+                            <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 w-full max-h-full flex items-center justify-center">
                               {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
                               <img
                                 src={generatedImage}
-                                className="w-full h-auto object-contain rounded-lg relative z-10"
+                                className="w-full h-auto max-h-full object-contain rounded-lg relative z-10"
                                 alt="Try-on result"
                                 loading="eager"
                                 onError={(e) => {
