@@ -761,10 +761,10 @@ export default function NewTryon({ isOpen, onClose, customerInfo }: TryOnWidgetP
                     }
                   }
                   
-                  // Scroll to photo upload section when history image is clicked
+                  // Scroll to clothing selection section when history image is clicked
                   setTimeout(() => {
-                    if (photoUploadSectionRef.current) {
-                      photoUploadSectionRef.current.scrollIntoView({
+                    if (clothingSelectionSectionRef.current) {
+                      clothingSelectionSectionRef.current.scrollIntoView({
                         behavior: 'smooth',
                         block: 'center',
                       });
