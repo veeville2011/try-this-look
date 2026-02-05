@@ -2414,9 +2414,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               }}
             >
               <div className="px-4 sm:px-5 md:px-6 pt-2 sm:pt-2.5 pb-0" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginLeft: 0, marginRight: 0 }}>
-                <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch md:h-auto">
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch">
                 {/* Left Column - Step 1 */}
-                <div className="flex flex-col w-full md:h-full min-h-0">
+                <div className="flex flex-col w-full min-h-0">
                   {/* Step 1 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -2710,7 +2710,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 {/* Right Column - Step 2 */}
-                  <div className="flex flex-col w-full md:h-full min-h-0" ref={rightColumnRef}>
+                  <div className="flex flex-col w-full min-h-0" ref={rightColumnRef}>
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -2736,7 +2736,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden min-h-0 ${
+                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex flex-col items-center justify-center overflow-hidden min-h-0 max-h-full ${
                     step === 'idle' && uploadedImage && !generatedImage && !error
                       ? 'bg-primary/5 border-primary/20'
                       : 'border-border bg-card'
@@ -2873,9 +2873,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                     {/* Show generated image when: step is complete OR (viewing history AND we have generated image) */}
                     {((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError && (
-                      <div className={`relative w-full h-full flex flex-col items-center justify-between p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
-                        {/* Background gradient matching screenshots - light yellow/orange to white */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-lg" />
+                      <div className={`relative w-full h-full flex flex-col items-center justify-center p-3 sm:p-4 overflow-hidden min-h-0 max-h-full ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : 'border-2 border-dashed border-green-200 rounded-lg'}`}>
+                        {/* Green background for generated image */}
+                        <div className="absolute inset-0 bg-green-50 rounded-lg" />
                         
                         {/* Celebration Bubbles - Real transparent bubbles with borders and highlights (only show for new generations, not past try-ons) */}
                         {!viewingPastTryOn && (
@@ -2923,77 +2923,83 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         )}
                         
 
-                        {/* Result Image - Glowing bubbles reveal animation */}
-                        {/* CRITICAL: Container height is fixed by left section, image uses object-contain with auto width */}
+                        {/* Result Image - Compact size matching reference design */}
+                        {/* CRITICAL: Container height is fixed by left section via md:items-stretch, image uses object-contain with auto width */}
                         <div 
                           ref={generatedImageRef}
-                          className="relative z-10 flex-1 min-h-0 flex items-center justify-center w-full"
-                          style={{ height: '100%', maxHeight: '100%' }}
+                          className="relative z-10 flex-shrink-0 flex items-center justify-center w-full mb-3 sm:mb-4"
                         >
-                          <div className="w-full h-full flex items-center justify-center" style={{ height: '100%', maxHeight: '100%', overflow: 'hidden' }}>
-                            <div className="w-full h-full flex items-center justify-center" style={{ height: '100%', maxHeight: '100%' }}>
-                              <div className="w-full h-full flex items-center justify-center" style={{ height: '100%', maxHeight: '100%' }}>
-                                <GlowingBubblesReveal
-                                  show={!viewingPastTryOn}
-                                  className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
-                                >
-                                  <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 flex items-center justify-center" style={{ height: '100%', maxHeight: '100%', width: 'auto', overflow: 'hidden' }}>
-                                  {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
-                                  {/* CRITICAL: Height fixed by left section, width auto, object-contain prevents cut/stretch */}
-                                  <img
-                                    src={generatedImage}
-                                    className="h-full w-auto object-contain rounded-lg relative z-10"
-                                    style={{ height: '100%', maxHeight: '100%', width: 'auto' }}
-                                    alt="Try-on result"
-                                    loading="eager"
-                                    onError={(e) => {
-                                      console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
-                                      setGeneratedImageError(true);
-                                      setGeneratedImage(null);
-                                      setStep('idle');
-                                      // Don't set general error state - generatedImageError handles this
-                                      toast.error('Failed to load try-on result');
-                                    }}
-                                    onLoad={() => {
-                                      // Reset error state when image loads successfully
-                                      setGeneratedImageError(false);
-                                    }}
-                                  />
-                                  </div>
-                                </GlowingBubblesReveal>
+                          <div className="flex items-center justify-center">
+                            <GlowingBubblesReveal
+                              show={!viewingPastTryOn}
+                              className="flex items-center justify-center"
+                            >
+                              <div className="relative rounded-lg overflow-hidden shadow-lg bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white backdrop-blur-sm border-2 border-white/50 flex items-center justify-center p-3 sm:p-4">
+                                {/* Image - Compact size matching reference */}
+                                {/* CRITICAL: Height constrained, width auto, object-contain prevents cut/stretch */}
+                                <img
+                                  src={generatedImage}
+                                  className="max-h-[200px] sm:max-h-[240px] md:max-h-[280px] w-auto object-contain rounded-lg relative z-10"
+                                  style={{ width: 'auto', height: 'auto' }}
+                                  alt="Try-on result"
+                                  loading="eager"
+                                  onError={(e) => {
+                                    console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
+                                    setGeneratedImageError(true);
+                                    setGeneratedImage(null);
+                                    setStep('idle');
+                                    // Don't set general error state - generatedImageError handles this
+                                    toast.error('Failed to load try-on result');
+                                  }}
+                                  onLoad={() => {
+                                    // Reset error state when image loads successfully
+                                    setGeneratedImageError(false);
+                                  }}
+                                />
                               </div>
+                            </GlowingBubblesReveal>
+                          </div>
+                        </div>
+
+                        {/* Content below image - matching reference design */}
+                        <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-2.5 flex-shrink-0 w-full">
+                          {/* Try-on complete message */}
+                          {!viewingPastTryOn && (
+                            <div className="flex items-center gap-1.5 text-sm sm:text-base font-medium text-green-600" style={{ animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
+                              <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                              <span>Try-on complete!</span>
                             </div>
+                          )}
+
+                          {/* Past try-on timestamp */}
+                          {viewingPastTryOn && viewingHistoryItem && (
+                            <div className="flex items-center gap-2 text-sm text-primary">
+                              <Clock className="w-4 h-4" />
+                              <span>From {getTimeAgo(viewingHistoryItem.createdAt)}</span>
+                            </div>
+                          )}
+
+                          {/* Size selection prompt */}
+                          <div className="relative z-10" style={viewingPastTryOn ? {} : { animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
+                            <p className="text-xs sm:text-sm text-gray-700 font-medium text-center">
+                              {viewingPastTryOn ? 'Select a size to add to cart' : 'Select your size below'}
+                            </p>
                           </div>
+
+                          {/* Try Again Button - matching reference design */}
+                          {!viewingPastTryOn && (
+                            <button
+                              onClick={handleReset}
+                              className="group relative z-10 mt-1 text-xs text-gray-500 hover:text-gray-700 border border-dashed border-gray-300 hover:border-gray-400 rounded-lg px-3 py-1.5 transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:bg-gray-50 active:scale-95"
+                              aria-label="Try again"
+                              type="button"
+                              style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
+                            >
+                              <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
+                              <span className="relative z-10">Not perfect? Try again</span>
+                            </button>
+                          )}
                         </div>
-
-                        {/* Past try-on timestamp - positioned at bottom, flex-shrink-0 to prevent compression */}
-                        {viewingPastTryOn && viewingHistoryItem && (
-                          <div className="relative z-10 flex items-center gap-2 text-sm text-primary flex-shrink-0">
-                            <Clock className="w-4 h-4" />
-                            <span>From {getTimeAgo(viewingHistoryItem.createdAt)}</span>
-                          </div>
-                        )}
-
-                        {/* Helper Text - Fades in after image */}
-                        <div className="relative z-10" style={viewingPastTryOn ? {} : { animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
-                          <p className="text-xs sm:text-sm text-gray-700 font-medium text-center px-4">
-                            {viewingPastTryOn ? 'Select a size to add to cart' : 'Select your size below'}
-                          </p>
-                        </div>
-
-                        {/* Try Again Button - Fades in last (only for new generations) */}
-                        {!viewingPastTryOn && (
-                          <button
-                            onClick={handleReset}
-                            className="group relative z-10 mt-4 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-105 active:scale-95 px-2 py-1 hover:bg-primary/5 rounded-lg"
-                            aria-label="Try again"
-                            type="button"
-                            style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
-                          >
-                            <RotateCcw size={12} className="group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
-                            <span className="relative z-10">Not perfect? Try again</span>
-                          </button>
-                        )}
                       </div>
                     )}
 
