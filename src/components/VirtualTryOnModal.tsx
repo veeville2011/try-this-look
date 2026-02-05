@@ -983,10 +983,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Update all state atomically after all images are loaded
-      // React 18+ automatically batches these updates since they're in an async function
-      // All state updates happen synchronously in this block, so React will batch them together
+      // CRITICAL FIX: Set all state updates together in the same synchronous block
+      // React 18+ will batch them, but we ensure generatedImage is set before step changes
       
-      // Update generated image state
+      // Update generated image state FIRST
       if (generatedImageResult) {
         setGeneratedImage(generatedImageResult);
         storage.saveGeneratedImage(generatedImageResult);
@@ -1030,8 +1030,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setViewingHistoryItem(item);
       setSelectedHistoryItemId(item.id); // Track selected history item for highlighting
       
-      // Set step to 'complete' - React will batch this with all above updates
-      // This ensures all images are set before step changes, so they render together
+      // CRITICAL: Set step to 'complete' in the same batch as image updates
+      // React 18+ batches all these updates together, ensuring they're applied atomically
+      // The key is that generatedImage is set BEFORE step, so when React renders with step='complete',
+      // generatedImage will also be set in the same render cycle
       setStep('complete');
       setSelectedSize(null); // Reset size selection when viewing past try-on
       
@@ -2134,6 +2136,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }));
   }, []);
 
+  // Ensure step is 'complete' when viewing history and generatedImage is set
+  // This is a safeguard to ensure state consistency when loading history items
+  useEffect(() => {
+    if (viewingPastTryOn && generatedImage && !generatedImageError && step !== 'complete') {
+      // If we're viewing history and have a generated image, ensure step is 'complete'
+      setStep('complete');
+    }
+  }, [viewingPastTryOn, generatedImage, generatedImageError, step]);
+
   // Auto-scroll to generated image when it appears - ONLY for mobile, disabled for desktop
   useEffect(() => {
     if (step === 'complete' && generatedImage && !generatedImageError && generatedImageRef.current && mainContentRef.current) {
@@ -2834,7 +2845,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'complete' && generatedImage && !generatedImageError && (
-                      <div className={`relative w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
+                      <div className={`relative w-full h-full flex flex-col items-center p-4 sm:p-6 overflow-hidden min-h-0 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : ''}`}>
                         {/* Background gradient matching screenshots - light yellow/orange to white */}
                         <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white rounded-lg" />
                         
@@ -2885,41 +2896,46 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         
 
                         {/* Result Image - Glowing bubbles reveal animation */}
+                        {/* CRITICAL: Use flex-1 to take available space, accounting for timestamp if present */}
                         <div 
                           ref={generatedImageRef}
-                          className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md mb-4 flex-shrink-0 max-h-full flex items-center justify-center"
+                          className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md flex-1 min-h-0 flex items-center justify-center"
                         >
-                          <GlowingBubblesReveal
-                            show={!viewingPastTryOn}
-                            className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
-                          >
-                            <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 w-full max-h-full flex items-center justify-center">
-                              {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
-                              <img
-                                src={generatedImage}
-                                className="w-full h-auto max-h-full object-contain rounded-lg relative z-10"
-                                alt="Try-on result"
-                                loading="eager"
-                                onError={(e) => {
-                                  console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
-                                  setGeneratedImageError(true);
-                                  setGeneratedImage(null);
-                                  setStep('idle');
-                                  // Don't set general error state - generatedImageError handles this
-                                  toast.error('Failed to load try-on result');
-                                }}
-                                onLoad={() => {
-                                  // Reset error state when image loads successfully
-                                  setGeneratedImageError(false);
-                                }}
-                              />
-                            </div>
-                          </GlowingBubblesReveal>
+                          <div className="w-full h-full flex items-center justify-center" style={{ maxHeight: '100%' }}>
+                            <GlowingBubblesReveal
+                              show={!viewingPastTryOn}
+                              className="p-4 sm:p-6 w-full h-full flex items-center justify-center"
+                            >
+                              <div className="relative rounded-lg overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border-2 border-white/50 w-full h-full flex items-center justify-center" style={{ maxHeight: '100%' }}>
+                                {/* Image reveals FROM the glowing bubbles - fades in as bubbles expand */}
+                                {/* CRITICAL: Image must respect container height - use object-contain with max-height */}
+                                <img
+                                  src={generatedImage}
+                                  className="w-full h-auto object-contain rounded-lg relative z-10"
+                                  style={{ maxHeight: '100%' }}
+                                  alt="Try-on result"
+                                  loading="eager"
+                                  onError={(e) => {
+                                    console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
+                                    setGeneratedImageError(true);
+                                    setGeneratedImage(null);
+                                    setStep('idle');
+                                    // Don't set general error state - generatedImageError handles this
+                                    toast.error('Failed to load try-on result');
+                                  }}
+                                  onLoad={() => {
+                                    // Reset error state when image loads successfully
+                                    setGeneratedImageError(false);
+                                  }}
+                                />
+                              </div>
+                            </GlowingBubblesReveal>
+                          </div>
                         </div>
 
-                        {/* Past try-on timestamp */}
+                        {/* Past try-on timestamp - positioned at bottom, flex-shrink-0 to prevent compression */}
                         {viewingPastTryOn && viewingHistoryItem && (
-                          <div className="relative z-10 flex items-center gap-2 text-sm text-primary mb-2">
+                          <div className="relative z-10 flex items-center gap-2 text-sm text-primary flex-shrink-0">
                             <Clock className="w-4 h-4" />
                             <span>From {getTimeAgo(viewingHistoryItem.createdAt)}</span>
                           </div>
