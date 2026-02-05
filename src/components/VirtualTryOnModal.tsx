@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap, Eye } from 'lucide-react';
+import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
@@ -2192,7 +2192,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1 transition-colors duration-200">
                     {viewingPastTryOn ? 'PREVIOUSLY TRIED ON' : "YOU'RE TRYING ON"}
                   </div>
-                  <div className="text-xs sm:text-sm font-semibold text-foreground leading-tight truncate transition-colors duration-200">{productTitle}</div>
+                  <div className="text-base sm:text-lg font-semibold text-foreground leading-tight truncate transition-colors duration-200">{productTitle}</div>
                   {variantInfo && (
                     <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight truncate mt-0.5 transition-colors duration-200">{variantInfo}</div>
                   )}
@@ -2221,23 +2221,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 {/* Left Column - Step 1 */}
                 <div className="flex flex-col w-full">
                   {/* Step 1 Header */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
+                  <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                       uploadedImage 
-                        ? 'bg-orange-500 text-white shadow-md' // Completed - primary color
-                        : 'bg-gray-300 text-gray-500' // Incomplete - grey background
+                        ? 'bg-green-500 text-white shadow-sm' // Completed - green background with checkmark
+                        : 'bg-gray-300 text-gray-500' // Incomplete - grey background with number
                     }`}>
-                      1
+                      {uploadedImage ? (
+                        <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
+                      ) : (
+                        <span className="text-xs sm:text-sm font-semibold">1</span>
+                      )}
                     </div>
-                    <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
-                      uploadedImage ? 'text-gray-800' : 'text-gray-400'
+                    <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
+                      uploadedImage ? 'text-gray-900' : 'text-gray-500'
                     }`}>Choose your photo</h2>
                   </div>
                   {/* Photo Upload Card */}
                   <div ref={photoUploadRef} className="bg-orange-50 border-2 border-dashed border-orange-200 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2">
                     {!uploadedImage && (
                       <>
-                        <h3 className="text-xs sm:text-sm font-bold text-orange-800 mb-1.5 uppercase tracking-wide">For best results</h3>
+                        <h3 className="text-[10px] sm:text-xs font-semibold text-orange-800 mb-1.5 uppercase tracking-wide">For best results</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gray-600 mb-2 w-full">
                           <span className="flex items-center gap-1.5 justify-start">
                             <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Front-facing pose
@@ -2255,30 +2259,44 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </>
                     )}
                     {uploadedImage ? (
-                      <div className="w-full flex flex-col items-center gap-2">
-                        <img
-                          src={uploadedImage}
-                          alt="Uploaded photo"
-                          className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-lg border-2 border-white shadow-md md:shadow-lg"
-                          onError={(e) => {
-                            // If image fails to load, clear it and show upload button instead
-                            console.warn('[VirtualTryOnModal] Failed to load uploaded image, clearing it');
-                            setUploadedImage(null);
-                            setSelectedPhoto(null);
-                            storage.saveUploadedImage(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => {
-                            setUploadedImage(null);
-                            setSelectedPhoto(null);
-                            storage.saveUploadedImage(null);
-                          }}
-                          className="group text-xs text-muted-foreground hover:text-foreground underline transition-all duration-200 hover:scale-105 active:scale-95"
-                          type="button"
-                        >
-                          Remove
-                        </button>
+                      <div className="w-full flex flex-col items-center">
+                        <div className="relative group/image-container inline-block">
+                          <img
+                            src={uploadedImage}
+                            alt="Uploaded photo"
+                            className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-lg border-2 border-white shadow-md md:shadow-lg"
+                            onError={(e) => {
+                              // If image fails to load, clear it and show upload button instead
+                              console.warn('[VirtualTryOnModal] Failed to load uploaded image, clearing it');
+                              setUploadedImage(null);
+                              setSelectedPhoto(null);
+                              storage.saveUploadedImage(null);
+                            }}
+                          />
+                          {/* Action buttons overlay - top-right corner */}
+                          <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/image-container:opacity-100 transition-opacity duration-200">
+                            <button
+                              onClick={triggerPhotoUpload}
+                              className="group flex items-center justify-center h-8 w-8 rounded-full bg-white/95 hover:bg-white text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg backdrop-blur-sm transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                              aria-label="Edit photo"
+                              type="button"
+                            >
+                              <Pencil size={14} strokeWidth={2.5} className="transition-transform duration-200 group-hover:scale-110" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setUploadedImage(null);
+                                setSelectedPhoto(null);
+                                storage.saveUploadedImage(null);
+                              }}
+                              className="group flex items-center justify-center h-8 w-8 rounded-full bg-white/95 hover:bg-red-50 text-gray-600 hover:text-red-600 border border-gray-200 hover:border-red-300 shadow-md hover:shadow-lg backdrop-blur-sm transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                              aria-label="Delete photo"
+                              type="button"
+                            >
+                              <Trash2 size={14} strokeWidth={2.5} className="transition-transform duration-200 group-hover:scale-110" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <button
@@ -2297,8 +2315,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                   {/* Recent Photos Section */}
                   <div className="mb-2">
-                    <label className="text-sm font-semibold text-gray-700 mb-1.5 block">Recent photos</label>
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
+                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Recent photos</label>
                       <div 
                         className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-hidden" 
                       >
@@ -2416,8 +2434,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                   {/* Use a Demo Model Section */}
                   <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-1.5 block">Use a demo model</label>
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
+                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Use a demo model</label>
                       <div 
                         className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-hidden" 
                       >
@@ -2512,40 +2530,65 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 {/* Right Column - Step 2 */}
                   <div className="flex flex-col w-full" ref={rightColumnRef}>
                   {/* Step 2 Header */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm sm:text-base md:text-lg font-bold transition-all duration-300 ${
+                  <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                       step === 'complete' || generatedImage
-                        ? 'bg-primary text-primary-foreground shadow-md' // Completed - primary color
+                        ? 'bg-green-500 text-white shadow-sm' // Completed - green background with checkmark
                         : step === 'generating'
-                        ? 'bg-primary text-primary-foreground shadow-md' // Current/Active - primary color (generation started)
+                        ? 'bg-primary text-primary-foreground shadow-sm' // Current/Active - primary color (generation started)
                         : 'bg-gray-300 text-gray-500' // Grey until generation starts
                     }`}>
-                      2
+                      {step === 'complete' || generatedImage ? (
+                        <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
+                      ) : (
+                        <span className="text-xs sm:text-sm font-semibold">2</span>
+                      )}
                     </div>
-                    <h2 className={`font-semibold text-base sm:text-lg md:text-xl transition-colors duration-300 ${
+                    <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
                       step === 'complete' || generatedImage || step === 'generating'
-                        ? 'text-gray-800'
-                        : 'text-gray-400'
+                        ? 'text-gray-900'
+                        : 'text-gray-500'
                     }`}>
                       {step === 'generating' ? 'Generating...' : step === 'complete' || generatedImage ? 'Your Look' : 'Your Look'}
                     </h2>
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className="flex-1 rounded-lg border-2 border-dashed border-border bg-card relative flex items-center justify-center overflow-hidden min-h-[250px] sm:min-h-[280px]">
-                    {step === 'idle' && !generatedImage && !error && (
+                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex items-center justify-center overflow-hidden min-h-[250px] sm:min-h-[280px] ${
+                    step === 'idle' && uploadedImage && !generatedImage && !error
+                      ? 'bg-orange-50 border-orange-200'
+                      : 'border-border bg-card'
+                  }`}>
+                    {step === 'idle' && !uploadedImage && !generatedImage && !error && (
                       <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
                         {/* Eye icon with circular background */}
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-gray-100 relative">
                           <Eye className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" strokeWidth={2} />
                         </div>
                         {/* Primary message */}
-                        <p className="text-gray-600 text-base sm:text-lg font-medium mb-2 transition-colors duration-200">
+                        <p className="text-gray-600 text-xs sm:text-sm font-medium mb-2 transition-colors duration-200">
                           Your result will appear here
                         </p>
                         {/* Secondary instruction */}
-                        <p className="text-gray-500 text-sm sm:text-base max-w-xs mx-auto leading-relaxed">
+                        <p className="text-gray-500 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
                           Upload a photo to get started
+                        </p>
+                      </div>
+                    )}
+
+                    {step === 'idle' && uploadedImage && !generatedImage && !error && (
+                      <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
+                        {/* Circular icon with refresh/generate arrows */}
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-orange-100 relative">
+                          <RefreshCw className="w-10 h-10 sm:w-12 sm:h-12 text-orange-600" strokeWidth={2.5} />
+                        </div>
+                        {/* Primary message */}
+                        <p className="text-orange-700 text-xs sm:text-sm font-semibold mb-2 transition-colors duration-200">
+                          Ready to generate
+                        </p>
+                        {/* Secondary instruction */}
+                        <p className="text-orange-600 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
+                          Click the button below
                         </p>
                       </div>
                     )}
@@ -2588,7 +2631,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Status Text - Below Circular Loader */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-3">
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-3">
                           {statusMessage || 'Creating your try-on...'}
                         </h3>
                         
@@ -2603,7 +2646,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Progress Percentage */}
-                        <p className="text-sm sm:text-base font-semibold text-orange-500">
+                        <p className="text-xs sm:text-sm font-medium text-orange-500">
                           {progress}%
                         </p>
                       </div>
@@ -2627,7 +2670,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Status Text - Finalizing */}
-                        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-4">
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-4">
                           {statusMessage || 'Finalizing your try-on...'}
                         </h3>
                         
@@ -2642,7 +2685,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Percentage - 100% */}
-                        <p className="text-sm sm:text-base font-medium text-gray-700">100%</p>
+                        <p className="text-xs sm:text-sm font-semibold text-gray-700">100%</p>
                       </div>
                     )}
 
@@ -2757,10 +2800,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-red-600" strokeWidth={2} />
                             </div>
                             <div className="space-y-2">
-                              <h3 className="text-base sm:text-lg font-semibold text-red-900">
+                              <h3 className="text-xs sm:text-sm font-semibold text-red-900">
                                 Oops! Something went wrong
                               </h3>
-                              <p className="text-sm sm:text-base text-red-800 leading-relaxed">
+                              <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
                                 {error}
                               </p>
                               <p className="text-xs sm:text-sm text-red-700 mt-2">
@@ -2871,7 +2914,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`group relative w-full h-12 sm:h-14 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
+                  className={`group relative w-full h-10 sm:h-11 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white shadow-sm'
                       : btnState.color === 'orange'
