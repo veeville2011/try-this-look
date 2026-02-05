@@ -196,6 +196,32 @@ All colors MUST be HSL.
   }
 }
 
+/* Scrollbar gutter for stable layout - ensures consistent alignment */
+.scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  /* Ensure the container itself matches parent width exactly */
+  flex-shrink: 0;
+  /* Force consistent width calculation */
+  position: relative;
+}
+
+/* Ensure content inside scrollable container matches fixed sections exactly */
+/* The scrollbar-gutter reserves space, so content width should match fixed sections */
+.scrollbar-gutter-stable > *:first-child {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  /* Force the content to use the exact same width calculation as fixed sections */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  /* Ensure consistent positioning */
+  position: relative;
+}
+
 /* Ultra-slim, minimal scrollbars - consistent across all browsers */
 /* Firefox - thinnest possible */
 * {
