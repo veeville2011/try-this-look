@@ -707,19 +707,35 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [selectedClothing, storedProductData, getProductData, productData]);
 
   // Restore saved state from storage (but prioritize fresh product images from parent)
+  // IMPORTANT: We don't restore step to 'complete' on mount to ensure first step UI shows by default
+  // Users can see their previous work in history, but start with a fresh upload experience
   useEffect(() => {
+    // CRITICAL: Ensure step is 'idle' and viewingPastTryOn is false on mount
+    // This guarantees the first step UI (with demo photos, recent photos) shows by default
+    setStep('idle');
+    setViewingPastTryOn(false);
+    setViewingHistoryItem(null);
+    setSelectedHistoryItemId(null);
+    
     const savedImage = storage.getUploadedImage();
     const savedResult = storage.getGeneratedImage();
 
     // Validate that savedImage is a valid non-empty string and looks like a data URL
+    // Restore uploaded image so user can see their previous photo, but keep step as 'idle'
     if (savedImage && typeof savedImage === 'string' && savedImage.trim().length > 0 && savedImage.startsWith('data:image/')) {
       setUploadedImage(savedImage);
     }
+    
     // Don't restore savedClothing from storage - always use fresh product images from parent
     // The first product image will be auto-selected when images are received
+    
+    // Don't restore generated image or step to 'complete' on mount
+    // This ensures the first step UI (with demo photos, recent photos) always shows by default
+    // Clear any saved generated image so it doesn't interfere
     if (savedResult) {
-      setGeneratedImage(savedResult);
-      setStep('complete');
+      storage.saveGeneratedImage(null);
+      setGeneratedImage(null);
+      setGeneratedImageError(false);
     }
   }, []);
 
@@ -1528,9 +1544,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
       if (result.status === 'success' && result.image) {
           // Validate the generated image before setting
-          if (result.image && typeof result.image === 'string' && result.image.trim().length > 0 && result.image.startsWith('data:image/')) {
+          // Accept both data URLs (data:image/...) and regular URLs (http://... or https://...)
+          const isValidImage = result.image && 
+            typeof result.image === 'string' && 
+            result.image.trim().length > 0 && 
+            (result.image.startsWith('data:image/') || 
+             result.image.startsWith('http://') || 
+             result.image.startsWith('https://') ||
+             result.image.startsWith('/'));
+          
+          if (isValidImage) {
             setGeneratedImage(result.image);
-            storage.saveGeneratedImage(result.image);
+            // Only save data URLs to storage (regular URLs are already stored on server)
+            if (result.image.startsWith('data:image/')) {
+              storage.saveGeneratedImage(result.image);
+            }
             currentGenerationRef.current = result.image; // Save as current generation
             // Also update the current images refs so they're always in sync
             if (uploadedImage) {
@@ -1541,12 +1569,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             }
             setGeneratedImageError(false);
           } else {
-          console.error('[VirtualTryOnModal] Invalid generated image from API');
-          setGeneratedImageError(true);
-          setGeneratedImage(null);
-          // Don't set general error state - generatedImageError handles this
-          toast.error('Failed to generate try-on result');
-        }
+            console.error('[VirtualTryOnModal] Invalid generated image from API:', result.image);
+            setGeneratedImageError(true);
+            setGeneratedImage(null);
+            // Don't set general error state - generatedImageError handles this
+            toast.error('Failed to generate try-on result');
+          }
         
         // When API completes, ensure progress is 100% and show finalizing state
         // Clear any running completion interval and set progress immediately
@@ -1644,6 +1672,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return;
     }
     
+    // CRITICAL: Skip reset when generating or when step is complete
+    // This prevents the reset from interfering with generation or completed state
+    if (step === 'generating' || step === 'complete') {
+      // Update ref but don't reset state during generation or after completion
+      prevUploadedImageRef.current = uploadedImage;
+      return;
+    }
+    
     // Skip on initial mount (when prevUploadedImageRef.current is null and uploadedImage is also null)
     if (prevUploadedImageRef.current === null && uploadedImage === null) {
       prevUploadedImageRef.current = uploadedImage;
@@ -1651,8 +1687,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     // Reset if the image changed (from one image to another, or from image to null, or from null to image)
-    // This only happens for user uploads, not history loading
-    if (prevUploadedImageRef.current !== uploadedImage) {
+    // This only happens for user uploads, not history loading, and only when step is idle
+    if (prevUploadedImageRef.current !== uploadedImage && step === 'idle') {
       // Clear any running timers
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
@@ -1680,7 +1716,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Update the ref for next comparison
     prevUploadedImageRef.current = uploadedImage;
-  }, [uploadedImage]);
+  }, [uploadedImage, step]);
 
   // Handle going back to current try-on
   const handleBackToCurrent = useCallback(() => {
@@ -1852,6 +1888,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       toast.error('Failed to regenerate try-on');
     }
   }, [viewingHistoryItem, uploadedImage, selectedClothing, handleGenerate, getProxiedImageUrl, productImagesWithIds]);
+
+  // Handle regenerate with new photo when step is complete (not viewing history)
+  const handleRegenerateWithNewPhoto = useCallback(() => {
+    // Set step to idle first to prevent reset useEffect from interfering
+    setStep('idle');
+    setProgress(0);
+    setError(null);
+    setGeneratedImage(null);
+    setGeneratedImageError(false);
+    
+    // Then reset photo but keep clothing selection
+    setUploadedImage(null);
+    setSelectedPhoto(null);
+    setSelectedDemoPhotoUrl(null);
+    setPhotoSelectionMethod(null);
+    
+    // Clear uploaded image from storage but keep clothing
+    storage.saveUploadedImage(null);
+    storage.saveGeneratedImage(null);
+  }, []);
 
   // Handle add to cart
   const handleAddToCart = useCallback(() => {
@@ -2520,8 +2576,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch">
                 {/* Left Column - Step 1 / Past try-on details */}
                 <div className="flex flex-col w-full min-h-0">
-                  {/* Conditional Header - Past try-on details when viewing history, otherwise Choose your photo */}
-                  {viewingPastTryOn ? (
+                  {/* Conditional Header - Past try-on details when viewing history, generating, or step is complete, otherwise Choose your photo */}
+                  {(viewingPastTryOn || step === 'generating' || step === 'complete') ? (
                     <>
                       {/* Past try-on details Header */}
                       <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
@@ -2568,7 +2624,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 Original photo from
                               </p>
                               <p className="text-xs sm:text-sm text-gray-800 font-semibold">
-                                {viewingHistoryItem ? getTimeAgo(viewingHistoryItem.createdAt) : 'history'}
+                                {viewingHistoryItem ? getTimeAgo(viewingHistoryItem.createdAt) : (step === 'generating' || step === 'complete') ? 'Just now' : 'history'}
                               </p>
                             </div>
                           </div>
@@ -2588,8 +2644,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {/* Regenerate with new photo subsection */}
                       <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                         <button
-                          onClick={handleRegeneratePastTryOn}
-                          className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group"
+                          onClick={viewingPastTryOn ? handleRegeneratePastTryOn : handleRegenerateWithNewPhoto}
+                          disabled={step === 'generating'}
+                          className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                           type="button"
                         >
                           <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
@@ -2646,41 +2703,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
                     {uploadedImage ? (
                       <div className="w-full flex flex-col items-center relative">
-                        {/* Action buttons - positioned outside image container, top-right */}
-                        <div className="absolute top-0 right-0 flex items-center gap-1.5 z-10 -translate-y-1 translate-x-1">
-                          <button
-                            onClick={triggerPhotoUpload}
-                            className="group flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-white hover:bg-white text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg backdrop-blur-sm transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                            aria-label="Edit photo"
-                            type="button"
-                          >
-                            <Pencil size={12} strokeWidth={2.5} className="sm:w-[14px] sm:h-[14px] transition-transform duration-200 group-hover:scale-110" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setUploadedImage(null);
-                              setSelectedPhoto(null);
-                              storage.saveUploadedImage(null);
-                            }}
-                            className="group flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-white hover:bg-red-50 text-gray-600 hover:text-red-600 border border-gray-200 hover:border-red-300 shadow-md hover:shadow-lg backdrop-blur-sm transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                            aria-label="Delete photo"
-                            type="button"
-                          >
-                            <Trash2 size={12} strokeWidth={2.5} className="sm:w-[14px] sm:h-[14px] transition-transform duration-200 group-hover:scale-110" />
-                          </button>
-                        </div>
                         <div className="relative group/image-container inline-block mt-2">
                           <img
                             src={uploadedImage}
                             alt="Uploaded photo"
-                            className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-lg border-2 border-white shadow-md md:shadow-lg"
-                            onError={(e) => {
-                              // If image fails to load, clear it and show upload button instead
-                              console.warn('[VirtualTryOnModal] Failed to load uploaded image, clearing it');
-                              setUploadedImage(null);
-                              setSelectedPhoto(null);
-                              storage.saveUploadedImage(null);
-                            }}
+                            className="max-w-full max-h-[180px] sm:max-h-[200px] object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
                           />
                         </div>
                       </div>
@@ -2699,13 +2726,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
                   </div>
 
-                  {/* Recent Photos Section - Hidden when viewing past try-on */}
-                  {!viewingPastTryOn && (
+                  {/* Recent Photos Section - Hidden when viewing past try-on, generating, or step is complete */}
+                  {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && (
                   <div className="mb-2">
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                       <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Recent photos</label>
                       <div 
-                        className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-hidden" 
+                        className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                       >
                       {isLoadingRecentPhotos ? (
                         <div className="flex gap-3">
@@ -2721,55 +2748,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             onTouchMove={handleTouchMove}
                             onTouchEnd={(e) => handleTouchEnd(e, () => {
                               setSelectedPhoto(photo.id);
-                              // Load the photo and set it as uploaded
-                              const proxiedUrl = getProxiedImageUrl(photo.src);
-                              fetch(proxiedUrl)
-                                .then(res => {
-                                  if (!res.ok) {
-                                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                                  }
-                                  return res.blob();
-                                })
-                                .then(blob => {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    const dataURL = reader.result as string;
-                                    handlePhotoUpload(dataURL, false, undefined, photo.id);
-                                    // Auto-scroll removed - no scrolling on image selection
-                                  };
-                                  reader.readAsDataURL(blob);
-                                })
-                                .catch((error) => {
-                                  console.error('[VirtualTryOnModal] Failed to load recent photo:', error);
-                                  toast.error('Failed to load photo');
-                                });
+                              // Use the same approach as demo models - set URL directly (use direct URL, not proxied)
+                              setUploadedImage(photo.src);
+                              storage.saveUploadedImage(photo.src);
+                              setPhotoSelectionMethod('file');
+                              setError(null);
                             })}
                             onClick={() => {
                               // Only handle click if not on touch device (touch events handle touch devices)
                               if (!('ontouchstart' in window)) {
                                 setSelectedPhoto(photo.id);
-                                // Load the photo and set it as uploaded
-                                const proxiedUrl = getProxiedImageUrl(photo.src);
-                                fetch(proxiedUrl)
-                                  .then(res => {
-                                    if (!res.ok) {
-                                      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                                    }
-                                    return res.blob();
-                                  })
-                                  .then(blob => {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      const dataURL = reader.result as string;
-                                      handlePhotoUpload(dataURL, false, undefined, photo.id);
-                                      // Auto-scroll removed - no scrolling on image selection
-                                    };
-                                    reader.readAsDataURL(blob);
-                                  })
-                                  .catch((error) => {
-                                    console.error('[VirtualTryOnModal] Failed to load recent photo:', error);
-                                    toast.error('Failed to load photo');
-                                  });
+                                // Use the same approach as demo models - set URL directly (use direct URL, not proxied)
+                                setUploadedImage(photo.src);
+                                storage.saveUploadedImage(photo.src);
+                                setPhotoSelectionMethod('file');
+                                setError(null);
                               }
                             }}
                             className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
@@ -2782,7 +2775,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           >
                             {/* Hover overlay effect */}
                             {selectedPhoto !== photo.id && (
-                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10"></div>
+                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                             )}
                             <img 
                               src={getProxiedImageUrl(photo.src)} 
@@ -2813,13 +2806,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
                   )}
 
-                  {/* Use a Demo Model Section - Hidden when viewing past try-on */}
-                  {!viewingPastTryOn && (
+                  {/* Use a Demo Model Section - Hidden when viewing past try-on, generating, or step is complete */}
+                  {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && (
                   <div>
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                       <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Use a demo model</label>
                       <div 
-                        className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-hidden" 
+                        className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                       >
                       {demoModels.map((model) => {
                         // Use a unique identifier for selection tracking
@@ -2831,41 +2824,23 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             onTouchMove={handleTouchMove}
                             onTouchEnd={(e) => handleTouchEnd(e, () => {
                               setSelectedPhoto(modelIndex);
-                              // Load the demo model and set it as uploaded
-                              fetch(model.url)
-                                .then(res => res.blob())
-                                .then(blob => {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    const dataURL = reader.result as string;
-                                    handlePhotoUpload(dataURL, true, model.url, modelIndex);
-                                    // Auto-scroll removed - no scrolling on image selection
-                                  };
-                                  reader.readAsDataURL(blob);
-                                })
-                                .catch(() => {
-                                  toast.error('Failed to load demo model');
-                                });
+                              // Set URL directly - same simple approach
+                              setUploadedImage(model.url);
+                              storage.saveUploadedImage(model.url);
+                              setPhotoSelectionMethod('demo');
+                              setSelectedDemoPhotoUrl(model.url);
+                              setError(null);
                             })}
                             onClick={() => {
                               // Only handle click if not on touch device (touch events handle touch devices)
                               if (!('ontouchstart' in window)) {
                                 setSelectedPhoto(modelIndex);
-                                // Load the demo model and set it as uploaded
-                                fetch(model.url)
-                                  .then(res => res.blob())
-                                  .then(blob => {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      const dataURL = reader.result as string;
-                                      handlePhotoUpload(dataURL, true, model.url, modelIndex);
-                                    // Auto-scroll removed - no scrolling on image selection
-                                    };
-                                    reader.readAsDataURL(blob);
-                                  })
-                                  .catch(() => {
-                                    toast.error('Failed to load demo model');
-                                  });
+                                // Set URL directly - same simple approach
+                                setUploadedImage(model.url);
+                                storage.saveUploadedImage(model.url);
+                                setPhotoSelectionMethod('demo');
+                                setSelectedDemoPhotoUrl(model.url);
+                                setError(null);
                               }
                             }}
                             className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
@@ -2878,7 +2853,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           >
                             {/* Hover overlay effect */}
                             {selectedPhoto !== modelIndex && (
-                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10"></div>
+                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                             )}
                             <img 
                               src={model.url} 
@@ -3141,17 +3116,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 onError={(e) => {
                                   const imgElement = e.target as HTMLImageElement;
                                   console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
-                                  // Try using proxied URL if it's a direct URL
-                                  if (generatedImage && !generatedImage.startsWith('data:image/')) {
-                                    const proxiedUrl = getProxiedImageUrl(generatedImage);
-                                    if (proxiedUrl !== imgElement.src) {
-                                      console.log('[VirtualTryOnModal] Retrying generated image with proxied URL:', proxiedUrl);
-                                      imgElement.src = proxiedUrl;
-                                      return; // Don't show error yet, wait for retry
-                                    }
-                                  }
-                                  // If still fails, show error
-                                  console.error('[VirtualTryOnModal] Generated image failed to load after retry');
                                   setGeneratedImageError(true);
                                   setGeneratedImage(null);
                                   setStep('idle');
@@ -3370,7 +3334,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
 
               {/* History Section */}
-              <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 min-h-[80px] sm:min-h-[90px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
+              <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 min-h-[104px] sm:min-h-[116px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
                 <div className="flex justify-between items-center mb-1 sm:mb-1.5">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
                   <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
@@ -3382,7 +3346,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
                 <div 
-                  className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-hidden"
+                  className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1"
                 >
                 {isLoadingHistory ? (
                   <div className="flex gap-3">
@@ -3419,7 +3383,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         >
                           {/* Hover overlay effect */}
                           {!isSelected && (
-                            <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10"></div>
+                            <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                           )}
                           <img 
                             src={getProxiedImageUrl(item.image)} 

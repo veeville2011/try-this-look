@@ -405,7 +405,8 @@ async function pollJobStatus(
       });
 
       if (statusData.status === 'completed') {
-        // Job is completed - stop polling regardless of image download result
+        // Job is completed - return image URL directly
+        // The VirtualTryOnModal component will handle displaying it using getProxiedImageUrl
         if (!statusData.imageUrl) {
           return {
             status: "error",
@@ -416,45 +417,11 @@ async function pollJobStatus(
           };
         }
 
-        // Download image using proxy endpoint to avoid CORS issues
-        try {
-          // Use proxy endpoint to fetch image
-          const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(statusData.imageUrl)}`;
-          const imageResponse = await authenticatedFetch(proxyUrl, {
-            method: "GET",
-            headers: {
-              "Accept": "image/*",
-            },
-            mode: "cors",
-            credentials: "omit",
-          });
-
-          if (!imageResponse.ok) {
-            throw new Error(`Failed to fetch image via proxy: HTTP ${imageResponse.status}`);
-          }
-
-          const imageBlob = await imageResponse.blob();
-          const imageDataUrl = await blobToDataURL(imageBlob);
-          
-          return {
-            status: "success",
-            image: imageDataUrl,
-          };
-        } catch (imageError) {
-          logError("[FRONTEND] [TRYON] Failed to download image", imageError, {
-            requestId,
-            jobId,
-            imageUrl: statusData.imageUrl,
-          });
-          // Return error response instead of throwing to stop polling
-          return {
-            status: "error",
-            error_message: {
-              code: "IMAGE_DOWNLOAD_FAILED",
-              message: "Job completed but failed to download image. Please try again.",
-            },
-          };
-        }
+        // Return the image URL directly - the component will handle proxying if needed
+        return {
+          status: "success",
+          image: statusData.imageUrl,
+        };
       } else if (statusData.status === 'failed') {
         return {
           status: "error",
