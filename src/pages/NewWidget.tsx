@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import VirtualTryOnModal from "@/components/VirtualTryOnModal";
+import { initializeTestProductData, isWidgetTestRoute } from "@/config/testProductData";
 
 interface CustomerInfo {
   id?: string | null;
@@ -10,6 +11,7 @@ interface CustomerInfo {
 
 export default function NewWidget() {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+  const isTestRoute = isWidgetTestRoute();
 
   useEffect(() => {
     // Extract customer information from URL parameters
@@ -26,8 +28,17 @@ export default function NewWidget() {
         firstName: customerFirstName ? decodeURIComponent(customerFirstName) : null,
         lastName: customerLastName ? decodeURIComponent(customerLastName) : null,
       });
+    } else if (isTestRoute) {
+      // For /widget-test route, provide default test customer info so history works
+      // This allows testing the complete flow including history without URL params
+      setCustomerInfo({
+        id: 'test-customer-123',
+        email: 'avisihks@gmail.com',
+        firstName: 'Test',
+        lastName: 'Customer',
+      });
     }
-  }, []);
+  }, [isTestRoute]);
 
   useEffect(() => {
     // Override primary color to International Orange #FF4F00 for widget-test route only
@@ -137,6 +148,56 @@ export default function NewWidget() {
       document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, []);
+
+  // Initialize test product data for /widget-test route
+  useEffect(() => {
+    if (isTestRoute && typeof window !== 'undefined') {
+      const testData = initializeTestProductData();
+      
+      // Set product data in window for VirtualTryOnModal to access
+      (window as any).NUSENSE_PRODUCT_DATA = testData.productData;
+      
+      // Set product images in window for postMessage simulation
+      (window as any).NUSENSE_TEST_PRODUCT_IMAGES = testData.productImages;
+      
+      // Set store info in window for VirtualTryOnModal to access
+      (window as any).NUSENSE_TEST_STORE_INFO = testData.storeInfo;
+      
+      // Simulate postMessage event to inject product data
+      // This mimics how the widget receives data from parent Shopify page
+      setTimeout(() => {
+        // Simulate product data message
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: 'NUSENSE_PRODUCT_DATA',
+            productData: testData.productData
+          },
+          origin: window.location.origin
+        }));
+        
+        // Simulate product images message
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: 'NUSENSE_PRODUCT_IMAGES',
+            images: testData.productImages
+          },
+          origin: window.location.origin
+        }));
+        
+        // Simulate store info message
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: 'NUSENSE_STORE_INFO',
+            domain: testData.storeInfo.domain,
+            fullUrl: `https://${testData.storeInfo.domain}`,
+            shopDomain: testData.storeInfo.shop,
+            origin: window.location.origin
+          },
+          origin: window.location.origin
+        }));
+      }, 100);
+    }
+  }, [isTestRoute]);
 
   return (
     <div className="w-full h-full min-h-screen overflow-hidden">

@@ -401,6 +401,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Detect store origin on mount
   useEffect(() => {
     const isInIframe = window.parent !== window;
+    
+    // Check for test store info first (for /widget-test route)
+    if (typeof window !== 'undefined' && (window as any).NUSENSE_TEST_STORE_INFO) {
+      const testStoreInfo = (window as any).NUSENSE_TEST_STORE_INFO;
+      setStoreInfo({
+        shop: testStoreInfo.shop || 'vto-demo',
+        domain: testStoreInfo.domain || 'vto-demo.myshopify.com',
+        shopDomain: testStoreInfo.shop || 'vto-demo',
+        fullUrl: testStoreInfo.domain ? `https://${testStoreInfo.domain}` : 'https://vto-demo.myshopify.com',
+        origin: testStoreInfo.origin || window.location.origin,
+        method: 'test' as const
+      });
+      return; // Don't proceed with normal detection for test route
+    }
+    
     const detectedStore = detectStoreOrigin();
     if (detectedStore && detectedStore.method !== 'unknown') {
       setStoreInfo(detectedStore);
@@ -440,26 +455,71 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
     } else {
-      // Extract from current page
-      const images = extractProductImages();
-      if (images.length > 0) {
-        setProductImages(images);
-        setProductImagesWithIds(new Map());
-        
-        // Always auto-select first clothing image (main product image) when extracted from page
-        // First image is the main/featured product image in Shopify
+      // Check for test product data first (for /widget-test route)
+      if (typeof window !== 'undefined' && (window as any).NUSENSE_PRODUCT_DATA) {
+        const testProductData = (window as any).NUSENSE_PRODUCT_DATA;
+        if (testProductData && !productData) {
+          setProductData(testProductData);
+          setStoredProductData(testProductData);
+        }
+      }
+      
+      // Check for test product images (for /widget-test route)
+      if (typeof window !== 'undefined' && (window as any).NUSENSE_TEST_PRODUCT_IMAGES) {
+        const testImages = (window as any).NUSENSE_TEST_PRODUCT_IMAGES;
+        if (Array.isArray(testImages) && testImages.length > 0 && productImages.length === 0) {
+          const imageUrls: string[] = [];
+          const imageIdMap = new Map<string, string | number>();
+          
+          testImages.forEach((img: string | ProductImage) => {
+            if (typeof img === 'string') {
+              imageUrls.push(img);
+            } else if (img && typeof img === 'object' && 'url' in img) {
+              imageUrls.push(img.url);
+              if (img.id !== undefined) {
+                imageIdMap.set(img.url, img.id);
+              }
+            }
+          });
+          
+          if (imageUrls.length > 0) {
+            setProductImages(imageUrls);
+            setProductImagesWithIds(imageIdMap);
+            setIsLoadingImages(false);
+            
+            // Auto-select first image
+            if (!selectedClothing || !hasAutoSelectedFirstImageRef.current) {
+              const firstImage = imageUrls[0];
+              setSelectedClothing(firstImage);
+              storage.saveClothingUrl(firstImage);
+              const clothingId = imageIdMap.get(firstImage) || null;
+              setSelectedClothingKey(clothingId);
+              hasAutoSelectedFirstImageRef.current = true;
+            }
+          }
+        }
+      } else {
+        // Extract from current page (fallback)
+        const images = extractProductImages();
         if (images.length > 0) {
-          const firstImage = images[0];
-          // Always select first image if none selected or if ref hasn't been set
-          if (!selectedClothing || !hasAutoSelectedFirstImageRef.current) {
-            setSelectedClothing(firstImage);
-            storage.saveClothingUrl(firstImage);
-            hasAutoSelectedFirstImageRef.current = true;
+          setProductImages(images);
+          setProductImagesWithIds(new Map());
+          
+          // Always auto-select first clothing image (main product image) when extracted from page
+          // First image is the main/featured product image in Shopify
+          if (images.length > 0) {
+            const firstImage = images[0];
+            // Always select first image if none selected or if ref hasn't been set
+            if (!selectedClothing || !hasAutoSelectedFirstImageRef.current) {
+              setSelectedClothing(firstImage);
+              storage.saveClothingUrl(firstImage);
+              hasAutoSelectedFirstImageRef.current = true;
+            }
           }
         }
       }
     }
-  }, [isInIframe, productImages.length, productData]);
+  }, [isInIframe, productImages.length, productData, selectedClothing]);
 
   // Listen for product images from parent window
   useEffect(() => {
@@ -1002,10 +1062,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setGeneratedImage(generatedImageResult);
         storage.saveGeneratedImage(generatedImageResult);
         setGeneratedImageError(false);
+      } else if (item.image) {
+        // If loading failed but URL exists, try using the URL directly (might work with CORS)
+        console.warn('[VirtualTryOnModal] Failed to load generated image as data URL, trying direct URL:', item.image);
+        setGeneratedImage(item.image); // Use URL directly as fallback
+        setGeneratedImageError(false); // Don't show error yet, let onError handler deal with it
       } else {
-        if (item.image) {
-          setGeneratedImageError(true);
-        }
+        setGeneratedImageError(true);
         setGeneratedImage(null);
       }
       
@@ -1016,6 +1079,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
       } else if (item.personImageUrl) {
+        // If loading failed but URL exists, try using the URL directly
+        console.warn('[VirtualTryOnModal] Failed to load person image as data URL, trying direct URL:', item.personImageUrl);
+        setUploadedImage(item.personImageUrl); // Use URL directly as fallback
+        setSelectedDemoPhotoUrl(null);
+        setPhotoSelectionMethod('file');
+      } else {
         setUploadedImage(null);
         storage.saveUploadedImage(null);
         setSelectedDemoPhotoUrl(null);
@@ -1027,6 +1096,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setSelectedClothing(clothingImageResult);
         storage.saveClothingUrl(clothingImageResult);
       } else if (item.clothingImageUrl) {
+        // If loading failed but URL exists, try using the URL directly
+        console.warn('[VirtualTryOnModal] Failed to load clothing image as data URL, trying direct URL:', item.clothingImageUrl);
+        setSelectedClothing(item.clothingImageUrl); // Use URL directly as fallback
+        storage.saveClothingUrl(item.clothingImageUrl);
+      } else {
         setSelectedClothing(null);
         storage.saveClothingUrl(null);
       }
@@ -2019,7 +2093,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         if (!selectedSize) {
           return {
             text: 'Select a Size',
-            icon: null,
+            icon: <Zap size={16} />,
             disabled: true,
             action: () => {},
             color: 'gray',
@@ -2121,7 +2195,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // Skip size option as it's shown separately
       if (optionName !== 'size' && optionName !== 'taille' && optionName !== 'sizes' && optionValue) {
-        variantInfo.push(`${opt.name}: ${optionValue}`);
+        variantInfo.push(optionValue);
       }
     });
     
@@ -2334,25 +2408,32 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           {/* Viewing Past Try-On Banner */}
           {viewingPastTryOn && viewingHistoryItem && (
             <div className="w-full px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 border-b border-gray-100 transition-all duration-300 ease-in-out">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 text-sm sm:text-base">
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
-                  <span className="font-medium text-foreground">Viewing past try-on</span>
-                  <span className="text-muted-foreground">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3 bg-[#fef9e7] px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-yellow-200/60 shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-2.5">
+                  {/* Circular icon background */}
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#fef3c7] flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#d97706]" strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-[#78350f] text-sm sm:text-base">Viewing past try-on</span>
+                    <span className="text-[#92400e] text-xs sm:text-sm">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
+                  </div>
                 </div>
-                <div className="flex gap-2 sm:gap-3 md:flex-shrink-0">
+                <div className="flex gap-2 sm:gap-2.5 md:flex-shrink-0">
                   <button
                     onClick={handleRegeneratePastTryOn}
-                    className="group relative px-4 py-2 bg-white hover:bg-gray-50 text-foreground rounded-lg text-sm font-medium transition-all duration-300 ease-in-out border border-gray-200 hover:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
+                    className="group relative px-3 sm:px-4 py-1.5 sm:py-2 bg-[#fef9e7] hover:bg-[#fef3c7] text-[#78350f] hover:text-[#92400e] rounded-lg text-sm font-medium transition-all duration-300 ease-in-out border border-yellow-300/70 hover:border-yellow-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-sm overflow-hidden"
                     type="button"
+                    aria-label="Regenerate past try-on"
                   >
-                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-gray-200/20 to-transparent"></span>
+                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-yellow-200/30 to-transparent"></span>
                     <span className="relative z-10">Regenerate</span>
                   </button>
                   <button
                     onClick={handleBackToCurrent}
-                    className="group relative px-4 py-2 bg-primary hover:bg-primary-dark text-primary-foreground rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
+                    className="group relative px-3 sm:px-4 py-1.5 sm:py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
+                    aria-label="Back to current try-on"
                   >
                     <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
                     <span className="relative z-10">Back to current</span>
@@ -2369,19 +2450,41 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               role="region"
               aria-label="Selected clothing preview"
             >
-              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-gray-50 to-gray-50/80 px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-2 sm:gap-3 px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-gray-200 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
                 <div className="relative flex-shrink-0">
                   <img
                     key={selectedClothing || productImage} // Force re-render when selectedClothing changes
                     src={selectedClothing || productImage || ''}
                     alt={productTitle}
-                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md"
-                    loading="lazy"
+                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                    loading="eager"
                     onError={(e) => {
-                      // Fallback to first product image if selected clothing fails to load
-                      if (productImages[0] && (e.target as HTMLImageElement).src !== productImages[0]) {
-                        (e.target as HTMLImageElement).src = productImages[0];
+                      const imgElement = e.target as HTMLImageElement;
+                      const currentSrc = selectedClothing || productImage || '';
+                      console.warn('[VirtualTryOnModal] Failed to load clothing image:', imgElement.src);
+                      
+                      // Try using proxied URL if it's a direct URL
+                      if (currentSrc && !currentSrc.startsWith('data:image/')) {
+                        const proxiedUrl = getProxiedImageUrl(currentSrc);
+                        if (proxiedUrl !== imgElement.src) {
+                          console.log('[VirtualTryOnModal] Retrying clothing image with proxied URL:', proxiedUrl);
+                          imgElement.src = proxiedUrl;
+                          return; // Don't fallback yet, wait for retry
+                        }
                       }
+                      
+                      // Fallback to first product image if selected clothing fails to load
+                      if (productImages.length > 0 && imgElement.src !== productImages[0]) {
+                        console.log('[VirtualTryOnModal] Falling back to first product image:', productImages[0]);
+                        imgElement.src = productImages[0];
+                      } else {
+                        // If no fallback available, hide the image
+                        console.error('[VirtualTryOnModal] No fallback image available');
+                        imgElement.style.display = 'none';
+                      }
+                    }}
+                    onLoad={() => {
+                      console.log('[VirtualTryOnModal] Clothing image loaded successfully:', selectedClothing || productImage);
                     }}
                   />
                 </div>
@@ -2415,25 +2518,111 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             >
               <div className="px-4 sm:px-5 md:px-6 pt-2 sm:pt-2.5 pb-0" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginLeft: 0, marginRight: 0 }}>
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch">
-                {/* Left Column - Step 1 */}
+                {/* Left Column - Step 1 / Past try-on details */}
                 <div className="flex flex-col w-full min-h-0">
-                  {/* Step 1 Header */}
-                  <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
-                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      uploadedImage 
-                        ? 'bg-primary text-primary-foreground shadow-sm' // Step 1 completed - primary background with checkmark
-                        : 'bg-gray-300 text-gray-500' // Incomplete - grey background with number
-                    }`}>
-                      {uploadedImage ? (
-                        <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
-                      ) : (
-                        <span className="text-xs sm:text-sm font-semibold">1</span>
-                      )}
-                    </div>
-                    <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
-                      uploadedImage ? 'text-gray-900' : 'text-gray-500'
-                    }`}>Choose your photo</h2>
-                  </div>
+                  {/* Conditional Header - Past try-on details when viewing history, otherwise Choose your photo */}
+                  {viewingPastTryOn ? (
+                    <>
+                      {/* Past try-on details Header */}
+                      <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
+                          <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
+                        </div>
+                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">Past try-on details</h2>
+                      </div>
+
+                      {/* Photo used subsection */}
+                      <div className="border border-gray-200 rounded-lg p-3 sm:p-4 mb-3 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3">Photo used</h3>
+                        {uploadedImage ? (
+                          <div className="flex items-center gap-3">
+                            <div className="relative flex-shrink-0">
+                              <img
+                                src={uploadedImage}
+                                alt="Original photo"
+                                className="h-12 sm:h-14 md:h-16 w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                                loading="eager"
+                                onError={(e) => {
+                                  const imgElement = e.target as HTMLImageElement;
+                                  console.error('[VirtualTryOnModal] Failed to load original photo:', imgElement.src);
+                                  // Try using proxied URL if it's a direct URL
+                                  if (uploadedImage && !uploadedImage.startsWith('data:image/')) {
+                                    const proxiedUrl = getProxiedImageUrl(uploadedImage);
+                                    if (proxiedUrl !== imgElement.src) {
+                                      console.log('[VirtualTryOnModal] Retrying original photo with proxied URL:', proxiedUrl);
+                                      imgElement.src = proxiedUrl;
+                                      return; // Don't hide yet, wait for retry
+                                    }
+                                  }
+                                  // If still fails, show fallback
+                                  console.warn('[VirtualTryOnModal] Original photo failed to load, showing fallback');
+                                  imgElement.style.display = 'none';
+                                }}
+                                onLoad={() => {
+                                  console.log('[VirtualTryOnModal] Original photo loaded successfully');
+                                }}
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <p className="text-xs sm:text-sm text-gray-800 font-normal">
+                                Original photo from
+                              </p>
+                              <p className="text-xs sm:text-sm text-gray-800 font-semibold">
+                                {viewingHistoryItem ? getTimeAgo(viewingHistoryItem.createdAt) : 'history'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+                            </div>
+                            <div className="flex flex-col">
+                              <p className="text-xs sm:text-sm text-gray-800 font-normal">Original photo from</p>
+                              <p className="text-xs sm:text-sm text-gray-500">No photo available</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Regenerate with new photo subsection */}
+                      <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
+                        <button
+                          onClick={handleRegeneratePastTryOn}
+                          className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group"
+                          type="button"
+                        >
+                          <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
+                              Regenerate with new photo
+                            </span>
+                            <span className="text-[10px] sm:text-xs text-gray-600 mt-0.5">
+                              Create a fresh try-on
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Step 1 Header */}
+                      <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                        <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
+                          uploadedImage 
+                            ? 'bg-primary text-primary-foreground shadow-sm' // Step 1 completed - primary background with checkmark
+                            : 'bg-gray-300 text-gray-500' // Incomplete - grey background with number
+                        }`}>
+                          {uploadedImage ? (
+                            <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
+                          ) : (
+                            <span className="text-xs sm:text-sm font-semibold">1</span>
+                          )}
+                        </div>
+                        <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
+                          uploadedImage ? 'text-gray-900' : 'text-gray-500'
+                        }`}>Choose your photo</h2>
+                      </div>
                   {/* Photo Upload Card */}
                   <div ref={photoUploadRef} className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2">
                     {!uploadedImage && (
@@ -2510,7 +2699,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
                   </div>
 
-                  {/* Recent Photos Section */}
+                  {/* Recent Photos Section - Hidden when viewing past try-on */}
+                  {!viewingPastTryOn && (
                   <div className="mb-2">
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                       <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Recent photos</label>
@@ -2621,8 +2811,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     </div>
                   </div>
+                  )}
 
-                  {/* Use a Demo Model Section */}
+                  {/* Use a Demo Model Section - Hidden when viewing past try-on */}
+                  {!viewingPastTryOn && (
                   <div>
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                       <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Use a demo model</label>
@@ -2707,15 +2899,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     </div>
                   </div>
+                  )}
+                    </>
+                  )}
                 </div>
 
                 {/* Right Column - Step 2 */}
-                  <div className="flex flex-col w-full min-h-0" ref={rightColumnRef}>
+                <div className="flex flex-col w-full min-h-0" ref={rightColumnRef}>
                   {/* Step 2 Header */}
                   <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
                     <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                       (step === 'complete' || generatedImage) && !generatedImageError
-                        ? 'bg-green-500 text-white shadow-sm' // Completed - green background with checkmark
+                        ? 'bg-primary text-primary-foreground shadow-sm' // Completed - orange background with checkmark (matching reference)
                         : step === 'generating'
                         ? 'bg-primary text-primary-foreground shadow-sm' // Current/Active - primary color (generation started)
                         : 'bg-gray-300 text-gray-500' // Grey until generation starts
@@ -2736,10 +2931,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className={`flex-1 rounded-lg border-2 border-dashed relative flex flex-col items-center justify-center overflow-hidden min-h-0 max-h-full ${
-                    step === 'idle' && uploadedImage && !generatedImage && !error
-                      ? 'bg-primary/5 border-primary/20'
-                      : 'border-border bg-card'
+                  <div className={`flex-1 rounded-lg relative flex flex-col items-center justify-center overflow-hidden min-h-0 max-h-full ${
+                    ((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError
+                      ? 'bg-card'
+                      : step === 'idle' && uploadedImage && !generatedImage && !error
+                      ? 'bg-primary/5 border-2 border-dashed border-primary/20'
+                      : 'border-2 border-dashed border-border bg-card'
                   }`}>
                     {step === 'idle' && !uploadedImage && !generatedImage && !error && (
                       <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
@@ -2873,9 +3070,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                     {/* Show generated image when: step is complete OR (viewing history AND we have generated image) */}
                     {((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError && (
-                      <div className={`relative w-full h-full flex flex-col items-center justify-center p-3 sm:p-4 overflow-hidden min-h-0 max-h-full ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-400 rounded-lg' : 'border-2 border-dashed border-green-200 rounded-lg'}`}>
-                        {/* Green background for generated image */}
-                        <div className="absolute inset-0 bg-green-50 rounded-lg" />
+                      <div className={`relative w-full h-[214px] sm:h-[218px] flex flex-col items-center justify-center p-4 sm:p-5 overflow-hidden min-h-0 max-h-full ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-300 rounded-lg' : 'border-2 border-dashed border-yellow-200 rounded-lg'}`}>
+                        {/* Light yellow/orange gradient background matching reference design - height matches Photo used + Regenerate sections */}
+                        {/* Improved background with better contrast for white border visibility */}
+                        <div className="absolute top-0 left-0 right-0 h-[214px] sm:h-[218px] bg-gradient-to-br from-yellow-100/80 via-orange-50/60 to-yellow-50/70 rounded-lg" />
                         
                         {/* Celebration Bubbles - Real transparent bubbles with borders and highlights (only show for new generations, not past try-ons) */}
                         {!viewingPastTryOn && (
@@ -2922,82 +3120,59 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </div>
                         )}
                         
-
-                        {/* Result Image - Compact size matching reference design */}
-                        {/* CRITICAL: Container height is fixed by left section via md:items-stretch, image uses object-contain with auto width */}
-                        <div 
-                          ref={generatedImageRef}
-                          className="relative z-10 flex-shrink-0 flex items-center justify-center w-full mb-3 sm:mb-4"
-                        >
-                          <div className="flex items-center justify-center">
+                        {/* Content wrapper for better spacing and alignment */}
+                        <div className="relative z-10 flex flex-col items-center justify-center w-full h-full gap-3">
+                          {/* Result Image - Optimized spacing and centering */}
+                          <div 
+                            ref={generatedImageRef}
+                            className="flex-shrink-0 flex items-center justify-center w-full"
+                          >
                             <GlowingBubblesReveal
                               show={!viewingPastTryOn}
                               className="flex items-center justify-center"
                             >
-                              <div className="relative rounded-lg overflow-hidden shadow-lg bg-gradient-to-br from-yellow-50/60 via-orange-50/40 to-white backdrop-blur-sm border-2 border-white/50 flex items-center justify-center p-3 sm:p-4">
-                                {/* Image - Compact size matching reference */}
-                                {/* CRITICAL: Height constrained, width auto, object-contain prevents cut/stretch */}
-                                <img
-                                  src={generatedImage}
-                                  className="max-h-[200px] sm:max-h-[240px] md:max-h-[280px] w-auto object-contain rounded-lg relative z-10"
-                                  style={{ width: 'auto', height: 'auto' }}
-                                  alt="Try-on result"
-                                  loading="eager"
-                                  onError={(e) => {
-                                    console.error('[VirtualTryOnModal] Failed to load generated image:', generatedImage);
-                                    setGeneratedImageError(true);
-                                    setGeneratedImage(null);
-                                    setStep('idle');
-                                    // Don't set general error state - generatedImageError handles this
-                                    toast.error('Failed to load try-on result');
-                                  }}
-                                  onLoad={() => {
-                                    // Reset error state when image loads successfully
-                                    setGeneratedImageError(false);
-                                  }}
-                                />
-                              </div>
+                              {/* Image - Compact size matching reference */}
+                              {/* CRITICAL: Height constrained, width auto, object-contain prevents cut/stretch */}
+                              <img
+                                src={generatedImage}
+                                className="h-[160px] sm:h-[170px] md:h-[180px] w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                                alt="Try-on result"
+                                loading="eager"
+                                onError={(e) => {
+                                  const imgElement = e.target as HTMLImageElement;
+                                  console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
+                                  // Try using proxied URL if it's a direct URL
+                                  if (generatedImage && !generatedImage.startsWith('data:image/')) {
+                                    const proxiedUrl = getProxiedImageUrl(generatedImage);
+                                    if (proxiedUrl !== imgElement.src) {
+                                      console.log('[VirtualTryOnModal] Retrying generated image with proxied URL:', proxiedUrl);
+                                      imgElement.src = proxiedUrl;
+                                      return; // Don't show error yet, wait for retry
+                                    }
+                                  }
+                                  // If still fails, show error
+                                  console.error('[VirtualTryOnModal] Generated image failed to load after retry');
+                                  setGeneratedImageError(true);
+                                  setGeneratedImage(null);
+                                  setStep('idle');
+                                  toast.error('Failed to load try-on result');
+                                }}
+                                onLoad={() => {
+                                  console.log('[VirtualTryOnModal] Generated image loaded successfully');
+                                  // Reset error state when image loads successfully
+                                  setGeneratedImageError(false);
+                                }}
+                              />
                             </GlowingBubblesReveal>
                           </div>
-                        </div>
 
-                        {/* Content below image - matching reference design */}
-                        <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-2.5 flex-shrink-0 w-full">
-                          {/* Try-on complete message */}
-                          {!viewingPastTryOn && (
-                            <div className="flex items-center gap-1.5 text-sm sm:text-base font-medium text-green-600" style={{ animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
-                              <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-                              <span>Try-on complete!</span>
+                          {/* Size selection prompt - improved readability and spacing */}
+                          {viewingPastTryOn && (
+                            <div className="flex-shrink-0 w-full px-2">
+                              <p className="text-sm sm:text-base text-gray-800 font-semibold text-center leading-tight">
+                                Select a size to add to cart
+                              </p>
                             </div>
-                          )}
-
-                          {/* Past try-on timestamp */}
-                          {viewingPastTryOn && viewingHistoryItem && (
-                            <div className="flex items-center gap-2 text-sm text-primary">
-                              <Clock className="w-4 h-4" />
-                              <span>From {getTimeAgo(viewingHistoryItem.createdAt)}</span>
-                            </div>
-                          )}
-
-                          {/* Size selection prompt */}
-                          <div className="relative z-10" style={viewingPastTryOn ? {} : { animation: 'fadeInSlow 1s ease-out 1.8s forwards', opacity: 0 }}>
-                            <p className="text-xs sm:text-sm text-gray-700 font-medium text-center">
-                              {viewingPastTryOn ? 'Select a size to add to cart' : 'Select your size below'}
-                            </p>
-                          </div>
-
-                          {/* Try Again Button - matching reference design */}
-                          {!viewingPastTryOn && (
-                            <button
-                              onClick={handleReset}
-                              className="group relative z-10 mt-1 text-xs text-gray-500 hover:text-gray-700 border border-dashed border-gray-300 hover:border-gray-400 rounded-lg px-3 py-1.5 transition-all duration-300 ease-in-out flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:bg-gray-50 active:scale-95"
-                              aria-label="Try again"
-                              type="button"
-                              style={{ animation: 'fadeInSlow 0.8s ease-out 2s forwards', opacity: 0 }}
-                            >
-                              <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
-                              <span className="relative z-10">Not perfect? Try again</span>
-                            </button>
                           )}
                         </div>
                       </div>
@@ -3131,25 +3306,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </button>
                       );
                     })}
-                    {(() => {
-                      const availableSizes = sizeAvailability.filter(s => s.isAvailable).map(s => s.size);
-                      const outOfStockSizes = sizeAvailability.filter(s => !s.isAvailable).map(s => s.size);
-                      
-                      if (availableSizes.length > 0 && outOfStockSizes.length > 0) {
-                        return (
-                          <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
-                            Available: {availableSizes.join(', ')} | Out of stock: {outOfStockSizes.join(', ')}
-                          </span>
-                        );
-                      } else if (availableSizes.length > 0) {
-                        return (
-                          <span className="text-[10px] sm:text-xs text-gray-400 ml-1 sm:ml-2">
-                            Available in {availableSizes.join(', ')}
-                          </span>
-                        );
-                      }
-                      return null;
-                    })()}
                   </div>
                 )}
 
@@ -3214,7 +3370,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
 
               {/* History Section */}
-              <div className="bg-white border-t border-gray-100 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 min-h-[80px] sm:min-h-[90px] flex flex-col justify-center">
+              <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 min-h-[80px] sm:min-h-[90px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
                 <div className="flex justify-between items-center mb-1 sm:mb-1.5">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
                   <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
@@ -3252,11 +3408,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               handleHistoryItemSelect(item);
                             }
                           }}
-                          className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                          className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
                               ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                               : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                           }`}
+                          style={{ backgroundColor: '#f6f8fa' }}
                           aria-label={`Select try-on result ${item.id}`}
                           type="button"
                         >
@@ -3267,7 +3424,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <img 
                             src={getProxiedImageUrl(item.image)} 
                             alt={`Try-on history ${item.id}`} 
-                            className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
+                            className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
                               isSelected 
                                 ? 'ring-2 ring-primary/20' 
                                 : 'group-hover:scale-105 group-hover:shadow-md'
