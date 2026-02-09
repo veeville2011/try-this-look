@@ -3420,15 +3420,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
                 <div className="flex gap-2 sm:gap-2.5 md:flex-shrink-0">
                   <button
-                    onClick={handleRegeneratePastTryOn}
-                    className="group relative px-3 sm:px-4 py-1.5 sm:py-2 bg-[#fef9e7] hover:bg-[#fef3c7] text-[#78350f] hover:text-[#92400e] rounded-lg text-sm font-medium transition-all duration-300 ease-in-out border border-yellow-300/70 hover:border-yellow-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-sm overflow-hidden"
-                    type="button"
-                    aria-label="Regenerate past try-on"
-                  >
-                    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-yellow-200/30 to-transparent"></span>
-                    <span className="relative z-10">Regenerate</span>
-                  </button>
-                  <button
                     onClick={handleBackToCurrent}
                     className="group relative px-3 sm:px-4 py-1.5 sm:py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
