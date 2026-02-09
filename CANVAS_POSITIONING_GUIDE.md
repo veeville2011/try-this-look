@@ -403,6 +403,463 @@ const x = (e.clientX - rect.left) * scaleX
 3. **Account for CSS Scaling:** Use `getBoundingClientRect()` for accurate click detection
 4. **Test with Different Image Sizes:** Verify scaling works for both large and small images
 5. **Preserve Aspect Ratio:** Always use `Math.min()` when calculating scale
+6. **Handle Visibility Changes:** Redraw canvas when component becomes visible again
+7. **Verify Image Load:** Always check image.complete before drawing
+8. **Persist State:** Store detection results for recovery after refresh
+
+---
+
+## 🔄 Handling Refresh & Popup Scenarios
+
+### Problem: Bounding Boxes Disappear After Refresh/Popup Close
+
+When a page refreshes or a popup closes and reopens, several issues can occur:
+
+1. **Image URL Lost**: `imageUrl` state is lost, so canvas can't redraw
+2. **Detection Results Lost**: `detectionResult` state is cleared
+3. **Canvas Not Redrawn**: Even if state exists, canvas isn't redrawn automatically
+4. **Image Not Loaded**: Canvas tries to draw before image is ready
+5. **Scale Mismatch**: Canvas dimensions change but scale isn't recalculated
+
+### Solution: Comprehensive State Management & Redraw Logic
+
+#### 1. Extract Scale Calculation Function
+
+```typescript
+// Create a shared utility function
+const calculateImageScale = (
+  imgWidth: number,
+  imgHeight: number,
+  maxWidth: number = 1200,
+  maxHeight: number = 800
+): number => {
+  if (imgWidth > maxWidth || imgHeight > maxHeight) {
+    const widthScale = maxWidth / imgWidth
+    const heightScale = maxHeight / imgHeight
+    return Math.min(widthScale, heightScale)
+  }
+  return 1
+}
+```
+
+#### 2. Enhanced drawBoxes with Validation
+
+```typescript
+const drawBoxes = (
+  img: HTMLImageElement | null,
+  people: Detection[],
+  faces: DetectedFace[] = []
+) => {
+  const canvas = canvasRef.current
+  if (!canvas) {
+    console.warn('Canvas ref not available')
+    return
+  }
+
+  // CRITICAL: Verify image is loaded and valid
+  if (!img) {
+    console.warn('Image not available for drawing')
+    return
+  }
+
+  // CRITICAL: Check if image is fully loaded
+  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+    console.warn('Image not fully loaded, waiting...')
+    // Wait for image to load
+    img.onload = () => {
+      drawBoxes(img, people, faces)
+    }
+    return
+  }
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    console.warn('Could not get canvas context')
+    return
+  }
+
+  // Calculate scale using shared function
+  const scale = calculateImageScale(img.width, img.height)
+  const displayWidth = img.width * scale
+  const displayHeight = img.height * scale
+
+  // Set canvas size
+  canvas.width = displayWidth
+  canvas.height = displayHeight
+
+  // Clear canvas before drawing
+  ctx.clearRect(0, 0, displayWidth, displayHeight)
+
+  // Draw scaled image
+  ctx.drawImage(img, 0, 0, displayWidth, displayHeight)
+
+  // Draw bounding boxes (existing code)...
+  people.forEach((person, idx) => {
+    const [x, y, width, height] = person.bbox
+    const scaledX = x * scale
+    const scaledY = y * scale
+    const scaledWidth = width * scale
+    const scaledHeight = height * scale
+    
+    // Draw boxes...
+  })
+}
+```
+
+#### 3. Add useEffect for Canvas Redraw
+
+```typescript
+// Redraw canvas when detection result changes
+useEffect(() => {
+  if (detectionResult && imageRef.current && imageUrl) {
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      if (imageRef.current && detectionResult) {
+        drawBoxes(
+          imageRef.current,
+          detectionResult.people,
+          detectionResult.faces
+        )
+      }
+    }, 100)
+    
+    return () => clearTimeout(timer)
+  }
+}, [detectionResult, imageUrl])
+
+// Redraw canvas when component becomes visible (popup reopen)
+useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (!document.hidden && detectionResult && imageRef.current) {
+      // Component is visible again, redraw canvas
+      setTimeout(() => {
+        if (imageRef.current && detectionResult) {
+          drawBoxes(
+            imageRef.current,
+            detectionResult.people,
+            detectionResult.faces
+          )
+        }
+      }, 100)
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
+}, [detectionResult])
+
+// Redraw canvas on window resize
+useEffect(() => {
+  const handleResize = () => {
+    if (detectionResult && imageRef.current) {
+      // Debounce resize events
+      const timer = setTimeout(() => {
+        if (imageRef.current && detectionResult) {
+          drawBoxes(
+            imageRef.current,
+            detectionResult.people,
+            detectionResult.faces
+          )
+        }
+      }, 250)
+      
+      return () => clearTimeout(timer)
+    }
+  }
+
+  window.addEventListener('resize', handleResize)
+  return () => {
+    window.removeEventListener('resize', handleResize)
+  }
+}, [detectionResult])
+```
+
+#### 4. State Persistence for Refresh Recovery
+
+```typescript
+// Save detection results to localStorage
+useEffect(() => {
+  if (detectionResult && imageUrl) {
+    try {
+      // Store detection results (without image data)
+      const dataToStore = {
+        people: detectionResult.people,
+        faces: detectionResult.faces.map(face => ({
+          bbox: face?.bbox,
+          confidence: face?.confidence,
+          identifiedName: face?.identifiedName,
+          matchConfidence: face?.matchConfidence
+          // Don't store descriptor (too large)
+        })),
+        inferenceTime: detectionResult.inferenceTime,
+        faceRecognitionTime: detectionResult.faceRecognitionTime,
+        imageUrl: imageUrl, // Store URL for recovery
+        timestamp: Date.now()
+      }
+      localStorage.setItem('personDetectionResult', JSON.stringify(dataToStore))
+    } catch (error) {
+      console.warn('Failed to save detection results:', error)
+    }
+  }
+}, [detectionResult, imageUrl])
+
+// Restore detection results on mount
+useEffect(() => {
+  try {
+    const stored = localStorage.getItem('personDetectionResult')
+    if (stored) {
+      const data = JSON.parse(stored)
+      // Check if data is recent (less than 1 hour old)
+      if (Date.now() - data.timestamp < 3600000) {
+        // Restore image URL
+        if (data.imageUrl) {
+          setImageUrl(data.imageUrl)
+          
+          // Load image
+          const img = new Image()
+          img.src = data.imageUrl
+          img.onload = () => {
+            imageRef.current = img
+            // Restore detection results
+            setDetectionResult({
+              people: data.people,
+              faces: data.faces.map((face: any) => 
+                face ? {
+                  bbox: face.bbox,
+                  confidence: face.confidence,
+                  identifiedName: face.identifiedName,
+                  matchConfidence: face.matchConfidence
+                } : null
+              ),
+              inferenceTime: data.inferenceTime,
+              faceRecognitionTime: data.faceRecognitionTime
+            })
+            
+            // Redraw canvas after image loads
+            setTimeout(() => {
+              if (imageRef.current) {
+                drawBoxes(
+                  imageRef.current,
+                  data.people,
+                  data.faces.filter((f: any) => f !== null)
+                )
+              }
+            }, 100)
+          }
+        }
+      } else {
+        // Data is too old, clear it
+        localStorage.removeItem('personDetectionResult')
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to restore detection results:', error)
+    localStorage.removeItem('personDetectionResult')
+  }
+}, []) // Only run on mount
+```
+
+#### 5. Handle Popup Close/Reopen (Shopify App Context)
+
+```typescript
+// For Shopify app popups/modals
+useEffect(() => {
+  // Listen for popup close/reopen events
+  const handlePopupClose = () => {
+    // Popup is closing, canvas will be destroyed
+    // State is preserved in React, so no action needed
+  }
+
+  const handlePopupReopen = () => {
+    // Popup reopened, redraw canvas
+    if (detectionResult && imageRef.current) {
+      // Wait for DOM to be ready
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (imageRef.current && detectionResult && canvasRef.current) {
+            drawBoxes(
+              imageRef.current,
+              detectionResult.people,
+              detectionResult.faces
+            )
+          }
+        }, 100)
+      })
+    }
+  }
+
+  // Shopify app bridge events (if using Shopify App Bridge)
+  if (window.shopify?.app?.bridge) {
+    window.shopify.app.bridge.subscribe('APP_CLOSED', handlePopupClose)
+    window.shopify.app.bridge.subscribe('APP_OPENED', handlePopupReopen)
+  }
+
+  // Generic visibility API
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      handlePopupReopen()
+    }
+  })
+
+  return () => {
+    if (window.shopify?.app?.bridge) {
+      window.shopify.app.bridge.unsubscribe('APP_CLOSED', handlePopupClose)
+      window.shopify.app.bridge.unsubscribe('APP_OPENED', handlePopupReopen)
+    }
+  }
+}, [detectionResult])
+```
+
+#### 6. Complete Redraw Function with Error Handling
+
+```typescript
+const redrawCanvas = useCallback(() => {
+  if (!imageRef.current || !detectionResult || !canvasRef.current) {
+    return false
+  }
+
+  const img = imageRef.current
+  const canvas = canvasRef.current
+
+  // Verify image is loaded
+  if (!img.complete) {
+    console.warn('Image not complete, waiting for load event')
+    img.onload = () => redrawCanvas()
+    return false
+  }
+
+  // Verify image has valid dimensions
+  if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+    console.warn('Image has invalid dimensions')
+    return false
+  }
+
+  // Verify canvas is available
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    console.warn('Could not get canvas context')
+    return false
+  }
+
+  try {
+    drawBoxes(img, detectionResult.people, detectionResult.faces)
+    return true
+  } catch (error) {
+    console.error('Error redrawing canvas:', error)
+    return false
+  }
+}, [detectionResult])
+
+// Use redrawCanvas in all scenarios
+useEffect(() => {
+  if (detectionResult && imageUrl) {
+    // Initial draw
+    redrawCanvas()
+  }
+}, [detectionResult, imageUrl, redrawCanvas])
+```
+
+---
+
+## 🛡️ Edge Cases & Solutions
+
+### Edge Case 1: Page Refresh
+
+**Problem:** All state is lost, canvas is blank
+
+**Solution:**
+- Store detection results in localStorage
+- Restore on component mount
+- Reload image from stored URL
+- Redraw canvas after image loads
+
+### Edge Case 2: Popup Close/Reopen
+
+**Problem:** Canvas is destroyed, bounding boxes disappear
+
+**Solution:**
+- Listen for visibility change events
+- Redraw canvas when component becomes visible
+- Use `requestAnimationFrame` for smooth redraw
+
+### Edge Case 3: Window Resize
+
+**Problem:** Canvas dimensions change, bounding boxes misaligned
+
+**Solution:**
+- Listen for resize events
+- Recalculate scale
+- Redraw canvas with new dimensions
+- Debounce resize events (250ms)
+
+### Edge Case 4: Image Not Loaded
+
+**Problem:** Canvas tries to draw before image is ready
+
+**Solution:**
+- Check `img.complete` before drawing
+- Check `img.naturalWidth > 0` and `img.naturalHeight > 0`
+- Wait for `img.onload` event if not ready
+
+### Edge Case 5: Canvas Context Lost
+
+**Problem:** Canvas context becomes null
+
+**Solution:**
+- Always check `ctx` before drawing
+- Re-get context if null
+- Handle errors gracefully
+
+### Edge Case 6: Scale Mismatch
+
+**Problem:** Different scales used in different functions
+
+**Solution:**
+- Use shared `calculateImageScale()` function
+- Store scale in state if needed
+- Always recalculate scale before drawing
+
+### Edge Case 7: Multiple Rapid Redraws
+
+**Problem:** Performance issues from too many redraws
+
+**Solution:**
+- Debounce redraw calls
+- Use `requestAnimationFrame`
+- Cancel pending redraws before new ones
+
+---
+
+## 📋 Complete Implementation Checklist
+
+### ✅ Required for Refresh/Popup Support
+
+- [ ] Extract scale calculation to shared function
+- [ ] Add image loading verification (`img.complete`, `img.naturalWidth`)
+- [ ] Add `useEffect` for detection result changes
+- [ ] Add `useEffect` for visibility changes
+- [ ] Add `useEffect` for window resize
+- [ ] Add state persistence (localStorage)
+- [ ] Add state restoration on mount
+- [ ] Add error handling in drawBoxes
+- [ ] Add canvas context verification
+- [ ] Add debouncing for resize events
+- [ ] Add cleanup for event listeners
+
+### ✅ Testing Scenarios
+
+- [ ] Test page refresh with detection results
+- [ ] Test popup close and reopen
+- [ ] Test window resize
+- [ ] Test with slow image loading
+- [ ] Test with invalid images
+- [ ] Test with very large images (>3000px)
+- [ ] Test with very small images (<500px)
+- [ ] Test rapid open/close cycles
+- [ ] Test multiple images in sequence
+- [ ] Test browser back/forward navigation
 
 ---
 
@@ -413,9 +870,71 @@ const x = (e.clientX - rect.left) * scaleX
 - **Bounding Box Drawing:** Lines 328-333, 368-372
 - **Click Handler:** Lines 687-749
 - **Coordinate Conversion:** Lines 690-709
+- **Image Loading:** Lines 130-139
+- **State Management:** Lines 272-277
+
+---
+
+## 🔧 Quick Fix Implementation
+
+Add these to your `PersonDetector.tsx`:
+
+```typescript
+// 1. Add shared scale function (top of component)
+const calculateImageScale = (imgWidth: number, imgHeight: number): number => {
+  const maxWidth = 1200
+  const maxHeight = 800
+  if (imgWidth > maxWidth || imgHeight > maxHeight) {
+    return Math.min(maxWidth / imgWidth, maxHeight / imgHeight)
+  }
+  return 1
+}
+
+// 2. Update drawBoxes to use shared function and verify image
+const drawBoxes = (img: HTMLImageElement | null, people: Detection[], faces: DetectedFace[] = []) => {
+  // Add image verification at start
+  if (!img || !img.complete || img.naturalWidth === 0) {
+    if (img && !img.complete) {
+      img.onload = () => drawBoxes(img, people, faces)
+    }
+    return
+  }
+  
+  // Use shared scale function
+  const scale = calculateImageScale(img.width, img.height)
+  // ... rest of function
+}
+
+// 3. Add redraw effects (after existing useEffects)
+useEffect(() => {
+  if (detectionResult && imageRef.current) {
+    const timer = setTimeout(() => {
+      if (imageRef.current && detectionResult) {
+        drawBoxes(imageRef.current, detectionResult.people, detectionResult.faces)
+      }
+    }, 100)
+    return () => clearTimeout(timer)
+  }
+}, [detectionResult, imageUrl])
+
+useEffect(() => {
+  const handleVisibility = () => {
+    if (!document.hidden && detectionResult && imageRef.current) {
+      setTimeout(() => {
+        if (imageRef.current && detectionResult) {
+          drawBoxes(imageRef.current, detectionResult.people, detectionResult.faces)
+        }
+      }, 100)
+    }
+  }
+  document.addEventListener('visibilitychange', handleVisibility)
+  return () => document.removeEventListener('visibilitychange', handleVisibility)
+}, [detectionResult])
+```
 
 ---
 
 **Last Updated:** 2024  
-**Component:** `PersonDetector.tsx`
+**Component:** `PersonDetector.tsx`  
+**Version:** 2.0 - Enhanced for Refresh & Popup Support
 

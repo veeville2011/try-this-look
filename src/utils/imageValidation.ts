@@ -244,3 +244,66 @@ export const clearAllCachedDimensions = (): void => {
   }
 };
 
+/**
+ * Canvas Coordinate Utilities
+ * Following CANVAS_POSITIONING_GUIDE.md for consistent coordinate transformation
+ */
+
+/**
+ * Calculate image scale to fit within max dimensions while preserving aspect ratio
+ * Following CANVAS_POSITIONING_GUIDE.md Step 1: Scale Calculation
+ * 
+ * @param imgWidth - Original image width
+ * @param imgHeight - Original image height
+ * @param maxWidth - Maximum display width (default: 1200)
+ * @param maxHeight - Maximum display height (default: 800)
+ * @returns Object with scale factor and display dimensions
+ */
+export const calculateImageScale = (
+  imgWidth: number,
+  imgHeight: number,
+  maxWidth: number = 1200,
+  maxHeight: number = 800
+): { scale: number; displayWidth: number; displayHeight: number } => {
+  // Validate inputs
+  if (!isFinite(imgWidth) || !isFinite(imgHeight) || imgWidth <= 0 || imgHeight <= 0) {
+    console.warn('[CanvasUtils] Invalid image dimensions:', { imgWidth, imgHeight });
+    return { scale: 1, displayWidth: imgWidth || 1, displayHeight: imgHeight || 1 };
+  }
+  
+  if (!isFinite(maxWidth) || !isFinite(maxHeight) || maxWidth <= 0 || maxHeight <= 0) {
+    console.warn('[CanvasUtils] Invalid max dimensions:', { maxWidth, maxHeight });
+    return { scale: 1, displayWidth: imgWidth, displayHeight: imgHeight };
+  }
+  
+  let scale = 1;
+  let displayWidth = imgWidth;
+  let displayHeight = imgHeight;
+  
+  // If image exceeds max dimensions, calculate scale to fit
+  // Following guide: scale = Math.min(maxWidth / img.width, maxHeight / img.height)
+  if (imgWidth > maxWidth || imgHeight > maxHeight) {
+    const widthScale = maxWidth / imgWidth;
+    const heightScale = maxHeight / imgHeight;
+    scale = Math.min(widthScale, heightScale); // Use smaller scale to fit both dimensions
+    displayWidth = imgWidth * scale;
+    displayHeight = imgHeight * scale;
+  }
+  
+  // Validate output
+  if (!isFinite(scale) || scale <= 0 || !isFinite(displayWidth) || !isFinite(displayHeight)) {
+    console.error('[CanvasUtils] Invalid scale calculation result:', {
+      scale,
+      displayWidth,
+      displayHeight,
+      imgWidth,
+      imgHeight,
+      maxWidth,
+      maxHeight
+    });
+    return { scale: 1, displayWidth: imgWidth, displayHeight: imgHeight };
+  }
+  
+  return { scale, displayWidth, displayHeight };
+};
+
