@@ -1014,6 +1014,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setUploadedImage(dataURL);
     storage.saveUploadedImage(dataURL);
     setError(null);
+    setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
     if (photoId !== undefined) {
       setSelectedPhoto(photoId);
     }
@@ -1162,17 +1163,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         storage.saveUploadedImage(personImageResult);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
+        setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
       } else if (item.personImageUrl) {
         // If loading failed but URL exists, try using the URL directly
         console.warn('[VirtualTryOnModal] Failed to load person image as data URL, trying direct URL:', item.personImageUrl);
         setUploadedImage(item.personImageUrl); // Use URL directly as fallback
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
+        setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
       } else {
         setUploadedImage(null);
         storage.saveUploadedImage(null);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod(null);
+        setShowChangePhotoOptions(false); // Close expanded options
       }
       
       // Update clothing image state
