@@ -366,6 +366,41 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     return imageUrl;
   }, []);
 
+  // Helper function to load an image from URL and convert to data URL (to avoid tainted canvas errors)
+  const loadImageAsDataURL = useCallback(async (imageUrl: string | null | undefined): Promise<string | null> => {
+    if (!imageUrl) return null;
+    
+    // If already a data URL, return it directly
+    if (imageUrl.startsWith('data:image/')) {
+      return imageUrl;
+    }
+    
+    // Otherwise, fetch and convert to data URL
+    try {
+      const proxiedUrl = getProxiedImageUrl(imageUrl);
+      const blob = await fetch(proxiedUrl).then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        return res.blob();
+      });
+      
+      const reader = new FileReader();
+      const dataURL = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      
+      // Validate data URL
+      if (dataURL && typeof dataURL === 'string' && dataURL.trim().length > 0 && dataURL.startsWith('data:image/')) {
+        return dataURL;
+      }
+      return null;
+    } catch (error) {
+      console.warn('[VirtualTryOnModal] Failed to load image as data URL:', error);
+      return null;
+    }
+  }, [getProxiedImageUrl]);
+
   // Format countdown timer
   const formatCountdownTimer = (elapsedSeconds: number): string => {
     const totalSeconds = 50;
@@ -1089,42 +1124,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
-      // Helper function to load an image from URL or data URL
-      const loadImageAsDataURL = async (imageUrl: string | undefined): Promise<string | null> => {
-        if (!imageUrl) return null;
-        
-        // If already a data URL, return it directly
-        if (imageUrl.startsWith('data:image/')) {
-          return imageUrl;
-        }
-        
-        // Otherwise, fetch and convert to data URL
-        try {
-          const proxiedUrl = getProxiedImageUrl(imageUrl);
-          const blob = await fetch(proxiedUrl).then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            return res.blob();
-          });
-          
-          const reader = new FileReader();
-          const dataURL = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          
-          // Validate data URL
-          if (dataURL && typeof dataURL === 'string' && dataURL.trim().length > 0 && dataURL.startsWith('data:image/')) {
-            return dataURL;
-          }
-          return null;
-        } catch (error) {
-          console.warn('[VirtualTryOnModal] Failed to load image:', error);
-          return null;
-        }
-      };
-      
       // Load all images in parallel (happens in background after selection is shown)
+      // Use the shared loadImageAsDataURL function to convert S3 URLs to data URLs
       const [generatedDataURL, personDataURL, clothingDataURL] = await Promise.allSettled([
         loadImageAsDataURL(item.image),
         loadImageAsDataURL(item.personImageUrl),
@@ -1209,7 +1210,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Reset flag on error
       isLoadingHistoryRef.current = false;
     }
-  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl]);
+  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl, loadImageAsDataURL]);
   
   // Get formatted time ago string
   const getTimeAgo = useCallback((dateString?: string): string => {
@@ -3272,10 +3273,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   key={photo.id}
                                   onTouchStart={handleTouchStart}
                                   onTouchMove={handleTouchMove}
-                                  onTouchEnd={(e) => handleTouchEnd(e, () => {
+                                  onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                     setSelectedPhoto(photo.id);
-                                    setUploadedImage(photo.src);
-                                    storage.saveUploadedImage(photo.src);
+                                    // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                    const dataURL = await loadImageAsDataURL(photo.src);
+                                    if (dataURL) {
+                                      setUploadedImage(dataURL);
+                                      storage.saveUploadedImage(dataURL);
+                                    } else {
+                                      // Fallback to original URL if conversion fails
+                                      setUploadedImage(photo.src);
+                                      storage.saveUploadedImage(photo.src);
+                                    }
                                     setPhotoSelectionMethod('file');
                                     setError(null);
                                     setShowChangePhotoOptions(false);
@@ -3284,11 +3293,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       setSelectedPersonIndex(null);
                                     }
                                   })}
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (!('ontouchstart' in window)) {
                                       setSelectedPhoto(photo.id);
-                                      setUploadedImage(photo.src);
-                                      storage.saveUploadedImage(photo.src);
+                                      // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                      const dataURL = await loadImageAsDataURL(photo.src);
+                                      if (dataURL) {
+                                        setUploadedImage(dataURL);
+                                        storage.saveUploadedImage(dataURL);
+                                      } else {
+                                        // Fallback to original URL if conversion fails
+                                        setUploadedImage(photo.src);
+                                        storage.saveUploadedImage(photo.src);
+                                      }
                                       setPhotoSelectionMethod('file');
                                       setError(null);
                                       setShowChangePhotoOptions(false);
@@ -3640,11 +3657,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             key={photo.id}
                             onTouchStart={handleTouchStart}
                             onTouchMove={handleTouchMove}
-                            onTouchEnd={(e) => handleTouchEnd(e, () => {
+                            onTouchEnd={(e) => handleTouchEnd(e, async () => {
                               setSelectedPhoto(photo.id);
-                              // Use the same approach as demo models - set URL directly (use direct URL, not proxied)
-                              setUploadedImage(photo.src);
-                              storage.saveUploadedImage(photo.src);
+                              // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                              const dataURL = await loadImageAsDataURL(photo.src);
+                              if (dataURL) {
+                                setUploadedImage(dataURL);
+                                storage.saveUploadedImage(dataURL);
+                              } else {
+                                // Fallback to original URL if conversion fails
+                                setUploadedImage(photo.src);
+                                storage.saveUploadedImage(photo.src);
+                              }
                               setPhotoSelectionMethod('file');
                               setError(null);
                               setShowChangePhotoOptions(false); // Close expanded options
@@ -3654,13 +3678,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setSelectedPersonIndex(null);
                               }
                             })}
-                            onClick={() => {
+                            onClick={async () => {
                               // Only handle click if not on touch device (touch events handle touch devices)
                               if (!('ontouchstart' in window)) {
                                 setSelectedPhoto(photo.id);
-                                // Use the same approach as demo models - set URL directly (use direct URL, not proxied)
-                                setUploadedImage(photo.src);
-                                storage.saveUploadedImage(photo.src);
+                                // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                const dataURL = await loadImageAsDataURL(photo.src);
+                                if (dataURL) {
+                                  setUploadedImage(dataURL);
+                                  storage.saveUploadedImage(dataURL);
+                                } else {
+                                  // Fallback to original URL if conversion fails
+                                  setUploadedImage(photo.src);
+                                  storage.saveUploadedImage(photo.src);
+                                }
                                 setPhotoSelectionMethod('file');
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
