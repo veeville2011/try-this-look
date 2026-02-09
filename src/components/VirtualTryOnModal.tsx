@@ -2999,32 +2999,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Use device pixel ratio for crisp rendering on high-DPI screens
       const dpr = window.devicePixelRatio || 1;
       
+      // CRITICAL: Calculate canvas dimensions as integers (canvas dimensions must be integers)
+      // Round to nearest integer to avoid fractional pixel issues
+      const canvasWidth = Math.round(displayWidth * dpr);
+      const canvasHeight = Math.round(displayHeight * dpr);
+      
+      // CRITICAL: Calculate effective DPR based on actual canvas dimensions
+      // This accounts for rounding differences and ensures consistent scaling
+      const effectiveDprX = canvasWidth / displayWidth;
+      const effectiveDprY = canvasHeight / displayHeight;
+      
       // CRITICAL: Set canvas internal resolution FIRST (high resolution for quality)
       // This must be done before getting the context to ensure proper sizing
-      canvas.width = displayWidth * dpr;
-      canvas.height = displayHeight * dpr;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
       
       // CRITICAL: Set CSS display size (actual size on screen)
       // This ensures the canvas displays at the correct size
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
       canvas.style.pointerEvents = 'auto';
-      
-      // CRITICAL: Verify canvas dimensions are set correctly
-      if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
-        console.error('[PersonSelection] Canvas dimensions mismatch after setting:', {
-          expectedWidth: displayWidth * dpr,
-          expectedHeight: displayHeight * dpr,
-          actualWidth: canvas.width,
-          actualHeight: canvas.height,
-          displayWidth,
-          displayHeight,
-          dpr
-        });
-        // Force correct dimensions
-        canvas.width = displayWidth * dpr;
-        canvas.height = displayHeight * dpr;
-      }
       
       // CRITICAL: Verify canvas dimensions are set correctly BEFORE drawing
       // If canvas dimensions are invalid, all coordinates will be wrong
@@ -3045,41 +3039,45 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // Verify canvas dimensions match what we expect
-      const expectedCanvasWidth = displayWidth * dpr;
-      const expectedCanvasHeight = displayHeight * dpr;
-      if (Math.abs(canvas.width - expectedCanvasWidth) > 1 || Math.abs(canvas.height - expectedCanvasHeight) > 1) {
-        console.warn('[PersonSelection] Canvas dimensions mismatch:', {
-          actualWidth: canvas.width,
-          actualHeight: canvas.height,
-          expectedWidth: expectedCanvasWidth,
-          expectedHeight: expectedCanvasHeight
-        });
-        // Still proceed, but log the warning
-      }
-      
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         console.error('[PersonSelection] Failed to get canvas context - ABORTING DRAW');
         return;
       }
       
-      // CRITICAL: Reset transform and scale context to match device pixel ratio
-      // This ensures coordinates are correct for high-DPI displays
+      // CRITICAL: Reset transform and scale context using effective DPR
+      // This ensures coordinates are correct for high-DPI displays and accounts for rounding
       ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform to identity
-      ctx.scale(dpr, dpr); // Scale by device pixel ratio
+      ctx.scale(effectiveDprX, effectiveDprY); // Scale by effective device pixel ratio
       
       // Verify transform is correct
       const transform = ctx.getTransform();
-      if (Math.abs(transform.a - dpr) > 0.01 || Math.abs(transform.d - dpr) > 0.01 || 
+      if (Math.abs(transform.a - effectiveDprX) > 0.01 || Math.abs(transform.d - effectiveDprY) > 0.01 || 
           transform.e !== 0 || transform.f !== 0) {
         console.error('[PersonSelection] Canvas transform is incorrect:', {
           transform,
-          expectedScale: dpr,
-          actualScale: transform.a
+          expectedScaleX: effectiveDprX,
+          expectedScaleY: effectiveDprY,
+          actualScaleX: transform.a,
+          actualScaleY: transform.d
         });
         // Fix transform
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.setTransform(effectiveDprX, 0, 0, effectiveDprY, 0, 0);
+      }
+      
+      // Log dimension info for debugging
+      if (Math.abs(effectiveDprX - dpr) > 0.001 || Math.abs(effectiveDprY - dpr) > 0.001) {
+        console.log('[PersonSelection] Using effective DPR due to rounding:', {
+          originalDpr: dpr,
+          effectiveDprX,
+          effectiveDprY,
+          displayWidth,
+          displayHeight,
+          canvasWidth,
+          canvasHeight,
+          expectedWidth: displayWidth * dpr,
+          expectedHeight: displayHeight * dpr
+        });
       }
       
       // CRITICAL: Clear the ENTIRE canvas
@@ -3635,7 +3633,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // CRITICAL: Convert screen click coordinates to canvas display coordinates
       // Following CANVAS_POSITIONING_GUIDE.md: Account for CSS scaling using getBoundingClientRect
-      // Since canvas internal size = displayWidth * dpr, but CSS size = displayWidth
+      // Since canvas internal size = displayWidth * effectiveDpr, but CSS size = displayWidth
       // We need to convert screen coordinates to display coordinates
       const scaleX = canvas.width / canvasRect.width; // Canvas internal / CSS display width
       const scaleY = canvas.height / canvasRect.height; // Canvas internal / CSS display height
@@ -3644,11 +3642,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const canvasX = (e.clientX - canvasRect.left) * scaleX;
       const canvasY = (e.clientY - canvasRect.top) * scaleY;
       
-      // Convert canvas internal coordinates to display coordinates (divide by dpr)
-      // Since context is scaled by dpr, we need display coordinates to match bounding boxes
-      const dpr = window.devicePixelRatio || 1;
-      const x = canvasX / dpr;
-      const y = canvasY / dpr;
+      // CRITICAL: Calculate effective DPR to match what was used in drawBoundingBoxes
+      // This accounts for rounding differences in canvas dimensions
+      const effectiveDprX = canvas.width / displayWidth;
+      const effectiveDprY = canvas.height / displayHeight;
+      
+      // Convert canvas internal coordinates to display coordinates (divide by effective DPR)
+      // Since context is scaled by effective DPR, we need display coordinates to match bounding boxes
+      const x = canvasX / effectiveDprX;
+      const y = canvasY / effectiveDprY;
       
       // Check if click is within the image display area
       if (x < 0 || x > displayWidth || y < 0 || y > displayHeight) {
