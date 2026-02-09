@@ -204,6 +204,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const clothingSelectionRef = useRef<HTMLDivElement>(null);
   const generateButtonRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null); // Ref for the fixed-height container
   const sizeSelectionRef = useRef<HTMLDivElement>(null);
   const addToCartButtonRef = useRef<HTMLButtonElement>(null);
   const photoUploadRef = useRef<HTMLDivElement>(null);
@@ -2603,36 +2604,34 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const naturalHeight = img.naturalHeight;
       const imageAspectRatio = naturalWidth / naturalHeight;
       
-      // Get the container dimensions - traverse up to find the fixed-height container
-      // The structure is: fixed-height container > flex container > canvas wrapper > canvas
-      let container = canvas.parentElement;
-      let containerRect: DOMRect | null = null;
-      
-      // Try to find a container with valid dimensions by traversing up
-      for (let i = 0; i < 3 && container; i++) {
-        containerRect = container.getBoundingClientRect();
-        if (containerRect && containerRect.width > 0 && containerRect.height > 0) {
-          break;
-        }
-        container = container.parentElement;
-      }
-      
-      if (!container || !containerRect || containerRect.width === 0 || containerRect.height === 0) {
-        console.warn('[PersonSelection] Container rect not available or has zero dimensions:', {
-          width: containerRect?.width,
-          height: containerRect?.height,
-          container: !!container
-        });
-        // Retry after a short delay to allow container to be laid out
+      // Get container using ref (more reliable than DOM traversal)
+      const container = canvasContainerRef.current;
+      if (!container) {
+        console.warn('[PersonSelection] Container ref not available');
+        // Retry after a short delay
         setTimeout(() => {
           drawBoundingBoxes();
         }, 100);
         return;
       }
       
-      // Calculate display size to fit within container while maintaining aspect ratio
-      // Use actual container dimensions
-      const maxDisplayHeight = containerRect.height;
+      // Get container width from getBoundingClientRect (reliable for width)
+      const containerRect = container.getBoundingClientRect();
+      if (!containerRect || containerRect.width === 0) {
+        console.warn('[PersonSelection] Container width not available:', {
+          width: containerRect?.width
+        });
+        // Retry after a short delay
+        setTimeout(() => {
+          drawBoundingBoxes();
+        }, 100);
+        return;
+      }
+      
+      // Use fixed height values from CSS (more reliable than reading from DOM)
+      // Mobile: 180px, Desktop (sm and up): 200px
+      const isMobile = window.matchMedia('(max-width: 640px)').matches;
+      const maxDisplayHeight = isMobile ? 180 : 200;
       const maxDisplayWidth = containerRect.width;
       
       // Calculate the actual display size maintaining aspect ratio
@@ -2648,10 +2647,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Debug logging
       console.log('[PersonSelection] Drawing with dimensions:', {
         naturalSize: `${naturalWidth}x${naturalHeight}`,
-        containerSize: `${maxDisplayWidth}x${maxDisplayHeight}`,
+        containerWidth: maxDisplayWidth,
+        fixedHeight: maxDisplayHeight,
         displaySize: `${displayWidth}x${displayHeight}`,
         imageAspectRatio,
-        scale: displayWidth / naturalWidth
+        scale: displayWidth / naturalWidth,
+        isMobile
       });
       
       // Use device pixel ratio for crisp rendering on high-DPI screens
@@ -2746,9 +2747,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const handleImageLoad = () => {
       // Wait for container to be ready as well
       const checkAndDraw = () => {
-        const container = canvas.parentElement;
+        const container = canvasContainerRef.current;
         const containerRect = container?.getBoundingClientRect();
-        if (containerRect && containerRect.width > 0 && containerRect.height > 0) {
+        if (containerRect && containerRect.width > 0) {
           // Use requestAnimationFrame to ensure DOM is fully updated
           requestAnimationFrame(() => {
             // Add a small delay to ensure everything is stable
@@ -2779,18 +2780,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         attempts++;
         const imageReady = img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
         
-        // Check multiple levels of container hierarchy
-        let container = canvas.parentElement;
-        let containerRect: DOMRect | null = null;
-        for (let i = 0; i < 3 && container; i++) {
-          containerRect = container.getBoundingClientRect();
-          if (containerRect && containerRect.width > 0 && containerRect.height > 0) {
-            break;
-          }
-          container = container.parentElement;
-        }
-        
-        const containerReady = containerRect && containerRect.width > 0 && containerRect.height > 0;
+        // Use ref to get container (more reliable)
+        const container = canvasContainerRef.current;
+        const containerRect = container?.getBoundingClientRect();
+        const containerReady = containerRect && containerRect.width > 0;
         
         if (imageReady && containerReady) {
           // Double-check with requestAnimationFrame to ensure layout is complete
@@ -2836,9 +2829,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Redraw on window resize to handle dynamic sizing
     const handleResize = () => {
-      const container = canvas.parentElement;
+      const container = canvasContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
-      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && containerRect && containerRect.width > 0 && containerRect.height > 0) {
+      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && containerRect && containerRect.width > 0) {
         requestAnimationFrame(() => {
           drawBoundingBoxes();
         });
@@ -2850,17 +2843,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Also redraw when canvas container dimensions might change
     const observer = new ResizeObserver(() => {
-      const container = canvas.parentElement;
+      const container = canvasContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
-      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && containerRect && containerRect.width > 0 && containerRect.height > 0) {
+      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && containerRect && containerRect.width > 0) {
         requestAnimationFrame(() => {
           drawBoundingBoxes();
         });
       }
     });
     
-    if (canvas.parentElement) {
-      observer.observe(canvas.parentElement);
+    if (canvasContainerRef.current) {
+      observer.observe(canvasContainerRef.current);
     }
     
     return () => {
@@ -2910,11 +2903,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       if (naturalWidth === 0 || naturalHeight === 0) return;
       
+      // Use the same calculation as drawBoundingBoxes
+      const container = canvasContainerRef.current;
+      if (!container) return;
+      
+      const containerRect = container.getBoundingClientRect();
+      if (!containerRect || containerRect.width === 0) return;
+      
+      // Use fixed height values from CSS (same as drawBoundingBoxes)
+      const isMobile = window.matchMedia('(max-width: 640px)').matches;
+      const maxDisplayHeight = isMobile ? 180 : 200;
+      const maxDisplayWidth = containerRect.width;
+      
       // Calculate the same display size and scale as drawBoundingBoxes
       const imageAspectRatio = naturalWidth / naturalHeight;
-      const maxDisplayHeight = canvasRect.height;
-      const maxDisplayWidth = canvasRect.width;
-      
       let displayWidth = maxDisplayWidth;
       let displayHeight = maxDisplayWidth / imageAspectRatio;
       
@@ -2923,13 +2925,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         displayWidth = maxDisplayHeight * imageAspectRatio;
       }
       
-      // Calculate scale from natural image to display
+      // Calculate scale from natural image to display (same as drawBoundingBoxes)
       const scale = displayWidth / naturalWidth;
       
       // Convert screen click coordinates to canvas display coordinates
-      // Account for canvas being centered in container
-      const offsetX = (canvasRect.width - displayWidth) / 2;
-      const offsetY = (canvasRect.height - displayHeight) / 2;
+      // Account for canvas being centered in container (canvas might be smaller than container)
+      const canvasDisplayWidth = canvasRect.width;
+      const canvasDisplayHeight = canvasRect.height;
+      const offsetX = (canvasDisplayWidth - displayWidth) / 2;
+      const offsetY = (canvasDisplayHeight - displayHeight) / 2;
       
       const x = (e.clientX - canvasRect.left - offsetX);
       const y = (e.clientY - canvasRect.top - offsetY);
@@ -3204,7 +3208,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {uploadedImage && !showChangePhotoOptions ? (
                           <div className="w-full flex flex-col items-center justify-center relative">
                             {/* Canvas with bounding boxes - fixed height for consistency */}
-                            <div className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
+                            <div ref={canvasContainerRef} className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                               {/* Hidden image for detection - canvas will display the image */}
                               <img
                                 ref={detectionImageRef}
