@@ -135,6 +135,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [selectedPersonIndex, setSelectedPersonIndex] = useState<number | null>(null);
   const [showChangePhotoOptions, setShowChangePhotoOptions] = useState(false);
   
+  // Modal preload state - tracks when everything is ready to show UI
+  const [isModalPreloaded, setIsModalPreloaded] = useState(false);
+  const [boundingBoxesDrawn, setBoundingBoxesDrawn] = useState(false);
+  const boundingBoxesDrawnRef = useRef(false);
+  
   // Person detection hook - active on /widget-test path (both localhost and production) when image is uploaded
   const shouldDetectPeople = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions;
   const { imageRef: detectionImageRef, isLoading: isLoadingModels, isProcessing: isDetecting, detectionResult, error: detectionError } = usePersonDetection(
@@ -2572,8 +2577,90 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [showPersonSelection]);
   
+  // CRITICAL: Check if modal is fully preloaded and ready to show UI
+  useEffect(() => {
+    // Determine what needs to be ready based on current state
+    const needsPersonDetection = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions;
+    const needsBoundingBoxes = showPersonSelection && detectionResult?.people && detectionResult.people.length > 0;
+    
+    // Check if everything is ready:
+    // 1. If person detection is needed, wait for detection to complete
+    // 2. If bounding boxes are needed, wait for them to be drawn
+    // 3. Image should be loaded (handled by detection/boxes)
+    
+    let isReady = true;
+    
+    if (needsPersonDetection) {
+      // Wait for detection model to load and detection to complete
+      if (isLoadingModels || isDetecting) {
+        isReady = false;
+      }
+      // If detection failed, still show UI after a short delay (don't block forever on errors)
+      if (detectionError && !detectionResult) {
+        // Wait a bit for retry, but don't block forever
+        setTimeout(() => {
+          setIsModalPreloaded(true);
+        }, 2000); // Show UI after 2 seconds even if detection fails
+        isReady = false;
+      }
+    }
+    
+    if (needsBoundingBoxes) {
+      // Wait for bounding boxes to be drawn
+      if (!boundingBoxesDrawnRef.current) {
+        isReady = false;
+      }
+    }
+    
+    // If image is uploaded but not yet validated, wait
+    if (uploadedImage && detectionImageRef.current) {
+      const img = detectionImageRef.current;
+      const imageId = generateImageId(uploadedImage);
+      const validation = validateImageReady(img, imageId);
+      if (!validation.ready) {
+        isReady = false;
+      }
+    }
+    
+    // If no uploaded image yet, modal is ready (will show upload UI)
+    if (!uploadedImage) {
+      isReady = true;
+    }
+    
+    // Set preloaded state
+    setIsModalPreloaded(isReady);
+    
+    if (isReady) {
+      console.log('[ModalPreload] ✅ Modal is fully preloaded and ready to show UI');
+    } else {
+      console.log('[ModalPreload] ⏳ Modal still preloading...', {
+        needsPersonDetection,
+        needsBoundingBoxes,
+        isLoadingModels,
+        isDetecting,
+        boundingBoxesDrawn: boundingBoxesDrawnRef.current,
+        hasDetectionResult: !!detectionResult,
+        hasUploadedImage: !!uploadedImage
+      });
+    }
+  }, [
+    uploadedImage,
+    showPersonSelection,
+    showChangePhotoOptions,
+    isLoadingModels,
+    isDetecting,
+    detectionResult,
+    detectionError,
+    boundingBoxesDrawn,
+    detectionImageRef
+  ]);
+  
   // Canvas drawing for person selection (only when showPersonSelection is true)
   useEffect(() => {
+    // Reset bounding boxes drawn state when conditions change
+    setBoundingBoxesDrawn(false);
+    boundingBoxesDrawnRef.current = false;
+    
     if (!showPersonSelection || !detectionResult?.people || detectionResult.people.length === 0 || !detectionImageRef.current || !canvasRef.current || !uploadedImage) {
       console.log('[PersonSelection] Canvas drawing skipped:', {
         showPersonSelection,
@@ -2783,47 +2870,82 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // Calculate the actual display size maintaining aspect ratio
-      let displayWidth = maxDisplayWidth;
-      let displayHeight = maxDisplayWidth / imageAspectRatio;
+      // CRITICAL: Calculate scale factor following CANVAS_POSITIONING_GUIDE.md
+      // Use Math.min to preserve aspect ratio, exactly as specified in the guide
+      let scale = 1;
+      let displayWidth = naturalWidth;
+      let displayHeight = naturalHeight;
       
-      // If height exceeds container, scale by height instead
-      if (displayHeight > maxDisplayHeight) {
-        displayHeight = maxDisplayHeight;
-        displayWidth = maxDisplayHeight * imageAspectRatio;
+      // If image exceeds max dimensions, calculate scale to fit
+      if (naturalWidth > maxDisplayWidth || naturalHeight > maxDisplayHeight) {
+        const widthScale = maxDisplayWidth / naturalWidth;
+        const heightScale = maxDisplayHeight / naturalHeight;
+        scale = Math.min(widthScale, heightScale); // Use smaller scale to fit both dimensions
+        displayWidth = naturalWidth * scale;
+        displayHeight = naturalHeight * scale;
       }
       
       // Validate display dimensions
       if (displayWidth <= 0 || displayHeight <= 0 || !isFinite(displayWidth) || !isFinite(displayHeight)) {
         console.error('[PersonSelection] Invalid display dimensions:', {
           displayWidth,
-          displayHeight
+          displayHeight,
+          scale
+        });
+        return;
+      }
+      
+      // Validate scale is valid
+      if (scale <= 0 || !isFinite(scale)) {
+        console.error('[PersonSelection] Invalid scale calculated:', {
+          scale,
+          naturalWidth,
+          naturalHeight,
+          maxDisplayWidth,
+          maxDisplayHeight
         });
         return;
       }
       
       // Debug logging
-      console.log('[PersonSelection] Drawing with dimensions:', {
+      console.log('[PersonSelection] Drawing with dimensions (following guide):', {
         naturalSize: `${naturalWidth}x${naturalHeight}`,
-        containerWidth: maxDisplayWidth,
-        fixedHeight: maxDisplayHeight,
+        maxDisplaySize: `${maxDisplayWidth}x${maxDisplayHeight}`,
+        calculatedScale: scale,
         displaySize: `${displayWidth}x${displayHeight}`,
         imageAspectRatio,
-        scale: displayWidth / naturalWidth,
         isMobile
       });
       
       // Use device pixel ratio for crisp rendering on high-DPI screens
       const dpr = window.devicePixelRatio || 1;
       
-      // Set canvas internal resolution (high resolution for quality)
+      // CRITICAL: Set canvas internal resolution FIRST (high resolution for quality)
+      // This must be done before getting the context to ensure proper sizing
       canvas.width = displayWidth * dpr;
       canvas.height = displayHeight * dpr;
       
-      // Set CSS display size (actual size on screen)
+      // CRITICAL: Set CSS display size (actual size on screen)
+      // This ensures the canvas displays at the correct size
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
       canvas.style.pointerEvents = 'auto';
+      
+      // CRITICAL: Verify canvas dimensions are set correctly
+      if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
+        console.error('[PersonSelection] Canvas dimensions mismatch after setting:', {
+          expectedWidth: displayWidth * dpr,
+          expectedHeight: displayHeight * dpr,
+          actualWidth: canvas.width,
+          actualHeight: canvas.height,
+          displayWidth,
+          displayHeight,
+          dpr
+        });
+        // Force correct dimensions
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+      }
       
       // CRITICAL: Verify canvas dimensions are set correctly BEFORE drawing
       // If canvas dimensions are invalid, all coordinates will be wrong
@@ -2881,10 +3003,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       
-      // Clear the ENTIRE canvas (use internal canvas dimensions, not display dimensions)
-      // Since we're working in scaled coordinates, we need to clear the full canvas
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-      // Also clear using display dimensions to be safe
+      // CRITICAL: Clear the ENTIRE canvas
+      // We need to clear in the scaled coordinate system (display dimensions)
+      // After scaling by dpr, clearing at displayWidth x displayHeight clears the full canvas
       ctx.clearRect(0, 0, displayWidth, displayHeight);
       
       // CRITICAL: Verify image is ready before drawing
@@ -2897,11 +3018,64 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // CRITICAL: Draw image at display size
+      // CRITICAL: Draw image following CANVAS_POSITIONING_GUIDE.md
+      // Draw scaled image at (0, 0) filling entire canvas
       // Since context is scaled by dpr, drawing at (0, 0, displayWidth, displayHeight)
-      // will actually draw at (0, 0, displayWidth*dpr, displayHeight*dpr) in canvas pixels
-      // This matches the canvas internal size, so the image fills the canvas correctly
+      // fills the canvas internal size correctly
+      // This matches the guide: "Draw scaled image at (0, 0) filling entire canvas"
       ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+      
+      // CRITICAL: Verify image fills the canvas correctly
+      // Check if image was drawn by sampling pixels at corners and center
+      try {
+        const checkPoints = [
+          { x: 0, y: 0, name: 'top-left' },
+          { x: displayWidth - 1, y: 0, name: 'top-right' },
+          { x: displayWidth / 2, y: displayHeight / 2, name: 'center' },
+          { x: 0, y: displayHeight - 1, name: 'bottom-left' },
+          { x: displayWidth - 1, y: displayHeight - 1, name: 'bottom-right' }
+        ];
+        
+        const imageCheckResults = checkPoints.map(point => {
+          try {
+            const pixelData = ctx.getImageData(point.x, point.y, 1, 1);
+            const hasImage = pixelData.data[3] > 0; // Check alpha channel
+            return { ...point, hasImage, alpha: pixelData.data[3] };
+          } catch (e) {
+            return { ...point, hasImage: false, error: e.message };
+          }
+        });
+        
+        const allPointsHaveImage = imageCheckResults.every(p => p.hasImage);
+        console.log('[PersonSelection] Image fill verification:', {
+          allPointsHaveImage,
+          checkPoints: imageCheckResults,
+          imageNaturalSize: `${img.naturalWidth}x${img.naturalHeight}`,
+          displaySize: `${displayWidth}x${displayHeight}`,
+          canvasInternalSize: `${canvas.width}x${canvas.height}`
+        });
+        
+        if (!allPointsHaveImage) {
+          console.warn('[PersonSelection] Image may not be filling canvas correctly!');
+        }
+      } catch (e) {
+        console.warn('[PersonSelection] Could not verify image fill:', e);
+      }
+      
+      // Debug: Verify image was drawn correctly by checking a sample pixel
+      try {
+        const testX = Math.floor(displayWidth / 2);
+        const testY = Math.floor(displayHeight / 2);
+        const pixelData = ctx.getImageData(testX, testY, 1, 1);
+        const hasImage = pixelData.data[3] > 0; // Check alpha channel
+        console.log('[PersonSelection] Image draw verification:', {
+          testPixel: `(${testX}, ${testY})`,
+          hasImage: hasImage,
+          pixelAlpha: pixelData.data[3]
+        });
+      } catch (e) {
+        console.warn('[PersonSelection] Could not verify image draw:', e);
+      }
       
       // Debug: Log image drawing details with verification
       const imageData = ctx.getImageData(0, 0, Math.min(10, displayWidth), Math.min(10, displayHeight));
@@ -2918,18 +3092,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         hasImageData: hasImageData
       });
       
-      // Calculate scale factor for bounding box coordinates (from natural image to display)
-      const scale = displayWidth / naturalWidth; // Same scale for both dimensions due to aspect ratio preservation
-      
-      // Verify scale is valid and positive
-      if (scale <= 0 || !isFinite(scale)) {
-        console.error('[PersonSelection] Invalid scale calculated:', {
-          scale,
-          displayWidth,
-          naturalWidth
-        });
-        return;
-      }
+      // CRITICAL: Scale factor already calculated above following CANVAS_POSITIONING_GUIDE.md
+      // scale = Math.min(maxDisplayWidth / naturalWidth, maxDisplayHeight / naturalHeight)
+      // This scale is used for both image display and bounding box coordinates
+      // No need to recalculate - use the scale variable from above
       
       // Validate detection result and people array
       if (!detectionResult?.people || !Array.isArray(detectionResult.people) || detectionResult.people.length === 0) {
@@ -3124,13 +3290,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         // CRITICAL: Save context state before drawing
         ctx.save();
         
+        // CRITICAL: Ensure we're using the same coordinate system as the image
+        // The image was drawn at (0, 0, displayWidth, displayHeight) in scaled coordinates
+        // So bounding boxes should also be drawn in the same scaled coordinate system
+        // scaledX, scaledY, scaledWidth, scaledHeight are in display coordinates
+        // Since context is scaled by dpr, these will be correctly positioned
+        
         // Draw the bounding box
         ctx.strokeStyle = isSelected ? '#FF4F00' : '#10B981';
         ctx.lineWidth = isSelected ? 4 : 3;
         
-        // Ensure we're using the correct coordinate system (already scaled by dpr)
-        // scaledX, scaledY, scaledWidth, scaledHeight are already in display coordinates
-        // Since we scaled the context by dpr, these coordinates are correct
+        // CRITICAL: Verify coordinates are within canvas bounds before drawing
+        if (scaledX < 0 || scaledY < 0 || scaledX + scaledWidth > displayWidth || scaledY + scaledHeight > displayHeight) {
+          console.warn(`[PersonSelection] Bounding box ${index} extends outside canvas bounds:`, {
+            scaledBbox: [scaledX, scaledY, scaledWidth, scaledHeight],
+            canvasBounds: `0,0 to ${displayWidth},${displayHeight}`
+          });
+        }
+        
+        // Draw the rectangle - coordinates are in display space (scaled by dpr via context transform)
         ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
         
         // Restore context state
@@ -3154,6 +3332,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         scale,
         peopleCount: detectionResult.people.length
       });
+      
+      // CRITICAL: Mark bounding boxes as drawn
+      // This signals that the modal is ready to be displayed
+      setBoundingBoxesDrawn(true);
+      boundingBoxesDrawnRef.current = true;
+      
+      // CRITICAL: Mark bounding boxes as drawn
+      // This signals that the modal is ready to be displayed
+      setBoundingBoxesDrawn(true);
+      boundingBoxesDrawnRef.current = true;
     };
     
     const handleImageLoad = () => {
@@ -3218,9 +3406,34 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           return;
         }
         
-        // Note: Detection result validation happens in drawBoundingBoxes function
-        // We don't check it here because detectionResult might not be available yet
-        // The main effect will re-run when detectionResult changes and validate it then
+        // CRITICAL: Verify detection result matches current image BEFORE drawing
+        // This prevents drawing with stale detection results
+        if (detectionResult) {
+          if (detectionResult.imageId && detectionResult.imageId !== currentImageId) {
+            console.warn('[PersonSelection] Detection result image ID mismatch during wait:', {
+              detectionImageId: detectionResult.imageId,
+              currentImageId
+            });
+            return; // Wait for correct detection result
+          }
+          
+          // Verify detection dimensions match if available
+          if (detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined) {
+            const widthDiff = Math.abs(detectionResult.imageWidth - dimensions.width);
+            const heightDiff = Math.abs(detectionResult.imageHeight - dimensions.height);
+            if (widthDiff > 1 || heightDiff > 1) {
+              console.warn('[PersonSelection] Detection dimensions mismatch during wait:', {
+                detectionDimensions: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
+                currentDimensions: `${dimensions.width}x${dimensions.height}`
+              });
+              return; // Wait for correct detection result
+            }
+          }
+        } else {
+          // No detection result yet - wait for it
+          console.log('[PersonSelection] Waiting for detection result...');
+          return;
+        }
         
         // Wait for container to be ready
         const container = canvasContainerRef.current;
@@ -3236,21 +3449,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                   setTimeout(() => {
+                    console.log('[PersonSelection] Initializing canvas draw (retry after container ready)');
                     drawBoundingBoxes();
-                  }, 50);
+                  }, 100); // Increased delay for stability
                 });
               });
             }
-          }, 50);
+          }, 100);
           return;
         }
         
-        // Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
+        // CRITICAL: Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
+        // This is especially important on mount/refresh when DOM might not be stable
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
+            // Add a delay to ensure everything is stable before drawing
             setTimeout(() => {
+              console.log('[PersonSelection] Initializing canvas draw after all checks passed');
               drawBoundingBoxes();
-            }, 50);
+            }, 100); // Increased delay for stability on mount/refresh
           });
         });
       },
@@ -3327,48 +3544,59 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const containerRect = container.getBoundingClientRect();
       if (!containerRect || containerRect.width === 0) return;
       
-      // Use fixed height values from CSS (same as drawBoundingBoxes)
+      // CRITICAL: Use the EXACT same scale calculation as drawBoundingBoxes
+      // Following CANVAS_POSITIONING_GUIDE.md: scale = Math.min(maxWidth / img.width, maxHeight / img.height)
       const isMobile = window.matchMedia('(max-width: 640px)').matches;
       const maxDisplayHeight = isMobile ? 180 : 200;
       const maxDisplayWidth = containerRect.width;
       
-      // Calculate the same display size and scale as drawBoundingBoxes
-      const imageAspectRatio = naturalWidth / naturalHeight;
-      let displayWidth = maxDisplayWidth;
-      let displayHeight = maxDisplayWidth / imageAspectRatio;
+      // Calculate scale using the SAME method as drawBoundingBoxes
+      let scale = 1;
+      let displayWidth = naturalWidth;
+      let displayHeight = naturalHeight;
       
-      if (displayHeight > maxDisplayHeight) {
-        displayHeight = maxDisplayHeight;
-        displayWidth = maxDisplayHeight * imageAspectRatio;
+      // If image exceeds max dimensions, calculate scale to fit (EXACTLY as in drawBoundingBoxes)
+      if (naturalWidth > maxDisplayWidth || naturalHeight > maxDisplayHeight) {
+        const widthScale = maxDisplayWidth / naturalWidth;
+        const heightScale = maxDisplayHeight / naturalHeight;
+        scale = Math.min(widthScale, heightScale); // Use smaller scale to fit both dimensions
+        displayWidth = naturalWidth * scale;
+        displayHeight = naturalHeight * scale;
       }
       
-      // Calculate scale from natural image to display (same as drawBoundingBoxes)
-      const scale = displayWidth / naturalWidth;
+      // CRITICAL: Convert screen click coordinates to canvas display coordinates
+      // Following CANVAS_POSITIONING_GUIDE.md: Account for CSS scaling using getBoundingClientRect
+      // Since canvas internal size = displayWidth * dpr, but CSS size = displayWidth
+      // We need to convert screen coordinates to display coordinates
+      const scaleX = canvas.width / canvasRect.width; // Canvas internal / CSS display width
+      const scaleY = canvas.height / canvasRect.height; // Canvas internal / CSS display height
       
-      // Convert screen click coordinates to canvas display coordinates
-      // Account for canvas being centered in container (canvas might be smaller than container)
-      const canvasDisplayWidth = canvasRect.width;
-      const canvasDisplayHeight = canvasRect.height;
-      const offsetX = (canvasDisplayWidth - displayWidth) / 2;
-      const offsetY = (canvasDisplayHeight - displayHeight) / 2;
+      // Convert screen click to canvas internal coordinates
+      const canvasX = (e.clientX - canvasRect.left) * scaleX;
+      const canvasY = (e.clientY - canvasRect.top) * scaleY;
       
-      const x = (e.clientX - canvasRect.left - offsetX);
-      const y = (e.clientY - canvasRect.top - offsetY);
+      // Convert canvas internal coordinates to display coordinates (divide by dpr)
+      // Since context is scaled by dpr, we need display coordinates to match bounding boxes
+      const dpr = window.devicePixelRatio || 1;
+      const x = canvasX / dpr;
+      const y = canvasY / dpr;
       
-      // Check if click is within the image area
+      // Check if click is within the image display area
       if (x < 0 || x > displayWidth || y < 0 || y > displayHeight) {
         return; // Click outside image area
       }
       
-      // Compare click coordinates with scaled bounding boxes
+      // CRITICAL: Compare click coordinates with scaled bounding boxes
+      // Use the SAME scale calculation as drawBoundingBoxes
       for (let i = detectionResult.people.length - 1; i >= 0; i--) {
         const [px, py, pwidth, pheight] = detectionResult.people[i].bbox;
+        // Scale using the SAME scale factor as drawBoundingBoxes
         const scaledX = px * scale;
         const scaledY = py * scale;
         const scaledWidth = pwidth * scale;
         const scaledHeight = pheight * scale;
         
-        // Check if click is within scaled bounding box
+        // Check if click is within scaled bounding box (in display coordinates)
         if (
           x >= scaledX &&
           x <= scaledX + scaledWidth &&
@@ -3449,7 +3677,57 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
-        <div className="bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        {/* Preload Loader - Show until everything is ready */}
+        {!isModalPreloaded && (
+          <div className="absolute inset-0 bg-white flex items-center justify-center z-[60]">
+            <div className="flex flex-col items-center gap-4">
+              {/* Circular loader */}
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+                <svg className="w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '1.4s' }}>
+                  <circle 
+                    cx="50" 
+                    cy="50" 
+                    r="45" 
+                    fill="none" 
+                    stroke="#e5e7eb" 
+                    strokeWidth="8" 
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="url(#spinner-gradient)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray="283"
+                    strokeDashoffset="70"
+                  />
+                  <defs>
+                    <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FF4F00" stopOpacity="1" />
+                      <stop offset="100%" stopColor="#FF6B35" stopOpacity="0.8" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              {/* Loading text */}
+              <p className="text-sm sm:text-base text-gray-600 font-medium">
+                {isLoadingModels ? 'Loading AI model...' : 
+                 isDetecting ? 'Detecting people...' : 
+                 showPersonSelection && !boundingBoxesDrawnRef.current ? 'Preparing selection...' :
+                 'Loading...'}
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <div className={cn(
+          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg",
+          !isModalPreloaded && "opacity-0 pointer-events-none"
+        )} role="dialog" aria-modal="true" aria-labelledby="modal-title" style={{
+          transition: 'opacity 0.3s ease-in-out'
+        }}>
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-lg md:shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
