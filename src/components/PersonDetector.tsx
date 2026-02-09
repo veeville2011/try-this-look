@@ -11,6 +11,12 @@ import * as tf from '@tensorflow/tfjs';
 // Import backends
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
+import { 
+  generateImageId, 
+  validateImageReady, 
+  waitForImageReady,
+  clearCachedDimensions
+} from '@/utils/imageValidation';
 
 export interface PersonDetection {
   class: string; // Always "person"
@@ -21,6 +27,9 @@ export interface PersonDetection {
 export interface DetectionResult {
   people: PersonDetection[];
   inferenceTime: number; // Detection time in ms
+  imageId?: string; // Image identifier for validation
+  imageWidth?: number; // Image width when detection was run
+  imageHeight?: number; // Image height when detection was run
 }
 
 interface PersonDetectorProps {
@@ -91,61 +100,80 @@ export const usePersonDetection = (
 
   // Run detection
   useEffect(() => {
+    // CRITICAL: Clear detection result when imageUrl changes to prevent using stale results
+    // This is especially important on refresh when image might be cached
+    setDetectionResult(null);
+    setError(null);
+    
     if (!model || !imageUrl) {
       console.log('[PersonDetector] Detection skipped:', { hasModel: !!model, hasImageUrl: !!imageUrl });
       return;
     }
 
+    const img = imageRef.current;
+    if (!img) {
+      console.log('[PersonDetector] No image ref available');
+      return;
+    }
+
+    // Generate image ID for tracking
+    const imageId = generateImageId(imageUrl);
+
+    // CRITICAL: Ensure image src is set correctly
+    // This is especially important on refresh when image might be cached
+    // Check if src needs to be updated (handle both data URLs and regular URLs)
+    const needsSrcUpdate = imageUrl.startsWith('data:') 
+      ? img.src !== imageUrl 
+      : imageUrl && (!img.src.includes(imageUrl.split('?')[0]) && !imageUrl.includes(img.src.split('?')[0]));
+    
+    if (needsSrcUpdate && imageUrl) {
+      // Clear cached dimensions for old image before updating src
+      const oldImageId = generateImageId(img.src);
+      clearCachedDimensions(oldImageId);
+      
+      img.src = imageUrl;
+      console.log('[PersonDetector] Set image src:', imageUrl.substring(0, 50) + '...');
+      // When src changes, browser automatically resets complete to false
+      // This ensures we wait for the new image to load
+    }
+
     const detectPeople = async () => {
-      const img = imageRef.current;
-      if (!img) {
-        console.log('[PersonDetector] No image ref available');
-        return;
-      }
+      // CRITICAL: Use validation utility to ensure image is ready
+      // This handles cached images, dimension validation, and prevents race conditions
+      const validation = validateImageReady(img, imageId);
       
-      // CRITICAL: Wait for image to load with VALID dimensions
-      // On refresh, img.complete might be true but dimensions might still be 0
-      // We MUST verify dimensions are actually set before running detection
-      if (!img.complete) {
-        console.log('[PersonDetector] Image not complete yet:', { complete: img.complete, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
-        return;
-      }
-      
-      // CRITICAL: Verify dimensions are actually set (not 0 or invalid)
-      // This is the most common cause of wrong bbox coordinates
-      if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-        console.log('[PersonDetector] Image dimensions are zero (image may not be fully loaded):', { 
-          complete: img.complete, 
-          naturalWidth: img.naturalWidth, 
+      if (!validation.ready) {
+        console.log('[PersonDetector] Image not ready for detection:', {
+          complete: img.complete,
+          naturalWidth: img.naturalWidth,
           naturalHeight: img.naturalHeight,
-          src: img.src.substring(0, 50) + '...'
+          imageId: validation.imageId
         });
         return;
       }
-      
-      // Verify dimensions are finite
-      if (!isFinite(img.naturalWidth) || !isFinite(img.naturalHeight)) {
-        console.error('[PersonDetector] Image dimensions are not finite:', {
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight
+
+      // Verify image ID matches (prevents detection on wrong image)
+      if (validation.imageId !== imageId) {
+        console.warn('[PersonDetector] Image ID mismatch - image may have changed:', {
+          expectedId: imageId,
+          actualId: validation.imageId
         });
         return;
       }
-      
-      // Verify dimensions are reasonable (at least 1px)
-      if (img.naturalWidth < 1 || img.naturalHeight < 1) {
-        console.error('[PersonDetector] Image dimensions are too small:', {
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight
-        });
-        return;
-      }
+
+      const naturalWidth = validation.width;
+      const naturalHeight = validation.height;
 
       try {
         setIsProcessing(true);
         setError(null);
 
-        console.log('[PersonDetector] Starting detection...', { imageUrl, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+        console.log('[PersonDetector] Starting detection...', { 
+          imageUrl, 
+          naturalWidth, 
+          naturalHeight,
+          imageId 
+        });
         const startTime = Date.now();
         const predictions = await model.detect(img);
 
@@ -163,9 +191,13 @@ export const usePersonDetection = (
 
         const inferenceTime = Date.now() - startTime;
 
+        // Store detection result with image metadata for validation
         setDetectionResult({
           people,
           inferenceTime,
+          imageId,
+          imageWidth: naturalWidth,
+          imageHeight: naturalHeight,
         });
 
         setIsProcessing(false);
@@ -176,60 +208,46 @@ export const usePersonDetection = (
       }
     };
 
-    const img = imageRef.current;
-    if (!img) return;
-
-    // Set up image loading handler
-    // CRITICAL: For cached images on refresh, complete might be true but dimensions might still be 0
-    // We need to verify dimensions are actually set, not just that complete is true
-    const hasValidDimensions = img.naturalWidth > 0 && 
-                               img.naturalHeight > 0 &&
-                               isFinite(img.naturalWidth) &&
-                               isFinite(img.naturalHeight);
-    
-    if (img.complete && hasValidDimensions) {
-      // Image already loaded with valid dimensions - run detection immediately
-      // But add a small delay to ensure everything is stable
-      setTimeout(() => {
-        // Double-check dimensions are still valid
-        if (img.naturalWidth > 0 && img.naturalHeight > 0 && isFinite(img.naturalWidth) && isFinite(img.naturalHeight)) {
-          detectPeople();
-        } else {
-          console.warn('[PersonDetector] Dimensions became invalid after initial check, waiting for load event');
-          // Fall through to load event handler
-        }
-      }, 50);
-    }
-    
-    // Always set up load handler to catch cases where dimensions weren't ready
-    const handleLoad = () => {
-      // Wait a bit for dimensions to be set (especially for cached images)
-      setTimeout(() => {
-        if (img.naturalWidth > 0 && img.naturalHeight > 0 && 
-            isFinite(img.naturalWidth) && isFinite(img.naturalHeight)) {
-          detectPeople();
-        } else {
-          console.warn('[PersonDetector] Image loaded but dimensions still invalid:', {
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight
+    // Use new validation utility to wait for image to be ready
+    // CRITICAL: This ensures detection only runs when image has valid dimensions
+    const cleanup = waitForImageReady(
+      img,
+      (dimensions) => {
+        // CRITICAL: Verify image ID matches current image before running detection
+        // This prevents detection on wrong image
+        if (dimensions.imageId !== imageId) {
+          console.warn('[PersonDetector] Image ID mismatch during wait - image changed:', {
+            expectedId: imageId,
+            actualId: dimensions.imageId,
+            expectedSrc: imageUrl.substring(0, 50),
+            actualSrc: img.src.substring(0, 50)
           });
+          return; // Don't run detection on wrong image
         }
-      }, 50);
-    };
-    
-    const handleError = () => {
-      console.error('[PersonDetector] Image failed to load:', img.src);
-      setError('Failed to load image.');
-      setIsProcessing(false);
-    };
-    
-    img.addEventListener('load', handleLoad);
-    img.addEventListener('error', handleError);
-    
-    return () => {
-      img.removeEventListener('load', handleLoad);
-      img.removeEventListener('error', handleError);
-    };
+        
+        // CRITICAL: Verify dimensions are valid before running detection
+        if (dimensions.width <= 0 || dimensions.height <= 0 || 
+            !isFinite(dimensions.width) || !isFinite(dimensions.height)) {
+          console.warn('[PersonDetector] Invalid dimensions during wait:', {
+            width: dimensions.width,
+            height: dimensions.height,
+            imageId: dimensions.imageId
+          });
+          return; // Don't run detection with invalid dimensions
+        }
+        
+        // All checks passed - run detection
+        console.log('[PersonDetector] Image ready for detection:', {
+          dimensions: `${dimensions.width}x${dimensions.height}`,
+          imageId: dimensions.imageId
+        });
+        detectPeople();
+      },
+      200, // maxAttempts - increased for reliability
+      imageId
+    );
+
+    return cleanup;
   }, [model, imageUrl, minConfidence]);
 
   return {

@@ -13,6 +13,12 @@ import { usePersonDetection } from '@/components/PersonDetector';
 import { isWidgetTestRoute, isWidgetTestPath, isLocalhost } from '@/config/testProductData';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  generateImageId, 
+  validateImageReady, 
+  waitForImageReady,
+  clearCachedDimensions 
+} from '@/utils/imageValidation';
 
 interface VirtualTryOnModalProps {
   customerInfo?: {
@@ -72,6 +78,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   
   // Track previous uploadedImage to detect changes
   const prevUploadedImageRef = useRef<string | null>(null);
+  
+  // Clear cached dimensions and reset person selection when image changes
+  useEffect(() => {
+    if (prevUploadedImageRef.current && prevUploadedImageRef.current !== uploadedImage) {
+      // Clear cached dimensions for previous image
+      const prevImageId = generateImageId(prevUploadedImageRef.current);
+      clearCachedDimensions(prevImageId);
+      
+      // Reset person selection when image changes to prevent using stale selection
+      setSelectedPersonIndex(null);
+      setSelectedPersonBbox(null);
+    }
+    prevUploadedImageRef.current = uploadedImage;
+  }, [uploadedImage]);
   
   // Recent photos from API (using person images from history)
   const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; src: string }>>([]);
@@ -2568,64 +2588,59 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const canvas = canvasRef.current;
     const img = detectionImageRef.current;
     
+    if (!img) {
+      console.warn('[PersonSelection] Detection image ref not available');
+      return;
+    }
+    
     // Store the current uploadedImage to track if it changes during async operations
     const currentUploadedImage = uploadedImage;
+    const currentImageId = generateImageId(uploadedImage);
     
-    // Ensure image src is set correctly (React might not have updated it yet)
+    // CRITICAL: Ensure image src is set correctly BEFORE any operations
+    // This is especially important on refresh when image might be cached
     // Check if src needs to be updated (handle both data URLs and regular URLs)
     const needsSrcUpdate = uploadedImage.startsWith('data:') 
       ? img.src !== uploadedImage 
-      : !img.src.includes(uploadedImage.split('?')[0]) && !uploadedImage.includes(img.src.split('?')[0]);
+      : uploadedImage && (!img.src.includes(uploadedImage.split('?')[0]) && !uploadedImage.includes(img.src.split('?')[0]));
     
-    if (needsSrcUpdate) {
+    if (needsSrcUpdate && uploadedImage) {
+      // Clear cached dimensions for old image before updating src
+      const oldImageId = generateImageId(img.src);
+      clearCachedDimensions(oldImageId);
+      
       // Force update the src if it doesn't match
       // When src changes, browser automatically resets complete to false
       img.src = uploadedImage;
-      console.log('[PersonSelection] Updated image src:', uploadedImage);
+      console.log('[PersonSelection] Updated image src, will wait for load:', uploadedImage.substring(0, 50) + '...');
+      
       // Clear canvas while image loads
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
       }
+      
+      // Don't return early - let waitForImageReady handle waiting for the new image
+      // The validation utility will wait for the image to load before proceeding
     }
     
-    // Wait for image to be fully loaded with valid dimensions
-    // This handles both initial load and image changes (when src changes, complete resets to false)
-    const waitForImageLoad = (callback: () => void, maxAttempts = 100) => {
-      let attempts = 0;
-      const checkImage = () => {
-        attempts++;
-        const isComplete = img.complete;
-        const hasValidDimensions = img.naturalWidth > 0 && img.naturalHeight > 0;
-        
-        if (isComplete && hasValidDimensions) {
-          // Image is loaded, but wait a bit more to ensure dimensions are stable
-          setTimeout(() => {
-            // Double-check dimensions are still valid
-            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-              callback();
-            } else {
-              // Dimensions became invalid (image might have changed), keep waiting
-              if (attempts < maxAttempts) {
-                setTimeout(checkImage, 50);
-              }
-            }
-          }, 100);
-        } else if (attempts < maxAttempts) {
-          setTimeout(checkImage, 50);
-        } else {
-          console.warn('[PersonSelection] Image failed to load after maximum attempts:', {
-            complete: img.complete,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            currentSrc: img.src,
-            expectedSrc: uploadedImage,
-            attempts
-          });
-        }
-      };
-      checkImage();
-    };
+    // CRITICAL: Verify image src matches current uploadedImage
+    // This prevents drawing with wrong image
+    const imgSrc = img.src;
+    const expectedSrc = currentUploadedImage.startsWith('data:image/')
+      ? currentUploadedImage
+      : currentUploadedImage.split('?')[0];
+    const actualSrc = imgSrc.startsWith('data:image/')
+      ? imgSrc
+      : imgSrc.split('?')[0];
+    
+    if (!actualSrc.includes(expectedSrc) && !expectedSrc.includes(actualSrc)) {
+      console.warn('[PersonSelection] Image src mismatch - waiting for update:', {
+        expectedSrc: expectedSrc.substring(0, 50),
+        actualSrc: actualSrc.substring(0, 50)
+      });
+      return; // Exit early - wait for image src to be updated
+    }
     
     const drawBoundingBoxes = () => {
       // Verify the image src hasn't changed during async operations
@@ -2646,26 +2661,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // CRITICAL: Double-check image is ready with strict validation
-      // On refresh, cached images might report complete=true but dimensions might still be 0
-      // We MUST verify dimensions are actually set and valid
-      if (!img.complete) {
-        console.warn('[PersonSelection] Image not complete:', {
-          complete: img.complete,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
-          src: img.src.substring(0, 50) + '...'
+      // CRITICAL: Verify detection result exists and matches current image BEFORE validation
+      if (!detectionResult) {
+        console.warn('[PersonSelection] No detection result available in drawBoundingBoxes');
+        return;
+      }
+      
+      // Verify detection result image ID matches (if available)
+      if (detectionResult.imageId && detectionResult.imageId !== currentImageId) {
+        console.warn('[PersonSelection] Detection result image ID mismatch in drawBoundingBoxes:', {
+          detectionImageId: detectionResult.imageId,
+          currentImageId
         });
         return;
       }
       
-      // CRITICAL: Verify dimensions are actually set (not 0 or invalid)
-      // This is the most common cause of boxes appearing at top-left corner
-      if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-        console.warn('[PersonSelection] Image dimensions are zero (image may not be fully loaded):', {
+      // CRITICAL: Use new validation utility to ensure image is ready
+      // This handles cached images, dimension validation, and prevents race conditions
+      const validation = validateImageReady(img, currentImageId);
+      
+      if (!validation.ready) {
+        console.warn('[PersonSelection] Image not ready for drawing:', {
           complete: img.complete,
           naturalWidth: img.naturalWidth,
           naturalHeight: img.naturalHeight,
+          imageId: validation.imageId,
           src: img.src.substring(0, 50) + '...'
         });
         // Retry after a short delay - image might still be loading
@@ -2675,34 +2695,48 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // Verify dimensions are finite numbers
-      if (!isFinite(img.naturalWidth) || !isFinite(img.naturalHeight)) {
-        console.error('[PersonSelection] Image dimensions are not finite:', {
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight
+      const naturalWidth = validation.width;
+      const naturalHeight = validation.height;
+      
+      // Verify image ID matches (prevents using detection from wrong image)
+      if (validation.imageId !== currentImageId) {
+        console.warn('[PersonSelection] Image ID mismatch - image may have changed:', {
+          expectedId: currentImageId,
+          actualId: validation.imageId
         });
         return;
       }
       
-      const naturalWidth = img.naturalWidth;
-      const naturalHeight = img.naturalHeight;
-      
-      // Final sanity check: dimensions should be reasonable (at least 1px)
-      if (naturalWidth < 1 || naturalHeight < 1) {
-        console.error('[PersonSelection] Image dimensions are too small:', {
-          naturalWidth,
-          naturalHeight
+      // CRITICAL: Verify detection dimensions match current image dimensions
+      // This is the most important check - if dimensions don't match, coordinates will be wrong
+      // We allow a small tolerance (1px) for rounding errors
+      if (detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined) {
+        const widthDiff = Math.abs(detectionResult.imageWidth - naturalWidth);
+        const heightDiff = Math.abs(detectionResult.imageHeight - naturalHeight);
+        const tolerance = 1; // Allow 1px difference for rounding
+        
+        if (widthDiff > tolerance || heightDiff > tolerance) {
+          console.error('[PersonSelection] Detection result dimensions do not match current image dimensions - ABORTING DRAW:', {
+            detectionDimensions: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
+            currentDimensions: `${naturalWidth}x${naturalHeight}`,
+            widthDiff,
+            heightDiff,
+            tolerance,
+            imageId: currentImageId,
+            detectionImageId: detectionResult.imageId || 'unknown'
+          });
+          // CRITICAL: Don't draw if dimensions don't match - coordinates will be completely wrong!
+          // This prevents bounding boxes from appearing at wrong positions (e.g., top-left corner)
+          return;
+        }
+      } else {
+        // If detection doesn't have dimension metadata, log a warning
+        console.warn('[PersonSelection] Detection result missing dimension metadata - cannot validate dimensions:', {
+          hasImageId: !!detectionResult.imageId,
+          currentDimensions: `${naturalWidth}x${naturalHeight}`,
+          imageId: currentImageId
         });
-        return;
-      }
-      
-      // Validate natural dimensions are positive and finite
-      if (naturalWidth <= 0 || naturalHeight <= 0 || !isFinite(naturalWidth) || !isFinite(naturalHeight)) {
-        console.error('[PersonSelection] Invalid natural dimensions:', {
-          naturalWidth,
-          naturalHeight
-        });
-        return;
+        // Still proceed, but this is risky - coordinates might be wrong if detection was run on different size
       }
       
       const imageAspectRatio = naturalWidth / naturalHeight;
@@ -2829,15 +2863,60 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // Reset transform and scale context to match device pixel ratio
-      ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
-      ctx.scale(dpr, dpr);
+      // CRITICAL: Reset transform and scale context to match device pixel ratio
+      // This ensures coordinates are correct for high-DPI displays
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform to identity
+      ctx.scale(dpr, dpr); // Scale by device pixel ratio
       
-      // Clear canvas
+      // Verify transform is correct
+      const transform = ctx.getTransform();
+      if (Math.abs(transform.a - dpr) > 0.01 || Math.abs(transform.d - dpr) > 0.01 || 
+          transform.e !== 0 || transform.f !== 0) {
+        console.error('[PersonSelection] Canvas transform is incorrect:', {
+          transform,
+          expectedScale: dpr,
+          actualScale: transform.a
+        });
+        // Fix transform
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      
+      // Clear the ENTIRE canvas (use internal canvas dimensions, not display dimensions)
+      // Since we're working in scaled coordinates, we need to clear the full canvas
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      // Also clear using display dimensions to be safe
       ctx.clearRect(0, 0, displayWidth, displayHeight);
       
-      // Draw image at natural size, scaled to fit display size (maintains aspect ratio, no stretching)
+      // CRITICAL: Verify image is ready before drawing
+      if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+        console.error('[PersonSelection] Image not ready for canvas drawing:', {
+          complete: img.complete,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight
+        });
+        return;
+      }
+      
+      // CRITICAL: Draw image at display size
+      // Since context is scaled by dpr, drawing at (0, 0, displayWidth, displayHeight)
+      // will actually draw at (0, 0, displayWidth*dpr, displayHeight*dpr) in canvas pixels
+      // This matches the canvas internal size, so the image fills the canvas correctly
       ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+      
+      // Debug: Log image drawing details with verification
+      const imageData = ctx.getImageData(0, 0, Math.min(10, displayWidth), Math.min(10, displayHeight));
+      const hasImageData = imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0); // Check if any non-transparent pixels
+      console.log('[PersonSelection] Image drawn on canvas:', {
+        imageSrc: img.src.substring(0, 50),
+        imageNaturalSize: `${img.naturalWidth}x${img.naturalHeight}`,
+        canvasDisplaySize: `${displayWidth}x${displayHeight}`,
+        canvasInternalSize: `${canvas.width}x${canvas.height}`,
+        dpr,
+        transform: ctx.getTransform(),
+        imageDrawnAt: `(0, 0, ${displayWidth}, ${displayHeight})`,
+        imageDrawnInCanvasPixels: `(0, 0, ${displayWidth * dpr}, ${displayHeight * dpr})`,
+        hasImageData: hasImageData
+      });
       
       // Calculate scale factor for bounding box coordinates (from natural image to display)
       const scale = displayWidth / naturalWidth; // Same scale for both dimensions due to aspect ratio preservation
@@ -2861,32 +2940,65 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // CRITICAL: Verify that detection was run on the current image with current dimensions
       // This prevents drawing boxes from a previous detection that was run on different image dimensions
       // On refresh, detection might have run before image loaded, giving wrong coordinates
+      
+      // First check: Verify detection result has image metadata and it matches
+      if (detectionResult.imageId && detectionResult.imageId !== currentImageId) {
+        console.warn('[PersonSelection] Detection result image ID does not match current image ID - skipping draw:', {
+          detectionImageId: detectionResult.imageId,
+          currentImageId
+        });
+        return;
+      }
+      
+      // Second check: Verify detection was run on same image dimensions
+      // CRITICAL: If detection dimensions don't match, we MUST skip drawing
+      // Otherwise bounding boxes will be positioned incorrectly
+      if (detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined) {
+        const widthMatch = Math.abs(detectionResult.imageWidth - naturalWidth) < 1; // Allow 1px tolerance
+        const heightMatch = Math.abs(detectionResult.imageHeight - naturalHeight) < 1;
+        
+        if (!widthMatch || !heightMatch) {
+          console.error('[PersonSelection] Detection result dimensions do not match current image dimensions - ABORTING DRAW:', {
+            detectionDimensions: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
+            currentDimensions: `${naturalWidth}x${naturalHeight}`,
+            widthDiff: Math.abs(detectionResult.imageWidth - naturalWidth),
+            heightDiff: Math.abs(detectionResult.imageHeight - naturalHeight),
+            imageId: currentImageId
+          });
+          // CRITICAL: Don't draw if dimensions don't match - coordinates will be wrong!
+          return;
+        }
+      } else {
+        // If detection doesn't have dimension metadata, log a warning but still try to draw
+        // This handles legacy detection results that don't have metadata
+        console.warn('[PersonSelection] Detection result missing dimension metadata - proceeding with caution:', {
+          hasImageId: !!detectionResult.imageId,
+          currentDimensions: `${naturalWidth}x${naturalHeight}`
+        });
+      }
+      
+      // Third check: Verify detection image ref matches (fallback validation)
       const detectionImage = detectionImageRef.current;
-      if (!detectionImage) {
-        console.warn('[PersonSelection] Detection image ref not available');
-        return;
-      }
-      
-      // Verify detection image matches the drawing image
-      const detectionImageSrc = detectionImage.src;
-      const drawingImageSrc = img.src;
-      if (detectionImageSrc !== drawingImageSrc && 
-          !(detectionImageSrc.includes(drawingImageSrc.split('?')[0]) || drawingImageSrc.includes(detectionImageSrc.split('?')[0]))) {
-        console.warn('[PersonSelection] Detection image src does not match drawing image src - skipping draw:', {
-          detectionImageSrc: detectionImageSrc.substring(0, 100),
-          drawingImageSrc: drawingImageSrc.substring(0, 100)
-        });
-        return;
-      }
-      
-      // Verify detection image has same dimensions as drawing image
-      // If dimensions don't match, detection was run on different image size
-      if (detectionImage.naturalWidth !== naturalWidth || detectionImage.naturalHeight !== naturalHeight) {
-        console.warn('[PersonSelection] Detection image dimensions do not match drawing image dimensions - skipping draw:', {
-          detectionDimensions: `${detectionImage.naturalWidth}x${detectionImage.naturalHeight}`,
-          drawingDimensions: `${naturalWidth}x${naturalHeight}`
-        });
-        return;
+      if (detectionImage) {
+        const detectionImageSrc = detectionImage.src;
+        const drawingImageSrc = img.src;
+        if (detectionImageSrc !== drawingImageSrc && 
+            !(detectionImageSrc.includes(drawingImageSrc.split('?')[0]) || drawingImageSrc.includes(detectionImageSrc.split('?')[0]))) {
+          console.warn('[PersonSelection] Detection image src does not match drawing image src - skipping draw:', {
+            detectionImageSrc: detectionImageSrc.substring(0, 100),
+            drawingImageSrc: drawingImageSrc.substring(0, 100)
+          });
+          return;
+        }
+        
+        // Verify detection image has same dimensions as drawing image
+        if (detectionImage.naturalWidth !== naturalWidth || detectionImage.naturalHeight !== naturalHeight) {
+          console.warn('[PersonSelection] Detection image dimensions do not match drawing image dimensions - skipping draw:', {
+            detectionDimensions: `${detectionImage.naturalWidth}x${detectionImage.naturalHeight}`,
+            drawingDimensions: `${naturalWidth}x${naturalHeight}`
+          });
+          return;
+        }
       }
       
       // Draw bounding boxes - Transform from natural image coordinates to display coordinates
@@ -2990,21 +3102,50 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           // Still draw it, but log the warning
         }
         
-        // Debug logging for first person
+        // Debug logging for first person with detailed info
         if (index === 0) {
           console.log('[PersonSelection] Drawing first bounding box:', {
             originalBbox: [x, y, width, height],
             scaledBbox: [scaledX, scaledY, scaledWidth, scaledHeight],
             scale,
             displaySize: `${displayWidth}x${displayHeight}`,
-            naturalSize: `${naturalWidth}x${naturalHeight}`
+            naturalSize: `${naturalWidth}x${naturalHeight}`,
+            detectionDimensions: detectionResult.imageWidth && detectionResult.imageHeight 
+              ? `${detectionResult.imageWidth}x${detectionResult.imageHeight}` 
+              : 'unknown',
+            imageId: currentImageId,
+            detectionImageId: detectionResult.imageId || 'unknown',
+            canvasSize: `${canvas.width}x${canvas.height}`,
+            canvasStyleSize: `${canvas.style.width}x${canvas.style.height}`,
+            dpr: window.devicePixelRatio || 1
           });
         }
+        
+        // CRITICAL: Save context state before drawing
+        ctx.save();
         
         // Draw the bounding box
         ctx.strokeStyle = isSelected ? '#FF4F00' : '#10B981';
         ctx.lineWidth = isSelected ? 4 : 3;
+        
+        // Ensure we're using the correct coordinate system (already scaled by dpr)
+        // scaledX, scaledY, scaledWidth, scaledHeight are already in display coordinates
+        // Since we scaled the context by dpr, these coordinates are correct
         ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
+        
+        // Restore context state
+        ctx.restore();
+        
+        // Debug: Log actual drawn coordinates for first person
+        if (index === 0) {
+          console.log('[PersonSelection] Bounding box drawn at:', {
+            x: scaledX,
+            y: scaledY,
+            width: scaledWidth,
+            height: scaledHeight,
+            canvasBounds: `0,0 to ${displayWidth},${displayHeight}`
+          });
+        }
       });
       
       console.log('[PersonSelection] Canvas drawn successfully:', {
@@ -3016,33 +3157,46 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     };
     
     const handleImageLoad = () => {
+      // Use new validation utility to ensure image is ready
+      const validation = validateImageReady(img, currentImageId);
+      
+      if (!validation.ready) {
+        // Image not ready yet, wait a bit and retry
+        setTimeout(() => {
+          handleImageLoad();
+        }, 50);
+        return;
+      }
+      
+      // Verify image ID matches current image
+      if (validation.imageId !== currentImageId) {
+        console.warn('[PersonSelection] Image ID mismatch in handleImageLoad:', {
+          expectedId: currentImageId,
+          actualId: validation.imageId
+        });
+        return;
+      }
+      
       // Wait for container to be ready as well
-      const checkAndDraw = () => {
-        // Verify image is fully loaded with valid dimensions
-        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0 || 
-            !isFinite(img.naturalWidth) || !isFinite(img.naturalHeight)) {
-          setTimeout(checkAndDraw, 50);
-          return;
-        }
-        
-        const container = canvasContainerRef.current;
-        const containerRect = container?.getBoundingClientRect();
-        if (containerRect && containerRect.width > 0 && isFinite(containerRect.width)) {
-          // Use requestAnimationFrame to ensure DOM is fully updated
+      const container = canvasContainerRef.current;
+      const containerRect = container?.getBoundingClientRect();
+      
+      if (containerRect && containerRect.width > 0 && isFinite(containerRect.width)) {
+        // Use requestAnimationFrame to ensure DOM is fully updated
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              // Add a small delay to ensure everything is stable
-              setTimeout(() => {
-                drawBoundingBoxes();
-              }, 50);
-            });
+            // Add a small delay to ensure everything is stable
+            setTimeout(() => {
+              drawBoundingBoxes();
+            }, 50);
           });
-        } else {
-          // Container not ready, retry
-          setTimeout(checkAndDraw, 50);
-        }
-      };
-      checkAndDraw();
+        });
+      } else {
+        // Container not ready, retry
+        setTimeout(() => {
+          handleImageLoad();
+        }, 50);
+      }
     };
     
     // Clear canvas initially to avoid showing stale content
@@ -3051,133 +3205,65 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
     }
     
-    // Wait for both image and container to be ready before initial draw
-    const waitForImageAndContainer = (callback: () => void, maxAttempts = 150) => {
-      let attempts = 0;
-      let loadHandlerAttached = false;
-      let errorHandlerAttached = false;
-      
-      const checkReady = () => {
-        attempts++;
+    // Wait for image to be ready using new validation utility
+    const cleanupImageWait = waitForImageReady(
+      img,
+      (dimensions) => {
+        // Verify image ID matches current image
+        if (dimensions.imageId !== currentImageId) {
+          console.warn('[PersonSelection] Image ID mismatch during wait:', {
+            expectedId: currentImageId,
+            actualId: dimensions.imageId
+          });
+          return;
+        }
         
-        // CRITICAL: For cached images, img.complete can be true but dimensions might still be 0
-        // We MUST check dimensions, not just complete status
-        const hasValidDimensions = img.naturalWidth > 0 && 
-                                   img.naturalHeight > 0 &&
-                                   isFinite(img.naturalWidth) &&
-                                   isFinite(img.naturalHeight);
+        // Note: Detection result validation happens in drawBoundingBoxes function
+        // We don't check it here because detectionResult might not be available yet
+        // The main effect will re-run when detectionResult changes and validate it then
         
-        // Image is ready only if it's complete AND has valid dimensions
-        const imageReady = img.complete && hasValidDimensions;
-        
-        // Use ref to get container (more reliable)
+        // Wait for container to be ready
         const container = canvasContainerRef.current;
         const containerRect = container?.getBoundingClientRect();
-        const containerReady = containerRect && 
-                              containerRect.width > 0 && 
-                              isFinite(containerRect.width);
         
-        if (imageReady && containerReady) {
-          // Triple-check with multiple requestAnimationFrame calls to ensure everything is stable
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                // Final validation - ensure dimensions are still valid after all frames
-                const finalCheck = img.naturalWidth > 0 && 
-                                  img.naturalHeight > 0 && 
-                                  isFinite(img.naturalWidth) && 
-                                  isFinite(img.naturalHeight) &&
-                                  containerRect && 
-                                  containerRect.width > 0 && 
-                                  isFinite(containerRect.width) &&
-                                  img.src === currentUploadedImage || 
-                                  (currentUploadedImage.startsWith('data:') ? img.src === currentUploadedImage : img.src.includes(currentUploadedImage.split('?')[0]));
-                
-                if (finalCheck) {
-                  // Add a small delay to ensure browser has fully rendered
-                  setTimeout(() => {
-                    callback();
-                  }, 50);
-                } else {
-                  // If validation fails, retry
-                  if (attempts < maxAttempts) {
-                    setTimeout(checkReady, 50);
-                  } else {
-                    console.error('[PersonSelection] Final validation failed after all checks:', {
-                      naturalWidth: img.naturalWidth,
-                      naturalHeight: img.naturalHeight,
-                      containerWidth: containerRect?.width,
-                      imgSrc: img.src,
-                      expectedSrc: currentUploadedImage
-                    });
-                  }
-                }
-              });
-            });
-          });
-        } else if (attempts < maxAttempts) {
-          // If image is not complete OR dimensions are invalid, listen for load event
-          // This handles both fresh loads and cached images that need dimension refresh
-          if (!loadHandlerAttached) {
-            loadHandlerAttached = true;
-            const onLoad = () => {
-              // Wait a bit for dimensions to be set
-              setTimeout(() => {
-                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                  checkReady();
-                } else {
-                  // Dimensions still not ready, retry
-                  setTimeout(checkReady, 50);
-                }
-              }, 50);
-            };
-            img.addEventListener('load', onLoad);
-          }
-          
-          // Also handle error case
-          if (!errorHandlerAttached) {
-            errorHandlerAttached = true;
-            const onError = () => {
-              console.error('[PersonSelection] Image failed to load:', img.src);
-            };
-            img.addEventListener('error', onError);
-          }
-          
-          setTimeout(checkReady, 50);
-        } else {
-          console.warn('[PersonSelection] Image or container not ready after maximum attempts:', {
-            imageReady,
-            hasValidDimensions,
-            containerReady,
-            imageDimensions: { width: img.naturalWidth, height: img.naturalHeight },
-            containerDimensions: containerRect ? { width: containerRect.width, height: containerRect.height } : null,
-            imgComplete: img.complete,
-            imgSrc: img.src,
-            expectedSrc: currentUploadedImage,
-            attempts
-          });
-        }
-      };
-      checkReady();
-    };
-    
-    // Wait for both image and container to be ready before initial draw
-    waitForImageAndContainer(() => {
-      // Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+        if (!containerRect || containerRect.width === 0 || !isFinite(containerRect.width)) {
+          // Container not ready, retry after short delay
           setTimeout(() => {
-            drawBoundingBoxes();
-          }, 100);
+            const retryContainer = canvasContainerRef.current;
+            const retryRect = retryContainer?.getBoundingClientRect();
+            if (retryRect && retryRect.width > 0 && isFinite(retryRect.width)) {
+              // Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    drawBoundingBoxes();
+                  }, 50);
+                });
+              });
+            }
+          }, 50);
+          return;
+        }
+        
+        // Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              drawBoundingBoxes();
+            }, 50);
+          });
         });
-      });
-    });
+      },
+      200, // maxAttempts - increased for reliability on refresh
+      currentImageId
+    );
     
     // Redraw on window resize to handle dynamic sizing
     const handleResize = () => {
       const container = canvasContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
-      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && containerRect && containerRect.width > 0) {
+      const validation = validateImageReady(img, currentImageId);
+      if (validation.ready && containerRect && containerRect.width > 0) {
         requestAnimationFrame(() => {
           drawBoundingBoxes();
         });
@@ -3191,7 +3277,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const observer = new ResizeObserver(() => {
       const container = canvasContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
-      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && containerRect && containerRect.width > 0) {
+      const validation = validateImageReady(img, currentImageId);
+      if (validation.ready && containerRect && containerRect.width > 0) {
         requestAnimationFrame(() => {
           drawBoundingBoxes();
         });
@@ -3203,6 +3290,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     return () => {
+      cleanupImageWait();
       window.removeEventListener('resize', handleResize);
       img.removeEventListener('load', handleImageLoad);
       observer.disconnect();
@@ -3216,38 +3304,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const canvas = canvasRef.current;
     const img = detectionImageRef.current;
     
-    // Wait for image to be fully loaded with valid dimensions
-    const waitForImageLoad = (callback: () => void, maxAttempts = 100) => {
-      let attempts = 0;
-      const checkImage = () => {
-        attempts++;
-        const isComplete = img.complete;
-        const hasValidDimensions = img.naturalWidth > 0 && img.naturalHeight > 0;
-        
-        if (isComplete && hasValidDimensions) {
-          // Image is loaded, proceed
-          callback();
-        } else if (attempts < maxAttempts) {
-          setTimeout(checkImage, 50);
-        } else {
-          console.warn('[PersonSelection] Image failed to load for click handler after maximum attempts:', {
-            complete: img.complete,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            attempts
-          });
-        }
-      };
-      checkImage();
-    };
+    // Use new validation utility for click handler
+    const imageId = generateImageId(uploadedImage);
     
     const handleCanvasClick = (e: MouseEvent) => {
+      // Validate image is ready using new utility
+      const validation = validateImageReady(img, imageId);
+      if (!validation.ready) {
+        console.warn('[PersonSelection] Image not ready for click handling');
+        return;
+      }
+      
       // Get canvas display dimensions
       const canvasRect = canvas.getBoundingClientRect();
-      const naturalWidth = img.naturalWidth;
-      const naturalHeight = img.naturalHeight;
-      
-      if (naturalWidth === 0 || naturalHeight === 0) return;
+      const naturalWidth = validation.width;
+      const naturalHeight = validation.height;
       
       // Use the same calculation as drawBoundingBoxes
       const container = canvasContainerRef.current;
@@ -3310,13 +3381,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
     };
     
-    // Wait for image to load before setting up click handler
-    waitForImageLoad(() => {
-      canvas.style.pointerEvents = 'auto';
-      canvas.addEventListener('click', handleCanvasClick);
-    });
+    // Wait for image to load before setting up click handler using new validation utility
+    const cleanupClickWait = waitForImageReady(
+      img,
+      () => {
+        // Verify image ID matches current image
+        const validation = validateImageReady(img, imageId);
+        if (validation.ready && validation.imageId === imageId) {
+          canvas.style.pointerEvents = 'auto';
+          canvas.addEventListener('click', handleCanvasClick);
+        }
+      },
+      100, // maxAttempts
+      imageId
+    );
     
     return () => {
+      // Cleanup image wait
+      cleanupClickWait();
       // Always try to remove listener (safe even if not added)
       canvas.removeEventListener('click', handleCanvasClick);
     };
@@ -4892,4 +4974,5 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 };
 
 export default VirtualTryOnModal;
+
 
