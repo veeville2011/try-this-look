@@ -10,7 +10,7 @@ import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
 import type { ProductImage } from '@/types/tryon';
 import { GlowingBubblesReveal } from '@/components/ui/glowing-bubbles-reveal';
 import { usePersonDetection } from '@/components/PersonDetector';
-import { isWidgetTestRoute, isLocalhost } from '@/config/testProductData';
+import { isWidgetTestRoute, isWidgetTestPath, isLocalhost } from '@/config/testProductData';
 import { cn } from '@/lib/utils';
 
 interface VirtualTryOnModalProps {
@@ -104,8 +104,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [selectedPersonIndex, setSelectedPersonIndex] = useState<number | null>(null);
   const [showChangePhotoOptions, setShowChangePhotoOptions] = useState(false);
   
-  // Person detection hook - only active in test route when image is uploaded
-  const shouldDetectPeople = isWidgetTestRoute() && uploadedImage && !showChangePhotoOptions;
+  // Person detection hook - active on /widget-test path (both localhost and production) when image is uploaded
+  const shouldDetectPeople = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions;
   const { imageRef: detectionImageRef, isLoading: isLoadingModels, isProcessing: isDetecting, detectionResult, error: detectionError } = usePersonDetection(
     shouldDetectPeople ? uploadedImage : '',
     0.5
@@ -727,7 +727,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectedClothing, storedProductData, getProductData, productData]);
+  }, [selectedClothing, storedProductData, getProductData, productData, selectedSize]);
 
   // Restore saved state from storage (but prioritize fresh product images from parent)
   // IMPORTANT: We don't restore step to 'complete' on mount to ensure first step UI shows by default
@@ -1029,8 +1029,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           return;
         }
         
-               // Check if we're in test app - if so, detection will happen automatically
-               if (isWidgetTestRoute()) {
+               // Check if we're on /widget-test path - if so, detection will happen automatically
+               if (isWidgetTestPath()) {
                  // Set uploaded image immediately so preview shows
                  setUploadedImage(dataURL);
                  storage.saveUploadedImage(dataURL);
@@ -2480,12 +2480,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   
   // Check if we should show the person selection UI (more than 1 person detected - keep visible even after selection)
   const showPersonSelection = useMemo(() => {
-    const isTestRoute = isWidgetTestRoute();
+    const isTestPath = isWidgetTestPath();
     
     // Ensure we return a boolean explicitly
     // Keep UI visible even after selection so users can change their selection
     const result = Boolean(
-      isTestRoute && 
+      isTestPath && 
       shouldDetectPeople && 
       !isLoadingModels && 
       !isDetecting && 
@@ -2495,9 +2495,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     );
     
     // Debug logging
-    if (isTestRoute && shouldDetectPeople) {
+    if (isTestPath && shouldDetectPeople) {
       console.log('[PersonSelection] showPersonSelection check:', {
-        isTestRoute,
+        isTestPath,
         shouldDetectPeople,
         isLoadingModels,
         isDetecting,
@@ -3279,7 +3279,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     setPhotoSelectionMethod('file');
                                     setError(null);
                                     setShowChangePhotoOptions(false);
-                                    if (isWidgetTestRoute()) {
+                                    if (isWidgetTestPath()) {
                                       setSelectedPersonBbox(null);
                                       setSelectedPersonIndex(null);
                                     }
@@ -3292,7 +3292,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       setPhotoSelectionMethod('file');
                                       setError(null);
                                       setShowChangePhotoOptions(false);
-                                      if (isWidgetTestRoute()) {
+                                      if (isWidgetTestPath()) {
                                         setSelectedPersonBbox(null);
                                         setSelectedPersonIndex(null);
                                       }
@@ -3359,7 +3359,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     setSelectedDemoPhotoUrl(model.url);
                                     setError(null);
                                     setShowChangePhotoOptions(false);
-                                    if (isWidgetTestRoute()) {
+                                    if (isWidgetTestPath()) {
                                       setSelectedPersonBbox(null);
                                       setSelectedPersonIndex(null);
                                     }
@@ -3373,7 +3373,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       setSelectedDemoPhotoUrl(model.url);
                                       setError(null);
                                       setShowChangePhotoOptions(false);
-                                      if (isWidgetTestRoute()) {
+                                      if (isWidgetTestPath()) {
                                         setSelectedPersonBbox(null);
                                         setSelectedPersonIndex(null);
                                       }
@@ -3564,15 +3564,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Always show the image first - fixed height for consistency */}
                         <div className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                           <img
-                            ref={isWidgetTestRoute() && shouldDetectPeople ? detectionImageRef : undefined}
+                            ref={isWidgetTestPath() && shouldDetectPeople ? detectionImageRef : undefined}
                             src={uploadedImage}
                             alt="Uploaded photo"
                             className="max-w-full max-h-full h-full object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
                           />
                         </div>
                         
-                        {/* Person detection UI for test route - shown below image */}
-                        {isWidgetTestRoute() && shouldDetectPeople && (
+                        {/* Person detection UI for /widget-test path - shown below image */}
+                        {isWidgetTestPath() && shouldDetectPeople && (
                           <div className="mt-2">
                             {/* Loading/Processing states */}
                             {(isLoadingModels || isDetecting) && (
@@ -3648,8 +3648,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               setPhotoSelectionMethod('file');
                               setError(null);
                               setShowChangePhotoOptions(false); // Close expanded options
-                              // Reset person selection when new photo is selected (for test route)
-                              if (isWidgetTestRoute()) {
+                              // Reset person selection when new photo is selected (for /widget-test path)
+                              if (isWidgetTestPath()) {
                                 setSelectedPersonBbox(null);
                                 setSelectedPersonIndex(null);
                               }
@@ -3664,8 +3664,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setPhotoSelectionMethod('file');
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
-                                // Reset person selection when new photo is selected (for test route)
-                                if (isWidgetTestRoute()) {
+                                // Reset person selection when new photo is selected (for /widget-test path)
+                                if (isWidgetTestPath()) {
                                   setSelectedPersonBbox(null);
                                   setSelectedPersonIndex(null);
                                 }
@@ -3737,8 +3737,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               setSelectedDemoPhotoUrl(model.url);
                               setError(null);
                               setShowChangePhotoOptions(false); // Close expanded options
-                              // Reset person selection when new photo is selected (for test route)
-                              if (isWidgetTestRoute()) {
+                              // Reset person selection when new photo is selected (for /widget-test path)
+                              if (isWidgetTestPath()) {
                                 setSelectedPersonBbox(null);
                                 setSelectedPersonIndex(null);
                               }
@@ -3754,8 +3754,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setSelectedDemoPhotoUrl(model.url);
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
-                                // Reset person selection when new photo is selected (for test route)
-                                if (isWidgetTestRoute()) {
+                                // Reset person selection when new photo is selected (for /widget-test path)
+                                if (isWidgetTestPath()) {
                                   setSelectedPersonBbox(null);
                                   setSelectedPersonIndex(null);
                                 }

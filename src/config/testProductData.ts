@@ -216,13 +216,21 @@ export const isLocalhost = (): boolean => {
 };
 
 /**
+ * Check if we're on the /widget-test path (regardless of environment)
+ * Used for enabling features like person detection in both localhost and production
+ */
+export const isWidgetTestPath = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname === '/widget-test' || window.location.pathname.includes('/widget-test');
+};
+
+/**
  * Check if we're on the /widget-test route AND running on localhost
  * Test data should only be used in localhost environment
  */
 export const isWidgetTestRoute = (): boolean => {
   if (typeof window === 'undefined') return false;
-  const isTestPath = window.location.pathname === '/widget-test' || window.location.pathname.includes('/widget-test');
-  return isTestPath && isLocalhost();
+  return isWidgetTestPath() && isLocalhost();
 };
 
 /**
