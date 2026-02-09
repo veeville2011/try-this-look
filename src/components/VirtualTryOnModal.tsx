@@ -12,6 +12,7 @@ import { GlowingBubblesReveal } from '@/components/ui/glowing-bubbles-reveal';
 import { usePersonDetection } from '@/components/PersonDetector';
 import { isWidgetTestRoute, isWidgetTestPath, isLocalhost } from '@/config/testProductData';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface VirtualTryOnModalProps {
   customerInfo?: {
@@ -75,9 +76,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Recent photos from API (using person images from history)
   const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; src: string }>>([]);
   const [isLoadingRecentPhotos, setIsLoadingRecentPhotos] = useState(false);
+  const [loadingRecentPhotoIds, setLoadingRecentPhotoIds] = useState<Set<string>>(new Set());
 
   // Use the same demo photos as TryOnWidget
   const demoModels = DEMO_PHOTOS_ARRAY;
+  const [loadingDemoModelIds, setLoadingDemoModelIds] = useState<Set<string>>(new Set());
+
+  // Initialize loading state for demo models
+  useEffect(() => {
+    if (demoModels.length > 0) {
+      setLoadingDemoModelIds(new Set(demoModels.map(m => m.id)));
+    }
+  }, []);
 
   // History items from API
   const [historyItems, setHistoryItems] = useState<Array<{ 
@@ -88,6 +98,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     createdAt?: string;
   }>>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [loadingHistoryItemIds, setLoadingHistoryItemIds] = useState<Set<string>>(new Set());
   
   // Viewing past try-on state
   const [viewingPastTryOn, setViewingPastTryOn] = useState(false);
@@ -848,6 +859,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             
             if (isMounted) {
               setRecentPhotos(photos);
+              // Initialize loading state for all photos
+              setLoadingRecentPhotoIds(new Set(photos.map(p => p.id)));
             }
           } else {
             if (isMounted) {
@@ -957,6 +970,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             console.log('[VirtualTryOnModal] Setting history items:', history.length);
             if (isMounted) {
               setHistoryItems(history);
+              // Initialize loading state for all history items
+              setLoadingHistoryItemIds(new Set(history.map(h => h.id)));
             }
           } else {
             console.log('[VirtualTryOnModal] History data is empty array');
@@ -1714,6 +1729,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       clothingImageUrl 
                     }));
                   setHistoryItems(history);
+                  // Initialize loading state for all history items
+                  setLoadingHistoryItemIds(new Set(history.map(h => h.id)));
                 }
               }
             })
@@ -2551,6 +2568,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const canvas = canvasRef.current;
     const img = detectionImageRef.current;
     
+    // Store the current uploadedImage to track if it changes during async operations
+    const currentUploadedImage = uploadedImage;
+    
     // Ensure image src is set correctly (React might not have updated it yet)
     // Check if src needs to be updated (handle both data URLs and regular URLs)
     const needsSrcUpdate = uploadedImage.startsWith('data:') 
@@ -2562,6 +2582,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // When src changes, browser automatically resets complete to false
       img.src = uploadedImage;
       console.log('[PersonSelection] Updated image src:', uploadedImage);
+      // Clear canvas while image loads
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
+      }
     }
     
     // Wait for image to be fully loaded with valid dimensions
@@ -2603,10 +2628,56 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     };
     
     const drawBoundingBoxes = () => {
-      // Double-check image is ready
-      if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-        console.warn('[PersonSelection] Image not ready for drawing:', {
+      // Verify the image src hasn't changed during async operations
+      const currentSrc = currentUploadedImage.startsWith('data:image/') 
+        ? img.src 
+        : img.src.split('?')[0];
+      const expectedSrc = currentUploadedImage.startsWith('data:image/')
+        ? currentUploadedImage
+        : currentUploadedImage.split('?')[0];
+      
+      if (!currentSrc.includes(expectedSrc) && !expectedSrc.includes(currentSrc)) {
+        console.warn('[PersonSelection] Image src changed during drawing, aborting:', {
+          currentSrc,
+          expectedSrc,
+          imgSrc: img.src,
+          currentUploadedImage
+        });
+        return;
+      }
+      
+      // CRITICAL: Double-check image is ready with strict validation
+      // On refresh, cached images might report complete=true but dimensions might still be 0
+      // We MUST verify dimensions are actually set and valid
+      if (!img.complete) {
+        console.warn('[PersonSelection] Image not complete:', {
           complete: img.complete,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          src: img.src.substring(0, 50) + '...'
+        });
+        return;
+      }
+      
+      // CRITICAL: Verify dimensions are actually set (not 0 or invalid)
+      // This is the most common cause of boxes appearing at top-left corner
+      if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+        console.warn('[PersonSelection] Image dimensions are zero (image may not be fully loaded):', {
+          complete: img.complete,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          src: img.src.substring(0, 50) + '...'
+        });
+        // Retry after a short delay - image might still be loading
+        setTimeout(() => {
+          drawBoundingBoxes();
+        }, 100);
+        return;
+      }
+      
+      // Verify dimensions are finite numbers
+      if (!isFinite(img.naturalWidth) || !isFinite(img.naturalHeight)) {
+        console.error('[PersonSelection] Image dimensions are not finite:', {
           naturalWidth: img.naturalWidth,
           naturalHeight: img.naturalHeight
         });
@@ -2615,7 +2686,32 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       const naturalWidth = img.naturalWidth;
       const naturalHeight = img.naturalHeight;
+      
+      // Final sanity check: dimensions should be reasonable (at least 1px)
+      if (naturalWidth < 1 || naturalHeight < 1) {
+        console.error('[PersonSelection] Image dimensions are too small:', {
+          naturalWidth,
+          naturalHeight
+        });
+        return;
+      }
+      
+      // Validate natural dimensions are positive and finite
+      if (naturalWidth <= 0 || naturalHeight <= 0 || !isFinite(naturalWidth) || !isFinite(naturalHeight)) {
+        console.error('[PersonSelection] Invalid natural dimensions:', {
+          naturalWidth,
+          naturalHeight
+        });
+        return;
+      }
+      
       const imageAspectRatio = naturalWidth / naturalHeight;
+      
+      // Validate aspect ratio is valid
+      if (!isFinite(imageAspectRatio) || imageAspectRatio <= 0) {
+        console.error('[PersonSelection] Invalid aspect ratio:', imageAspectRatio);
+        return;
+      }
       
       // Get container using ref (more reliable than DOM traversal)
       const container = canvasContainerRef.current;
@@ -2630,7 +2726,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // Get container width from getBoundingClientRect (reliable for width)
       const containerRect = container.getBoundingClientRect();
-      if (!containerRect || containerRect.width === 0) {
+      if (!containerRect || containerRect.width === 0 || !isFinite(containerRect.width)) {
         console.warn('[PersonSelection] Container width not available:', {
           width: containerRect?.width
         });
@@ -2647,6 +2743,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const maxDisplayHeight = isMobile ? 180 : 200;
       const maxDisplayWidth = containerRect.width;
       
+      // Validate container width is positive
+      if (maxDisplayWidth <= 0 || !isFinite(maxDisplayWidth)) {
+        console.error('[PersonSelection] Invalid container width:', maxDisplayWidth);
+        return;
+      }
+      
       // Calculate the actual display size maintaining aspect ratio
       let displayWidth = maxDisplayWidth;
       let displayHeight = maxDisplayWidth / imageAspectRatio;
@@ -2655,6 +2757,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       if (displayHeight > maxDisplayHeight) {
         displayHeight = maxDisplayHeight;
         displayWidth = maxDisplayHeight * imageAspectRatio;
+      }
+      
+      // Validate display dimensions
+      if (displayWidth <= 0 || displayHeight <= 0 || !isFinite(displayWidth) || !isFinite(displayHeight)) {
+        console.error('[PersonSelection] Invalid display dimensions:', {
+          displayWidth,
+          displayHeight
+        });
+        return;
       }
       
       // Debug logging
@@ -2680,21 +2791,41 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       canvas.style.height = `${displayHeight}px`;
       canvas.style.pointerEvents = 'auto';
       
-      // Verify canvas dimensions are set correctly
-      if (canvas.width === 0 || canvas.height === 0) {
-        console.warn('[PersonSelection] Canvas dimensions are zero after setting:', {
+      // CRITICAL: Verify canvas dimensions are set correctly BEFORE drawing
+      // If canvas dimensions are invalid, all coordinates will be wrong
+      if (canvas.width === 0 || canvas.height === 0 || !isFinite(canvas.width) || !isFinite(canvas.height)) {
+        console.error('[PersonSelection] Canvas dimensions are zero or invalid after setting - ABORTING DRAW:', {
           canvasWidth: canvas.width,
           canvasHeight: canvas.height,
           displayWidth,
           displayHeight,
-          dpr
+          dpr,
+          naturalWidth,
+          naturalHeight
         });
+        // Retry after canvas is properly initialized
+        setTimeout(() => {
+          drawBoundingBoxes();
+        }, 100);
         return;
+      }
+      
+      // Verify canvas dimensions match what we expect
+      const expectedCanvasWidth = displayWidth * dpr;
+      const expectedCanvasHeight = displayHeight * dpr;
+      if (Math.abs(canvas.width - expectedCanvasWidth) > 1 || Math.abs(canvas.height - expectedCanvasHeight) > 1) {
+        console.warn('[PersonSelection] Canvas dimensions mismatch:', {
+          actualWidth: canvas.width,
+          actualHeight: canvas.height,
+          expectedWidth: expectedCanvasWidth,
+          expectedHeight: expectedCanvasHeight
+        });
+        // Still proceed, but log the warning
       }
       
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        console.warn('[PersonSelection] Failed to get canvas context');
+        console.error('[PersonSelection] Failed to get canvas context - ABORTING DRAW');
         return;
       }
       
@@ -2711,7 +2842,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Calculate scale factor for bounding box coordinates (from natural image to display)
       const scale = displayWidth / naturalWidth; // Same scale for both dimensions due to aspect ratio preservation
       
-      // Verify scale is valid
+      // Verify scale is valid and positive
       if (scale <= 0 || !isFinite(scale)) {
         console.error('[PersonSelection] Invalid scale calculated:', {
           scale,
@@ -2721,9 +2852,74 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
+      // Validate detection result and people array
+      if (!detectionResult?.people || !Array.isArray(detectionResult.people) || detectionResult.people.length === 0) {
+        console.warn('[PersonSelection] No people detected or invalid detection result');
+        return;
+      }
+      
+      // CRITICAL: Verify that detection was run on the current image with current dimensions
+      // This prevents drawing boxes from a previous detection that was run on different image dimensions
+      // On refresh, detection might have run before image loaded, giving wrong coordinates
+      const detectionImage = detectionImageRef.current;
+      if (!detectionImage) {
+        console.warn('[PersonSelection] Detection image ref not available');
+        return;
+      }
+      
+      // Verify detection image matches the drawing image
+      const detectionImageSrc = detectionImage.src;
+      const drawingImageSrc = img.src;
+      if (detectionImageSrc !== drawingImageSrc && 
+          !(detectionImageSrc.includes(drawingImageSrc.split('?')[0]) || drawingImageSrc.includes(detectionImageSrc.split('?')[0]))) {
+        console.warn('[PersonSelection] Detection image src does not match drawing image src - skipping draw:', {
+          detectionImageSrc: detectionImageSrc.substring(0, 100),
+          drawingImageSrc: drawingImageSrc.substring(0, 100)
+        });
+        return;
+      }
+      
+      // Verify detection image has same dimensions as drawing image
+      // If dimensions don't match, detection was run on different image size
+      if (detectionImage.naturalWidth !== naturalWidth || detectionImage.naturalHeight !== naturalHeight) {
+        console.warn('[PersonSelection] Detection image dimensions do not match drawing image dimensions - skipping draw:', {
+          detectionDimensions: `${detectionImage.naturalWidth}x${detectionImage.naturalHeight}`,
+          drawingDimensions: `${naturalWidth}x${naturalHeight}`
+        });
+        return;
+      }
+      
       // Draw bounding boxes - Transform from natural image coordinates to display coordinates
       detectionResult.people.forEach((person, index) => {
+        // Validate person bbox exists and is an array
+        if (!person?.bbox || !Array.isArray(person.bbox) || person.bbox.length !== 4) {
+          console.warn(`[PersonSelection] Invalid bbox for person ${index}:`, person.bbox);
+          return;
+        }
+        
         const [x, y, width, height] = person.bbox;
+        
+        // Validate bbox coordinates are valid numbers
+        if (!isFinite(x) || !isFinite(y) || !isFinite(width) || !isFinite(height)) {
+          console.warn(`[PersonSelection] Invalid bbox coordinates for person ${index}:`, { x, y, width, height });
+          return;
+        }
+        
+        // Validate bbox dimensions are positive
+        if (width <= 0 || height <= 0) {
+          console.warn(`[PersonSelection] Invalid bbox dimensions for person ${index}:`, { width, height });
+          return;
+        }
+        
+        // Validate bbox is within natural image bounds (with small tolerance for rounding)
+        if (x < 0 || y < 0 || x + width > naturalWidth + 1 || y + height > naturalHeight + 1) {
+          console.warn(`[PersonSelection] Bbox out of bounds for person ${index}:`, {
+            bbox: [x, y, width, height],
+            naturalSize: `${naturalWidth}x${naturalHeight}`
+          });
+          // Don't return - still draw it, but log the warning
+        }
+        
         const isSelected = selectedPersonIndex === index;
         
         // Scale coordinates from natural image size to display size
@@ -2731,6 +2927,68 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         const scaledY = y * scale;
         const scaledWidth = width * scale;
         const scaledHeight = height * scale;
+        
+        // CRITICAL: Validate scaled coordinates are valid and NOT at origin (0,0) unless person is actually there
+        // This prevents boxes from appearing at top-left corner due to invalid calculations
+        if (!isFinite(scaledX) || !isFinite(scaledY) || !isFinite(scaledWidth) || !isFinite(scaledHeight)) {
+          console.error(`[PersonSelection] Invalid scaled coordinates for person ${index}:`, {
+            scaledX,
+            scaledY,
+            scaledWidth,
+            scaledHeight,
+            scale,
+            originalBbox: [x, y, width, height],
+            naturalSize: `${naturalWidth}x${naturalHeight}`,
+            displaySize: `${displayWidth}x${displayHeight}`
+          });
+          return;
+        }
+        
+        // Validate scaled dimensions are positive
+        if (scaledWidth <= 0 || scaledHeight <= 0) {
+          console.error(`[PersonSelection] Invalid scaled dimensions for person ${index}:`, {
+            scaledWidth,
+            scaledHeight,
+            scale,
+            originalWidth: width,
+            originalHeight: height
+          });
+          return;
+        }
+        
+        // CRITICAL SAFEGUARD: If ALL coordinates are exactly 0, something is wrong - don't draw
+        // This prevents boxes from appearing at top-left corner
+        if (scaledX === 0 && scaledY === 0 && scaledWidth === 0 && scaledHeight === 0) {
+          console.error(`[PersonSelection] All scaled coordinates are zero for person ${index} - skipping draw:`, {
+            originalBbox: [x, y, width, height],
+            scaledBbox: [scaledX, scaledY, scaledWidth, scaledHeight],
+            scale,
+            naturalSize: `${naturalWidth}x${naturalHeight}`,
+            displaySize: `${displayWidth}x${displayHeight}`
+          });
+          return;
+        }
+        
+        // Additional safeguard: If scale is suspiciously small (< 0.001), don't draw
+        if (scale < 0.001) {
+          console.error(`[PersonSelection] Scale is suspiciously small for person ${index} - skipping draw:`, {
+            scale,
+            displayWidth,
+            naturalWidth,
+            originalBbox: [x, y, width, height]
+          });
+          return;
+        }
+        
+        // Validate scaled coordinates are within canvas bounds (with small tolerance)
+        if (scaledX < -displayWidth * 0.1 || scaledY < -displayHeight * 0.1 || 
+            scaledX + scaledWidth > displayWidth * 1.1 || scaledY + scaledHeight > displayHeight * 1.1) {
+          console.warn(`[PersonSelection] Scaled bbox significantly out of canvas bounds for person ${index}:`, {
+            scaledBbox: [scaledX, scaledY, scaledWidth, scaledHeight],
+            canvasSize: `${displayWidth}x${displayHeight}`
+          });
+          // Still draw it, but log the warning
+        }
         
         // Debug logging for first person
         if (index === 0) {
@@ -2760,15 +3018,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const handleImageLoad = () => {
       // Wait for container to be ready as well
       const checkAndDraw = () => {
+        // Verify image is fully loaded with valid dimensions
+        if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0 || 
+            !isFinite(img.naturalWidth) || !isFinite(img.naturalHeight)) {
+          setTimeout(checkAndDraw, 50);
+          return;
+        }
+        
         const container = canvasContainerRef.current;
         const containerRect = container?.getBoundingClientRect();
-        if (containerRect && containerRect.width > 0) {
+        if (containerRect && containerRect.width > 0 && isFinite(containerRect.width)) {
           // Use requestAnimationFrame to ensure DOM is fully updated
           requestAnimationFrame(() => {
-            // Add a small delay to ensure everything is stable
-            setTimeout(() => {
-              drawBoundingBoxes();
-            }, 50);
+            requestAnimationFrame(() => {
+              // Add a small delay to ensure everything is stable
+              setTimeout(() => {
+                drawBoundingBoxes();
+              }, 50);
+            });
           });
         } else {
           // Container not ready, retry
@@ -2785,43 +3052,109 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     // Wait for both image and container to be ready before initial draw
-    const waitForImageAndContainer = (callback: () => void, maxAttempts = 100) => {
+    const waitForImageAndContainer = (callback: () => void, maxAttempts = 150) => {
       let attempts = 0;
       let loadHandlerAttached = false;
+      let errorHandlerAttached = false;
       
       const checkReady = () => {
         attempts++;
-        const imageReady = img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+        
+        // CRITICAL: For cached images, img.complete can be true but dimensions might still be 0
+        // We MUST check dimensions, not just complete status
+        const hasValidDimensions = img.naturalWidth > 0 && 
+                                   img.naturalHeight > 0 &&
+                                   isFinite(img.naturalWidth) &&
+                                   isFinite(img.naturalHeight);
+        
+        // Image is ready only if it's complete AND has valid dimensions
+        const imageReady = img.complete && hasValidDimensions;
         
         // Use ref to get container (more reliable)
         const container = canvasContainerRef.current;
         const containerRect = container?.getBoundingClientRect();
-        const containerReady = containerRect && containerRect.width > 0;
+        const containerReady = containerRect && 
+                              containerRect.width > 0 && 
+                              isFinite(containerRect.width);
         
         if (imageReady && containerReady) {
-          // Double-check with requestAnimationFrame to ensure layout is complete
+          // Triple-check with multiple requestAnimationFrame calls to ensure everything is stable
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              callback();
+              requestAnimationFrame(() => {
+                // Final validation - ensure dimensions are still valid after all frames
+                const finalCheck = img.naturalWidth > 0 && 
+                                  img.naturalHeight > 0 && 
+                                  isFinite(img.naturalWidth) && 
+                                  isFinite(img.naturalHeight) &&
+                                  containerRect && 
+                                  containerRect.width > 0 && 
+                                  isFinite(containerRect.width) &&
+                                  img.src === currentUploadedImage || 
+                                  (currentUploadedImage.startsWith('data:') ? img.src === currentUploadedImage : img.src.includes(currentUploadedImage.split('?')[0]));
+                
+                if (finalCheck) {
+                  // Add a small delay to ensure browser has fully rendered
+                  setTimeout(() => {
+                    callback();
+                  }, 50);
+                } else {
+                  // If validation fails, retry
+                  if (attempts < maxAttempts) {
+                    setTimeout(checkReady, 50);
+                  } else {
+                    console.error('[PersonSelection] Final validation failed after all checks:', {
+                      naturalWidth: img.naturalWidth,
+                      naturalHeight: img.naturalHeight,
+                      containerWidth: containerRect?.width,
+                      imgSrc: img.src,
+                      expectedSrc: currentUploadedImage
+                    });
+                  }
+                }
+              });
             });
           });
         } else if (attempts < maxAttempts) {
-          // If image is not complete, also listen for load event (handles cached images)
-          if (!img.complete && !loadHandlerAttached) {
+          // If image is not complete OR dimensions are invalid, listen for load event
+          // This handles both fresh loads and cached images that need dimension refresh
+          if (!loadHandlerAttached) {
             loadHandlerAttached = true;
             const onLoad = () => {
-              img.removeEventListener('load', onLoad);
-              setTimeout(checkReady, 100);
+              // Wait a bit for dimensions to be set
+              setTimeout(() => {
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  checkReady();
+                } else {
+                  // Dimensions still not ready, retry
+                  setTimeout(checkReady, 50);
+                }
+              }, 50);
             };
             img.addEventListener('load', onLoad);
           }
-          setTimeout(checkReady, 100);
+          
+          // Also handle error case
+          if (!errorHandlerAttached) {
+            errorHandlerAttached = true;
+            const onError = () => {
+              console.error('[PersonSelection] Image failed to load:', img.src);
+            };
+            img.addEventListener('error', onError);
+          }
+          
+          setTimeout(checkReady, 50);
         } else {
           console.warn('[PersonSelection] Image or container not ready after maximum attempts:', {
             imageReady,
+            hasValidDimensions,
             containerReady,
             imageDimensions: { width: img.naturalWidth, height: img.naturalHeight },
-            containerDimensions: containerRect ? { width: containerRect.width, height: containerRect.height } : null
+            containerDimensions: containerRect ? { width: containerRect.width, height: containerRect.height } : null,
+            imgComplete: img.complete,
+            imgSrc: img.src,
+            expectedSrc: currentUploadedImage,
+            attempts
           });
         }
       };
@@ -3261,44 +3594,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
                         <div className="mb-2">
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
-                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Recent photos</label>
+                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Your Recent Photos</label>
                             <div 
                               className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                             >
                             {isLoadingRecentPhotos ? (
-                              <div className="flex gap-3">
+                              <div className="flex gap-2 sm:gap-3">
                                 {[1, 2, 3].map((i) => (
-                                  <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg bg-gray-200 animate-pulse" />
+                                  <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg border-2 border-transparent bg-gray-50 overflow-hidden">
+                                    <Skeleton className="w-full h-full rounded-lg" />
+                                  </div>
                                 ))}
                               </div>
                             ) : recentPhotos.length > 0 ? (
-                              recentPhotos.map((photo) => (
-                                <button
-                                  key={photo.id}
-                                  onTouchStart={handleTouchStart}
-                                  onTouchMove={handleTouchMove}
-                                  onTouchEnd={(e) => handleTouchEnd(e, async () => {
-                                    setSelectedPhoto(photo.id);
-                                    // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                    const dataURL = await loadImageAsDataURL(photo.src);
-                                    if (dataURL) {
-                                      setUploadedImage(dataURL);
-                                      storage.saveUploadedImage(dataURL);
-                                    } else {
-                                      // Fallback to original URL if conversion fails
-                                      setUploadedImage(photo.src);
-                                      storage.saveUploadedImage(photo.src);
-                                    }
-                                    setPhotoSelectionMethod('file');
-                                    setError(null);
-                                    setShowChangePhotoOptions(false);
-                                    if (isWidgetTestPath()) {
-                                      setSelectedPersonBbox(null);
-                                      setSelectedPersonIndex(null);
-                                    }
-                                  })}
-                                  onClick={async () => {
-                                    if (!('ontouchstart' in window)) {
+                              recentPhotos.map((photo) => {
+                                const isLoading = loadingRecentPhotoIds.has(photo.id);
+                                return (
+                                  <button
+                                    key={photo.id}
+                                    onTouchStart={handleTouchStart}
+                                    onTouchMove={handleTouchMove}
+                                    onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                       setSelectedPhoto(photo.id);
                                       // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
                                       const dataURL = await loadImageAsDataURL(photo.src);
@@ -3317,38 +3633,79 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         setSelectedPersonBbox(null);
                                         setSelectedPersonIndex(null);
                                       }
-                                    }
-                                  }}
-                                  className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
-                                    selectedPhoto === photo.id
-                                      ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
-                                      : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
-                                  }`}
-                                  aria-label={`Select photo ${photo.id}`}
-                                  type="button"
-                                >
-                                  {selectedPhoto !== photo.id && (
-                                    <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
-                                  )}
-                                  <img 
-                                    src={getProxiedImageUrl(photo.src)} 
-                                    alt="User" 
-                                    className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
-                                      selectedPhoto === photo.id 
-                                        ? 'ring-2 ring-primary/20' 
-                                        : 'group-hover:scale-105 group-hover:shadow-md'
-                                    }`}
-                                    onError={(e) => {
-                                      if ((e.target as HTMLImageElement).src !== photo.src) {
-                                        (e.target as HTMLImageElement).src = photo.src;
+                                    })}
+                                    onClick={async () => {
+                                      if (!('ontouchstart' in window)) {
+                                        setSelectedPhoto(photo.id);
+                                        // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                        const dataURL = await loadImageAsDataURL(photo.src);
+                                        if (dataURL) {
+                                          setUploadedImage(dataURL);
+                                          storage.saveUploadedImage(dataURL);
+                                        } else {
+                                          // Fallback to original URL if conversion fails
+                                          setUploadedImage(photo.src);
+                                          storage.saveUploadedImage(photo.src);
+                                        }
+                                        setPhotoSelectionMethod('file');
+                                        setError(null);
+                                        setShowChangePhotoOptions(false);
+                                        if (isWidgetTestPath()) {
+                                          setSelectedPersonBbox(null);
+                                          setSelectedPersonIndex(null);
+                                        }
                                       }
                                     }}
-                                  />
-                                  {selectedPhoto === photo.id && (
-                                    <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
-                                  )}
-                                </button>
-                              ))
+                                    className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                                      selectedPhoto === photo.id
+                                        ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
+                                        : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
+                                    }`}
+                                    aria-label={`Select photo ${photo.id}`}
+                                    type="button"
+                                  >
+                                    {selectedPhoto !== photo.id && (
+                                      <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
+                                    )}
+                                    {isLoading && (
+                                      <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                        <Skeleton className="w-full h-full rounded-lg" />
+                                      </div>
+                                    )}
+                                    <img 
+                                      src={getProxiedImageUrl(photo.src)} 
+                                      alt="User" 
+                                      className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
+                                        isLoading ? 'opacity-0' : 'opacity-100'
+                                      } ${
+                                        selectedPhoto === photo.id 
+                                          ? 'ring-2 ring-primary/20' 
+                                          : 'group-hover:scale-105 group-hover:shadow-md'
+                                      }`}
+                                      onLoad={() => {
+                                        setLoadingRecentPhotoIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(photo.id);
+                                          return next;
+                                        });
+                                      }}
+                                      onError={(e) => {
+                                        setLoadingRecentPhotoIds((prev) => {
+                                          const next = new Set(prev);
+                                          next.delete(photo.id);
+                                          return next;
+                                        });
+                                        if ((e.target as HTMLImageElement).src !== photo.src) {
+                                          (e.target as HTMLImageElement).src = photo.src;
+                                        }
+                                      }}
+                                    />
+                                    {selectedPhoto === photo.id && (
+                                      <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
+                                    )}
+                                  </button>
+                                );
+                              })
                             ) : (
                               <div className="text-xs text-gray-500">No recent photos</div>
                             )}
@@ -3367,6 +3724,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             >
                             {demoModels.map((model) => {
                               const modelIndex = DEMO_PHOTOS_ARRAY.findIndex(p => p.url === model.url);
+                              const isLoading = loadingDemoModelIds.has(model.id);
                               return (
                                 <button
                                   key={model.id}
@@ -3411,17 +3769,38 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   {selectedPhoto !== modelIndex && (
                                     <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                                   )}
+                                  {isLoading && (
+                                    <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                      <Skeleton className="w-full h-full rounded-lg" />
+                                    </div>
+                                  )}
                                   <img 
                                     src={model.url} 
                                     alt={`Demo model ${model.id}`} 
                                     className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
+                                      isLoading ? 'opacity-0' : 'opacity-100'
+                                    } ${
                                       selectedPhoto === modelIndex 
                                         ? 'ring-2 ring-primary/20' 
                                         : 'group-hover:scale-105 group-hover:shadow-md'
-                                    }`} 
+                                    }`}
+                                    onLoad={() => {
+                                      setLoadingDemoModelIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(model.id);
+                                        return next;
+                                      });
+                                    }}
+                                    onError={() => {
+                                      setLoadingDemoModelIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(model.id);
+                                        return next;
+                                      });
+                                    }}
                                   />
                                   {selectedPhoto === modelIndex && (
-                                    <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
+                                    <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                                   )}
                                 </button>
                               );
@@ -3431,8 +3810,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                       )}
 
-                      {/* Change Photo Section - Show when multiple people detected */}
-                      {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && uploadedImage && !showChangePhotoOptions && (
+                      {/* Change Photo Section - Show consistently before, during, and after generation */}
+                      {!viewingPastTryOn && uploadedImage && !showChangePhotoOptions && (
                         <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                           <button
                             onClick={() => setShowChangePhotoOptions(true)}
@@ -3645,46 +4024,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && (!uploadedImage || showChangePhotoOptions) && (
                   <div className="mb-2">
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
-                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Recent photos</label>
+                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Your Recent Photos</label>
                       <div 
                         className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                       >
                       {isLoadingRecentPhotos ? (
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 sm:gap-3">
                           {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg bg-gray-200 animate-pulse" />
+                            <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg border-2 border-transparent bg-gray-50 overflow-hidden">
+                              <Skeleton className="w-full h-full rounded-lg" />
+                            </div>
                           ))}
                         </div>
                       ) : recentPhotos.length > 0 ? (
-                        recentPhotos.map((photo) => (
-                          <button
-                            key={photo.id}
-                            onTouchStart={handleTouchStart}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={(e) => handleTouchEnd(e, async () => {
-                              setSelectedPhoto(photo.id);
-                              // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                              const dataURL = await loadImageAsDataURL(photo.src);
-                              if (dataURL) {
-                                setUploadedImage(dataURL);
-                                storage.saveUploadedImage(dataURL);
-                              } else {
-                                // Fallback to original URL if conversion fails
-                                setUploadedImage(photo.src);
-                                storage.saveUploadedImage(photo.src);
-                              }
-                              setPhotoSelectionMethod('file');
-                              setError(null);
-                              setShowChangePhotoOptions(false); // Close expanded options
-                              // Reset person selection when new photo is selected (for /widget-test path)
-                              if (isWidgetTestPath()) {
-                                setSelectedPersonBbox(null);
-                                setSelectedPersonIndex(null);
-                              }
-                            })}
-                            onClick={async () => {
-                              // Only handle click if not on touch device (touch events handle touch devices)
-                              if (!('ontouchstart' in window)) {
+                        recentPhotos.map((photo) => {
+                          const isLoading = loadingRecentPhotoIds.has(photo.id);
+                          return (
+                            <button
+                              key={photo.id}
+                              onTouchStart={handleTouchStart}
+                              onTouchMove={handleTouchMove}
+                              onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                 setSelectedPhoto(photo.id);
                                 // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
                                 const dataURL = await loadImageAsDataURL(photo.src);
@@ -3704,41 +4064,84 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   setSelectedPersonBbox(null);
                                   setSelectedPersonIndex(null);
                                 }
-                              }
-                            }}
-                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
-                              selectedPhoto === photo.id
-                                ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
-                                : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
-                            }`}
-                            aria-label={`Select photo ${photo.id}`}
-                            type="button"
-                          >
-                            {/* Hover overlay effect */}
-                            {selectedPhoto !== photo.id && (
-                              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
-                            )}
-                            <img 
-                              src={getProxiedImageUrl(photo.src)} 
-                              alt="User" 
-                              className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
-                                selectedPhoto === photo.id 
-                                  ? 'ring-2 ring-primary/20' 
-                                  : 'group-hover:scale-105 group-hover:shadow-md'
-                              }`}
-                              onError={(e) => {
-                                // Fallback to direct URL if proxy fails
-                                if ((e.target as HTMLImageElement).src !== photo.src) {
-                                  (e.target as HTMLImageElement).src = photo.src;
+                              })}
+                              onClick={async () => {
+                                // Only handle click if not on touch device (touch events handle touch devices)
+                                if (!('ontouchstart' in window)) {
+                                  setSelectedPhoto(photo.id);
+                                  // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                  const dataURL = await loadImageAsDataURL(photo.src);
+                                  if (dataURL) {
+                                    setUploadedImage(dataURL);
+                                    storage.saveUploadedImage(dataURL);
+                                  } else {
+                                    // Fallback to original URL if conversion fails
+                                    setUploadedImage(photo.src);
+                                    storage.saveUploadedImage(photo.src);
+                                  }
+                                  setPhotoSelectionMethod('file');
+                                  setError(null);
+                                  setShowChangePhotoOptions(false); // Close expanded options
+                                  // Reset person selection when new photo is selected (for /widget-test path)
+                                  if (isWidgetTestPath()) {
+                                    setSelectedPersonBbox(null);
+                                    setSelectedPersonIndex(null);
+                                  }
                                 }
                               }}
-                            />
-                            {/* Selection indicator */}
-                            {selectedPhoto === photo.id && (
-                              <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
-                            )}
-                          </button>
-                        ))
+                              className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                                selectedPhoto === photo.id
+                                  ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
+                                  : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
+                              }`}
+                              aria-label={`Select photo ${photo.id}`}
+                              type="button"
+                            >
+                              {/* Hover overlay effect */}
+                              {selectedPhoto !== photo.id && (
+                                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
+                              )}
+                              {isLoading && (
+                                <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                  <Skeleton className="w-full h-full rounded-lg" />
+                                </div>
+                              )}
+                              <img 
+                                src={getProxiedImageUrl(photo.src)} 
+                                alt="User" 
+                                className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
+                                  isLoading ? 'opacity-0' : 'opacity-100'
+                                } ${
+                                  selectedPhoto === photo.id 
+                                    ? 'ring-2 ring-primary/20' 
+                                    : 'group-hover:scale-105 group-hover:shadow-md'
+                                }`}
+                                onLoad={() => {
+                                  setLoadingRecentPhotoIds((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(photo.id);
+                                    return next;
+                                  });
+                                }}
+                                onError={(e) => {
+                                  setLoadingRecentPhotoIds((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(photo.id);
+                                    return next;
+                                  });
+                                  // Fallback to direct URL if proxy fails
+                                  if ((e.target as HTMLImageElement).src !== photo.src) {
+                                    (e.target as HTMLImageElement).src = photo.src;
+                                  }
+                                }}
+                              />
+                              {/* Selection indicator */}
+                              {selectedPhoto === photo.id && (
+                                <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
+                              )}
+                            </button>
+                          );
+                        })
                       ) : (
                         <div className="text-xs text-gray-500">No recent photos</div>
                       )}
@@ -3758,6 +4161,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {demoModels.map((model) => {
                         // Use a unique identifier for selection tracking
                         const modelIndex = DEMO_PHOTOS_ARRAY.findIndex(p => p.url === model.url);
+                        const isLoading = loadingDemoModelIds.has(model.id);
                         return (
                           <button
                             key={model.id}
@@ -3808,18 +4212,39 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             {selectedPhoto !== modelIndex && (
                               <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                             )}
+                            {isLoading && (
+                              <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                <Skeleton className="w-full h-full rounded-lg" />
+                              </div>
+                            )}
                             <img 
                               src={model.url} 
                               alt={`Demo model ${model.id}`} 
                               className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
+                                isLoading ? 'opacity-0' : 'opacity-100'
+                              } ${
                                 selectedPhoto === modelIndex 
                                   ? 'ring-2 ring-primary/20' 
                                   : 'group-hover:scale-105 group-hover:shadow-md'
-                              }`} 
+                              }`}
+                              onLoad={() => {
+                                setLoadingDemoModelIds((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(model.id);
+                                  return next;
+                                });
+                              }}
+                              onError={() => {
+                                setLoadingDemoModelIds((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(model.id);
+                                  return next;
+                                });
+                              }}
                             />
                             {/* Selection indicator */}
                             {selectedPhoto === modelIndex && (
-                              <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
+                              <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                             )}
                           </button>
                         );
@@ -3829,8 +4254,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
                   )}
 
-                  {/* Change Photo Section - Show when photo is uploaded and change photo options are not shown */}
-                  {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && uploadedImage && !showChangePhotoOptions && (
+                  {/* Change Photo Section - Show consistently before, during, and after generation */}
+                  {!viewingPastTryOn && uploadedImage && !showChangePhotoOptions && (
                     <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                       <button
                         onClick={() => setShowChangePhotoOptions(true)}
@@ -4325,15 +4750,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1"
                 >
                 {isLoadingHistory ? (
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 sm:gap-3">
                     {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg bg-gray-200 animate-pulse" />
+                      <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg border-2 border-transparent bg-gray-50 overflow-hidden" style={{ backgroundColor: '#f6f8fa' }}>
+                        <Skeleton className="w-full h-full rounded-lg" />
+                      </div>
                     ))}
                   </div>
                 ) : historyItems.length > 0 ? (
                   <>
                     {historyItems.map((item) => {
                       const isSelected = selectedHistoryItemId === item.id;
+                      const isLoading = loadingHistoryItemIds.has(item.id);
                       return (
                         <button
                           key={item.id}
@@ -4361,15 +4789,34 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           {!isSelected && (
                             <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                           )}
+                          {isLoading && (
+                            <div className="absolute inset-0 z-20 flex items-center justify-center">
+                              <Skeleton className="w-full h-full rounded-lg" />
+                            </div>
+                          )}
                           <img 
                             src={getProxiedImageUrl(item.image)} 
                             alt={`Try-on history ${item.id}`} 
                             className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
+                              isLoading ? 'opacity-0' : 'opacity-100'
+                            } ${
                               isSelected 
                                 ? 'ring-2 ring-primary/20' 
                                 : 'group-hover:scale-105 group-hover:shadow-md'
                             }`}
+                            onLoad={() => {
+                              setLoadingHistoryItemIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(item.id);
+                                return next;
+                              });
+                            }}
                             onError={(e) => {
+                              setLoadingHistoryItemIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(item.id);
+                                return next;
+                              });
                               // Fallback to direct URL if proxy fails
                               if ((e.target as HTMLImageElement).src !== item.image) {
                                 (e.target as HTMLImageElement).src = item.image;
@@ -4378,7 +4825,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           />
                           {/* Selection indicator */}
                           {isSelected && (
-                            <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-20 animate-in zoom-in duration-200"></div>
+                            <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                           )}
                         </button>
                       );

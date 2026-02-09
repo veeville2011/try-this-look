@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ClothingSelectionProps {
   images: string[];
@@ -37,6 +38,7 @@ export default function ClothingSelection({
 }: ClothingSelectionProps) {
   const { t } = useTranslation();
   const [validImages, setValidImages] = useState<string[]>([]);
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
 
   const horizontalScrollbarClassName =
     "overflow-x-auto overflow-y-visible smooth-scroll pb-2 px-4 pt-1 scroll-pl-4 scroll-pr-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-primary/50";
@@ -91,13 +93,31 @@ export default function ClothingSelection({
   useEffect(() => {
     const unique = Array.from(new Set(images.filter(Boolean)));
     setValidImages(unique);
-    // Debug logging to help troubleshoot image loading
+    // Track loading state for new images
     if (unique.length > 0) {
+      setLoadingImages(new Set(unique));
       console.log("[ClothingSelection] Images loaded:", unique.length, "images");
     } else if (images.length === 0) {
       console.log("[ClothingSelection] No images received from parent");
     }
   }, [images]);
+
+  const handleImageLoad = (imageUrl: string) => {
+    setLoadingImages((prev) => {
+      const next = new Set(prev);
+      next.delete(imageUrl);
+      return next;
+    });
+  };
+
+  const handleImageError = (imageUrl: string) => {
+    setLoadingImages((prev) => {
+      const next = new Set(prev);
+      next.delete(imageUrl);
+      return next;
+    });
+    setValidImages((prev) => prev.filter((u) => u !== imageUrl));
+  };
 
   // If we are still loading images (iframe / parent message), show skeleton instead of the empty-state.
   if (isLoadingImages && validImages.length === 0 && images.length === 0) {
@@ -142,43 +162,50 @@ export default function ClothingSelection({
           {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pb-2">
-              {validImages.map((image, index) => (
-                <Card
-                  key={index}
-                  className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${
-                    selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
-                  }`}
-                  onClick={() => onSelect(image)}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selectedImage === image}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelect(image);
-                    }
-                  }}
-                >
-                  <img
-                    src={image}
-                    className="w-full h-auto aspect-square object-contain bg-white rounded-md"
-                    alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
-                      index: index + 1,
-                      suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                    }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                    aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
-                      index: index + 1,
-                      suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
-                    }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
-                    loading="lazy"
-                    onError={() => {
-                      setValidImages((prev) =>
-                        prev.filter((u) => u !== image)
-                      );
+              {validImages.map((image, index) => {
+                const isLoading = loadingImages.has(image);
+                return (
+                  <Card
+                    key={index}
+                    className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 relative ${
+                      selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
+                    }`}
+                    onClick={() => onSelect(image)}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedImage === image}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelect(image);
+                      }
                     }}
-                  />
-                </Card>
-              ))}
+                  >
+                    {isLoading && (
+                      <div className="absolute inset-2 z-10">
+                        <Skeleton className="w-full h-full rounded-md" />
+                      </div>
+                    )}
+                    <img
+                      src={image}
+                      className={`w-full h-auto aspect-square object-contain bg-white rounded-md transition-opacity duration-300 ${
+                        isLoading ? "opacity-0" : "opacity-100"
+                      }`}
+                      alt={t("tryOnWidget.clothingSelection.clothingImageAlt", { 
+                        index: index + 1,
+                        suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                      }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                      aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", { 
+                        index: index + 1,
+                        suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                      }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                      loading="lazy"
+                      onLoad={() => handleImageLoad(image)}
+                      onError={() => handleImageError(image)}
+                    />
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -190,43 +217,50 @@ export default function ClothingSelection({
           {/* Main Product Images - 2x2 Grid (shows 4 at a time, scrollable) */}
           {validImages.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pb-2">
-              {validImages.map((image, index) => (
-                <Card
-                  key={index}
-                  className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 ${
-                    selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
-                  }`}
-                  onClick={() => onSelect(image)}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selectedImage === image}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelect(image);
-                    }
-                  }}
-                >
-                  <img
-                    src={image}
-                    className="w-full h-auto aspect-square object-contain bg-white rounded-md"
-                    alt={t("tryOnWidget.clothingSelection.clothingImageAlt", {
-                      index: index + 1,
-                      suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
-                    }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
-                    aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", {
-                      index: index + 1,
-                      suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
-                    }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
-                    loading="lazy"
-                    onError={() => {
-                      setValidImages((prev) =>
-                        prev.filter((u) => u !== image)
-                      );
+              {validImages.map((image, index) => {
+                const isLoading = loadingImages.has(image);
+                return (
+                  <Card
+                    key={index}
+                    className={`p-2 border border-border cursor-pointer transition-all hover:opacity-90 relative ${
+                      selectedImage === image ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-white shadow-sm" : ""
+                    }`}
+                    onClick={() => onSelect(image)}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedImage === image}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelect(image);
+                      }
                     }}
-                  />
-                </Card>
-              ))}
+                  >
+                    {isLoading && (
+                      <div className="absolute inset-2 z-10">
+                        <Skeleton className="w-full h-full rounded-md" />
+                      </div>
+                    )}
+                    <img
+                      src={image}
+                      className={`w-full h-auto aspect-square object-contain bg-white rounded-md transition-opacity duration-300 ${
+                        isLoading ? "opacity-0" : "opacity-100"
+                      }`}
+                      alt={t("tryOnWidget.clothingSelection.clothingImageAlt", {
+                        index: index + 1,
+                        suffix: selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""
+                      }) || `Image du vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.currentlySelected") || "Actuellement sélectionné"}` : ""}`}
+                      aria-label={t("tryOnWidget.clothingSelection.selectGarmentAriaLabel", {
+                        index: index + 1,
+                        suffix: `${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`
+                      }) || `Sélectionner le vêtement ${index + 1}${selectedImage === image ? ` - ${t("tryOnWidget.clothingSelection.selected") || "Sélectionné"}` : ""}`}
+                      loading="lazy"
+                      onLoad={() => handleImageLoad(image)}
+                      onError={() => handleImageError(image)}
+                    />
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
