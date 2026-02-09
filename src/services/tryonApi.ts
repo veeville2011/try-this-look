@@ -32,6 +32,13 @@ interface ProductInfo {
   variantId?: number | string | null;
 }
 
+export interface PersonBbox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export async function generateTryOn(
   personImage: File | Blob,
   clothingImage: Blob,
@@ -41,7 +48,8 @@ export async function generateTryOn(
   version?: number | null,
   customerInfo?: CustomerInfo | null,
   productInfo?: ProductInfo | null,
-  onStatusUpdate?: (statusDescription: string | null) => void
+  onStatusUpdate?: (statusDescription: string | null) => void,
+  personBbox?: PersonBbox | null // Optional: bounding box of selected person [x, y, width, height]
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
@@ -58,6 +66,8 @@ export async function generateTryOn(
       customerId: customerInfo?.id || "not provided",
       hasProductInfo: !!productInfo,
       productInfo: productInfo || "not provided",
+      hasPersonBbox: !!personBbox,
+      personBbox: personBbox || null,
       timestamp: new Date().toISOString(),
     });
 
@@ -121,6 +131,13 @@ export async function generateTryOn(
       // Request Instagram-compatible square (1:1) aspect ratio
       formData.append("aspectRatio", "1:1");
       
+      // Add person bounding box if provided (for group photo selection)
+      if (personBbox) {
+        // Send as JSON string: {"x": number, "y": number, "width": number, "height": number}
+        formData.append("personBbox", JSON.stringify(personBbox));
+        console.log("[FRONTEND] [TRYON] Added personBbox to FormData:", personBbox);
+      }
+      
       // Version parameter removed - not sent to fashion-photo API
       
       // Add session ID for attribution (non-intrusive - fails gracefully)
@@ -155,6 +172,7 @@ export async function generateTryOn(
         if (productInfo?.productUrl) formDataEntries.productUrl = productInfo.productUrl;
         if (productInfo?.variantId) formDataEntries.variantId = String(productInfo.variantId);
         formDataEntries.aspectRatio = "1:1";
+        if (personBbox) formDataEntries.personBbox = JSON.stringify(personBbox);
       } catch (e) {
         // Ignore
       }

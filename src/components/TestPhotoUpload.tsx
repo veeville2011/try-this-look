@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Camera, User } from "lucide-react";
 import { DEMO_PHOTOS_ARRAY } from "@/constants/demoPhotos";
 import { cn } from "@/lib/utils";
+import { isWidgetTestRoute } from "@/config/testProductData";
 
 interface TestPhotoUploadProps {
   onPhotoUpload: (
@@ -11,11 +12,13 @@ interface TestPhotoUploadProps {
     demoPhotoUrl?: string
   ) => void;
   uploadedImage?: string | null;
+  onPersonSelectionNeeded?: (imageUrl: string) => void; // Callback when person selection is needed
 }
 
 export default function TestPhotoUpload({
   onPhotoUpload,
   uploadedImage,
+  onPersonSelectionNeeded,
 }: TestPhotoUploadProps) {
   const { t } = useTranslation();
   const [showFilePicker, setShowFilePicker] = useState(false);
@@ -51,7 +54,16 @@ export default function TestPhotoUpload({
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataURL = reader.result as string;
-      onPhotoUpload(dataURL, false, undefined);
+      
+      // Check if we're in test app and person selection callback is provided
+      if (isWidgetTestRoute() && onPersonSelectionNeeded) {
+        // Trigger person selection modal
+        onPersonSelectionNeeded(dataURL);
+      } else {
+        // Normal flow - directly upload
+        onPhotoUpload(dataURL, false, undefined);
+      }
+      
       setShowFilePicker(false);
     };
     reader.readAsDataURL(file);
