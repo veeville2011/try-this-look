@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n/config';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
 import { generateTryOn, dataURLToBlob, fetchUploadedImages, fetchCustomerImageHistory, type ImageGenerationHistoryItem, type PersonBbox } from '@/services/tryonApi';
@@ -31,6 +33,74 @@ interface VirtualTryOnModalProps {
 }
 
 const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) => {
+  const { t } = useTranslation();
+  
+  // Detect Shopify store language and set i18n language accordingly
+  const detectStoreLanguage = useCallback((): string => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return 'fr'; // Default fallback
+    }
+
+    // Method 1: Check HTML lang attribute (most reliable for Shopify stores)
+    const htmlLang = document.documentElement.lang || document.documentElement.getAttribute('lang');
+    if (htmlLang) {
+      // Extract language code (e.g., "fr-FR" -> "fr", "en-US" -> "en")
+      const langCode = htmlLang.split('-')[0].toLowerCase();
+      if (langCode === 'fr' || langCode === 'en') {
+        return langCode;
+      }
+    }
+
+    // Method 2: Check URL path for language prefix (e.g., /fr/products, /en/products)
+    try {
+      const urlPath = window.location.pathname;
+      const pathMatch = urlPath.match(/^\/(fr|en)(\/|$)/i);
+      if (pathMatch) {
+        const langCode = pathMatch[1].toLowerCase();
+        if (langCode === 'fr' || langCode === 'en') {
+          return langCode;
+        }
+      }
+    } catch (e) {
+      // URL parsing failed, continue to next method
+    }
+
+    // Method 3: Check Shopify locale if available
+    try {
+      const shopify = (window as any).Shopify;
+      if (shopify && shopify.locale) {
+        const locale = shopify.locale.toLowerCase();
+        if (locale.startsWith('fr')) {
+          return 'fr';
+        }
+        if (locale.startsWith('en')) {
+          return 'en';
+        }
+      }
+    } catch (e) {
+      // Shopify object not available
+    }
+
+    // Method 4: Check parent window if in iframe
+    try {
+      if (window.parent !== window) {
+        const parentLang = window.parent.document.documentElement.lang || 
+                          window.parent.document.documentElement.getAttribute('lang');
+        if (parentLang) {
+          const langCode = parentLang.split('-')[0].toLowerCase();
+          if (langCode === 'fr' || langCode === 'en') {
+            return langCode;
+          }
+        }
+      }
+    } catch (e) {
+      // Cross-origin access might fail
+    }
+
+    // Default fallback to French
+    return 'fr';
+  }, []);
+
   const [step, setStep] = useState<'idle' | 'generating' | 'complete'>('idle');
   const [progress, setProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -60,6 +130,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [productData, setProductData] = useState<any>(null);
   const [storedProductData, setStoredProductData] = useState<any>(null);
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+
+  // Set i18n language based on Shopify store language
+  useEffect(() => {
+    const detectedLanguage = detectStoreLanguage();
+    if (i18n.language !== detectedLanguage) {
+      i18n.changeLanguage(detectedLanguage);
+    }
+  }, [detectStoreLanguage, storeInfo]); // Re-run when storeInfo changes
   
   // Cart states
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
@@ -502,12 +580,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     if (typeof window !== 'undefined' && isLocalhost() && (window as any).NUSENSE_TEST_STORE_INFO) {
       const testStoreInfo = (window as any).NUSENSE_TEST_STORE_INFO;
       setStoreInfo({
-        shop: testStoreInfo.shop || 'vto-demo',
         domain: testStoreInfo.domain || 'vto-demo.myshopify.com',
         shopDomain: testStoreInfo.shop || 'vto-demo',
         fullUrl: testStoreInfo.domain ? `https://${testStoreInfo.domain}` : 'https://vto-demo.myshopify.com',
         origin: testStoreInfo.origin || window.location.origin,
-        method: 'test' as const
+        method: 'unknown' as const // Use 'unknown' for test data
       });
       return; // Don't proceed with normal detection for test route
     }
@@ -769,32 +846,32 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           
           // Show toast with product name and size
           const currentProductData = storedProductData || getProductData();
-          const productTitle = currentProductData?.title || currentProductData?.name || 'item';
-          const sizeText = selectedSize ? ` (Size ${selectedSize})` : '';
-          setToastMessage(`Added ${productTitle}${sizeText} to cart!`);
+          const productTitle = currentProductData?.title || currentProductData?.name || t('virtualTryOnModal.product');
+          const sizeText = selectedSize ? ` (${t('virtualTryOnModal.size')} ${selectedSize})` : '';
+          setToastMessage(t('virtualTryOnModal.addedToCart', { productTitle, sizeText }));
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
         } else if (event.data.action === 'NUSENSE_BUY_NOW') {
           setIsBuyNowLoading(false);
         } else if (event.data.action === 'NUSENSE_NOTIFY_ME') {
           setIsNotifyMeLoading(false);
-          toast.success('You will be notified when this item is back in stock!');
+          toast.success(t('virtualTryOnModal.notifyMeSuccessMessage'));
         }
       } else if (event.data && event.data.type === 'NUSENSE_ACTION_ERROR') {
         if (event.data.action === 'NUSENSE_ADD_TO_CART') {
           setIsAddToCartLoading(false);
-          toast.error('Failed to add to cart', {
-            description: event.data.error || 'Please try again.',
+          toast.error(t('virtualTryOnModal.errorAddingToCart'), {
+            description: event.data.error || t('virtualTryOnModal.pleaseTryAgain'),
           });
         } else if (event.data.action === 'NUSENSE_BUY_NOW') {
           setIsBuyNowLoading(false);
-          toast.error('Failed to proceed to checkout', {
-            description: event.data.error || 'Please try again.',
+          toast.error(t('virtualTryOnModal.errorBuyingNow'), {
+            description: event.data.error || t('virtualTryOnModal.pleaseTryAgain'),
           });
         } else if (event.data.action === 'NUSENSE_NOTIFY_ME') {
           setIsNotifyMeLoading(false);
-          toast.error('Failed to register notification', {
-            description: event.data.error || 'Please try again.',
+          toast.error(t('virtualTryOnModal.errorNotifying'), {
+            description: event.data.error || t('virtualTryOnModal.pleaseTryAgain'),
           });
         }
       }
@@ -802,7 +879,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectedClothing, storedProductData, getProductData, productData, selectedSize]);
+  }, [selectedClothing, storedProductData, getProductData, productData, selectedSize, t]);
 
   // Restore saved state from storage (but prioritize fresh product images from parent)
   // IMPORTANT: We don't restore step to 'complete' on mount to ensure first step UI shows by default
@@ -1084,17 +1161,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        toast.error('Invalid file type', {
-          description: 'Please select an image file (jpg, jpeg, png, webp).',
-        });
+      toast.error(t('tryOnWidget.photoUpload.invalidType'), {
+        description: t('tryOnWidget.photoUpload.invalidType'),
+      });
         return;
       }
       
       // Validate file size (8MB max)
       const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        toast.error('File too large', {
-          description: 'Please choose an image under 8MB.',
+        toast.error(t('tryOnWidget.photoUpload.fileTooLarge', { maxMB: 8 }), {
+          description: t('tryOnWidget.photoUpload.fileTooLarge', { maxMB: 8 }),
         });
         return;
       }
@@ -1270,19 +1347,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const diffMs = now.getTime() - date.getTime();
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return '1 day ago';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      if (diffDays < 14) return '1 week ago';
-      if (diffDays < 21) return '2 weeks ago';
-      if (diffDays < 30) return '3 weeks ago';
+      if (diffDays === 0) return t('virtualTryOnModal.today');
+      if (diffDays === 1) return t('virtualTryOnModal.dayAgo', { count: 1 });
+      if (diffDays < 7) return t('virtualTryOnModal.daysAgo', { count: diffDays });
+      if (diffDays < 14) return t('virtualTryOnModal.weekAgo');
+      if (diffDays < 21) return t('virtualTryOnModal.weeksAgo', { count: 2 });
+      if (diffDays < 30) return t('virtualTryOnModal.weeksAgo', { count: 3 });
       const diffMonths = Math.floor(diffDays / 30);
-      if (diffMonths === 1) return '1 month ago';
-      return `${diffMonths} months ago`;
+      if (diffMonths === 1) return t('virtualTryOnModal.monthAgo');
+      return t('virtualTryOnModal.monthsAgo', { count: diffMonths });
     } catch {
       return '';
     }
-  }, []);
+  }, [t]);
 
   const handleClothingSelect = useCallback((imageUrl: string) => {
     setSelectedClothing(imageUrl);
@@ -1498,9 +1575,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Generate try-on (moved before handleRegeneratePastTryOn to avoid initialization error)
   const handleGenerate = useCallback(async () => {
     if (!uploadedImage || !selectedClothing) {
-      setError('Please upload a photo and select clothing');
-      toast.error('Missing requirements', {
-        description: 'Please upload a photo and select a clothing item.',
+      setError(t('virtualTryOnModal.pleaseUploadPhotoAndSelectClothing'));
+      toast.error(t('virtualTryOnModal.missingRequirements'), {
+        description: t('virtualTryOnModal.pleaseUploadPhotoAndSelectClothing'),
       });
       // Scroll to missing requirement (forward only) - immediate smooth scroll
       // Auto-scroll removed - no scrolling on image selection
@@ -1512,7 +1589,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     currentProgressRef.current = 0;
     setElapsedTime(0);
     setError(null);
-    setStatusMessage('Preparing your try-on...');
+    setStatusMessage(t('virtualTryOnModal.preparingTryOn'));
     
     // Auto-scroll to generating section - ONLY for mobile
     const isMobile = isMobileDevice();
@@ -1700,7 +1777,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             setGeneratedImageError(true);
             setGeneratedImage(null);
             // Don't set general error state - generatedImageError handles this
-            toast.error('Failed to generate try-on result');
+            toast.error(t('virtualTryOnModal.generatedImageError'));
           }
         
         // When API completes, ensure progress is 100% and show finalizing state
@@ -1710,7 +1787,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
         currentProgressRef.current = 100;
         setProgress(100);
-        setStatusMessage('Finalizing your try-on...');
+        setStatusMessage(t('virtualTryOnModal.finalizingTryOn'));
         
         // Show finalizing state for 600ms (reduced for better UX) before transitioning to complete
         // This gives time for the checkmark animation while keeping the reveal smooth
@@ -1781,15 +1858,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         elapsedTimerRef.current = null;
       }
 
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      const errorMessage = err instanceof Error ? err.message : t('virtualTryOnModal.somethingWentWrong');
       setError(errorMessage);
       setStep('idle');
       setProgress(0);
-      toast.error('Generation failed', {
+      toast.error(t('virtualTryOnModal.generationFailed'), {
         description: errorMessage,
       });
     }
-  }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox]);
+  }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox, t]);
 
   // Reset complete state when person image changes - works for both mobile and desktop
   useEffect(() => {
@@ -2009,12 +2086,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         if (finalPersonImage && finalClothingImage) {
           void handleGenerate();
         } else {
-          toast.error('Failed to load images for regeneration. Please try again.');
+          toast.error(t('virtualTryOnModal.imageCouldNotBeLoaded'));
         }
       }, 200);
     } catch (error) {
       console.error('[VirtualTryOnModal] Failed to regenerate past try-on:', error);
-      toast.error('Failed to regenerate try-on');
+      toast.error(t('virtualTryOnModal.generationFailed'));
     }
   }, [viewingHistoryItem, uploadedImage, selectedClothing, handleGenerate, getProxiedImageUrl, productImagesWithIds]);
 
@@ -2042,7 +2119,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const handleAddToCart = useCallback(() => {
     // Only require size selection if sizes are available
     if (sizes.length > 0 && !selectedSize) {
-      toast.error('Please select a size');
+      toast.error(t('virtualTryOnModal.selectSizeToContinue'));
       return;
     }
 
@@ -2057,7 +2134,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       if (!selectedSizeInfo || !selectedSizeInfo.isAvailable) {
         setIsAddToCartLoading(false);
-        toast.error('Selected size is not available');
+        toast.error(t('virtualTryOnModal.selectSizeToContinue'));
         return;
       }
       
@@ -2075,7 +2152,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     if (isInIframe) {
       if (!variantId && sizes.length > 0) {
         setIsAddToCartLoading(false);
-        toast.error('Product variant not available');
+        toast.error(t('virtualTryOnModal.selectSizeToContinue'));
         return;
       }
 
@@ -2093,19 +2170,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }, 10000);
     } else {
       setIsAddToCartLoading(false);
-      const productTitle = currentProductData?.title || currentProductData?.name || 'item';
-      const sizeText = selectedSize ? ` (Size ${selectedSize})` : '';
-      setToastMessage(`Added ${productTitle}${sizeText} to cart!`);
+      const productTitle = currentProductData?.title || currentProductData?.name || t('virtualTryOnModal.product');
+      const sizeText = selectedSize ? ` (${t('virtualTryOnModal.size')} ${selectedSize})` : '';
+      setToastMessage(t('virtualTryOnModal.addedToCart', { productTitle, sizeText }));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
-  }, [selectedSize, sizes, productData, cartQuantity, getProductData, sizeAvailability]);
+  }, [selectedSize, sizes, productData, cartQuantity, getProductData, sizeAvailability, t]);
 
   // Handle buy now
   const handleBuyNow = useCallback(() => {
     // Only require size selection if sizes are available
     if (sizes.length > 0 && !selectedSize) {
-      toast.error('Please select a size');
+      toast.error(t('virtualTryOnModal.selectSizeToContinue'));
       return;
     }
 
@@ -2145,13 +2222,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setIsBuyNowLoading(false);
       toast.info('Buy now feature requires Shopify integration');
     }
-  }, [selectedSize, sizes, storedProductData, cartQuantity, getProductData, sizeAvailability]);
+  }, [selectedSize, sizes, storedProductData, cartQuantity, getProductData, sizeAvailability, t]);
 
   // Handle notify me
   const handleNotifyMe = useCallback(() => {
     // Only require size selection if sizes are available
     if (sizes.length > 0 && !selectedSize) {
-      toast.error('Please select a size');
+      toast.error(t('virtualTryOnModal.selectSizeToContinue'));
       return;
     }
 
@@ -2187,9 +2264,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }, 10000);
     } else {
       setIsNotifyMeLoading(false);
-      toast.info('You will be notified when this item is back in stock!');
+      toast.info(t('virtualTryOnModal.notifyMeSuccessMessage'));
     }
-  }, [selectedSize, sizes, storedProductData, variantStockInfo, getProductData, sizeAvailability]);
+  }, [selectedSize, sizes, storedProductData, variantStockInfo, getProductData, sizeAvailability, t]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -2256,7 +2333,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     if (step === 'idle') {
       const canGenerate = uploadedImage && selectedClothing;
       return {
-        text: 'Generate Try-On',
+        text: t('virtualTryOnModal.generate'),
         icon: <Zap size={16} />,
         disabled: !canGenerate,
         action: handleGenerate,
@@ -2265,7 +2342,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     if (step === 'generating') {
       return {
-        text: 'Generating...',
+        text: t('virtualTryOnModal.generatingButton'),
         icon: <Loader2 size={16} className="animate-spin" />,
         disabled: true,
         action: () => {},
@@ -2277,7 +2354,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       if (sizes.length > 0) {
         if (!selectedSize) {
           return {
-            text: 'Select a Size',
+            text: t('virtualTryOnModal.selectSizeToContinue'),
             icon: <Zap size={16} />,
             disabled: true,
             action: () => {},
@@ -2291,7 +2368,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         
         if (!isSizeAvailable) {
           return {
-            text: 'Notify Me',
+            text: t('virtualTryOnModal.notifyMe'),
             icon: <Bell size={16} />,
             disabled: isNotifyMeLoading,
             action: handleNotifyMe,
@@ -2302,7 +2379,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // If no sizes available or size is selected and available, show add to cart
       return {
-        text: currentCartQuantity > 0 ? `Add to Cart (${currentCartQuantity})` : 'Add to Cart',
+        text: currentCartQuantity > 0 ? t('virtualTryOnModal.addToCartWithQuantity', { quantity: currentCartQuantity }) : t('virtualTryOnModal.addToCart'),
         icon: <ShoppingCart size={16} />,
         disabled: isAddToCartLoading || isBuyNowLoading,
         action: handleAddToCart,
@@ -2310,19 +2387,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       };
     }
     return {
-      text: 'Generate',
+      text: t('virtualTryOnModal.generate'),
       icon: null,
       disabled: false,
       action: handleGenerate,
       color: 'gray',
     };
-  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart]);
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart, t]);
 
   const btnState = getButtonState();
 
   // Get product info for display
   const currentProductData = getProductData() || productData;
-  const productTitle = currentProductData?.title || currentProductData?.name || 'Product';
+  const productTitle = currentProductData?.title || currentProductData?.name || t('virtualTryOnModal.product');
   
   // Always use the currently selected clothing image, or first product image
   // Use useMemo to ensure it updates when selectedClothing or productImages change
@@ -3004,11 +3081,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const canvasWidth = Math.round(displayWidth * dpr);
       const canvasHeight = Math.round(displayHeight * dpr);
       
-      // CRITICAL: Calculate effective DPR based on actual canvas dimensions
-      // This accounts for rounding differences and ensures consistent scaling
-      const effectiveDprX = canvasWidth / displayWidth;
-      const effectiveDprY = canvasHeight / displayHeight;
-      
       // CRITICAL: Set canvas internal resolution FIRST (high resolution for quality)
       // This must be done before getting the context to ensure proper sizing
       canvas.width = canvasWidth;
@@ -3020,22 +3092,66 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       canvas.style.height = `${displayHeight}px`;
       canvas.style.pointerEvents = 'auto';
       
-      // CRITICAL: Verify canvas dimensions are set correctly BEFORE drawing
+      // CRITICAL: Force browser to apply CSS styles before proceeding
+      // This is especially important on first load when DOM might not be stable
+      // Accessing offsetWidth/offsetHeight forces a layout recalculation
+      const forcedLayoutWidth = canvas.offsetWidth;
+      const forcedLayoutHeight = canvas.offsetHeight;
+      
+      // CRITICAL: Verify canvas dimensions are set correctly AFTER CSS is applied
+      // Re-read actual canvas dimensions to account for any browser rounding
+      const actualCanvasWidth = canvas.width;
+      const actualCanvasHeight = canvas.height;
+      
+      // CRITICAL: Calculate effective DPR based on ACTUAL canvas dimensions after CSS is applied
+      // This accounts for any browser rounding or adjustments
+      const effectiveDprX = actualCanvasWidth / displayWidth;
+      const effectiveDprY = actualCanvasHeight / displayHeight;
+      
+      // CRITICAL: Verify canvas dimensions are valid BEFORE drawing
       // If canvas dimensions are invalid, all coordinates will be wrong
-      if (canvas.width === 0 || canvas.height === 0 || !isFinite(canvas.width) || !isFinite(canvas.height)) {
+      if (actualCanvasWidth === 0 || actualCanvasHeight === 0 || !isFinite(actualCanvasWidth) || !isFinite(actualCanvasHeight)) {
         console.error('[PersonSelection] Canvas dimensions are zero or invalid after setting - ABORTING DRAW:', {
-          canvasWidth: canvas.width,
-          canvasHeight: canvas.height,
+          canvasWidth: actualCanvasWidth,
+          canvasHeight: actualCanvasHeight,
           displayWidth,
           displayHeight,
           dpr,
           naturalWidth,
-          naturalHeight
+          naturalHeight,
+          forcedLayoutWidth,
+          forcedLayoutHeight
         });
         // Retry after canvas is properly initialized
         setTimeout(() => {
           drawBoundingBoxes();
         }, 100);
+        return;
+      }
+      
+      // CRITICAL: Verify canvas dimensions match expected values (with small tolerance for rounding)
+      // If there's a significant mismatch, retry to ensure stability
+      const expectedCanvasWidth = Math.round(displayWidth * dpr);
+      const expectedCanvasHeight = Math.round(displayHeight * dpr);
+      const widthMismatch = Math.abs(actualCanvasWidth - expectedCanvasWidth);
+      const heightMismatch = Math.abs(actualCanvasHeight - expectedCanvasHeight);
+      
+      if (widthMismatch > 1 || heightMismatch > 1) {
+        console.warn('[PersonSelection] Canvas dimensions mismatch detected, retrying:', {
+          expectedWidth: expectedCanvasWidth,
+          expectedHeight: expectedCanvasHeight,
+          actualWidth: actualCanvasWidth,
+          actualHeight: actualCanvasHeight,
+          widthMismatch,
+          heightMismatch,
+          displayWidth,
+          displayHeight,
+          dpr
+        });
+        // Retry after a short delay to allow browser to stabilize
+        setTimeout(() => {
+          drawBoundingBoxes();
+        }, 50);
         return;
       }
       
@@ -3065,7 +3181,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         ctx.setTransform(effectiveDprX, 0, 0, effectiveDprY, 0, 0);
       }
       
-      // Log dimension info for debugging
+      // Log dimension info for debugging (only if there's a significant difference)
       if (Math.abs(effectiveDprX - dpr) > 0.001 || Math.abs(effectiveDprY - dpr) > 0.001) {
         console.log('[PersonSelection] Using effective DPR due to rounding:', {
           originalDpr: dpr,
@@ -3073,8 +3189,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           effectiveDprY,
           displayWidth,
           displayHeight,
-          canvasWidth,
-          canvasHeight,
+          actualCanvasWidth,
+          actualCanvasHeight,
           expectedWidth: displayWidth * dpr,
           expectedHeight: displayHeight * dpr
         });
@@ -3538,8 +3654,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         
         // CRITICAL: Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
         // This is especially important on mount/refresh when DOM might not be stable
+        // Also verify container dimensions are stable before drawing
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
+            // Verify container dimensions are still valid (might have changed during layout)
+            const verifyContainer = canvasContainerRef.current;
+            const verifyRect = verifyContainer?.getBoundingClientRect();
+            
+            if (!verifyRect || verifyRect.width === 0 || !isFinite(verifyRect.width)) {
+              // Container dimensions changed, retry
+              setTimeout(() => {
+                const retryContainer = canvasContainerRef.current;
+                const retryRect = retryContainer?.getBoundingClientRect();
+                if (retryRect && retryRect.width > 0 && isFinite(retryRect.width)) {
+                  console.log('[PersonSelection] Initializing canvas draw (retry after container stabilized)');
+                  drawBoundingBoxes();
+                }
+              }, 100);
+              return;
+            }
+            
             // Add a delay to ensure everything is stable before drawing
             setTimeout(() => {
               console.log('[PersonSelection] Initializing canvas draw after all checks passed');
@@ -3631,6 +3765,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const scaleResult = calculateImageScale(naturalWidth, naturalHeight, maxDisplayWidth, maxDisplayHeight);
       const { scale, displayWidth, displayHeight } = scaleResult;
       
+      // CRITICAL: Verify canvas dimensions are valid before calculating coordinates
+      // This ensures we're using the same dimensions that were used during drawing
+      if (canvas.width === 0 || canvas.height === 0 || !isFinite(canvas.width) || !isFinite(canvas.height)) {
+        console.warn('[PersonSelection] Canvas dimensions invalid in click handler:', {
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height
+        });
+        return;
+      }
+      
+      // CRITICAL: Verify canvas rect dimensions are valid
+      if (canvasRect.width === 0 || canvasRect.height === 0 || !isFinite(canvasRect.width) || !isFinite(canvasRect.height)) {
+        console.warn('[PersonSelection] Canvas rect dimensions invalid in click handler:', {
+          rectWidth: canvasRect.width,
+          rectHeight: canvasRect.height
+        });
+        return;
+      }
+      
       // CRITICAL: Convert screen click coordinates to canvas display coordinates
       // Following CANVAS_POSITIONING_GUIDE.md: Account for CSS scaling using getBoundingClientRect
       // Since canvas internal size = displayWidth * effectiveDpr, but CSS size = displayWidth
@@ -3644,8 +3797,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // CRITICAL: Calculate effective DPR to match what was used in drawBoundingBoxes
       // This accounts for rounding differences in canvas dimensions
+      // Use actual canvas dimensions (which are integers) to calculate effective DPR
       const effectiveDprX = canvas.width / displayWidth;
       const effectiveDprY = canvas.height / displayHeight;
+      
+      // CRITICAL: Verify effective DPR is valid
+      if (!isFinite(effectiveDprX) || !isFinite(effectiveDprY) || effectiveDprX <= 0 || effectiveDprY <= 0) {
+        console.warn('[PersonSelection] Invalid effective DPR in click handler:', {
+          effectiveDprX,
+          effectiveDprY,
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          displayWidth,
+          displayHeight
+        });
+        return;
+      }
       
       // Convert canvas internal coordinates to display coordinates (divide by effective DPR)
       // Since context is scaled by effective DPR, we need display coordinates to match bounding boxes
@@ -3710,7 +3877,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         href="#main-content"
         className="sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:w-auto focus:h-auto focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:font-medium focus:shadow-lg focus:m-0"
       >
-        Skip to main content
+        {t('virtualTryOnModal.skipToContent')}
       </a>
 
       {/* ARIA Live Region for Status Updates */}
@@ -3720,7 +3887,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         className="sr-only"
         role="status"
       >
-        {statusMessage || (step === 'idle' ? 'Ready to generate try-on' : step === 'generating' ? `Generating try-on: ${progress}% complete` : '')}
+        {statusMessage || (step === 'idle' ? t('virtualTryOnModal.readyToGenerateTryOn') : step === 'generating' ? t('virtualTryOnModal.generatingTryOnProgress', { progress }) : '')}
       </div>
 
       {/* ARIA Live Region for Errors */}
@@ -3731,7 +3898,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           className="sr-only"
           role="alert"
         >
-          Error: {error}
+          {t('virtualTryOnModal.errorPrefix')} {error}
         </div>
       )}
       {/* ARIA Live Region for Generated Image Errors */}
@@ -3742,7 +3909,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           className="sr-only"
           role="alert"
         >
-          Error: Failed to load try-on result. Please try generating again.
+          {t('virtualTryOnModal.generatedImageError')}
         </div>
       )}
 
@@ -3784,10 +3951,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </div>
               {/* Loading text */}
               <p className="text-sm sm:text-base text-gray-600 font-medium">
-                {isLoadingModels ? 'Loading AI model...' : 
-                 isDetecting ? 'Detecting people...' : 
-                 showPersonSelection && !boundingBoxesDrawnRef.current ? 'Preparing selection...' :
-                 'Loading...'}
+                {isLoadingModels ? t('virtualTryOnModal.loadingAiModel') : 
+                 isDetecting ? t('virtualTryOnModal.detectingPeople') : 
+                 showPersonSelection && !boundingBoxesDrawnRef.current ? t('virtualTryOnModal.preparingSelection') :
+                 t('virtualTryOnModal.loading')}
               </p>
             </div>
           </div>
@@ -3802,14 +3969,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           {showToast && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-lg md:shadow-xl z-50 flex items-center gap-2 sm:gap-3 animate-fade-in-up max-w-[90%] sm:max-w-none">
               <CheckCircle className="text-green-400 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              <span className="text-xs sm:text-sm">{toastMessage}</span>
+                <span className="text-xs sm:text-sm">{toastMessage}</span>
               <button
                 onClick={() => setShowToast(false)}
                 className="ml-2 sm:ml-4 text-gray-400 hover:text-white underline text-xs sm:text-sm flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800 rounded-lg"
-                aria-label="Close notification"
+                aria-label={t('virtualTryOnModal.closeNotification')}
                 type="button"
               >
-                Close
+                {t('virtualTryOnModal.closeNotification')}
               </button>
             </div>
           )}
@@ -3822,13 +3989,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 className="h-4 sm:h-5 w-auto flex-shrink-0"
                 aria-label="NUSENSE Logo"
               />
-              <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">Virtual Try-On</span>
+              <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">{t('virtualTryOnModal.title')}</span>
             </div>
 
             <button
               onClick={handleClose}
               className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
-              aria-label="Close modal"
+              aria-label={t('virtualTryOnModal.closeModal')}
               type="button"
             >
               <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={20} />
@@ -3845,7 +4012,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#d97706]" strokeWidth={2} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-medium text-[#78350f] text-sm sm:text-base">Viewing past try-on</span>
+                    <span className="font-medium text-[#78350f] text-sm sm:text-base">{t('virtualTryOnModal.viewingPastTryOn')}</span>
                     <span className="text-[#92400e] text-xs sm:text-sm">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
                   </div>
                 </div>
@@ -3854,10 +4021,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     onClick={handleBackToCurrent}
                     className="group relative px-3 sm:px-4 py-1.5 sm:py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
-                    aria-label="Back to current try-on"
+                    aria-label={t('virtualTryOnModal.backToCurrent')}
                   >
                     <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
-                    <span className="relative z-10">Back to current</span>
+                    <span className="relative z-10">{t('virtualTryOnModal.backToCurrent')}</span>
                   </button>
                 </div>
               </div>
@@ -3911,7 +4078,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1 transition-colors duration-200">
-                    {viewingPastTryOn ? 'PREVIOUSLY TRIED ON' : "YOU'RE TRYING ON"}
+                    {viewingPastTryOn ? t('virtualTryOnModal.previouslyTriedOn') : t('virtualTryOnModal.youreTryingOn')}
                   </div>
                   <div className="text-base sm:text-lg font-semibold text-foreground leading-tight truncate transition-colors duration-200">{productTitle}</div>
                   {variantInfo && (
@@ -3949,32 +4116,43 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
                           <span className="text-xs sm:text-sm font-semibold">1</span>
                         </div>
-                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">Choose your photo</h2>
+                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">{t('virtualTryOnModal.chooseYourPhoto')}</h2>
                       </div>
                       
                       {/* Photo Upload Card - Same structure as regular photo upload */}
                       <div ref={photoUploadRef} className={`bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2 ${uploadedImage && !showChangePhotoOptions ? 'min-h-[180px] sm:min-h-[200px]' : ''}`}>
                         {(!uploadedImage || showChangePhotoOptions) && (
                           <>
-                            <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">For best results</h3>
+                            <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">{t('virtualTryOnModal.forBestResults')}</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gray-600 mb-2 w-full">
                               <span className="flex items-center gap-1.5 justify-start">
-                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Front-facing pose
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.frontFacingPose')}
                               </span>
                               <span className="flex items-center gap-1.5 justify-start">
-                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Arms visible
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.armsVisible')}
                               </span>
                               <span className="flex items-center gap-1.5 justify-start">
-                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Good lighting
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.goodLighting')}
                               </span>
                               <span className="flex items-center gap-1.5 justify-start">
-                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Plain background
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.plainBackground')}
                               </span>
                             </div>
                           </>
                         )}
                         {uploadedImage && !showChangePhotoOptions ? (
                           <div className="w-full flex flex-col items-center justify-center relative">
+                            {/* Instructions for user */}
+                            {showPersonSelection && detectionResult?.people && detectionResult.people.length > 1 && (
+                              <div className="mb-2 sm:mb-2.5 px-2 text-center">
+                                <p className="text-xs sm:text-sm text-gray-700 font-medium">
+                                  {t('virtualTryOnModal.clickPersonToSelect')}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {t('virtualTryOnModal.peopleDetected', { count: detectionResult.people.length })}
+                                </p>
+                              </div>
+                            )}
                             {/* Canvas with bounding boxes - fixed height for consistency */}
                             <div ref={canvasContainerRef} className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                               {/* Hidden image for detection - canvas will display the image */}
@@ -3994,6 +4172,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     backgroundColor: 'transparent',
                                     display: 'block'
                                   }}
+                                  aria-label={t('virtualTryOnModal.selectPersonForTryOn')}
                                 />
                               </div>
                             </div>
@@ -4001,13 +4180,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         ) : (
                           <button
                             className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
-                            aria-label="Upload photo"
+                            aria-label={t('virtualTryOnModal.uploadPhoto')}
                             type="button"
                             onClick={triggerPhotoUpload}
                           >
                             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
                             <Upload size={16} className="relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
-                            <span className="relative z-10">Upload Photo</span>
+                            <span className="relative z-10">{t('virtualTryOnModal.uploadPhoto')}</span>
                           </button>
                         )}
                       </div>
@@ -4016,7 +4195,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
                         <div className="mb-2">
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
-                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Your Recent Photos</label>
+                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.yourRecentPhotos')}</label>
                             <div 
                               className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                             >
@@ -4083,7 +4262,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                         : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                                     }`}
-                                    aria-label={`Select photo ${photo.id}`}
+                                    aria-label={t('virtualTryOnModal.selectPhoto', { id: photo.id })}
                                     type="button"
                                   >
                                     {selectedPhoto !== photo.id && (
@@ -4096,7 +4275,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     )}
                                     <img 
                                       src={getProxiedImageUrl(photo.src)} 
-                                      alt="User" 
+                                      alt={t('virtualTryOnModal.user')} 
                                       className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                         isLoading ? 'opacity-0' : 'opacity-100'
                                       } ${
@@ -4129,7 +4308,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 );
                               })
                             ) : (
-                              <div className="text-xs text-gray-500">No recent photos</div>
+                              <div className="text-xs text-gray-500">{t('virtualTryOnModal.noRecentPhotos')}</div>
                             )}
                             </div>
                           </div>
@@ -4140,7 +4319,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
                         <div>
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
-                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Use a demo model</label>
+                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.useDemoModel')}</label>
                             <div 
                               className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                             >
@@ -4185,7 +4364,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                       : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                                   }`}
-                                  aria-label={`Select demo model ${model.id}`}
+                                  aria-label={t('virtualTryOnModal.selectDemoModel', { id: model.id })}
                                   type="button"
                                 >
                                   {selectedPhoto !== modelIndex && (
@@ -4198,7 +4377,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   )}
                                   <img 
                                     src={model.url} 
-                                    alt={`Demo model ${model.id}`} 
+                                    alt={t('virtualTryOnModal.demoModel', { id: model.id })} 
                                     className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                       isLoading ? 'opacity-0' : 'opacity-100'
                                     } ${
@@ -4244,10 +4423,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
                             <div className="flex flex-col min-w-0 flex-1">
                               <span className="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
-                                Change photo
+                                {t('virtualTryOnModal.changePhoto')}
                               </span>
                               <span className="text-[10px] sm:text-xs text-gray-600 mt-0.5">
-                                Upload a different photo
+                                {t('virtualTryOnModal.uploadDifferentPhoto')}
                               </span>
                             </div>
                           </button>
@@ -4264,12 +4443,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
                           <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
                         </div>
-                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">Past try-on details</h2>
+                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">{t('virtualTryOnModal.pastTryOnDetails')}</h2>
                       </div>
 
                       {/* Photo used subsection */}
                       <div className="border border-gray-200 rounded-lg p-3 sm:p-4 mb-3 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
-                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3">Photo used</h3>
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3">{t('virtualTryOnModal.photoUsed')}</h3>
                         {uploadedImage ? (
                           <div className="flex items-center gap-3">
                             <div className="relative flex-shrink-0">
@@ -4301,10 +4480,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             </div>
                             <div className="flex flex-col">
                               <p className="text-xs sm:text-sm text-gray-800 font-normal">
-                                Original photo from
+                                {t('virtualTryOnModal.originalPhoto')}
                               </p>
                               <p className="text-xs sm:text-sm text-gray-800 font-semibold">
-                                {viewingHistoryItem ? getTimeAgo(viewingHistoryItem.createdAt) : (step === 'generating' || step === 'complete') ? 'Just now' : 'history'}
+                                {viewingHistoryItem ? getTimeAgo(viewingHistoryItem.createdAt) : (step === 'generating' || step === 'complete') ? t('virtualTryOnModal.justNow') : t('virtualTryOnModal.currentSession')}
                               </p>
                             </div>
                           </div>
@@ -4314,8 +4493,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
                             </div>
                             <div className="flex flex-col">
-                              <p className="text-xs sm:text-sm text-gray-800 font-normal">Original photo from</p>
-                              <p className="text-xs sm:text-sm text-gray-500">No photo available</p>
+                              <p className="text-xs sm:text-sm text-gray-800 font-normal">{t('virtualTryOnModal.originalPhoto')}</p>
+                              <p className="text-xs sm:text-sm text-gray-500">{t('virtualTryOnModal.noPhotoAvailable')}</p>
                             </div>
                           </div>
                         )}
@@ -4332,10 +4511,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
                           <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
-                              Regenerate with new photo
+                              {t('virtualTryOnModal.regenerateWithNewPhoto')}
                             </span>
                             <span className="text-[10px] sm:text-xs text-gray-600 mt-0.5">
-                              Create a fresh try-on
+                              {t('virtualTryOnModal.createFreshTryOn')}
                             </span>
                           </div>
                         </button>
@@ -4358,25 +4537,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
                           uploadedImage ? 'text-gray-900' : 'text-gray-500'
-                        }`}>Choose your photo</h2>
+                        }`}>{t('virtualTryOnModal.chooseYourPhoto')}</h2>
                       </div>
                   {/* Photo Upload Card */}
                   <div ref={photoUploadRef} className={`bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2 ${uploadedImage && !showChangePhotoOptions ? 'min-h-[180px] sm:min-h-[200px]' : ''}`}>
                     {(!uploadedImage || showChangePhotoOptions) && (
                       <>
-                        <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">For best results</h3>
+                        <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">{t('virtualTryOnModal.forBestResults')}</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gray-600 mb-2 w-full">
                           <span className="flex items-center gap-1.5 justify-start">
-                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Front-facing pose
+                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.frontFacingPose')}
                           </span>
                           <span className="flex items-center gap-1.5 justify-start">
-                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Arms visible
+                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.armsVisible')}
                           </span>
                           <span className="flex items-center gap-1.5 justify-start">
-                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Good lighting
+                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.goodLighting')}
                           </span>
                           <span className="flex items-center gap-1.5 justify-start">
-                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> Plain background
+                            <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.plainBackground')}
                           </span>
                         </div>
                       </>
@@ -4388,7 +4567,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <img
                             ref={isWidgetTestPath() && shouldDetectPeople ? detectionImageRef : undefined}
                             src={uploadedImage}
-                            alt="Uploaded photo"
+                            alt={t('virtualTryOnModal.uploadedPhoto')}
                             className="max-w-full max-h-full h-full object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
                           />
                         </div>
@@ -4401,7 +4580,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               <div className="flex flex-col items-center gap-2 py-2">
                                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
                                 <p className="text-xs text-gray-600">
-                                  {isLoadingModels ? 'Loading AI model...' : 'Detecting people...'}
+                                  {isLoadingModels ? t('virtualTryOnModal.loadingAiModel') : t('virtualTryOnModal.detectingPeople')}
                                 </p>
                               </div>
                             )}
@@ -4419,7 +4598,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               <>
                                 {detectionResult.people && detectionResult.people.length === 0 && (
                                   <div className="text-center py-2">
-                                    <p className="text-xs text-gray-600">No people detected in this image.</p>
+                                    <p className="text-xs text-gray-600">{t('virtualTryOnModal.noPeopleDetected')}</p>
                                   </div>
                                 )}
                               </>
@@ -4430,23 +4609,23 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     ) : (
                       <button
                         className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
-                        aria-label="Upload photo"
+                        aria-label={t('virtualTryOnModal.uploadPhoto')}
                         type="button"
                         onClick={triggerPhotoUpload}
                       >
                         {/* Shimmer effect on hover */}
                         <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
                         <Upload size={16} className="relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
-                        <span className="relative z-10">Upload Photo</span>
+                        <span className="relative z-10">{t('virtualTryOnModal.uploadPhoto')}</span>
                       </button>
                     )}
                   </div>
 
                   {/* Recent Photos Section - Hidden when viewing past try-on, generating, step is complete, or when photo is uploaded and change photo options are not shown */}
-                  {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && (!uploadedImage || showChangePhotoOptions) && (
+                  {!viewingPastTryOn && (step === 'idle') && (!uploadedImage || showChangePhotoOptions) && (
                   <div className="mb-2">
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
-                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Your Recent Photos</label>
+                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.yourRecentPhotos')}</label>
                       <div 
                         className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                       >
@@ -4516,7 +4695,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                   : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                               }`}
-                              aria-label={`Select photo ${photo.id}`}
+                              aria-label={t('virtualTryOnModal.selectPhoto', { id: photo.id })}
                               type="button"
                             >
                               {/* Hover overlay effect */}
@@ -4530,7 +4709,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               )}
                               <img 
                                 src={getProxiedImageUrl(photo.src)} 
-                                alt="User" 
+                                alt={t('virtualTryOnModal.user')} 
                                 className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                   isLoading ? 'opacity-0' : 'opacity-100'
                                 } ${
@@ -4565,7 +4744,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           );
                         })
                       ) : (
-                        <div className="text-xs text-gray-500">No recent photos</div>
+                        <div className="text-xs text-gray-500">{t('virtualTryOnModal.noRecentPhotos')}</div>
                       )}
                       </div>
                     </div>
@@ -4573,10 +4752,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   )}
 
                   {/* Use a Demo Model Section - Hidden when viewing past try-on, generating, step is complete, or when photo is uploaded and change photo options are not shown */}
-                  {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && (!uploadedImage || showChangePhotoOptions) && (
+                  {!viewingPastTryOn && (step === 'idle') && (!uploadedImage || showChangePhotoOptions) && (
                   <div>
                     <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
-                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">Use a demo model</label>
+                      <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.useDemoModel')}</label>
                       <div 
                         className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                       >
@@ -4627,7 +4806,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                 : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                             }`}
-                            aria-label={`Select demo model ${model.id}`}
+                            aria-label={t('virtualTryOnModal.selectDemoModel', { id: model.id })}
                             type="button"
                           >
                             {/* Hover overlay effect */}
@@ -4641,7 +4820,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             )}
                             <img 
                               src={model.url} 
-                              alt={`Demo model ${model.id}`} 
+                              alt={t('virtualTryOnModal.demoModel', { id: model.id })} 
                               className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                 isLoading ? 'opacity-0' : 'opacity-100'
                               } ${
@@ -4681,17 +4860,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                       <button
                         onClick={() => setShowChangePhotoOptions(true)}
-                        disabled={step === 'generating'}
+                        disabled={step !== 'idle' && step !== 'complete'}
                         className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                         type="button"
                       >
                         <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
                         <div className="flex flex-col min-w-0 flex-1">
                           <span className="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
-                            Change photo
+                            {t('virtualTryOnModal.changePhoto')}
                           </span>
                           <span className="text-[10px] sm:text-xs text-gray-600 mt-0.5">
-                            Upload a different photo
+                            {t('virtualTryOnModal.uploadDifferentPhoto')}
                           </span>
                         </div>
                       </button>
@@ -4725,7 +4904,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         ? 'text-gray-900'
                         : 'text-gray-500'
                     }`}>
-                      {step === 'generating' ? 'Generating...' : (step === 'complete' || generatedImage) && !generatedImageError ? 'Your Look' : 'Your Look'}
+                      {step === 'generating' ? t('virtualTryOnModal.generating') : t('virtualTryOnModal.yourLook')}
                     </h2>
                   </div>
 
@@ -4745,11 +4924,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         {/* Primary message */}
                         <p className="text-gray-600 text-xs sm:text-sm font-medium mb-2 transition-colors duration-200">
-                          Your result will appear here
+                          {t('virtualTryOnModal.resultWillAppear')}
                         </p>
                         {/* Secondary instruction */}
                         <p className="text-gray-500 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
-                          Upload a photo to get started
+                          {t('virtualTryOnModal.uploadPhotoToStart')}
                         </p>
                       </div>
                     )}
@@ -4762,11 +4941,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         {/* Primary message */}
                         <p className="text-primary text-xs sm:text-sm font-semibold mb-2 transition-colors duration-200">
-                          Ready to generate
+                          {t('virtualTryOnModal.readyToGenerate')}
                         </p>
                         {/* Secondary instruction */}
                         <p className="text-primary/80 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
-                          Click the button below
+                          {selectedClothing ? t('virtualTryOnModal.clickGenerateToCreate') : t('virtualTryOnModal.selectClothingAndGenerate')}
                         </p>
                       </div>
                     )}
@@ -4810,7 +4989,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         
                         {/* Status Text - Below Circular Loader */}
                         <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-3">
-                          {statusMessage || 'Creating your try-on...'}
+                          {statusMessage || t('virtualTryOnModal.creatingTryOn')}
                         </h3>
                         
                         {/* Linear Progress Bar - Shows actual progress */}
@@ -4849,7 +5028,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         
                         {/* Status Text - Finalizing */}
                         <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-4">
-                          {statusMessage || 'Finalizing your try-on...'}
+                          {statusMessage || t('virtualTryOnModal.finalizingTryOn')}
                         </h3>
                         
                         {/* Progress Bar - Full */}
@@ -4955,10 +5134,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </div>
 
                           {/* Size selection prompt - improved readability and spacing */}
-                          {viewingPastTryOn && (
+                          {(viewingPastTryOn || (step === 'complete' && generatedImage)) && sizes.length > 0 && (
                             <div className="flex-shrink-0 w-full px-2">
                               <p className="text-sm sm:text-base text-gray-800 font-semibold text-center leading-tight">
-                                Select a size to add to cart
+                                {t('virtualTryOnModal.selectSizeToAddToCart')}
                               </p>
                             </div>
                           )}
@@ -4976,22 +5155,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </div>
                           {/* Error message */}
                           <p className="text-red-600 text-xs sm:text-sm font-semibold mb-2 transition-colors duration-200">
-                            Failed to load try-on result
+                            {t('virtualTryOnModal.failedToLoadResult')}
                           </p>
                           {/* Secondary instruction */}
                           <p className="text-gray-600 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed mb-4">
-                            The image could not be loaded. Please try generating again.
+                            {t('virtualTryOnModal.imageCouldNotBeLoaded')}
                           </p>
                           {/* Retry button */}
                           <button
                             onClick={handleReset}
                             className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out shadow-md hover:shadow-lg hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
-                            aria-label="Try again"
+                            aria-label={t('virtualTryOnModal.tryAgain')}
                             type="button"
                           >
                             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
                             <RotateCcw size={16} className="relative z-10 group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
-                            <span className="relative z-10">Try Again</span>
+                            <span className="relative z-10">{t('virtualTryOnModal.tryAgain')}</span>
                           </button>
                         </div>
                       </div>
@@ -5006,24 +5185,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             </div>
                             <div className="space-y-2">
                               <h3 className="text-xs sm:text-sm font-semibold text-red-900">
-                                Oops! Something went wrong
+                                {t('virtualTryOnModal.somethingWentWrong')}
                               </h3>
                               <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
                                 {error}
                               </p>
                               <p className="text-xs sm:text-sm text-red-700 mt-2">
-                                Please try uploading a different photo or check your internet connection.
+                                {t('virtualTryOnModal.tryDifferentPhotoOrCheckConnection')}
                               </p>
                             </div>
                             <button
                               onClick={handleReset}
                               className="group relative mt-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm sm:text-base font-medium transition-all duration-300 ease-in-out flex items-center gap-2 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 overflow-hidden"
-                              aria-label="Start over and try again"
+                              aria-label={t('virtualTryOnModal.startOver')}
                               type="button"
                             >
                               <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
                               <RotateCcw size={16} className="relative z-10 group-hover:rotate-180 transition-transform duration-500 ease-in-out" />
-                              <span className="relative z-10">Start over</span>
+                              <span className="relative z-10">{t('virtualTryOnModal.startOver')}</span>
                             </button>
                           </div>
                         </div>
@@ -5038,7 +5217,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 {/* Only show size selection if sizes are available and generation is complete */}
                 {sizes.length > 0 && (step === 'complete' || generatedImage) && !generatedImageError && (
                   <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                    <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">Size:</span>
+                    <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">{t('virtualTryOnModal.size')}</span>
                     {sizes.map((size) => {
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
                       const isAvailable = sizeInfo?.isAvailable ?? false;
@@ -5074,7 +5253,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               ? 'bg-white text-gray-500 border-gray-300 shadow-sm hover:border-gray-400 hover:bg-gray-50 hover:shadow-md hover:scale-105 active:scale-95 cursor-pointer'
                               : 'bg-white text-gray-700 border-border hover:border-primary/50 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 hover:bg-primary/5'
                           }`}
-                          aria-label={`Select size ${size}${!isAvailable ? ' (out of stock)' : ''}`}
+                          aria-label={t('virtualTryOnModal.selectSizeLabel', { size }) + (!isAvailable ? t('virtualTryOnModal.outOfStock') : '')}
                           type="button"
                         >
                           {/* Hover shimmer effect for available sizes */}
@@ -5121,7 +5300,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {step === 'generating' ? (
                     <>
                       <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin relative z-10" />
-                      <span className="relative z-10">Generating...</span>
+                      <span className="relative z-10">{t('virtualTryOnModal.generatingButton')}</span>
                     </>
                   ) : (
                     <>
@@ -5139,19 +5318,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                 {step === 'generating' && (
                   <p className="text-center text-xs text-gray-400 mt-2">
-                    Please wait while we create your try-on.
+                    {t('virtualTryOnModal.pleaseWaitCreating')}
                   </p>
                 )}
                 
-                {step !== 'generating' && step === 'complete' && (
+                {((step === 'complete' && generatedImage) || viewingPastTryOn) && !generatedImageError && (
                   <p className="text-center text-[10px] sm:text-xs text-gray-600 mt-2 px-2">
-                    Rendered for aesthetic purposes. Does not reflect actual dimensions.
-                  </p>
-                )}
-
-                {step !== 'generating' && step !== 'complete' && (
-                  <p className="text-center text-[10px] text-gray-600 mt-2 px-2">
-                    Rendered for aesthetic purposes. Does not reflect actual dimensions.
+                    {t('virtualTryOnModal.renderedForAesthetic')}
                   </p>
                 )}
               </div>
@@ -5159,10 +5332,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               {/* History Section */}
               <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 min-h-[104px] sm:min-h-[116px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
                 <div className="flex justify-between items-center mb-1 sm:mb-1.5">
-                  <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">Your try-on history</h4>
+                  <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">{t('virtualTryOnModal.yourTryOnHistory')}</h4>
                   <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
                     <span className="relative">
-                      View all
+                      {t('virtualTryOnModal.viewAll')}
                       <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-primary group-hover:w-full transition-all duration-300"></span>
                     </span>
                   </button>
@@ -5204,7 +5377,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                           }`}
                           style={{ backgroundColor: '#f6f8fa' }}
-                          aria-label={`Select try-on result ${item.id}`}
+                          aria-label={t('virtualTryOnModal.selectTryOnResult', { id: item.id })}
                           type="button"
                         >
                           {/* Hover overlay effect */}
@@ -5218,7 +5391,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           )}
                           <img 
                             src={getProxiedImageUrl(item.image)} 
-                            alt={`Try-on history ${item.id}`} 
+                            alt={t('virtualTryOnModal.tryOnHistory', { id: item.id })} 
                             className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
                               isLoading ? 'opacity-0' : 'opacity-100'
                             } ${
@@ -5265,7 +5438,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         }
                       }}
                       className="group relative flex-shrink-0 h-14 w-14 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
-                      aria-label="Upload new photo for try-on"
+                      aria-label={t('virtualTryOnModal.uploadNewPhotoForTryOn')}
                       type="button"
                     >
                       {/* Shimmer effect */}
@@ -5276,7 +5449,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         strokeWidth={2}
                       />
                       <span className="text-[9px] text-muted-foreground group-hover:text-primary font-medium mt-0.5 relative z-10 transition-all duration-300">
-                        New
+                        {t('virtualTryOnModal.new')}
                       </span>
                     </button>
                   </>
@@ -5294,7 +5467,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         }
                       }}
                       className="group relative flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95 overflow-hidden"
-                      aria-label="Upload photo to start try-on"
+                      aria-label={t('virtualTryOnModal.uploadPhotoToStartTryOnAction')}
                       type="button"
                     >
                       {/* Shimmer effect */}
@@ -5305,7 +5478,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         strokeWidth={2}
                       />
                       <span className="text-xs text-muted-foreground group-hover:text-primary font-medium relative z-10 transition-all duration-300">
-                        Upload photo to start
+                        {t('virtualTryOnModal.uploadPhotoToStartTryOn')}
                       </span>
                     </button>
                   </div>
