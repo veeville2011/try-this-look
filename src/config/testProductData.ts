@@ -207,11 +207,22 @@ export const TEST_VARIANTS = [
 ];
 
 /**
- * Check if we're on the /widget-test route
+ * Check if we're running on localhost
+ */
+export const isLocalhost = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.local');
+};
+
+/**
+ * Check if we're on the /widget-test route AND running on localhost
+ * Test data should only be used in localhost environment
  */
 export const isWidgetTestRoute = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return window.location.pathname === '/widget-test' || window.location.pathname.includes('/widget-test');
+  const isTestPath = window.location.pathname === '/widget-test' || window.location.pathname.includes('/widget-test');
+  return isTestPath && isLocalhost();
 };
 
 /**

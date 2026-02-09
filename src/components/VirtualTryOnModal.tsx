@@ -10,7 +10,7 @@ import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
 import type { ProductImage } from '@/types/tryon';
 import { GlowingBubblesReveal } from '@/components/ui/glowing-bubbles-reveal';
 import { usePersonDetection } from '@/components/PersonDetector';
-import { isWidgetTestRoute } from '@/config/testProductData';
+import { isWidgetTestRoute, isLocalhost } from '@/config/testProductData';
 import { cn } from '@/lib/utils';
 
 interface VirtualTryOnModalProps {
@@ -116,6 +116,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     // Access product data directly from state to avoid circular dependency
     const currentProductData = storedProductData || productData || (() => {
       if (typeof window === 'undefined') return null;
+      // Only use test data on localhost
+      if (!isLocalhost()) return null;
       try {
         if (window.parent !== window && (window.parent as any).NUSENSE_PRODUCT_DATA) {
           return (window.parent as any).NUSENSE_PRODUCT_DATA;
@@ -385,16 +387,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return storedProductData;
     }
     
-    // Priority 2: Try direct access from parent window
-    try {
-      if (window.parent !== window && (window.parent as any).NUSENSE_PRODUCT_DATA) {
-        return (window.parent as any).NUSENSE_PRODUCT_DATA;
+    // Priority 2: Try direct access from parent window (only on localhost)
+    if (isLocalhost()) {
+      try {
+        if (window.parent !== window && (window.parent as any).NUSENSE_PRODUCT_DATA) {
+          return (window.parent as any).NUSENSE_PRODUCT_DATA;
+        }
+        if ((window as any).NUSENSE_PRODUCT_DATA) {
+          return (window as any).NUSENSE_PRODUCT_DATA;
+        }
+      } catch (error) {
+        // Cross-origin access might fail
       }
-      if ((window as any).NUSENSE_PRODUCT_DATA) {
-        return (window as any).NUSENSE_PRODUCT_DATA;
-      }
-    } catch (error) {
-      // Cross-origin access might fail
     }
     
     // Priority 3: Use local productData state
@@ -419,8 +423,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   useEffect(() => {
     const isInIframe = window.parent !== window;
     
-    // Check for test store info first (for /widget-test route)
-    if (typeof window !== 'undefined' && (window as any).NUSENSE_TEST_STORE_INFO) {
+    // Check for test store info first (for /widget-test route, only on localhost)
+    if (typeof window !== 'undefined' && isLocalhost() && (window as any).NUSENSE_TEST_STORE_INFO) {
       const testStoreInfo = (window as any).NUSENSE_TEST_STORE_INFO;
       setStoreInfo({
         shop: testStoreInfo.shop || 'vto-demo',
@@ -472,8 +476,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
     } else {
-      // Check for test product data first (for /widget-test route)
-      if (typeof window !== 'undefined' && (window as any).NUSENSE_PRODUCT_DATA) {
+      // Check for test product data first (for /widget-test route, only on localhost)
+      if (typeof window !== 'undefined' && isLocalhost() && (window as any).NUSENSE_PRODUCT_DATA) {
         const testProductData = (window as any).NUSENSE_PRODUCT_DATA;
         if (testProductData && !productData) {
           setProductData(testProductData);
@@ -481,8 +485,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
-      // Check for test product images (for /widget-test route)
-      if (typeof window !== 'undefined' && (window as any).NUSENSE_TEST_PRODUCT_IMAGES) {
+      // Check for test product images (for /widget-test route, only on localhost)
+      if (typeof window !== 'undefined' && isLocalhost() && (window as any).NUSENSE_TEST_PRODUCT_IMAGES) {
         const testImages = (window as any).NUSENSE_TEST_PRODUCT_IMAGES;
         if (Array.isArray(testImages) && testImages.length > 0 && productImages.length === 0) {
           const imageUrls: string[] = [];
@@ -552,7 +556,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         });
       }
 
-      // Handle product data messages
+      // Handle product data messages from parent window
+      // postMessage is how real Shopify data arrives, so always accept it
+      // Only direct window.NUSENSE_PRODUCT_DATA access is restricted to localhost
       if (event.data && event.data.type === 'NUSENSE_PRODUCT_DATA') {
         console.log('[VirtualTryOnModal] Received NUSENSE_PRODUCT_DATA:', event.data.productData);
         if (event.data.productData) {
@@ -1242,6 +1248,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         // Get current product data
         const currentProductData = storedProductData || productData || (() => {
           if (typeof window === 'undefined') return null;
+          // Only use test data on localhost
+          if (!isLocalhost()) return null;
           try {
             if (window.parent !== window && (window.parent as any).NUSENSE_PRODUCT_DATA) {
               return (window.parent as any).NUSENSE_PRODUCT_DATA;

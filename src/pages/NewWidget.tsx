@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import VirtualTryOnModal from "@/components/VirtualTryOnModal";
-import { initializeTestProductData, isWidgetTestRoute } from "@/config/testProductData";
+import { initializeTestProductData, isWidgetTestRoute, isLocalhost } from "@/config/testProductData";
 
 interface CustomerInfo {
   id?: string | null;
@@ -149,9 +149,9 @@ export default function NewWidget() {
     };
   }, []);
 
-  // Initialize test product data for /widget-test route
+  // Initialize test product data for /widget-test route (only on localhost)
   useEffect(() => {
-    if (isTestRoute && typeof window !== 'undefined') {
+    if (isTestRoute && isLocalhost() && typeof window !== 'undefined') {
       const testData = initializeTestProductData();
       
       // Set product data in window for VirtualTryOnModal to access
