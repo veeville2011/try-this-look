@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2, LogIn } from 'lucide-react';
+import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
@@ -148,7 +148,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Cart states
   const [isAddToCartLoading, setIsAddToCartLoading] = useState(false);
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
-  const [isNotifyMeLoading, setIsNotifyMeLoading] = useState(false);
   const [cartQuantity, setCartQuantity] = useState(1);
   const [currentCartQuantity, setCurrentCartQuantity] = useState(0);
   const [cartStateCache, setCartStateCache] = useState<{ items: any[]; timestamp: number } | null>(null);
@@ -964,9 +963,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           setTimeout(() => setShowToast(false), 3000);
         } else if (event.data.action === 'NUSENSE_BUY_NOW') {
           setIsBuyNowLoading(false);
-        } else if (event.data.action === 'NUSENSE_NOTIFY_ME') {
-          setIsNotifyMeLoading(false);
-          toast.success(t('virtualTryOnModal.notifyMeSuccessMessage'));
         }
       } else if (event.data && event.data.type === 'NUSENSE_ACTION_ERROR') {
         if (event.data.action === 'NUSENSE_ADD_TO_CART') {
@@ -977,11 +973,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         } else if (event.data.action === 'NUSENSE_BUY_NOW') {
           setIsBuyNowLoading(false);
           toast.error(t('virtualTryOnModal.errorBuyingNow'), {
-            description: event.data.error || t('virtualTryOnModal.pleaseTryAgain'),
-          });
-        } else if (event.data.action === 'NUSENSE_NOTIFY_ME') {
-          setIsNotifyMeLoading(false);
-          toast.error(t('virtualTryOnModal.errorNotifying'), {
             description: event.data.error || t('virtualTryOnModal.pleaseTryAgain'),
           });
         }
@@ -2478,50 +2469,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [selectedSize, sizes, storedProductData, cartQuantity, getProductData, sizeAvailability, t]);
 
-  // Handle notify me
-  const handleNotifyMe = useCallback(() => {
-    // Only require size selection if sizes are available
-    if (sizes.length > 0 && !selectedSize) {
-      toast.error(t('virtualTryOnModal.selectSizeToContinue'));
-      return;
-    }
-
-    setIsNotifyMeLoading(true);
-    const isInIframe = window.parent !== window;
-    const currentProductData = storedProductData || getProductData();
-
-    // Get variant ID for selected size (if sizes are available)
-    let variantId: string | number | null = null;
-    if (sizes.length > 0 && selectedSize) {
-      const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
-      variantId = selectedSizeInfo?.variantId ?? null;
-    }
-
-    // Fallback to default variant if no size selection needed
-    if (!variantId) {
-      variantId = variantStockInfo?.variantId ?? 
-                  (currentProductData as any)?.selectedVariantId ?? 
-                  (currentProductData as any)?.variants?.[0]?.id ?? 
-                  null;
-    }
-
-    if (isInIframe) {
-      const message = {
-        type: 'NUSENSE_NOTIFY_ME',
-        ...(currentProductData && { product: currentProductData }),
-        ...(variantId && { variantId: variantId }),
-      };
-      window.parent.postMessage(message, '*');
-
-      setTimeout(() => {
-        setIsNotifyMeLoading(false);
-      }, 10000);
-    } else {
-      setIsNotifyMeLoading(false);
-      toast.info(t('virtualTryOnModal.notifyMeSuccessMessage'));
-    }
-  }, [selectedSize, sizes, storedProductData, variantStockInfo, getProductData, sizeAvailability, t]);
-
   // Handle reset
   const handleReset = useCallback(() => {
     setStep('idle');
@@ -3038,33 +2985,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           };
         }
         
-        // Check if selected size is available
-        const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
-        const isSizeAvailable = selectedSizeInfo?.isAvailable ?? false;
-        
-        if (!isSizeAvailable) {
-          return {
-            text: t('virtualTryOnModal.notifyMe'),
-            icon: <Bell size={16} />,
-            disabled: isNotifyMeLoading,
-            action: handleNotifyMe,
-            color: 'orange',
-          };
-        }
       }
       
-      // If no sizes available (single variant product), check variant stock
-      if (sizes.length === 0 && variantStockInfo && !variantStockInfo.isAvailable) {
-        return {
-          text: t('virtualTryOnModal.notifyMe'),
-          icon: <Bell size={16} />,
-          disabled: isNotifyMeLoading,
-          action: handleNotifyMe,
-          color: 'orange',
-        };
-      }
-      
-      // If no sizes available or size is selected and available, show add to cart
+      // Always show add to cart regardless of availability
       return {
         text: currentCartQuantity > 0 ? t('virtualTryOnModal.addToCartWithQuantity', { quantity: currentCartQuantity }) : t('virtualTryOnModal.addToCart'),
         icon: <ShoppingCart size={16} />,
@@ -3080,7 +3003,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       action: handleGenerate,
       color: 'gray',
     };
-  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, variantStockInfo, handleGenerate, handleNotifyMe, handleAddToCart, isValidImage, t, showPersonSelection, selectedPersonIndex]);
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, variantStockInfo, handleGenerate, handleAddToCart, isValidImage, t, showPersonSelection, selectedPersonIndex]);
 
   const btnState = getButtonState();
   

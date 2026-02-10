@@ -24,7 +24,7 @@ import {
   type ImageGenerationHistoryItem,
 } from "@/services/tryonApi";
 import { TryOnResponse, ProductImage } from "@/types/tryon";
-import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight, Maximize2, Bell } from "lucide-react";
+import { Sparkles, X, RotateCcw, Loader2, Download, ShoppingCart, CreditCard, Image as ImageIcon, Check, ArrowLeft, Info, Share2, LogIn, Shield, WifiOff, CheckCircle, History, Wand2, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadialProgress } from "@/components/ui/radial-progress";
 import {
@@ -202,7 +202,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     items: any[];
     timestamp: number;
   } | null>(null);
-  const [isNotifyMeLoading, setIsNotifyMeLoading] = useState(false);
   const [variantStockInfo, setVariantStockInfo] = useState<{
     isAvailable: boolean;
     availableQuantity: number | null;
@@ -911,20 +910,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             // Parent bridge receives NUSENSE_ACTION_SUCCESS and handles both Pixel and Cart API tracking
             // This ensures tracking happens only once from the shop domain where the cart action occurred
           }
-        } else if (event.data.action === "NUSENSE_NOTIFY_ME") {
-          setIsNotifyMeLoading(false);
-          toast.success(t("tryOnWidget.buttons.notifyMeSuccess") || "Notification enregistrée", {
-            description:
-              t("tryOnWidget.buttons.notifyMeSuccessDescription") ||
-              "Nous vous enverrons un email lorsque cet article sera de nouveau en stock.",
-          });
-        }
-      } else if (event.data && event.data.type === "NUSENSE_ACTION_INFO") {
-        if (event.data.action === "NUSENSE_NOTIFY_ME") {
-          setIsNotifyMeLoading(false);
-          toast.info(t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible", {
-            description: event.data.message || undefined,
-          });
         }
       } else if (event.data && event.data.type === "NUSENSE_ACTION_ERROR") {
         if (event.data.action === "NUSENSE_ADD_TO_CART") {
@@ -940,11 +925,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
             description:
               event.data.error ||
               t("tryOnWidget.resultDisplay.buyNowError") || "Impossible de procéder à l'achat. Veuillez réessayer.",
-          });
-        } else if (event.data.action === "NUSENSE_NOTIFY_ME") {
-          setIsNotifyMeLoading(false);
-          toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
-            description: event.data.error || t("tryOnWidget.buttons.notifyMeError") || "Impossible d'enregistrer la notification. Veuillez réessayer.",
           });
         }
       }
@@ -1930,42 +1910,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       setIsAddToCartLoading(false);
       toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
         description: t("tryOnWidget.resultDisplay.addToCartError") || "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
-      });
-    }
-  };
-
-  const handleNotifyMe = async () => {
-    if (isNotifyMeLoading) return;
-
-    setIsNotifyMeLoading(true);
-
-    try {
-      const isInIframe = window.parent !== window;
-      const productData = getProductData();
-
-      if (isInIframe) {
-        // Send message to parent window to handle notify me (back in stock notification)
-        const message = {
-          type: "NUSENSE_NOTIFY_ME",
-          ...(productData && { product: productData }),
-          variantId: variantStockInfo?.variantId ?? null,
-        };
-        window.parent.postMessage(message, "*");
-
-        // Safety timeout in case no response comes back from parent
-        setTimeout(() => {
-          setIsNotifyMeLoading(false);
-        }, 10000);
-      } else {
-        setIsNotifyMeLoading(false);
-        toast.error(t("tryOnWidget.resultDisplay.featureUnavailable") || "Fonctionnalité non disponible", {
-          description: t("tryOnWidget.resultDisplay.featureUnavailableDescription") || "Cette fonctionnalité nécessite une intégration Shopify. Veuillez utiliser cette application depuis une page produit Shopify.",
-        });
-      }
-    } catch (error) {
-      setIsNotifyMeLoading(false);
-      toast.error(t("tryOnWidget.resultDisplay.error") || "Erreur", {
-        description: t("tryOnWidget.buttons.notifyMeError") || "Impossible d'enregistrer la notification. Veuillez réessayer.",
       });
     }
   };
@@ -3618,66 +3562,45 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         {t("tryOnWidget.buttons.retry") || "Réessayer"}
                       </Button>
 
-                      {/* Stock availability check - Show Notify Me if out of stock, otherwise show quantity + Add to Cart/Buy Now */}
-                      {variantStockInfo && !variantStockInfo.isAvailable ? (
-                        /* Out of Stock: Show Notify Me button */
-                        <div className="flex items-center gap-3 flex-wrap justify-end w-full">
+                      {/* Show Add to Cart/Buy Now buttons */}
+                      <div className="flex items-center gap-3 flex-wrap justify-end w-full">
+                        <div className="flex flex-col gap-3">
                           <Button
-                            onClick={handleNotifyMe}
-                            disabled={isGenerating || isNotifyMeLoading}
-                            className="min-w-[220px] h-11 bg-slate-600 hover:bg-slate-700 text-white"
-                            aria-label={t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
-                            aria-busy={isNotifyMeLoading}
+                            onClick={handleAddToCart}
+                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                            className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
+                            aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                            aria-busy={isAddToCartLoading}
                           >
-                            {isNotifyMeLoading ? (
+                            {isAddToCartLoading ? (
                               <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                             ) : (
-                              <Bell className="w-5 h-5 mr-2" aria-hidden="true" />
+                              <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
                             )}
-                            {t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
+                            {currentCartQuantity > 0 ? (
+                              <span>{t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"} ({currentCartQuantity})</span>
+                            ) : (
+                              <span>{t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}</span>
+                            )}
+                          </Button>
+
+                          <Button
+                            onClick={handleBuyNow}
+                            disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                            variant={outlineVariant}
+                            className="min-w-[220px] h-11"
+                            aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                            aria-busy={isBuyNowLoading}
+                          >
+                            {isBuyNowLoading ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
+                            )}
+                            {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
                           </Button>
                         </div>
-                      ) : (
-                        /* In Stock: Show Add to Cart/Buy Now */
-                        <div className="flex items-center gap-3 flex-wrap justify-end w-full">
-                          <div className="flex flex-col gap-3">
-                            <Button
-                              onClick={handleAddToCart}
-                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                              className="min-w-[220px] h-11 bg-primary hover:bg-primary/90"
-                              aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                              aria-busy={isAddToCartLoading}
-                            >
-                              {isAddToCartLoading ? (
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                              ) : (
-                                <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                              )}
-                              {currentCartQuantity > 0 ? (
-                                <span>{t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"} ({currentCartQuantity})</span>
-                              ) : (
-                                <span>{t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"}</span>
-                              )}
-                            </Button>
-
-                            <Button
-                              onClick={handleBuyNow}
-                              disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                              variant={outlineVariant}
-                              className="min-w-[220px] h-11"
-                              aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                              aria-busy={isBuyNowLoading}
-                            >
-                              {isBuyNowLoading ? (
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                              ) : (
-                                <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                              )}
-                              {t("tryOnWidget.buttons.buyNow") || "Acheter maintenant"}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                      </div>
 
                     </div>
                   </div>
@@ -4070,71 +3993,50 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
           {(isGenerating || generatedImage) && layoutMode !== "wide" && (
             /* Result buttons: Mobile - Stacked vertically, ordered by priority */
             <div className="flex flex-col self-stretch mb-8 gap-4">
-              {/* Stock availability check - Show Notify Me if out of stock, otherwise show quantity + Add to Cart/Buy Now */}
-              {generatedImage && variantStockInfo && !variantStockInfo.isAvailable ? (
-                /* Out of Stock: Show Notify Me button */
+              {/* Show Add to Cart/Buy Now buttons */}
+              {generatedImage && (
+                <>
+                  {/* Primary Action: Add to Cart - Only show when result is ready */}
+                  <Button
+                    onClick={handleAddToCart}
+                    disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                    className="w-full h-11 bg-primary hover:bg-primary/90"
+                    aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
+                    aria-busy={isAddToCartLoading}
+                  >
+                    {isAddToCartLoading ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
+                    )}
+                    {isAddToCartLoading
+                      ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
+                      : currentCartQuantity > 0
+                      ? `${t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"} (${currentCartQuantity})`
+                      : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
+                  </Button>
+                </>
+              )}
+
+              {/* Secondary Action: Buy Now - Only show when result is ready */}
+              {generatedImage && (
                 <Button
-                  onClick={handleNotifyMe}
-                  disabled={isGenerating || isNotifyMeLoading}
-                  className="w-full h-11 bg-slate-600 hover:bg-slate-700 text-white"
-                  aria-label={t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
-                  aria-busy={isNotifyMeLoading}
+                  onClick={handleBuyNow}
+                  disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
+                  variant={outlineVariant}
+                  className="w-full h-11"
+                  aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
+                  aria-busy={isBuyNowLoading}
                 >
-                  {isNotifyMeLoading ? (
+                  {isBuyNowLoading ? (
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                   ) : (
-                    <Bell className="w-5 h-5 mr-2" aria-hidden="true" />
+                    <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
                   )}
-                  {t("tryOnWidget.buttons.notifyMe") || "Me notifier quand disponible"}
+                  {isBuyNowLoading
+                    ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
+                    : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
                 </Button>
-              ) : (
-                <>
-                  {/* In Stock: Show Add to Cart/Buy Now */}
-                  {generatedImage && (
-                    <>
-                      {/* Primary Action: Add to Cart - Only show when result is ready */}
-                      <Button
-                        onClick={handleAddToCart}
-                        disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                        className="w-full h-11 bg-primary hover:bg-primary/90"
-                        aria-label={t("tryOnWidget.buttons.addToCart") || "Ajouter au Panier"}
-                        aria-busy={isAddToCartLoading}
-                      >
-                        {isAddToCartLoading ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                        )}
-                        {isAddToCartLoading
-                          ? (t("tryOnWidget.resultDisplay.adding") || "Ajout...")
-                          : currentCartQuantity > 0
-                          ? `${t("tryOnWidget.buttons.addToCart") || "Ajouter au panier"} (${currentCartQuantity})`
-                          : (t("tryOnWidget.buttons.addToCart") || "Ajouter au panier")}
-                      </Button>
-                    </>
-                  )}
-
-                  {/* Secondary Action: Buy Now - Only show when result is ready */}
-                  {generatedImage && (
-                    <Button
-                      onClick={handleBuyNow}
-                      disabled={isGenerating || isBuyNowLoading || isAddToCartLoading || isDownloadLoading || isInstagramShareLoading}
-                      variant={outlineVariant}
-                      className="w-full h-11"
-                      aria-label={t("tryOnWidget.buttons.buyNow") || "Acheter Maintenant"}
-                      aria-busy={isBuyNowLoading}
-                    >
-                      {isBuyNowLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <CreditCard className="w-5 h-5 mr-2" aria-hidden="true" />
-                      )}
-                      {isBuyNowLoading
-                        ? (t("tryOnWidget.resultDisplay.processing") || "Traitement...")
-                        : (t("tryOnWidget.buttons.buyNow") || "Acheter maintenant")}
-                    </Button>
-                  )}
-                </>
               )}
 
               {/* Tertiary Action: Retry - Show during generation or after result */}
