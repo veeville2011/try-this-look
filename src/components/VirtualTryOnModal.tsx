@@ -4345,7 +4345,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         )}
         
         <div className={cn(
-          "bg-white w-full max-w-full sm:max-w-[640px] md:max-w-[768px] lg:max-w-[1024px] xl:max-w-[1280px] 2xl:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-none sm:rounded-lg",
+          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg",
           !isModalPreloaded && "opacity-0 pointer-events-none"
         )} role="dialog" aria-modal="true" aria-labelledby="modal-title" style={{
           transition: 'opacity 0.3s ease-in-out'
@@ -4365,45 +4365,45 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </div>
           )}
 
-          <div className="flex justify-between items-center px-3 xs:px-4 sm:px-5 md:px-6 lg:px-7 py-2 xs:py-2.5 sm:py-3 border-b border-gray-100">
-            <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3">
+          <div className="flex justify-between items-center px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2 sm:gap-3">
               <img
                 src="/assets/NUSENSE_LOGO.svg"
                 alt="NUSENSE"
-                className="h-3.5 xs:h-4 sm:h-5 md:h-6 w-auto flex-shrink-0"
+                className="h-4 sm:h-5 w-auto flex-shrink-0"
                 aria-label="NUSENSE Logo"
               />
-              <span className="font-normal text-gray-700 text-[11px] xs:text-xs sm:text-sm md:text-base flex items-center" id="modal-title">{t('virtualTryOnModal.title')}</span>
+              <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">{t('virtualTryOnModal.title')}</span>
             </div>
 
             <button
               onClick={handleClose}
-              className="group flex items-center justify-center w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 min-w-7 xs:min-w-8 sm:min-w-9 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
+              className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
               aria-label={t('virtualTryOnModal.closeModal')}
               type="button"
             >
-              <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={18} />
+              <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={20} />
             </button>
           </div>
 
           {/* Viewing Past Try-On Banner */}
           {viewingPastTryOn && viewingHistoryItem && (
-            <div className="w-full px-3 xs:px-4 sm:px-5 md:px-6 lg:px-7 py-1.5 xs:py-2 sm:py-2.5 border-b border-gray-100 transition-all duration-300 ease-in-out">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 xs:gap-2.5 sm:gap-3 bg-[#fef9e7] px-2 xs:px-2.5 sm:px-3 py-2 xs:py-2.5 sm:py-3 rounded-lg border border-yellow-200/60 shadow-sm">
-                <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3">
+            <div className="w-full px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 border-b border-gray-100 transition-all duration-300 ease-in-out">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 sm:gap-3 bg-[#fef9e7] px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-yellow-200/60 shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-2.5">
                   {/* Circular icon background */}
-                  <div className="w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#fef3c7] flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 text-[#d97706]" strokeWidth={2} />
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#fef3c7] flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#d97706]" strokeWidth={2} />
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-medium text-[#78350f] text-xs xs:text-sm sm:text-base md:text-lg truncate">{t('virtualTryOnModal.viewingPastTryOn')}</span>
-                    <span className="text-[#92400e] text-[10px] xs:text-xs sm:text-sm truncate">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-[#78350f] text-sm sm:text-base">{t('virtualTryOnModal.viewingPastTryOn')}</span>
+                    <span className="text-[#92400e] text-xs sm:text-sm">{getTimeAgo(viewingHistoryItem.createdAt)}</span>
                   </div>
                 </div>
-                <div className="flex gap-2 xs:gap-2.5 sm:flex-shrink-0">
+                <div className="flex gap-2 sm:gap-2.5 md:flex-shrink-0">
                   <button
                     onClick={handleBackToCurrent}
-                    className="group relative px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-lg text-xs xs:text-sm md:text-base font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
+                    className="group relative px-3 sm:px-4 py-1.5 sm:py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-lg text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 hover:scale-105 active:scale-95 hover:shadow-md overflow-hidden"
                     type="button"
                     aria-label={t('virtualTryOnModal.backToCurrent')}
                   >
@@ -4417,18 +4417,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
           {(selectedClothing || productImage) && (
             <div 
-              className="w-full px-3 xs:px-4 sm:px-5 md:px-6 lg:px-7 py-1.5 xs:py-2 sm:py-2.5 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2" 
+              className="w-full px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2" 
               ref={clothingSelectionRef}
               role="region"
               aria-label="Selected clothing preview"
             >
-              <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3 md:gap-4 px-2 xs:px-2.5 sm:px-3 py-2 xs:py-2.5 sm:py-3 rounded-lg border border-gray-200 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
+              <div className="flex items-center gap-2 sm:gap-3 px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg border border-gray-200 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
                 <div className="relative flex-shrink-0">
                   <img
                     key={selectedClothing || productImage} // Force re-render when selectedClothing changes
                     src={selectedClothing || productImage || ''}
                     alt={productTitle}
-                    className="h-10 xs:h-12 sm:h-14 md:h-16 lg:h-18 w-auto object-contain border-2 xs:border-3 sm:border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                    className="h-12 sm:h-14 md:h-16 w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
                     loading="eager"
                     onError={(e) => {
                       const imgElement = e.target as HTMLImageElement;
@@ -4461,12 +4461,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   />
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
-                  <div className="text-[8px] xs:text-[9px] sm:text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 xs:mb-1 transition-colors duration-200">
+                  <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium whitespace-nowrap mb-0.5 sm:mb-1 transition-colors duration-200">
                     {viewingPastTryOn ? t('virtualTryOnModal.previouslyTriedOn') : t('virtualTryOnModal.youreTryingOn')}
                   </div>
-                  <div className="text-sm xs:text-base sm:text-lg md:text-xl font-semibold text-foreground leading-tight truncate transition-colors duration-200">{productTitle}</div>
+                  <div className="text-base sm:text-lg font-semibold text-foreground leading-tight truncate transition-colors duration-200">{productTitle}</div>
                   {variantInfo && (
-                    <div className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-tight truncate mt-0.5 transition-colors duration-200">{variantInfo}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight truncate mt-0.5 transition-colors duration-200">{variantInfo}</div>
                   )}
                 </div>
               </div>
@@ -4488,38 +4488,38 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 maxWidth: '100%'
               }}
             >
-              <div className="px-3 xs:px-4 sm:px-5 md:px-6 lg:px-7 pt-2 xs:pt-2.5 sm:pt-3 pb-0" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginLeft: 0, marginRight: 0 }}>
-                <div className="flex flex-col lg:grid lg:grid-cols-2 gap-2 xs:gap-2.5 sm:gap-3 md:gap-4 lg:gap-5 mb-2 lg:items-stretch">
+              <div className="px-4 sm:px-5 md:px-6 pt-2 sm:pt-2.5 pb-0" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginLeft: 0, marginRight: 0 }}>
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-2 sm:gap-3 mb-2 md:items-stretch">
                 {/* Left Column - Step 1 / Past try-on details / Person Selection */}
                 <div className="flex flex-col w-full min-h-0">
                   {/* Person Selection UI - Show in left column when multiple people detected */}
                   {showPersonSelection ? (
                     <>
                       {/* Step 1 Header */}
-                      <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 mb-2 xs:mb-2.5 sm:mb-3">
-                        <div className="w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
-                          <span className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold">1</span>
+                      <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
+                          <span className="text-xs sm:text-sm font-semibold">1</span>
                         </div>
-                        <h2 className="font-semibold text-xs xs:text-sm sm:text-base md:text-lg text-gray-800">{t('virtualTryOnModal.chooseYourPhoto')}</h2>
+                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">{t('virtualTryOnModal.chooseYourPhoto')}</h2>
                       </div>
                       
                       {/* Photo Upload Card - Same structure as regular photo upload */}
-                      <div ref={photoUploadRef} className={`bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 xs:p-2.5 sm:p-3 md:p-4 flex flex-col items-center text-center mb-2 xs:mb-2.5 sm:mb-3 ${uploadedImage && !showChangePhotoOptions ? 'min-h-[160px] xs:min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px]' : ''}`}>
+                      <div ref={photoUploadRef} className={`bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2 ${uploadedImage && !showChangePhotoOptions ? 'min-h-[180px] sm:min-h-[200px]' : ''}`}>
                         {(!uploadedImage || showChangePhotoOptions) && (
                           <>
-                            <h3 className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm font-semibold text-primary mb-1.5 xs:mb-2 uppercase tracking-wide">{t('virtualTryOnModal.forBestResults')}</h3>
-                            <div className="grid grid-cols-1 xs:grid-cols-2 gap-1 xs:gap-1.5 sm:gap-2 text-[10px] xs:text-xs sm:text-sm text-gray-600 mb-2 xs:mb-2.5 sm:mb-3 w-full">
-                              <span className="flex items-center gap-1 xs:gap-1.5 justify-start">
-                                <Check size={12} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.frontFacingPose')}
+                            <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">{t('virtualTryOnModal.forBestResults')}</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gray-600 mb-2 w-full">
+                              <span className="flex items-center gap-1.5 justify-start">
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.frontFacingPose')}
                               </span>
-                              <span className="flex items-center gap-1 xs:gap-1.5 justify-start">
-                                <Check size={12} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.armsVisible')}
+                              <span className="flex items-center gap-1.5 justify-start">
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.armsVisible')}
                               </span>
-                              <span className="flex items-center gap-1 xs:gap-1.5 justify-start">
-                                <Check size={12} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.goodLighting')}
+                              <span className="flex items-center gap-1.5 justify-start">
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.goodLighting')}
                               </span>
-                              <span className="flex items-center gap-1 xs:gap-1.5 justify-start">
-                                <Check size={12} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.plainBackground')}
+                              <span className="flex items-center gap-1.5 justify-start">
+                                <Check size={14} className="text-green-500 flex-shrink-0" strokeWidth={3} /> {t('virtualTryOnModal.plainBackground')}
                               </span>
                             </div>
                           </>
@@ -4547,7 +4547,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               </div>
                             )}
                             {/* Canvas with bounding boxes OR regular image - fixed height for consistency */}
-                            <div ref={canvasContainerRef} className="relative w-full h-[160px] xs:h-[180px] sm:h-[200px] md:h-[220px] lg:h-[240px] flex items-center justify-center">
+                            <div ref={canvasContainerRef} className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                               {/* Canvas wrapper - ALWAYS rendered so ref exists, visibility controlled by CSS */}
                               <div 
                                 className="relative inline-flex items-center justify-center max-w-full max-h-full h-full"
@@ -4576,24 +4576,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             </div>
                           </div>
                         ) : (
-                      <button
-                        className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-4 xs:px-5 sm:px-6 md:px-7 py-2 xs:py-2.5 sm:py-3 rounded-lg text-xs xs:text-sm sm:text-base font-medium flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
-                        aria-label={t('virtualTryOnModal.uploadPhoto')}
-                        type="button"
-                        onClick={triggerPhotoUpload}
-                      >
-                        <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
-                        <Upload size={14} className="xs:w-4 xs:h-4 sm:w-5 sm:h-5 relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
-                        <span className="relative z-10">{t('virtualTryOnModal.uploadPhoto')}</span>
-                      </button>
+                          <button
+                            className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
+                            aria-label={t('virtualTryOnModal.uploadPhoto')}
+                            type="button"
+                            onClick={triggerPhotoUpload}
+                          >
+                            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
+                            <Upload size={16} className="relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
+                            <span className="relative z-10">{t('virtualTryOnModal.uploadPhoto')}</span>
+                          </button>
                         )}
                       </div>
 
                       {/* Recent Photos Section - Show when change photo options are expanded */}
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
-                        <div className="mb-2 xs:mb-2.5 sm:mb-3">
-                          <div className="bg-white border border-gray-200 rounded-lg p-1.5 xs:p-2 sm:p-2.5 md:p-3 shadow-sm">
-                            <label className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold text-gray-800 mb-1.5 xs:mb-2 sm:mb-2.5 block">{t('virtualTryOnModal.yourRecentPhotos')}</label>
+                        <div className="mb-2">
+                          <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
+                            <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.yourRecentPhotos')}</label>
                             <div 
                               className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1" 
                             >
@@ -4655,7 +4655,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         }
                                       }
                                     }}
-                                    className={`group relative flex-shrink-0 h-12 xs:h-14 sm:h-16 md:h-18 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                                    className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                                       selectedPhoto === photo.id
                                         ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                         : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
@@ -4700,7 +4700,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       }}
                                     />
                                     {selectedPhoto === photo.id && (
-                                      <div className="absolute top-0.5 right-0.5 xs:top-1 xs:right-1 w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
+                                      <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                                     )}
                                   </button>
                                 );
@@ -4811,19 +4811,19 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                       {/* Change Photo Section - Show consistently before, during, and after generation */}
                       {!viewingPastTryOn && uploadedImage && !showChangePhotoOptions && (
-                        <div className="bg-white border border-gray-200 rounded-lg p-2.5 xs:p-3 sm:p-4 md:p-5 shadow-sm">
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                           <button
                             onClick={handleChangePhoto}
                             disabled={step === 'generating'}
-                            className="w-full flex items-center gap-2 xs:gap-2.5 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 xs:p-2.5 -m-2 xs:-m-2.5 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                             type="button"
                           >
-                            <RefreshCw className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
+                            <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
                             <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold text-gray-800 group-hover:text-primary transition-colors">
+                              <span className="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
                                 {t('virtualTryOnModal.changePhoto')}
                               </span>
-                              <span className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-gray-600 mt-0.5">
+                              <span className="text-[10px] sm:text-xs text-gray-600 mt-0.5">
                                 {t('virtualTryOnModal.uploadDifferentPhoto')}
                               </span>
                             </div>
@@ -4837,23 +4837,23 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {(viewingPastTryOn || step === 'generating' || step === 'complete') ? (
                     <>
                       {/* Past try-on details Header */}
-                      <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 mb-2 xs:mb-2.5 sm:mb-3">
-                        <div className="w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
-                          <Check size={12} strokeWidth={3} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                      <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-sm">
+                          <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
                         </div>
-                        <h2 className="font-semibold text-xs xs:text-sm sm:text-base md:text-lg text-gray-800">{t('virtualTryOnModal.pastTryOnDetails')}</h2>
+                        <h2 className="font-semibold text-sm sm:text-base text-gray-800">{t('virtualTryOnModal.pastTryOnDetails')}</h2>
                       </div>
 
                       {/* Photo used subsection */}
-                      <div className="border border-gray-200 rounded-lg p-2.5 xs:p-3 sm:p-4 md:p-5 mb-2.5 xs:mb-3 sm:mb-3.5 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
-                        <h3 className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold text-gray-800 mb-2 xs:mb-2.5 sm:mb-3">{t('virtualTryOnModal.photoUsed')}</h3>
+                      <div className="border border-gray-200 rounded-lg p-3 sm:p-4 mb-3 shadow-sm" style={{ backgroundColor: '#f6f8fa' }}>
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3">{t('virtualTryOnModal.photoUsed')}</h3>
                         {uploadedImage ? (
-                          <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3 md:gap-4">
+                          <div className="flex items-center gap-3">
                             <div className="relative flex-shrink-0">
                               <img
                                 src={uploadedImage}
                                 alt="Original photo"
-                                className="h-10 xs:h-12 sm:h-14 md:h-16 lg:h-18 w-auto object-contain border-2 xs:border-3 sm:border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                                className="h-12 sm:h-14 md:h-16 w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
                                 loading="eager"
                                 onError={(e) => {
                                   const imgElement = e.target as HTMLImageElement;
@@ -4876,30 +4876,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 }}
                               />
                             </div>
-                            <div className="flex flex-col min-w-0">
-                              <p className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-800 font-normal">
+                            <div className="flex flex-col">
+                              <p className="text-xs sm:text-sm text-gray-800 font-normal">
                                 {t('virtualTryOnModal.originalPhoto')}
                               </p>
-                              <p className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-800 font-semibold">
+                              <p className="text-xs sm:text-sm text-gray-800 font-semibold">
                                 {viewingHistoryItem ? getTimeAgo(viewingHistoryItem.createdAt) : (step === 'generating' || step === 'complete') ? t('virtualTryOnModal.justNow') : t('virtualTryOnModal.currentSession')}
                               </p>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-3 md:gap-4">
-                            <div className="w-14 h-14 xs:w-16 xs:h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                              <Eye className="w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-gray-400" />
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
                             </div>
-                            <div className="flex flex-col min-w-0">
-                              <p className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-800 font-normal">{t('virtualTryOnModal.originalPhoto')}</p>
-                              <p className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-500">{t('virtualTryOnModal.noPhotoAvailable')}</p>
+                            <div className="flex flex-col">
+                              <p className="text-xs sm:text-sm text-gray-800 font-normal">{t('virtualTryOnModal.originalPhoto')}</p>
+                              <p className="text-xs sm:text-sm text-gray-500">{t('virtualTryOnModal.noPhotoAvailable')}</p>
                             </div>
                           </div>
                         )}
                       </div>
 
                       {/* Regenerate with new photo subsection */}
-                      <div className="bg-white border border-gray-200 rounded-lg p-2.5 xs:p-3 sm:p-4 md:p-5 shadow-sm">
+                      <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                         <button
                           onClick={() => {
                             // Explicitly check state and call appropriate handler
@@ -4912,15 +4912,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             }
                           }}
                           disabled={step === 'generating'}
-                          className="w-full flex items-center gap-2 xs:gap-2.5 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 xs:p-2.5 -m-2 xs:-m-2.5 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                           type="button"
                         >
-                          <RefreshCw className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
+                          <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0 group-hover:rotate-180 transition-transform duration-500" />
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold text-gray-800 group-hover:text-primary transition-colors">
+                            <span className="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
                               {t('virtualTryOnModal.regenerateWithNewPhoto')}
                             </span>
-                            <span className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-gray-600 mt-0.5">
+                            <span className="text-[10px] sm:text-xs text-gray-600 mt-0.5">
                               {t('virtualTryOnModal.createFreshTryOn')}
                             </span>
                           </div>
@@ -4930,24 +4930,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ) : (
                     <>
                       {/* Step 1 Header */}
-                      <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 mb-2 xs:mb-2.5 sm:mb-3">
-                        <div className={`w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                        <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                           uploadedImage 
                             ? 'bg-primary text-primary-foreground shadow-sm' // Step 1 completed - primary background with checkmark
                             : 'bg-gray-300 text-gray-500' // Incomplete - grey background with number
                         }`}>
                           {uploadedImage ? (
-                            <Check size={12} strokeWidth={3} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                            <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
                           ) : (
-                            <span className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold">1</span>
+                            <span className="text-xs sm:text-sm font-semibold">1</span>
                           )}
                         </div>
-                        <h2 className={`font-semibold text-xs xs:text-sm sm:text-base md:text-lg text-gray-800 transition-colors duration-300 ${
+                        <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
                           uploadedImage ? 'text-gray-900' : 'text-gray-500'
                         }`}>{t('virtualTryOnModal.chooseYourPhoto')}</h2>
                       </div>
                   {/* Photo Upload Card */}
-                  <div ref={photoUploadRef} className={`bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 xs:p-2.5 sm:p-3 md:p-4 flex flex-col items-center text-center mb-2 xs:mb-2.5 sm:mb-3 ${uploadedImage && !showChangePhotoOptions ? 'min-h-[160px] xs:min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px]' : ''}`}>
+                  <div ref={photoUploadRef} className={`bg-primary/5 border-2 border-dashed border-primary/20 rounded-lg p-2 sm:p-2.5 flex flex-col items-center text-center mb-2 ${uploadedImage && !showChangePhotoOptions ? 'min-h-[180px] sm:min-h-[200px]' : ''}`}>
                     {(!uploadedImage || showChangePhotoOptions) && (
                       <>
                         <h3 className="text-[10px] sm:text-xs font-semibold text-primary mb-1.5 uppercase tracking-wide">{t('virtualTryOnModal.forBestResults')}</h3>
@@ -4981,7 +4981,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         )}
                         
                         {/* Always show the image first - fixed height for consistency */}
-                        <div className="relative w-full h-[160px] xs:h-[180px] sm:h-[200px] md:h-[220px] lg:h-[240px] flex items-center justify-center">
+                        <div className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                           <img
                             src={uploadedImage}
                             alt={t('virtualTryOnModal.uploadedPhoto')}
@@ -5033,14 +5033,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     ) : (
                       <button
-                        className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-4 xs:px-5 sm:px-6 md:px-7 py-2 xs:py-2.5 sm:py-3 rounded-lg text-xs xs:text-sm sm:text-base font-medium flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
+                        className="group relative bg-primary hover:bg-primary-dark text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-300 ease-in-out w-full justify-center shadow-md md:shadow-lg hover:shadow-lg md:hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden"
                         aria-label={t('virtualTryOnModal.uploadPhoto')}
                         type="button"
                         onClick={triggerPhotoUpload}
                       >
                         {/* Shimmer effect on hover */}
                         <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent"></span>
-                        <Upload size={14} className="xs:w-4 xs:h-4 sm:w-5 sm:h-5 relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
+                        <Upload size={16} className="relative z-10 transition-transform duration-300 group-hover:scale-110" /> 
                         <span className="relative z-10">{t('virtualTryOnModal.uploadPhoto')}</span>
                       </button>
                     )}
@@ -5310,8 +5310,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 {/* Right Column - Step 2 */}
                 <div className="flex flex-col w-full min-h-0" ref={rightColumnRef}>
                   {/* Step 2 Header */}
-                  <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 mb-2 xs:mb-2.5 sm:mb-3">
-                    <div className={`w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-2.5">
+                    <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                       (step === 'complete' || generatedImage) && !generatedImageError
                         ? 'bg-primary text-primary-foreground shadow-sm' // Completed - orange background with checkmark (matching reference)
                         : step === 'generating'
@@ -5319,12 +5319,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         : 'bg-gray-300 text-gray-500' // Grey until generation starts
                     }`}>
                       {(step === 'complete' || generatedImage) && !generatedImageError ? (
-                        <Check size={12} strokeWidth={3} className="xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                        <Check size={14} strokeWidth={3} className="sm:w-4 sm:h-4" />
                       ) : (
-                        <span className="text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold">2</span>
+                        <span className="text-xs sm:text-sm font-semibold">2</span>
                       )}
                     </div>
-                    <h2 className={`font-semibold text-xs xs:text-sm sm:text-base md:text-lg text-gray-800 transition-colors duration-300 ${
+                    <h2 className={`font-semibold text-sm sm:text-base text-gray-800 transition-colors duration-300 ${
                       ((step === 'complete' || generatedImage) && !generatedImageError) || step === 'generating'
                         ? 'text-gray-900'
                         : 'text-gray-500'
@@ -5342,17 +5342,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       : 'border-2 border-dashed border-border bg-card'
                   }`}>
                     {step === 'idle' && !uploadedImage && !generatedImage && !error && (
-                      <div className="text-center px-3 xs:px-4 sm:px-6 md:px-8 py-4 xs:py-6 sm:py-8 md:py-10 animate-fade-in flex flex-col items-center justify-center h-full">
+                      <div className="text-center px-4 sm:px-6 py-6 sm:py-8 animate-fade-in flex flex-col items-center justify-center h-full">
                         {/* Eye icon with circular background */}
-                        <div className="w-16 h-16 xs:w-20 xs:h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full mx-auto mb-2 xs:mb-3 sm:mb-4 flex items-center justify-center bg-gray-100 relative">
-                          <Eye className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-gray-400" strokeWidth={2} />
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center bg-gray-100 relative">
+                          <Eye className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" strokeWidth={2} />
                         </div>
                         {/* Primary message */}
-                        <p className="text-gray-600 text-[11px] xs:text-xs sm:text-sm md:text-base font-medium mb-1.5 xs:mb-2 transition-colors duration-200">
+                        <p className="text-gray-600 text-xs sm:text-sm font-medium mb-2 transition-colors duration-200">
                           {t('virtualTryOnModal.resultWillAppear')}
                         </p>
                         {/* Secondary instruction */}
-                        <p className="text-gray-500 text-[10px] xs:text-xs sm:text-sm md:text-base max-w-xs mx-auto leading-relaxed">
+                        <p className="text-gray-500 text-xs sm:text-sm max-w-xs mx-auto leading-relaxed">
                           {t('virtualTryOnModal.uploadPhotoToStart')}
                         </p>
                       </div>
@@ -5376,9 +5376,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
 
                     {step === 'generating' && progress < 100 && (
-                      <div className="text-center w-full px-3 xs:px-4 sm:px-6 md:px-8 py-4 xs:py-6 sm:py-8 animate-fade-in">
+                      <div className="text-center w-full px-4 sm:px-6 py-6 animate-fade-in">
                         {/* Continuous Circular Rotation Loader */}
-                        <div className="relative w-20 h-20 xs:w-24 xs:h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 mx-auto mb-3 xs:mb-4 sm:mb-5">
+                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4">
                           <svg className="w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '1.4s' }}>
                             {/* Background circle - light gray */}
                             <circle 
@@ -5413,13 +5413,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Status Text - Below Circular Loader */}
-                        <h3 className="text-[11px] xs:text-xs sm:text-sm md:text-base font-semibold text-gray-800 mb-2 xs:mb-3 sm:mb-4">
+                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-3">
                           {statusMessage || t('virtualTryOnModal.creatingTryOn')}
                         </h3>
                         
                         {/* Linear Progress Bar - Shows actual progress */}
-                        <div className="w-full max-w-[200px] xs:max-w-xs sm:max-w-sm mx-auto mb-2 xs:mb-3 sm:mb-4">
-                            <div className="w-full bg-gray-200 rounded-full h-2 xs:h-2.5 sm:h-3 md:h-3.5 overflow-hidden shadow-sm">
+                        <div className="w-full max-w-xs mx-auto mb-3">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 overflow-hidden shadow-sm">
                             <div
                               className="bg-primary h-full rounded-full transition-all duration-75 ease-linear shadow-sm"
                               style={{ width: `${progress}%` }}
@@ -5428,7 +5428,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Progress Percentage */}
-                        <p className="text-[11px] xs:text-xs sm:text-sm md:text-base font-medium text-primary">
+                        <p className="text-xs sm:text-sm font-medium text-primary">
                           {progress}%
                         </p>
                       </div>
@@ -5454,11 +5454,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               ref={generatedImageRef}
                               className="flex items-center justify-center"
                             >
-                              {/* Image - Fixed height, auto width, object-contain to prevent cut/stretch and maintain aspect ratio */}
+                              {/* Image - Fixed height (400px), auto width, object-contain to prevent cut/stretch and maintain aspect ratio */}
                               {/* CRITICAL: max-w-full ensures image doesn't overflow, w-auto allows natural width based on aspect ratio */}
                               <img
                                 src={generatedImage}
-                                className="h-[280px] xs:h-[320px] sm:h-[360px] md:h-[400px] lg:h-[440px] xl:h-[480px] w-auto max-w-full object-contain border-2 xs:border-3 sm:border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                                className="h-[400px] w-auto max-w-full object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
                                 alt="Try-on result"
                                 loading="eager"
                                 onError={(e) => {
@@ -5549,11 +5549,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </div>
 
               {/* Bottom Action Section */}
-              <div className="border-t border-gray-100 px-3 xs:px-4 sm:px-5 md:px-6 lg:px-7 py-2 xs:py-2.5 sm:py-3 md:py-3.5">
+              <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5">
                 {/* Only show size selection if sizes are available and generation is complete */}
                 {sizes.length > 0 && (step === 'complete' || generatedImage) && !generatedImageError && (
-                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5 mb-1.5 xs:mb-2 sm:mb-2.5">
-                    <span className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-700 mr-0.5 xs:mr-1 self-center">{t('virtualTryOnModal.size')}</span>
+                  <div ref={sizeSelectionRef} className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <span className="text-xs sm:text-sm text-gray-700 mr-0.5 sm:mr-1 self-center">{t('virtualTryOnModal.size')}</span>
                     {sizes.map((size) => {
                       const sizeInfo = sizeAvailability.find(s => s.size === size);
                       const isAvailable = sizeInfo?.isAvailable ?? false;
@@ -5580,7 +5580,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               });
                             }
                           }}
-                          className={`group relative w-8 h-8 xs:w-9 xs:h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg border text-[10px] xs:text-xs sm:text-sm md:text-base font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                          className={`group relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
                               ? isAvailable
                                 ? 'bg-foreground text-background border-foreground shadow-md md:shadow-lg scale-105'
@@ -5615,7 +5615,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`group relative w-full h-9 xs:h-10 sm:h-11 md:h-12 lg:h-13 rounded-lg flex items-center justify-center gap-1.5 xs:gap-2 sm:gap-2.5 font-semibold text-xs xs:text-sm sm:text-base md:text-lg transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                  className={`group relative w-full h-10 sm:h-11 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white shadow-sm'
                       : btnState.color === 'orange'
@@ -5635,7 +5635,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   )}
                   {step === 'generating' ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 animate-spin relative z-10" />
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin relative z-10" />
                       <span className="relative z-10">{t('virtualTryOnModal.generatingButton')}</span>
                     </>
                   ) : (
@@ -5653,31 +5653,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 </button>
 
                 {step === 'generating' && (
-                  <p className="text-center text-[10px] xs:text-xs sm:text-sm text-gray-400 mt-1.5 xs:mt-2">
+                  <p className="text-center text-xs text-gray-400 mt-2">
                     {t('virtualTryOnModal.pleaseWaitCreating')}
                   </p>
                 )}
                 
                 {((step === 'complete' && generatedImage) || viewingPastTryOn) && !generatedImageError && (
-                  <p className="text-center text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-gray-600 mt-1.5 xs:mt-2 px-2">
+                  <p className="text-center text-[10px] sm:text-xs text-gray-600 mt-2 px-2">
                     {t('virtualTryOnModal.renderedForAesthetic')}
                   </p>
                 )}
               </div>
 
               {/* History Section */}
-              <div className="border-t border-gray-100 px-3 xs:px-4 sm:px-5 md:px-6 lg:px-7 py-2.5 xs:py-3 sm:py-3.5 md:py-4 min-h-[96px] xs:min-h-[104px] sm:min-h-[116px] md:min-h-[128px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
-                <div className="mb-1 xs:mb-1.5 sm:mb-2">
-                  <h4 className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wide">{t('virtualTryOnModal.yourTryOnHistory')}</h4>
+              <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 min-h-[104px] sm:min-h-[116px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
+                <div className="mb-1 sm:mb-1.5">
+                  <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">{t('virtualTryOnModal.yourTryOnHistory')}</h4>
                 </div>
 
                 <div 
                   className="flex gap-2 sm:gap-3 overflow-x-hidden overflow-y-visible py-1"
                 >
                 {isLoadingHistory ? (
-                  <div className="flex gap-2 xs:gap-2.5 sm:gap-3">
+                  <div className="flex gap-2 sm:gap-3">
                     {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="flex-shrink-0 h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 md:h-18 md:w-18 rounded-lg border-2 border-transparent bg-gray-50 overflow-hidden" style={{ backgroundColor: '#f6f8fa' }}>
+                      <div key={i} className="flex-shrink-0 h-14 w-14 rounded-lg border-2 border-transparent bg-gray-50 overflow-hidden" style={{ backgroundColor: '#f6f8fa' }}>
                         <Skeleton className="w-full h-full rounded-lg" />
                       </div>
                     ))}
@@ -5701,7 +5701,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               handleHistoryItemSelect(item);
                             }
                           }}
-                          className={`group relative flex-shrink-0 h-12 xs:h-14 sm:h-16 md:h-18 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                          className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
                               ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                               : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
@@ -5750,7 +5750,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           />
                           {/* Selection indicator */}
                           {isSelected && (
-                            <div className="absolute top-0.5 right-0.5 xs:top-1 xs:right-1 w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
+                            <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                           )}
                         </button>
                       );
@@ -5767,18 +5767,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           triggerPhotoUpload();
                         }
                       }}
-                      className="group relative flex-shrink-0 h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 md:h-18 md:w-18 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
+                      className="group relative flex-shrink-0 h-14 w-14 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
                       aria-label={t('virtualTryOnModal.uploadNewPhotoForTryOn')}
                       type="button"
                     >
                       {/* Shimmer effect */}
                       <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-primary/10 to-transparent"></span>
                       <Upload 
-                        size={16} 
-                        className="xs:w-4.5 xs:h-4.5 sm:w-5 sm:h-5 text-muted-foreground group-hover:text-primary relative z-10 transition-all duration-300 group-hover:scale-110" 
+                        size={18} 
+                        className="text-muted-foreground group-hover:text-primary relative z-10 transition-all duration-300 group-hover:scale-110" 
                         strokeWidth={2}
                       />
-                      <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-muted-foreground group-hover:text-primary font-medium mt-0.5 relative z-10 transition-all duration-300">
+                      <span className="text-[9px] text-muted-foreground group-hover:text-primary font-medium mt-0.5 relative z-10 transition-all duration-300">
                         {t('virtualTryOnModal.new')}
                       </span>
                     </button>
