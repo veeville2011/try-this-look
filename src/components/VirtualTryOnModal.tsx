@@ -1700,12 +1700,29 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       } : null;
       
       // Convert bbox from [x, y, width, height] to PersonBbox format if available
+      // CRITICAL: Clamp all values to ensure they are positive (server validation requirement)
       const personBbox: PersonBbox | null = selectedPersonBbox ? {
-        x: selectedPersonBbox.x,
-        y: selectedPersonBbox.y,
-        width: selectedPersonBbox.width,
-        height: selectedPersonBbox.height,
+        x: Math.max(0, selectedPersonBbox.x),
+        y: Math.max(0, selectedPersonBbox.y),
+        width: Math.max(0, selectedPersonBbox.width),
+        height: Math.max(0, selectedPersonBbox.height),
       } : null;
+      
+      // Log bbox for debugging
+      if (personBbox) {
+        console.log('[VirtualTryOnModal] Sending personBbox to API:', personBbox);
+        if (selectedPersonBbox && (
+          selectedPersonBbox.x !== personBbox.x ||
+          selectedPersonBbox.y !== personBbox.y ||
+          selectedPersonBbox.width !== personBbox.width ||
+          selectedPersonBbox.height !== personBbox.height
+        )) {
+          console.warn('[VirtualTryOnModal] PersonBbox was clamped:', {
+            original: selectedPersonBbox,
+            clamped: personBbox
+          });
+        }
+      }
 
       const result = await generateTryOn(
         personBlob,
@@ -2670,6 +2687,33 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [selectedSize, step, scrollToElement, isMobileDevice]);
 
+  // Helper function to clamp and validate bounding box values
+  const clampBoundingBox = useCallback((bbox: [number, number, number, number], imageWidth?: number, imageHeight?: number): PersonBbox => {
+    let [x, y, width, height] = bbox;
+    
+    // Clamp x and y to be at least 0 (prevent negative coordinates)
+    x = Math.max(0, x);
+    y = Math.max(0, y);
+    
+    // Ensure width and height are positive
+    width = Math.max(0, width);
+    height = Math.max(0, height);
+    
+    // If image dimensions are available, ensure bbox doesn't exceed image boundaries
+    if (imageWidth && imageHeight) {
+      // Adjust width if it extends beyond image width
+      if (x + width > imageWidth) {
+        width = Math.max(0, imageWidth - x);
+      }
+      // Adjust height if it extends beyond image height
+      if (y + height > imageHeight) {
+        height = Math.max(0, imageHeight - y);
+      }
+    }
+    
+    return { x, y, width, height };
+  }, []);
+
   // Handle person selection inline
   const handlePersonSelect = useCallback((personIndex: number) => {
     if (!detectionResult || !detectionResult.people || personIndex < 0 || personIndex >= detectionResult.people.length) return;
@@ -2679,10 +2723,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     setSelectedPersonIndex(personIndex);
     
-    // Convert bbox to PersonBbox format
-    const [x, y, width, height] = selectedPerson.bbox;
-    setSelectedPersonBbox({ x, y, width, height });
-  }, [detectionResult]);
+    // Convert bbox to PersonBbox format with clamping to ensure all values are positive
+    const clampedBbox = clampBoundingBox(
+      selectedPerson.bbox,
+      detectionResult.imageWidth,
+      detectionResult.imageHeight
+    );
+    
+    console.log('[VirtualTryOnModal] Person selected:', {
+      originalBbox: selectedPerson.bbox,
+      clampedBbox,
+      imageDimensions: {
+        width: detectionResult.imageWidth,
+        height: detectionResult.imageHeight
+      }
+    });
+    
+    setSelectedPersonBbox(clampedBbox);
+  }, [detectionResult, clampBoundingBox]);
   
   // Auto-select if only one person detected
   useEffect(() => {
