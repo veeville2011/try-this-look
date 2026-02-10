@@ -16,6 +16,7 @@ import { usePersonDetection } from '@/components/PersonDetector';
 import { isWidgetTestRoute, isWidgetTestPath, isLocalhost } from '@/config/testProductData';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GlowingBubblesReveal } from '@/components/ui/glowing-bubbles-reveal';
 import { 
   generateImageId, 
   validateImageReady, 
@@ -1982,8 +1983,41 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     }));
                   console.log('[VirtualTryOnModal] Refetched history after generation:', history.length, history);
                   setHistoryItems(history);
-                  // Initialize loading state for all history items
-                  setLoadingHistoryItemIds(new Set(history.map(h => h.id)));
+                  
+                  // Preload images and clear loading state once they're loaded
+                  // This prevents skeleton loading from showing for cached/quick-loading images
+                  const imageIds = history.map(h => h.id);
+                  const immediatelyLoadedIds = new Set<string>();
+                  
+                  // Preload all images and track which ones load immediately (from cache)
+                  history.forEach((item) => {
+                    const img = new Image();
+                    const proxiedUrl = getProxiedImageUrl(item.image);
+                    
+                    const handleLoad = () => {
+                      setLoadingHistoryItemIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(item.id);
+                        return next;
+                      });
+                    };
+                    
+                    img.onload = handleLoad;
+                    img.onerror = handleLoad; // Clear loading state even on error
+                    
+                    img.src = proxiedUrl;
+                    
+                    // Check if image loaded synchronously (from cache)
+                    if (img.complete && img.naturalWidth > 0) {
+                      immediatelyLoadedIds.add(item.id);
+                    }
+                  });
+                  
+                  // Set loading state only for images that didn't load immediately
+                  // Images that loaded immediately will have their onload fire before this,
+                  // but we check anyway to avoid showing skeleton for cached images
+                  const loadingIds = imageIds.filter(id => !immediatelyLoadedIds.has(id));
+                  setLoadingHistoryItemIds(new Set(loadingIds));
                 }
               }
             })
@@ -5363,81 +5397,51 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     )}
 
-                    {step === 'generating' && progress === 100 && (
-                      <div className="text-center w-full px-4 sm:px-6 py-6 animate-fade-in">
-                        {/* Checkmark Animation - Success indicator */}
-                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6 flex items-center justify-center">
-                          {/* Completed circle background */}
-                          <div className="absolute inset-0 rounded-full bg-primary/10 flex items-center justify-center animate-scale-in">
-                            <div className="w-full h-full rounded-full border-4 border-primary"></div>
-                          </div>
-                          {/* Checkmark icon - appears after circle */}
-                          <CheckCircle 
-                            size={56} 
-                            className="text-primary relative z-10 animate-scale-in-delayed"
-                            strokeWidth={2.5}
-                            fill="currentColor"
-                          />
-                        </div>
-                        
-                        {/* Status Text - Finalizing */}
-                        <h3 className="text-xs sm:text-sm font-semibold text-gray-800 mb-4">
-                          {statusMessage || t('virtualTryOnModal.finalizingTryOn')}
-                        </h3>
-                        
-                        {/* Progress Bar - Full */}
-                        <div className="w-full max-w-xs mx-auto mb-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                            <div
-                              className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out"
-                              style={{ width: '100%' }}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Percentage - 100% */}
-                        <p className="text-xs sm:text-sm font-semibold text-gray-700">100%</p>
-                      </div>
-                    )}
+                    {/* Checkmark removed - go straight to glowing bulbs animation */}
 
                     {/* Show generated image when: step is complete OR (viewing history AND we have generated image) */}
                     {((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError && (
-                      <div className={`relative w-full min-h-[400px] flex flex-col items-center justify-center p-4 sm:p-5 overflow-hidden ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-300 rounded-lg' : 'border-2 border-dashed border-yellow-200 rounded-lg'}`}>
-                        {/* Light yellow/orange gradient background matching reference design */}
-                        {/* Improved background with better contrast for white border visibility */}
-                        <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-br from-yellow-100/80 via-orange-50/60 to-yellow-50/70 rounded-lg" />
-                        
-                        {/* Content wrapper for better spacing and alignment */}
-                        <div className="relative z-10 flex flex-col items-center justify-center w-full h-full gap-3">
-                          {/* Result Image - Optimized spacing and centering */}
-                          <div 
-                            ref={generatedImageRef}
-                            className="flex-shrink-0 flex items-center justify-center w-full h-full"
-                          >
-                            {/* Image - Fixed height, auto width with object-contain to prevent cut/stretch */}
-                            {/* CRITICAL: Fixed height (400px), auto width, object-contain prevents cut/stretch and maintains aspect ratio */}
-                            <img
-                              src={generatedImage}
-                              className="h-[400px] w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
-                              alt="Try-on result"
-                              loading="eager"
-                              onError={(e) => {
-                                const imgElement = e.target as HTMLImageElement;
-                                console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
-                                setGeneratedImageError(true);
-                                setGeneratedImage(null);
-                                setStep('idle');
-                                toast.error('Failed to load try-on result');
-                              }}
-                              onLoad={() => {
-                                console.log('[VirtualTryOnModal] Generated image loaded successfully');
-                                // Reset error state when image loads successfully
-                                setGeneratedImageError(false);
-                              }}
-                            />
+                      <GlowingBubblesReveal 
+                        show={!viewingPastTryOn && step === 'complete'}
+                        className="w-full min-h-[400px]"
+                      >
+                        <div className={`relative w-full min-h-[400px] flex flex-col items-center justify-center p-4 sm:p-5 ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-300 rounded-lg' : 'border-2 border-dashed border-yellow-200 rounded-lg'}`}>
+                          {/* Light yellow/orange gradient background matching reference design */}
+                          {/* Improved background with better contrast for white border visibility */}
+                          <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-br from-yellow-100/80 via-orange-50/60 to-yellow-50/70 rounded-lg" />
+                          
+                          {/* Content wrapper for better spacing and alignment */}
+                          <div className="relative z-10 flex flex-col items-center justify-center w-full h-auto gap-3">
+                            {/* Result Image - revealed by glowing bubbles animation */}
+                            <div 
+                              ref={generatedImageRef}
+                              className="flex items-center justify-center"
+                            >
+                              {/* Image - Fixed height (400px), auto width, object-contain to prevent cut/stretch and maintain aspect ratio */}
+                              {/* CRITICAL: max-w-full ensures image doesn't overflow, w-auto allows natural width based on aspect ratio */}
+                              <img
+                                src={generatedImage}
+                                className="h-[400px] w-auto max-w-full object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                                alt="Try-on result"
+                                loading="eager"
+                                onError={(e) => {
+                                  const imgElement = e.target as HTMLImageElement;
+                                  console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
+                                  setGeneratedImageError(true);
+                                  setGeneratedImage(null);
+                                  setStep('idle');
+                                  toast.error('Failed to load try-on result');
+                                }}
+                                onLoad={() => {
+                                  console.log('[VirtualTryOnModal] Generated image loaded successfully');
+                                  // Reset error state when image loads successfully
+                                  setGeneratedImageError(false);
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </GlowingBubblesReveal>
                     )}
 
                     {/* Error State - Show when generated image fails to load (only if we've attempted to generate/load) */}
