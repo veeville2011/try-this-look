@@ -1845,6 +1845,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   const history = response.data
                     .map((item) => {
                       if (!item || !item.id || !item.generatedImageUrl) {
+                        console.warn('[VirtualTryOnModal] Invalid history item after generation:', item);
                         return null;
                       }
                       return {
@@ -1862,12 +1863,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       if (!b.createdAt) return -1;
                       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                     })
-                    .map(({ id, image, personImageUrl, clothingImageUrl }) => ({ 
+                    .map(({ id, image, personImageUrl, clothingImageUrl, createdAt }) => ({ 
                       id, 
                       image, 
                       personImageUrl, 
-                      clothingImageUrl 
+                      clothingImageUrl,
+                      createdAt
                     }));
+                  console.log('[VirtualTryOnModal] Refetched history after generation:', history.length, history);
                   setHistoryItems(history);
                   // Initialize loading state for all history items
                   setLoadingHistoryItemIds(new Set(history.map(h => h.id)));
@@ -2429,76 +2432,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleClose]);
 
-  // Get button state
-  const getButtonState = useCallback(() => {
-    if (step === 'idle') {
-      const hasValidImage = isValidImage(uploadedImage);
-      const canGenerate = hasValidImage && selectedClothing;
-      return {
-        text: !canGenerate ? t('virtualTryOnModal.chooseAPhoto') : t('virtualTryOnModal.generate'),
-        icon: <Zap size={16} />,
-        disabled: !canGenerate,
-        action: handleGenerate,
-        color: canGenerate ? 'orange' : 'gray',
-      };
-    }
-    if (step === 'generating') {
-      return {
-        text: t('virtualTryOnModal.generatingButton'),
-        icon: <Loader2 size={16} className="animate-spin" />,
-        disabled: true,
-        action: () => {},
-        color: 'gray',
-      };
-    }
-    if (step === 'complete') {
-      // If sizes are available, require size selection
-      if (sizes.length > 0) {
-        if (!selectedSize) {
-          return {
-            text: t('virtualTryOnModal.selectSizeToContinue'),
-            icon: <Zap size={16} />,
-            disabled: true,
-            action: () => {},
-            color: 'gray',
-          };
-        }
-        
-        // Check if selected size is available
-        const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
-        const isSizeAvailable = selectedSizeInfo?.isAvailable ?? false;
-        
-        if (!isSizeAvailable) {
-          return {
-            text: t('virtualTryOnModal.notifyMe'),
-            icon: <Bell size={16} />,
-            disabled: isNotifyMeLoading,
-            action: handleNotifyMe,
-            color: 'orange',
-          };
-        }
-      }
-      
-      // If no sizes available or size is selected and available, show add to cart
-      return {
-        text: currentCartQuantity > 0 ? t('virtualTryOnModal.addToCartWithQuantity', { quantity: currentCartQuantity }) : t('virtualTryOnModal.addToCart'),
-        icon: <ShoppingCart size={16} />,
-        disabled: isAddToCartLoading || isBuyNowLoading,
-        action: handleAddToCart,
-        color: 'orange',
-      };
-    }
-    return {
-      text: t('virtualTryOnModal.generate'),
-      icon: null,
-      disabled: false,
-      action: handleGenerate,
-      color: 'gray',
-    };
-  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart, isValidImage, t]);
-
-  const btnState = getButtonState();
-
   // Get product info for display
   const currentProductData = getProductData() || productData;
   const productTitle = currentProductData?.title || currentProductData?.name || t('virtualTryOnModal.product');
@@ -2896,6 +2829,92 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       console.log('[PersonSelection] ✅ UI should be visible now!');
     }
   }, [showPersonSelection]);
+  
+  // Get button state - MUST be defined after showPersonSelection
+  const getButtonState = useCallback(() => {
+    if (step === 'idle') {
+      const hasValidImage = isValidImage(uploadedImage);
+      const canGenerate = hasValidImage && selectedClothing;
+      
+      // CRITICAL: If person selection is required (multiple people detected), 
+      // disable button until a person is selected
+      const needsPersonSelection = showPersonSelection && selectedPersonIndex === null;
+      
+      // If person selection is needed but not completed
+      if (needsPersonSelection) {
+        return {
+          text: t('virtualTryOnModal.selectPersonFirst'),
+          icon: <Zap size={16} />,
+          disabled: true,
+          action: () => {},
+          color: 'gray',
+        };
+      }
+      
+      return {
+        text: !canGenerate ? t('virtualTryOnModal.chooseAPhoto') : t('virtualTryOnModal.generate'),
+        icon: <Zap size={16} />,
+        disabled: !canGenerate,
+        action: handleGenerate,
+        color: canGenerate ? 'orange' : 'gray',
+      };
+    }
+    if (step === 'generating') {
+      return {
+        text: t('virtualTryOnModal.generatingButton'),
+        icon: <Loader2 size={16} className="animate-spin" />,
+        disabled: true,
+        action: () => {},
+        color: 'gray',
+      };
+    }
+    if (step === 'complete') {
+      // If sizes are available, require size selection
+      if (sizes.length > 0) {
+        if (!selectedSize) {
+          return {
+            text: t('virtualTryOnModal.selectSizeToContinue'),
+            icon: <Zap size={16} />,
+            disabled: true,
+            action: () => {},
+            color: 'gray',
+          };
+        }
+        
+        // Check if selected size is available
+        const selectedSizeInfo = sizeAvailability.find(s => s.size === selectedSize);
+        const isSizeAvailable = selectedSizeInfo?.isAvailable ?? false;
+        
+        if (!isSizeAvailable) {
+          return {
+            text: t('virtualTryOnModal.notifyMe'),
+            icon: <Bell size={16} />,
+            disabled: isNotifyMeLoading,
+            action: handleNotifyMe,
+            color: 'orange',
+          };
+        }
+      }
+      
+      // If no sizes available or size is selected and available, show add to cart
+      return {
+        text: currentCartQuantity > 0 ? t('virtualTryOnModal.addToCartWithQuantity', { quantity: currentCartQuantity }) : t('virtualTryOnModal.addToCart'),
+        icon: <ShoppingCart size={16} />,
+        disabled: isAddToCartLoading || isBuyNowLoading,
+        action: handleAddToCart,
+        color: 'orange',
+      };
+    }
+    return {
+      text: t('virtualTryOnModal.generate'),
+      icon: null,
+      disabled: false,
+      action: handleGenerate,
+      color: 'gray',
+    };
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart, isValidImage, t, showPersonSelection, selectedPersonIndex]);
+
+  const btnState = getButtonState();
   
   // CRITICAL: Check if modal is fully preloaded and ready to show UI
   useEffect(() => {
@@ -5201,15 +5220,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               />
                             </GlowingBubblesReveal>
                           </div>
-
-                          {/* Size selection prompt - improved readability and spacing */}
-                          {(viewingPastTryOn || (step === 'complete' && generatedImage)) && sizes.length > 0 && (
-                            <div className="flex-shrink-0 w-full px-2">
-                              <p className="text-sm sm:text-base text-gray-800 font-semibold text-center leading-tight">
-                                {t('virtualTryOnModal.selectSizeToAddToCart')}
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -5400,14 +5410,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
               {/* History Section */}
               <div className="border-t border-gray-100 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 min-h-[104px] sm:min-h-[116px] flex flex-col justify-center" style={{ backgroundColor: '#f6f8fa' }}>
-                <div className="flex justify-between items-center mb-1 sm:mb-1.5">
+                <div className="mb-1 sm:mb-1.5">
                   <h4 className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wide">{t('virtualTryOnModal.yourTryOnHistory')}</h4>
-                  <button className="group text-[10px] sm:text-xs text-primary font-medium hover:underline transition-all duration-300 hover:scale-105 active:scale-95" type="button">
-                    <span className="relative">
-                      {t('virtualTryOnModal.viewAll')}
-                      <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-primary group-hover:w-full transition-all duration-300"></span>
-                    </span>
-                  </button>
                 </div>
 
                 <div 
