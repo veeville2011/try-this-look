@@ -766,7 +766,7 @@
     if (!base) return null;
 
     try {
-      const url = new URL(`${base}/widget`);
+      const url = new URL(`${base}/widget-test`);
       if (productId && productId !== 'undefined' && productId !== 'null') url.searchParams.set('product_id', productId);
       if (shopDomain) url.searchParams.set('shop_domain', shopDomain);
       
@@ -802,7 +802,7 @@
       }
       
       const suffix = params.toString() ? `?${params.toString()}` : '';
-      return `${base}/widget${suffix}`;
+      return `${base}/widget-test${suffix}`;
     }
   };
 
