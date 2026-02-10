@@ -2380,6 +2380,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     };
   }, []);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    // Save current overflow style
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    
+    // Calculate scrollbar width to prevent layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    
+    // Lock scroll
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = scrollbarWidth > 0 ? `${scrollbarWidth}px` : '0px';
+    
+    // Cleanup: restore original styles
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, []);
+
   // Listen for ESC key to close
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
