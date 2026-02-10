@@ -1464,6 +1464,7 @@
     "selectSizeLabel": "Select size {{size}}",
     "outOfStock": " (out of stock)",
     "generate": "Generate",
+    "chooseAPhoto": "Choose a photo",
     "selectSizeToContinue": "Select a size",
     "notifyMe": "Notify Me",
     "notifyMeSuccessMessage": "You will be notified when this item is back in stock!",

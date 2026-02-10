@@ -1465,6 +1465,7 @@
     "selectSizeLabel": "Sélectionner la taille {{size}}",
     "outOfStock": " (en rupture de stock)",
     "generate": "Générer",
+    "chooseAPhoto": "Choisir une photo",
     "selectSizeToContinue": "Sélectionner une taille",
     "notifyMe": "Me notifier",
     "notifyMeSuccessMessage": "Vous serez notifié lorsque cet article sera de nouveau en stock !",

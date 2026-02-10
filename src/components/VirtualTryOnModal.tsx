@@ -1572,9 +1572,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [storedProductData, generatedImage, requestCartState, getProductData]);
 
+  // Validate if uploadedImage is a valid image
+  const isValidImage = useCallback((image: string | null): boolean => {
+    if (!image || typeof image !== 'string' || image.trim().length === 0) {
+      return false;
+    }
+    // Check if it's a valid data URL
+    if (image.startsWith('data:image/')) {
+      return true;
+    }
+    // Check if it's a valid URL
+    if (image.startsWith('http://') || image.startsWith('https://') || image.startsWith('/')) {
+      return true;
+    }
+    return false;
+  }, []);
+
   // Generate try-on (moved before handleRegeneratePastTryOn to avoid initialization error)
   const handleGenerate = useCallback(async () => {
-    if (!uploadedImage || !selectedClothing) {
+    const hasValidImage = isValidImage(uploadedImage);
+    if (!hasValidImage || !selectedClothing) {
       setError(t('virtualTryOnModal.pleaseUploadPhotoAndSelectClothing'));
       toast.error(t('virtualTryOnModal.missingRequirements'), {
         description: t('virtualTryOnModal.pleaseUploadPhotoAndSelectClothing'),
@@ -1866,7 +1883,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         description: errorMessage,
       });
     }
-  }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox, t]);
+  }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox, isValidImage, t]);
 
   // Reset complete state when person image changes - works for both mobile and desktop
   useEffect(() => {
@@ -2094,6 +2111,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       toast.error(t('virtualTryOnModal.generationFailed'));
     }
   }, [viewingHistoryItem, uploadedImage, selectedClothing, handleGenerate, getProxiedImageUrl, productImagesWithIds]);
+
+  // Handle change photo button click - clear current photo and show upload options
+  const handleChangePhoto = useCallback(() => {
+    // Clear uploaded image and related state
+    setUploadedImage(null);
+    setSelectedPhoto(null);
+    setSelectedDemoPhotoUrl(null);
+    setPhotoSelectionMethod(null);
+    
+    // Clear uploaded image from storage
+    storage.saveUploadedImage(null);
+    
+    // Show change photo options
+    setShowChangePhotoOptions(true);
+    
+    // Clear any errors
+    setError(null);
+  }, []);
 
   // Handle regenerate with new photo when step is complete (not viewing history)
   const handleRegenerateWithNewPhoto = useCallback(() => {
@@ -2331,9 +2366,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Get button state
   const getButtonState = useCallback(() => {
     if (step === 'idle') {
-      const canGenerate = uploadedImage && selectedClothing;
+      const hasValidImage = isValidImage(uploadedImage);
+      const canGenerate = hasValidImage && selectedClothing;
       return {
-        text: t('virtualTryOnModal.generate'),
+        text: !canGenerate ? t('virtualTryOnModal.chooseAPhoto') : t('virtualTryOnModal.generate'),
         icon: <Zap size={16} />,
         disabled: !canGenerate,
         action: handleGenerate,
@@ -2393,7 +2429,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       action: handleGenerate,
       color: 'gray',
     };
-  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart, t]);
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart, isValidImage, t]);
 
   const btnState = getButtonState();
 
@@ -4415,7 +4451,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {!viewingPastTryOn && uploadedImage && !showChangePhotoOptions && (
                         <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                           <button
-                            onClick={() => setShowChangePhotoOptions(true)}
+                            onClick={handleChangePhoto}
                             disabled={step === 'generating'}
                             className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                             type="button"
@@ -4850,7 +4886,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   {!viewingPastTryOn && uploadedImage && !showChangePhotoOptions && (
                     <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                       <button
-                        onClick={() => setShowChangePhotoOptions(true)}
+                        onClick={handleChangePhoto}
                         disabled={step !== 'idle' && step !== 'complete'}
                         className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                         type="button"
