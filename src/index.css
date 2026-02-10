@@ -20,8 +20,22 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;  /* #ffffff */
     --popover-foreground: 42 22% 14%;  /* #28261b */
 
-    --primary: 14 56% 52%;  /* #c96442 */
+    /* International Orange Primary Colors */
+    --primary: 19 100% 50%;  /* #FF4F00 - International Orange */
     --primary-foreground: 0 0% 100%;  /* #ffffff */
+    
+    /* Primary Shades - Lighter variants */
+    --primary-light: 19 100% 60%;  /* #FF7F33 - Lighter for hover states */
+    --primary-lighter: 19 100% 70%;  /* #FF9F66 - Even lighter for subtle backgrounds */
+    --primary-lightest: 19 50% 90%;  /* #FFE5D9 - Very light tint for backgrounds */
+    
+    /* Primary Shades - Darker variants */
+    --primary-dark: 19 100% 40%;  /* #CC3F00 - Darker for active/pressed states */
+    --primary-darker: 19 100% 30%;  /* #992F00 - Even darker for emphasis */
+    
+    /* Primary Muted/Saturated variants */
+    --primary-muted: 19 80% 50%;  /* Less saturated variant */
+    --primary-saturated: 19 100% 50%;  /* Fully saturated (same as primary) */
 
     --secondary: 48 20% 91%;  /* #e9e6dc */
     --secondary-foreground: 42 12% 28%;  /* #535146 */
@@ -37,19 +51,19 @@ All colors MUST be HSL.
 
     --border: 48 8% 83%;  /* #dad9d4 */
     --input: 42 8% 68%;  /* #b4b2a7 */
-    --ring: 14 56% 52%;  /* #c96442 */
+    --ring: 19 100% 50%;  /* #FF4F00 - International Orange focus ring */
 
-    /* Chart Colors */
-    --chart-1: 14 58% 42%;  /* #b05730 */
-    --chart-2: 254 88% 77%;  /* #9c87f5 */
-    --chart-3: 48 20% 81%;  /* #ded8c4 */
-    --chart-4: 258 55% 90%;  /* #dbd3f0 */
-    --chart-5: 14 58% 40%;  /* #b4552d */
+    /* Chart Colors - Updated to complement International Orange */
+    --chart-1: 19 95% 45%;  /* #E64A00 - Based on International Orange */
+    --chart-2: 254 88% 77%;  /* #9c87f5 - Complementary purple */
+    --chart-3: 48 20% 81%;  /* #ded8c4 - Neutral beige */
+    --chart-4: 258 55% 90%;  /* #dbd3f0 - Light purple */
+    --chart-5: 19 100% 35%;  /* #B33C00 - Darker orange */
 
-    /* Sidebar Colors */
+    /* Sidebar Colors - Updated for International Orange */
     --sidebar: 48 22% 95%;  /* #f5f4ee */
     --sidebar-foreground: 0 0% 24%;  /* #3d3d3a */
-    --sidebar-primary: 14 56% 52%;  /* #c96442 */
+    --sidebar-primary: 19 100% 50%;  /* #FF4F00 - International Orange */
     --sidebar-primary-foreground: 0 0% 98%;  /* #fbfbfb */
     --sidebar-accent: 48 20% 91%;  /* #e9e6dc */
     --sidebar-accent-foreground: 0 0% 20%;  /* #343434 */
@@ -87,10 +101,6 @@ All colors MUST be HSL.
     --info: 221 83% 53%;  /* Blue */
     --info-foreground: 0 0% 100%;
 
-    /* Primary variants (for backward compatibility) */
-    --primary-light: 14 60% 60%;  /* Lighter primary */
-    --primary-dark: 14 50% 42%;  /* Darker primary */
-
     /* Secondary variants (for backward compatibility) */
     --secondary-light: 48 22% 94%;  /* Lighter secondary */
     --secondary-dark: 48 18% 85%;  /* Darker secondary */
@@ -106,8 +116,22 @@ All colors MUST be HSL.
     --popover: 0 0% 19%;  /* #30302e */
     --popover-foreground: 42 6% 88%;  /* #e5e5e2 */
 
-    --primary: 14 58% 58%;  /* #d97757 */
+    /* International Orange Primary Colors for Dark Theme */
+    --primary: 19 100% 55%;  /* Slightly lighter for dark theme visibility */
     --primary-foreground: 0 0% 100%;  /* #ffffff */
+    
+    /* Primary Shades - Lighter variants for dark theme */
+    --primary-light: 19 100% 65%;  /* Lighter for hover states */
+    --primary-lighter: 19 100% 75%;  /* Even lighter */
+    --primary-lightest: 19 30% 20%;  /* Dark theme background tint */
+    
+    /* Primary Shades - Darker variants for dark theme */
+    --primary-dark: 19 100% 45%;  /* Darker for active states */
+    --primary-darker: 19 100% 35%;  /* Even darker */
+    
+    /* Primary Muted/Saturated variants */
+    --primary-muted: 19 80% 55%;  /* Less saturated variant */
+    --primary-saturated: 19 100% 55%;  /* Fully saturated */
 
     --secondary: 48 25% 98%;  /* #faf9f5 */
     --secondary-foreground: 0 0% 19%;  /* #30302e */
@@ -123,16 +147,16 @@ All colors MUST be HSL.
 
     --border: 42 8% 22%;  /* #3e3e38 */
     --input: 42 8% 32%;  /* #52514a */
-    --ring: 14 58% 58%;  /* #d97757 */
+    --ring: 19 100% 55%;  /* International Orange focus ring */
 
-    /* Chart Colors */
-    --chart-1: 14 58% 42%;  /* #b05730 */
-    --chart-2: 254 88% 77%;  /* #9c87f5 */
-    --chart-3: 42 7% 8%;  /* #1a1915 */
-    --chart-4: 254 30% 28%;  /* #2f2b48 */
-    --chart-5: 14 58% 40%;  /* #b4552d */
+    /* Chart Colors - Updated for dark theme with International Orange */
+    --chart-1: 19 95% 50%;  /* #F24900 - Based on International Orange */
+    --chart-2: 254 88% 77%;  /* #9c87f5 - Complementary purple */
+    --chart-3: 42 7% 8%;  /* #1a1915 - Dark neutral */
+    --chart-4: 254 30% 28%;  /* #2f2b48 - Dark purple */
+    --chart-5: 19 100% 40%;  /* #CC3F00 - Darker orange */
 
-    /* Sidebar Colors */
+    /* Sidebar Colors - Updated for dark theme */
     --sidebar: 42 7% 12%;  /* #1f1e1d */
     --sidebar-foreground: 42 8% 71%;  /* #c3c0b6 */
     --sidebar-primary: 0 0% 20%;  /* #343434 */
@@ -169,10 +193,6 @@ All colors MUST be HSL.
     --error-foreground: 0 0% 100%;
     --info: 221 83% 53%;
     --info-foreground: 0 0% 100%;
-
-    /* Primary variants (for backward compatibility) */
-    --primary-light: 14 58% 58%;  /* Lighter primary for dark theme */
-    --primary-dark: 14 50% 42%;  /* Darker primary */
 
     /* Secondary variants (for backward compatibility) */
     --secondary-light: 48 25% 98%;  /* Lighter secondary for dark theme */

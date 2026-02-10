@@ -352,7 +352,7 @@ const Analytics = () => {
       headerRow.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "FFC96442" }, // Primary color
+        fgColor: { argb: "FFFF4F00" }, // International Orange - Primary color
       };
       headerRow.alignment = { 
         horizontal: "center", 
