@@ -1959,6 +1959,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       setGeneratedImageError(false);
       
       // Also restore the images that were used for this generation
+      // CRITICAL: Always restore from refs first, they were saved before viewing history
       if (currentUploadedImageRef.current) {
         setUploadedImage(currentUploadedImageRef.current);
         storage.saveUploadedImage(currentUploadedImageRef.current);
@@ -1980,20 +1981,45 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setGeneratedImage(storedGeneratedImage);
         setGeneratedImageError(false);
         
-        // Try to restore images from storage if available
-        const storedUploadedImage = storage.getUploadedImage();
-        const storedClothingUrl = storage.getClothingUrl();
-        if (storedUploadedImage && storedUploadedImage.startsWith('data:image/')) {
-          setUploadedImage(storedUploadedImage);
+        // CRITICAL: Restore images from refs first (saved before viewing history)
+        // Only fall back to storage if refs are null
+        if (currentUploadedImageRef.current) {
+          setUploadedImage(currentUploadedImageRef.current);
+          storage.saveUploadedImage(currentUploadedImageRef.current);
+        } else {
+          const storedUploadedImage = storage.getUploadedImage();
+          if (storedUploadedImage && storedUploadedImage.startsWith('data:image/')) {
+            setUploadedImage(storedUploadedImage);
+          }
         }
-        if (storedClothingUrl && storedClothingUrl.startsWith('data:image/')) {
-          setSelectedClothing(storedClothingUrl);
+        
+        if (currentSelectedClothingRef.current) {
+          setSelectedClothing(currentSelectedClothingRef.current);
+          storage.saveClothingUrl(currentSelectedClothingRef.current);
+        } else {
+          const storedClothingUrl = storage.getClothingUrl();
+          if (storedClothingUrl && storedClothingUrl.startsWith('data:image/')) {
+            setSelectedClothing(storedClothingUrl);
+          }
         }
         
         setStep('complete');
       } else {
-        // Stored image is the history one, check if we have images ready to generate
-        if (uploadedImage && selectedClothing) {
+        // Stored image is the history one, restore from refs if available
+        if (currentUploadedImageRef.current) {
+          setUploadedImage(currentUploadedImageRef.current);
+          storage.saveUploadedImage(currentUploadedImageRef.current);
+        }
+        if (currentSelectedClothingRef.current) {
+          setSelectedClothing(currentSelectedClothingRef.current);
+          storage.saveClothingUrl(currentSelectedClothingRef.current);
+        }
+        
+        // Check if we have images ready to generate
+        const hasUploadedImage = currentUploadedImageRef.current || uploadedImage;
+        const hasSelectedClothing = currentSelectedClothingRef.current || selectedClothing;
+        
+        if (hasUploadedImage && hasSelectedClothing) {
           setStep('idle');
           setGeneratedImage(null);
           setGeneratedImageError(false);
@@ -2144,6 +2170,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
+    
+    // Show change photo options to display upload/selection UI
+    setShowChangePhotoOptions(true);
     
     // Clear uploaded image from storage but keep clothing
     storage.saveUploadedImage(null);
