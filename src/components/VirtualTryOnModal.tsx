@@ -4573,19 +4573,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         </div>
                         
                         {/* Person detection UI for /widget-test path - shown below image */}
-                        {isWidgetTestPath() && shouldDetectPeople && (
+                        {/* Only show detection states after modal is preloaded to avoid duplicate loaders */}
+                        {isWidgetTestPath() && shouldDetectPeople && isModalPreloaded && (
                           <div className="mt-2">
-                            {/* Loading/Processing states */}
-                            {(isLoadingModels || isDetecting) && (
-                              <div className="flex flex-col items-center gap-2 py-2">
-                                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                                <p className="text-xs text-gray-600">
-                                  {isLoadingModels ? t('virtualTryOnModal.loadingAiModel') : t('virtualTryOnModal.detectingPeople')}
-                                </p>
-                              </div>
-                            )}
-                            
-                            {/* Error state */}
+                            {/* Error state - only show after preload */}
                             {detectionError && !isLoadingModels && !isDetecting && (
                               <div className="flex flex-col items-center gap-2 py-2">
                                 <AlertCircle className="w-5 h-5 text-red-500" />
