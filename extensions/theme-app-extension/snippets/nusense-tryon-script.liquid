@@ -52,7 +52,16 @@
           title: {{ variant.title | json }},
           price: {{ variant.price | money | json }},
           priceRaw: {{ variant.price | money_without_currency | json }},
-          available: {{ variant.available | json }}
+          available: {{ variant.available | json }},
+          availableForSale: {{ variant.available | json }},
+          inventoryQuantity: {{ variant.inventory_quantity | json }},
+          inventoryPolicy: {{ variant.inventory_policy | json }},
+          inventoryManagement: {{ variant.inventory_management | json }},
+          selectedOptions: [
+            {% if variant.option1 %}{ name: {{ product.options[0] | json }}, value: {{ variant.option1 | json }} }{% endif %}
+            {% if variant.option2 %}, { name: {{ product.options[1] | json }}, value: {{ variant.option2 | json }} }{% endif %}
+            {% if variant.option3 %}, { name: {{ product.options[2] | json }}, value: {{ variant.option3 | json }} }{% endif %}
+          ]
           {% if variant.option1 %}, option1: {{ variant.option1 | json }}{% endif %}
           {% if variant.option2 %}, option2: {{ variant.option2 | json }}{% endif %}
           {% if variant.option3 %}, option3: {{ variant.option3 | json }}{% endif %}

@@ -3053,6 +3053,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
+      // If no sizes available (single variant product), check variant stock
+      if (sizes.length === 0 && variantStockInfo && !variantStockInfo.isAvailable) {
+        return {
+          text: t('virtualTryOnModal.notifyMe'),
+          icon: <Bell size={16} />,
+          disabled: isNotifyMeLoading,
+          action: handleNotifyMe,
+          color: 'orange',
+        };
+      }
+      
       // If no sizes available or size is selected and available, show add to cart
       return {
         text: currentCartQuantity > 0 ? t('virtualTryOnModal.addToCartWithQuantity', { quantity: currentCartQuantity }) : t('virtualTryOnModal.addToCart'),
@@ -3069,7 +3080,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       action: handleGenerate,
       color: 'gray',
     };
-  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, handleGenerate, handleNotifyMe, handleAddToCart, isValidImage, t, showPersonSelection, selectedPersonIndex]);
+  }, [step, uploadedImage, selectedClothing, progress, selectedSize, sizes, sizeAvailability, isNotifyMeLoading, isAddToCartLoading, isBuyNowLoading, currentCartQuantity, variantStockInfo, handleGenerate, handleNotifyMe, handleAddToCart, isValidImage, t, showPersonSelection, selectedPersonIndex]);
 
   const btnState = getButtonState();
   
