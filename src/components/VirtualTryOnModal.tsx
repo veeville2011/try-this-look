@@ -2741,6 +2741,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Ensure we return a boolean explicitly
     // Keep UI visible even after selection so users can change their selection
+    // NOTE: This indicates "person selection MODE", not necessarily that canvas is visible
     const result = Boolean(
       isTestPath && 
       shouldDetectPeople && 
@@ -2761,6 +2762,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         detectionError,
         hasDetectionResult: !!detectionResult,
         peopleCount: detectionResult?.people?.length || 0,
+        boundingBoxesDrawn,
         selectedPersonIndex,
         result,
         uploadedImage: !!uploadedImage,
@@ -2770,14 +2772,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Log when result changes to true
     if (result) {
-      console.log('[PersonSelection] ✅ Person selection UI should be shown!', {
+      console.log('[PersonSelection] ✅ Person selection MODE enabled!', {
         peopleCount: detectionResult?.people?.length,
+        boundingBoxesDrawn,
         detectionResult
       });
     }
     
     return result;
-  }, [shouldDetectPeople, isLoadingModels, isDetecting, detectionError, detectionResult, selectedPersonIndex, uploadedImage, showChangePhotoOptions]);
+  }, [shouldDetectPeople, isLoadingModels, isDetecting, detectionError, detectionResult, selectedPersonIndex, uploadedImage, showChangePhotoOptions, boundingBoxesDrawn]);
   
   // Debug: Log when showPersonSelection changes
   useEffect(() => {
@@ -2801,25 +2804,28 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     let isReady = true;
     
     if (needsPersonDetection) {
-      // Wait for detection model to load and detection to complete
-      if (isLoadingModels || isDetecting) {
+      // Only wait for model to load (instant with caching), not for detection
+      // This allows showing the image immediately while detection runs in background
+      if (isLoadingModels) {
         isReady = false;
       }
-      // If detection failed, still show UI after a short delay (don't block forever on errors)
-      if (detectionError && !detectionResult) {
-        // Wait a bit for retry, but don't block forever
-        setTimeout(() => {
-          setIsModalPreloaded(true);
-        }, 2000); // Show UI after 2 seconds even if detection fails
-        isReady = false;
-      }
+      // Note: We no longer block on isDetecting - image shows immediately with skeleton overlay
     }
     
     if (needsBoundingBoxes) {
-      // Wait for bounding boxes to be drawn
-      if (!boundingBoxesDrawnRef.current) {
+      // CRITICAL: Wait for either:
+      // 1. Bounding boxes successfully drawn, OR
+      // 2. Detection finished (even if drawing failed due to validation errors)
+      // This prevents infinite loading when canDraw() returns false
+      const detectionFinished = !isDetecting && detectionResult !== null;
+      const boxesDrawn = boundingBoxesDrawnRef.current;
+      
+      if (!detectionFinished && !boxesDrawn) {
+        // Still waiting for detection to complete
         isReady = false;
       }
+      // If detection finished but boxes not drawn, still show UI (validation may have failed)
+      // User will see error in console and can try again
     }
     
     // If image is uploaded but not yet validated, wait
@@ -2866,13 +2872,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   ]);
   
   // Canvas drawing for person selection (only when showPersonSelection is true)
+  // CRITICAL: This is now purely event-driven with NO setTimeout delays
   useEffect(() => {
     // Reset bounding boxes drawn state when conditions change
     setBoundingBoxesDrawn(false);
     boundingBoxesDrawnRef.current = false;
     
     if (!showPersonSelection || !detectionResult?.people || detectionResult.people.length === 0 || !detectionImageRef.current || !canvasRef.current || !uploadedImage) {
-      console.log('[PersonSelection] Canvas drawing skipped:', {
+      console.log('[PersonSelection] Canvas drawing skipped - conditions not met:', {
         showPersonSelection,
         hasPeople: !!detectionResult?.people && detectionResult.people.length > 0,
         hasImageRef: !!detectionImageRef.current,
@@ -2884,45 +2891,38 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     const canvas = canvasRef.current;
     const img = detectionImageRef.current;
+    const container = canvasContainerRef.current;
     
-    if (!img) {
-      console.warn('[PersonSelection] Detection image ref not available');
+    if (!img || !container) {
+      console.warn('[PersonSelection] Required refs not available');
       return;
     }
     
-    // Store the current uploadedImage to track if it changes during async operations
+    // Store the current uploadedImage to track if it changes
     const currentUploadedImage = uploadedImage;
     const currentImageId = generateImageId(uploadedImage);
     
-    // CRITICAL: Ensure image src is set correctly BEFORE any operations
-    // This is especially important on refresh when image might be cached
-    // Check if src needs to be updated (handle both data URLs and regular URLs)
+    // CRITICAL: Ensure image src is set correctly
     const needsSrcUpdate = uploadedImage.startsWith('data:') 
       ? img.src !== uploadedImage 
       : uploadedImage && (!img.src.includes(uploadedImage.split('?')[0]) && !uploadedImage.includes(img.src.split('?')[0]));
     
     if (needsSrcUpdate && uploadedImage) {
-      // Clear cached dimensions for old image before updating src
       const oldImageId = generateImageId(img.src);
       clearCachedDimensions(oldImageId);
-      
-      // Force update the src if it doesn't match
-      // When src changes, browser automatically resets complete to false
       img.src = uploadedImage;
-      console.log('[PersonSelection] Updated image src, will wait for load:', uploadedImage.substring(0, 50) + '...');
+      console.log('[PersonSelection] Updated image src:', uploadedImage.substring(0, 50) + '...');
       
       // Clear canvas while image loads
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
       }
-      
-      // Don't return early - let waitForImageReady handle waiting for the new image
-      // The validation utility will wait for the image to load before proceeding
+      // Image load event will trigger drawing when ready
+      return;
     }
     
-    // CRITICAL: Verify image src matches current uploadedImage
-    // This prevents drawing with wrong image
+    // Verify image src matches
     const imgSrc = img.src;
     const expectedSrc = currentUploadedImage.startsWith('data:image/')
       ? currentUploadedImage
@@ -2932,15 +2932,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       : imgSrc.split('?')[0];
     
     if (!actualSrc.includes(expectedSrc) && !expectedSrc.includes(actualSrc)) {
-      console.warn('[PersonSelection] Image src mismatch - waiting for update:', {
+      console.warn('[PersonSelection] Image src mismatch:', {
         expectedSrc: expectedSrc.substring(0, 50),
         actualSrc: actualSrc.substring(0, 50)
       });
-      return; // Exit early - wait for image src to be updated
+      return;
     }
     
-    const drawBoundingBoxes = () => {
-      // Verify the image src hasn't changed during async operations
+    // CRITICAL: Function to check if ALL conditions are met for drawing
+    // This is synchronous and returns true/false immediately
+    const canDraw = (): boolean => {
+      // Check image src matches
       const currentSrc = currentUploadedImage.startsWith('data:image/') 
         ? img.src 
         : img.src.split('?')[0];
@@ -2949,48 +2951,71 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         : currentUploadedImage.split('?')[0];
       
       if (!currentSrc.includes(expectedSrc) && !expectedSrc.includes(currentSrc)) {
-        console.warn('[PersonSelection] Image src changed during drawing, aborting:', {
-          currentSrc,
-          expectedSrc,
-          imgSrc: img.src,
-          currentUploadedImage
-        });
-        return;
+        console.log('[PersonSelection] Cannot draw - image src mismatch');
+        return false;
       }
       
-      // CRITICAL: Verify detection result exists and matches current image BEFORE validation
+      // Check detection result exists
       if (!detectionResult) {
-        console.warn('[PersonSelection] No detection result available in drawBoundingBoxes');
-        return;
+        console.log('[PersonSelection] Cannot draw - no detection result');
+        return false;
       }
       
-      // Verify detection result image ID matches (if available)
+      // Check detection matches current image
       if (detectionResult.imageId && detectionResult.imageId !== currentImageId) {
-        console.warn('[PersonSelection] Detection result image ID mismatch in drawBoundingBoxes:', {
-          detectionImageId: detectionResult.imageId,
-          currentImageId
-        });
-        return;
+        console.log('[PersonSelection] Cannot draw - detection ID mismatch');
+        return false;
       }
       
-      // CRITICAL: Use new validation utility to ensure image is ready
-      // This handles cached images, dimension validation, and prevents race conditions
+      // Check image is fully loaded and ready
       const validation = validateImageReady(img, currentImageId);
-      
       if (!validation.ready) {
-        console.warn('[PersonSelection] Image not ready for drawing:', {
-          complete: img.complete,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
-          imageId: validation.imageId,
-          src: img.src.substring(0, 50) + '...'
+        console.log('[PersonSelection] Cannot draw - image not ready');
+        return false;
+      }
+      
+      // Check detection dimensions match image dimensions
+      if (detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined) {
+        const widthDiff = Math.abs(detectionResult.imageWidth - validation.width);
+        const heightDiff = Math.abs(detectionResult.imageHeight - validation.height);
+        if (widthDiff > 1 || heightDiff > 1) {
+          console.log('[PersonSelection] Cannot draw - dimension mismatch:', {
+            detectionDims: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
+            imageDims: `${validation.width}x${validation.height}`
+          });
+          return false;
+        }
+      }
+      
+      // Check container is available and has valid dimensions
+      const containerRect = container?.getBoundingClientRect();
+      if (!containerRect || containerRect.width < 50 || !isFinite(containerRect.width)) {
+        console.log('[PersonSelection] Cannot draw - container not ready:', {
+          width: containerRect?.width
         });
-        // Retry after a short delay - image might still be loading
-        setTimeout(() => {
-          drawBoundingBoxes();
-        }, 100);
+        return false;
+      }
+      
+      return true;
+    };
+    
+    const drawBoundingBoxes = () => {
+      // CRITICAL: Check if we can draw - NO setTimeout retries!
+      if (!canDraw()) {
+        console.log('[PersonSelection] Skipping draw - conditions not met');
+        
+        // CRITICAL: If detection is complete but we can't draw (validation failed),
+        // set a flag so UI doesn't wait forever
+        if (!isDetecting && detectionResult !== null) {
+          console.warn('[PersonSelection] Detection complete but cannot draw - validation failed. Marking as done to prevent infinite loading.');
+          // Don't set boundingBoxesDrawn to true - this signals drawing actually failed
+          // The isModalPreloaded logic will handle showing UI anyway
+        }
         return;
       }
+      
+      // All conditions met - proceed with drawing
+      const validation = validateImageReady(img, currentImageId);
       
       const naturalWidth = validation.width;
       const naturalHeight = validation.height;
@@ -3007,69 +3032,66 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // CRITICAL: Verify detection dimensions match current image dimensions
       // This is the most important check - if dimensions don't match, coordinates will be wrong
       // We allow a small tolerance (1px) for rounding errors
+      console.log('[PersonSelection] DIMENSION VALIDATION:', {
+        detectionHasDimensions: detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined,
+        detectionDimensions: detectionResult.imageWidth && detectionResult.imageHeight 
+          ? `${detectionResult.imageWidth}x${detectionResult.imageHeight}` 
+          : 'MISSING',
+        currentImageDimensions: `${naturalWidth}x${naturalHeight}`,
+        detectionImageId: detectionResult.imageId || 'MISSING',
+        currentImageId,
+        detectionResultKeys: Object.keys(detectionResult),
+        peopleCount: detectionResult.people?.length || 0
+      });
+      
       if (detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined) {
         const widthDiff = Math.abs(detectionResult.imageWidth - naturalWidth);
         const heightDiff = Math.abs(detectionResult.imageHeight - naturalHeight);
         const tolerance = 1; // Allow 1px difference for rounding
         
         if (widthDiff > tolerance || heightDiff > tolerance) {
-          console.error('[PersonSelection] Detection result dimensions do not match current image dimensions - ABORTING DRAW:', {
+          console.error('[PersonSelection] ❌ DIMENSION MISMATCH - ABORTING DRAW:', {
             detectionDimensions: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
             currentDimensions: `${naturalWidth}x${naturalHeight}`,
             widthDiff,
             heightDiff,
             tolerance,
             imageId: currentImageId,
-            detectionImageId: detectionResult.imageId || 'unknown'
+            detectionImageId: detectionResult.imageId || 'unknown',
+            reason: 'Detection ran on different image size - coordinates will be wrong!'
           });
           // CRITICAL: Don't draw if dimensions don't match - coordinates will be completely wrong!
-          // This prevents bounding boxes from appearing at wrong positions (e.g., top-left corner)
           return;
         }
+        console.log('[PersonSelection] ✅ Dimensions match - safe to draw');
       } else {
-        // If detection doesn't have dimension metadata, log a warning
-        console.warn('[PersonSelection] Detection result missing dimension metadata - cannot validate dimensions:', {
+        // CRITICAL: If detection doesn't have dimension metadata, we CANNOT safely draw
+        // The coordinates might be from a different sized image
+        console.error('[PersonSelection] ❌ MISSING DIMENSION METADATA - ABORTING DRAW:', {
           hasImageId: !!detectionResult.imageId,
+          hasImageWidth: detectionResult.imageWidth !== undefined,
+          hasImageHeight: detectionResult.imageHeight !== undefined,
           currentDimensions: `${naturalWidth}x${naturalHeight}`,
-          imageId: currentImageId
+          imageId: currentImageId,
+          reason: 'Cannot validate if detection coordinates match current image!',
+          detectionResultKeys: Object.keys(detectionResult)
         });
-        // Still proceed, but this is risky - coordinates might be wrong if detection was run on different size
+        // DON'T proceed - coordinates might be completely wrong!
+        return;
       }
       
       const imageAspectRatio = naturalWidth / naturalHeight;
       
-      // Validate aspect ratio is valid
+      // Validate aspect ratio
       if (!isFinite(imageAspectRatio) || imageAspectRatio <= 0) {
         console.error('[PersonSelection] Invalid aspect ratio:', imageAspectRatio);
         return;
       }
       
-      // Get container using ref (more reliable than DOM traversal)
-      const container = canvasContainerRef.current;
-      if (!container) {
-        console.warn('[PersonSelection] Container ref not available');
-        // Retry after a short delay
-        setTimeout(() => {
-          drawBoundingBoxes();
-        }, 100);
-        return;
-      }
-      
-      // Get container width from getBoundingClientRect (reliable for width)
+      // Get container dimensions (already validated in canDraw())
       const containerRect = container.getBoundingClientRect();
-      if (!containerRect || containerRect.width === 0 || !isFinite(containerRect.width)) {
-        console.warn('[PersonSelection] Container width not available:', {
-          width: containerRect?.width
-        });
-        // Retry after a short delay
-        setTimeout(() => {
-          drawBoundingBoxes();
-        }, 100);
-        return;
-      }
       
-      // Use fixed height values from CSS (more reliable than reading from DOM)
-      // Mobile: 180px, Desktop (sm and up): 200px
+      // Use fixed height values from CSS
       const isMobile = window.matchMedia('(max-width: 640px)').matches;
       const maxDisplayHeight = isMobile ? 180 : 200;
       const maxDisplayWidth = containerRect.width;
@@ -3087,7 +3109,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // Validate scale result
       if (scale <= 0 || !isFinite(scale) || displayWidth <= 0 || displayHeight <= 0 || !isFinite(displayWidth) || !isFinite(displayHeight)) {
-        console.error('[PersonSelection] Invalid scale calculated:', {
+        console.error('[PersonSelection] ❌ Invalid scale calculated:', {
           scale,
           displayWidth,
           displayHeight,
@@ -3099,14 +3121,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         return;
       }
       
-      // Debug logging
-      console.log('[PersonSelection] Drawing with dimensions (following guide):', {
-        naturalSize: `${naturalWidth}x${naturalHeight}`,
-        maxDisplaySize: `${maxDisplayWidth}x${maxDisplayHeight}`,
-        calculatedScale: scale,
-        displaySize: `${displayWidth}x${displayHeight}`,
-        imageAspectRatio,
-        isMobile
+      // CRITICAL: Comprehensive debug logging
+      console.log('[PersonSelection] 📐 SCALE CALCULATION:', {
+        step1_naturalSize: `${naturalWidth}x${naturalHeight}`,
+        step2_containerSize: `${maxDisplayWidth}x${maxDisplayHeight}`,
+        step3_calculatedScale: scale.toFixed(4),
+        step4_displaySize: `${displayWidth.toFixed(2)}x${displayHeight.toFixed(2)}`,
+        step5_imageAspectRatio: imageAspectRatio.toFixed(4),
+        detectionDimensions: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
+        isMobile,
+        dpr: window.devicePixelRatio || 1
       });
       
       // Use device pixel ratio for crisp rendering on high-DPI screens
@@ -3145,49 +3169,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const effectiveDprY = actualCanvasHeight / displayHeight;
       
       // CRITICAL: Verify canvas dimensions are valid BEFORE drawing
-      // If canvas dimensions are invalid, all coordinates will be wrong
       if (actualCanvasWidth === 0 || actualCanvasHeight === 0 || !isFinite(actualCanvasWidth) || !isFinite(actualCanvasHeight)) {
-        console.error('[PersonSelection] Canvas dimensions are zero or invalid after setting - ABORTING DRAW:', {
+        console.error('[PersonSelection] Canvas dimensions invalid - ABORTING DRAW:', {
           canvasWidth: actualCanvasWidth,
           canvasHeight: actualCanvasHeight,
           displayWidth,
           displayHeight,
-          dpr,
-          naturalWidth,
-          naturalHeight,
-          forcedLayoutWidth,
-          forcedLayoutHeight
+          dpr
         });
-        // Retry after canvas is properly initialized
-        setTimeout(() => {
-          drawBoundingBoxes();
-        }, 100);
         return;
       }
       
-      // CRITICAL: Verify canvas dimensions match expected values (with small tolerance for rounding)
-      // If there's a significant mismatch, retry to ensure stability
+      // Verify canvas dimensions match expected values (with tolerance for rounding)
       const expectedCanvasWidth = Math.round(displayWidth * dpr);
       const expectedCanvasHeight = Math.round(displayHeight * dpr);
       const widthMismatch = Math.abs(actualCanvasWidth - expectedCanvasWidth);
       const heightMismatch = Math.abs(actualCanvasHeight - expectedCanvasHeight);
       
-      if (widthMismatch > 1 || heightMismatch > 1) {
-        console.warn('[PersonSelection] Canvas dimensions mismatch detected, retrying:', {
+      if (widthMismatch > 2 || heightMismatch > 2) {
+        console.error('[PersonSelection] Canvas dimensions mismatch - ABORTING DRAW:', {
           expectedWidth: expectedCanvasWidth,
           expectedHeight: expectedCanvasHeight,
           actualWidth: actualCanvasWidth,
-          actualHeight: actualCanvasHeight,
-          widthMismatch,
-          heightMismatch,
-          displayWidth,
-          displayHeight,
-          dpr
+          actualHeight: actualCanvasHeight
         });
-        // Retry after a short delay to allow browser to stabilize
-        setTimeout(() => {
-          drawBoundingBoxes();
-        }, 50);
         return;
       }
       
@@ -3397,34 +3402,53 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Draw bounding boxes - Transform from natural image coordinates to display coordinates
+      console.log('[PersonSelection] 🎯 DRAWING BOUNDING BOXES:', {
+        totalPeople: detectionResult.people.length,
+        scale: scale.toFixed(4),
+        naturalDimensions: `${naturalWidth}x${naturalHeight}`,
+        displayDimensions: `${displayWidth.toFixed(2)}x${displayHeight.toFixed(2)}`
+      });
+      
       detectionResult.people.forEach((person, index) => {
         // Validate person bbox exists and is an array
         if (!person?.bbox || !Array.isArray(person.bbox) || person.bbox.length !== 4) {
-          console.warn(`[PersonSelection] Invalid bbox for person ${index}:`, person.bbox);
+          console.warn(`[PersonSelection] ❌ Invalid bbox for person ${index}:`, person.bbox);
           return;
         }
         
         const [x, y, width, height] = person.bbox;
         
+        console.log(`[PersonSelection] 📦 Person ${index} ORIGINAL bbox:`, {
+          x: x.toFixed(2),
+          y: y.toFixed(2),
+          width: width.toFixed(2),
+          height: height.toFixed(2),
+          score: person.score?.toFixed(3),
+          bounds: `(${x.toFixed(1)}, ${y.toFixed(1)}) to (${(x + width).toFixed(1)}, ${(y + height).toFixed(1)})`
+        });
+        
         // Validate bbox coordinates are valid numbers
         if (!isFinite(x) || !isFinite(y) || !isFinite(width) || !isFinite(height)) {
-          console.warn(`[PersonSelection] Invalid bbox coordinates for person ${index}:`, { x, y, width, height });
+          console.error(`[PersonSelection] ❌ Invalid bbox coordinates for person ${index}:`, { x, y, width, height });
           return;
         }
         
         // Validate bbox dimensions are positive
         if (width <= 0 || height <= 0) {
-          console.warn(`[PersonSelection] Invalid bbox dimensions for person ${index}:`, { width, height });
+          console.error(`[PersonSelection] ❌ Invalid bbox dimensions for person ${index}:`, { width, height });
           return;
         }
         
         // Validate bbox is within natural image bounds (with small tolerance for rounding)
-        if (x < 0 || y < 0 || x + width > naturalWidth + 1 || y + height > naturalHeight + 1) {
-          console.warn(`[PersonSelection] Bbox out of bounds for person ${index}:`, {
-            bbox: [x, y, width, height],
-            naturalSize: `${naturalWidth}x${naturalHeight}`
+        const outOfBounds = x < 0 || y < 0 || x + width > naturalWidth + 1 || y + height > naturalHeight + 1;
+        if (outOfBounds) {
+          console.error(`[PersonSelection] ❌ Bbox OUT OF BOUNDS for person ${index}:`, {
+            bbox: `[${x.toFixed(1)}, ${y.toFixed(1)}, ${width.toFixed(1)}, ${height.toFixed(1)}]`,
+            naturalSize: `${naturalWidth}x${naturalHeight}`,
+            xRange: `${x.toFixed(1)} to ${(x + width).toFixed(1)} (max: ${naturalWidth})`,
+            yRange: `${y.toFixed(1)} to ${(y + height).toFixed(1)} (max: ${naturalHeight})`
           });
-          // Don't return - still draw it, but log the warning
+          // Don't return - still draw it, but log the error
         }
         
         const isSelected = selectedPersonIndex === index;
@@ -3434,6 +3458,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         const scaledY = y * scale;
         const scaledWidth = width * scale;
         const scaledHeight = height * scale;
+        
+        console.log(`[PersonSelection] 📏 Person ${index} SCALED bbox:`, {
+          originalX: x.toFixed(2),
+          originalY: y.toFixed(2),
+          originalWidth: width.toFixed(2),
+          originalHeight: height.toFixed(2),
+          scale: scale.toFixed(4),
+          scaledX: scaledX.toFixed(2),
+          scaledY: scaledY.toFixed(2),
+          scaledWidth: scaledWidth.toFixed(2),
+          scaledHeight: scaledHeight.toFixed(2),
+          displayBounds: `(${scaledX.toFixed(1)}, ${scaledY.toFixed(1)}) to (${(scaledX + scaledWidth).toFixed(1)}, ${(scaledY + scaledHeight).toFixed(1)})`,
+          canvasBounds: `0,0 to ${displayWidth.toFixed(1)},${displayHeight.toFixed(1)}`
+        });
         
         // CRITICAL: Validate scaled coordinates are valid and NOT at origin (0,0) unless person is actually there
         // This prevents boxes from appearing at top-left corner due to invalid calculations
@@ -3566,187 +3604,45 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // This signals that the modal is ready to be displayed
       setBoundingBoxesDrawn(true);
       boundingBoxesDrawnRef.current = true;
-      
-      // CRITICAL: Mark bounding boxes as drawn
-      // This signals that the modal is ready to be displayed
-      setBoundingBoxesDrawn(true);
-      boundingBoxesDrawnRef.current = true;
     };
     
+    // CRITICAL: Image load event handler - NO setTimeout delays!
+    // Simply try to draw when image loads - canDraw() validates everything
     const handleImageLoad = () => {
-      // Use new validation utility to ensure image is ready
-      const validation = validateImageReady(img, currentImageId);
-      
-      if (!validation.ready) {
-        // Image not ready yet, wait a bit and retry
-        setTimeout(() => {
-          handleImageLoad();
-        }, 50);
-        return;
-      }
-      
-      // Verify image ID matches current image
-      if (validation.imageId !== currentImageId) {
-        console.warn('[PersonSelection] Image ID mismatch in handleImageLoad:', {
-          expectedId: currentImageId,
-          actualId: validation.imageId
-        });
-        return;
-      }
-      
-      // Wait for container to be ready as well
-      const container = canvasContainerRef.current;
-      const containerRect = container?.getBoundingClientRect();
-      
-      if (containerRect && containerRect.width > 0 && isFinite(containerRect.width)) {
-        // Use requestAnimationFrame to ensure DOM is fully updated
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Add a small delay to ensure everything is stable
-            setTimeout(() => {
-              drawBoundingBoxes();
-            }, 50);
-          });
-        });
-      } else {
-        // Container not ready, retry
-        setTimeout(() => {
-          handleImageLoad();
-        }, 50);
-      }
+      console.log('[PersonSelection] Image load event fired');
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        drawBoundingBoxes();
+      });
     };
     
-    // Clear canvas initially to avoid showing stale content
+    // Clear canvas initially
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
     }
     
-    // Wait for image to be ready using new validation utility
-    const cleanupImageWait = waitForImageReady(
-      img,
-      (dimensions) => {
-        // Verify image ID matches current image
-        if (dimensions.imageId !== currentImageId) {
-          console.warn('[PersonSelection] Image ID mismatch during wait:', {
-            expectedId: currentImageId,
-            actualId: dimensions.imageId
-          });
-          return;
-        }
-        
-        // CRITICAL: Verify detection result matches current image BEFORE drawing
-        // This prevents drawing with stale detection results
-        if (detectionResult) {
-          if (detectionResult.imageId && detectionResult.imageId !== currentImageId) {
-            console.warn('[PersonSelection] Detection result image ID mismatch during wait:', {
-              detectionImageId: detectionResult.imageId,
-              currentImageId
-            });
-            return; // Wait for correct detection result
-          }
-          
-          // Verify detection dimensions match if available
-          if (detectionResult.imageWidth !== undefined && detectionResult.imageHeight !== undefined) {
-            const widthDiff = Math.abs(detectionResult.imageWidth - dimensions.width);
-            const heightDiff = Math.abs(detectionResult.imageHeight - dimensions.height);
-            if (widthDiff > 1 || heightDiff > 1) {
-              console.warn('[PersonSelection] Detection dimensions mismatch during wait:', {
-                detectionDimensions: `${detectionResult.imageWidth}x${detectionResult.imageHeight}`,
-                currentDimensions: `${dimensions.width}x${dimensions.height}`
-              });
-              return; // Wait for correct detection result
-            }
-          }
-        } else {
-          // No detection result yet - wait for it
-          console.log('[PersonSelection] Waiting for detection result...');
-          return;
-        }
-        
-        // Wait for container to be ready
-        const container = canvasContainerRef.current;
-        const containerRect = container?.getBoundingClientRect();
-        
-        if (!containerRect || containerRect.width === 0 || !isFinite(containerRect.width)) {
-          // Container not ready, retry after short delay
-          setTimeout(() => {
-            const retryContainer = canvasContainerRef.current;
-            const retryRect = retryContainer?.getBoundingClientRect();
-            if (retryRect && retryRect.width > 0 && isFinite(retryRect.width)) {
-              // Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  setTimeout(() => {
-                    console.log('[PersonSelection] Initializing canvas draw (retry after container ready)');
-                    drawBoundingBoxes();
-                  }, 100); // Increased delay for stability
-                });
-              });
-            }
-          }, 100);
-          return;
-        }
-        
-        // CRITICAL: Use multiple requestAnimationFrame calls to ensure DOM is fully laid out
-        // This is especially important on mount/refresh when DOM might not be stable
-        // Also verify container dimensions are stable before drawing
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Verify container dimensions are still valid (might have changed during layout)
-            const verifyContainer = canvasContainerRef.current;
-            const verifyRect = verifyContainer?.getBoundingClientRect();
-            
-            if (!verifyRect || verifyRect.width === 0 || !isFinite(verifyRect.width)) {
-              // Container dimensions changed, retry
-              setTimeout(() => {
-                const retryContainer = canvasContainerRef.current;
-                const retryRect = retryContainer?.getBoundingClientRect();
-                if (retryRect && retryRect.width > 0 && isFinite(retryRect.width)) {
-                  console.log('[PersonSelection] Initializing canvas draw (retry after container stabilized)');
-                  drawBoundingBoxes();
-                }
-              }, 100);
-              return;
-            }
-            
-            // Add a delay to ensure everything is stable before drawing
-            setTimeout(() => {
-              console.log('[PersonSelection] Initializing canvas draw after all checks passed');
-              drawBoundingBoxes();
-            }, 100); // Increased delay for stability on mount/refresh
-          });
-        });
-      },
-      200, // maxAttempts - increased for reliability on refresh
-      currentImageId
-    );
+    // Set up image load listener
+    img.addEventListener('load', handleImageLoad);
     
-    // Redraw on window resize to handle dynamic sizing
+    // CRITICAL: Try to draw immediately if image is already loaded (cached)
+    if (img.complete && img.naturalWidth > 0) {
+      console.log('[PersonSelection] Image already loaded (cached)');
+      requestAnimationFrame(() => {
+        drawBoundingBoxes();
+      });
+    }
+    
+    // Set up resize observers to redraw when dimensions change
     const handleResize = () => {
-      const container = canvasContainerRef.current;
-      const containerRect = container?.getBoundingClientRect();
-      const validation = validateImageReady(img, currentImageId);
-      if (validation.ready && containerRect && containerRect.width > 0) {
-        requestAnimationFrame(() => {
-          drawBoundingBoxes();
-        });
-      }
+      drawBoundingBoxes();
     };
     
     window.addEventListener('resize', handleResize);
-    img.addEventListener('load', handleImageLoad);
     
-    // Also redraw when canvas container dimensions might change
+    // ResizeObserver for container dimension changes
     const observer = new ResizeObserver(() => {
-      const container = canvasContainerRef.current;
-      const containerRect = container?.getBoundingClientRect();
-      const validation = validateImageReady(img, currentImageId);
-      if (validation.ready && containerRect && containerRect.width > 0) {
-        requestAnimationFrame(() => {
-          drawBoundingBoxes();
-        });
-      }
+      drawBoundingBoxes();
     });
     
     if (canvasContainerRef.current) {
@@ -3754,7 +3650,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     
     return () => {
-      cleanupImageWait();
       window.removeEventListener('resize', handleResize);
       img.removeEventListener('load', handleImageLoad);
       observer.disconnect();
@@ -3988,7 +3883,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               {/* Loading text */}
               <p className="text-sm sm:text-base text-gray-600 font-medium">
                 {isLoadingModels ? t('virtualTryOnModal.loadingAiModel') : 
-                 isDetecting ? t('virtualTryOnModal.detectingPeople') : 
                  showPersonSelection && !boundingBoxesDrawnRef.current ? t('virtualTryOnModal.preparingSelection') :
                  t('virtualTryOnModal.loading')}
               </p>
@@ -4178,6 +4072,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         )}
                         {uploadedImage && !showChangePhotoOptions ? (
                           <div className="w-full flex flex-col items-center justify-center relative">
+                            {/* Hidden image for detection - CRITICAL: Must be present for canvas drawing */}
+                            <img
+                              ref={detectionImageRef}
+                              src={uploadedImage}
+                              alt="Detection source"
+                              className="hidden"
+                              onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
+                            />
+                            
                             {/* Instructions for user */}
                             {showPersonSelection && detectionResult?.people && detectionResult.people.length > 1 && (
                               <div className="mb-2 sm:mb-2.5 px-2 text-center">
@@ -4189,17 +4092,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 </p>
                               </div>
                             )}
-                            {/* Canvas with bounding boxes - fixed height for consistency */}
+                            {/* Canvas with bounding boxes OR regular image - fixed height for consistency */}
                             <div ref={canvasContainerRef} className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
-                              {/* Hidden image for detection - canvas will display the image */}
-                              <img
-                                ref={detectionImageRef}
-                                src={uploadedImage || ''}
-                                alt="Select person"
-                                className="hidden"
-                              />
-                              {/* Canvas wrapper - sizes to canvas content, border fits the image */}
-                              <div className="relative inline-flex items-center justify-center max-w-full max-h-full h-full">
+                              {/* Canvas wrapper - ALWAYS rendered so ref exists, visibility controlled by CSS */}
+                              <div 
+                                className="relative inline-flex items-center justify-center max-w-full max-h-full h-full"
+                                style={{ display: boundingBoxesDrawn ? 'flex' : 'none' }}
+                              >
                                 <canvas
                                   ref={canvasRef}
                                   className="rounded-lg border-4 border-white shadow-md md:shadow-lg cursor-pointer"
@@ -4211,6 +4110,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   aria-label={t('virtualTryOnModal.selectPersonForTryOn')}
                                 />
                               </div>
+                              
+                              {/* Regular image - shows while waiting, hidden when canvas ready */}
+                              {!boundingBoxesDrawn && (
+                                <img
+                                  src={uploadedImage}
+                                  alt={t('virtualTryOnModal.uploadedPhoto')}
+                                  className="max-w-full max-h-full h-full object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
+                                />
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -4598,14 +4506,41 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     )}
                     {uploadedImage && !showChangePhotoOptions ? (
                       <div className="w-full flex flex-col items-center justify-center relative">
+                        {/* Hidden image for detection - ALWAYS present to maintain consistent ref */}
+                        {isWidgetTestPath() && shouldDetectPeople && (
+                          <img
+                            ref={detectionImageRef}
+                            src={uploadedImage}
+                            alt="Detection source"
+                            className="hidden"
+                            onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
+                          />
+                        )}
+                        
                         {/* Always show the image first - fixed height for consistency */}
                         <div className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                           <img
-                            ref={isWidgetTestPath() && shouldDetectPeople ? detectionImageRef : undefined}
                             src={uploadedImage}
                             alt={t('virtualTryOnModal.uploadedPhoto')}
                             className="max-w-full max-h-full h-full object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
                           />
+                          
+                          {/* Skeleton loading overlay while detection is processing */}
+                          {isWidgetTestPath() && shouldDetectPeople && (isLoadingModels || isDetecting) && (
+                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] rounded-lg border-4 border-white flex items-center justify-center animate-pulse">
+                              <div className="flex flex-col items-center gap-2 bg-white/90 px-4 py-3 rounded-lg shadow-lg">
+                                <div className="flex items-center gap-2">
+                                  <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  <span className="text-xs font-medium text-gray-700">
+                                    {isLoadingModels ? t('virtualTryOnModal.loadingAiModel') : t('virtualTryOnModal.detectingPeople')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         
                         {/* Person detection UI for /widget-test path - shown below image */}

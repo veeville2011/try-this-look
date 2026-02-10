@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -5,6 +6,7 @@ import { Provider } from "react-redux";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { store } from "@/store/store";
 import { AppBridgeProvider } from "@/providers/AppBridgeProvider";
+import { modelManager } from "@/utils/modelManager";
 import Index from "./pages/Index";
 import ProductDemo from "./pages/ProductDemo";
 import Widget from "./pages/Widget";
@@ -24,8 +26,36 @@ const queryClient = new QueryClient();
 /**
  * Main App Component
  * App Bridge is only used on the "/" route for pricing implementation
+ * 
+ * Preloads AI models on app initialization for better performance
  */
 const App = () => {
+  // Preload AI models in the background when app starts
+  // This ensures models are ready when users open the virtual try-on modal
+  useEffect(() => {
+    const preloadModels = async () => {
+      try {
+        console.log('[App] Starting model preload in background...');
+        const startTime = Date.now();
+        
+        await modelManager.preloadModels();
+        
+        const loadTime = Date.now() - startTime;
+        console.log(`[App] Models preloaded successfully in ${loadTime}ms`);
+        
+        // Log debug info
+        const debugInfo = modelManager.getDebugInfo();
+        console.log('[App] Model Manager Debug Info:', debugInfo);
+      } catch (err) {
+        console.error('[App] Error preloading models (non-critical):', err);
+        // Non-critical error - models will load on-demand if preload fails
+      }
+    };
+
+    // Start preloading in background (non-blocking)
+    preloadModels();
+  }, []);
+
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>

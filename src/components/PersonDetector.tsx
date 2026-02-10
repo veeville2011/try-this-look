@@ -3,14 +3,12 @@
  * 
  * Detects all people in an image using TensorFlow.js COCO-SSD model.
  * Returns detection results with bounding boxes and labels.
+ * 
+ * Now uses ModelManager for efficient model caching across component lifecycles.
  */
 
 import { useState, useEffect, useRef } from 'react';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
-import * as tf from '@tensorflow/tfjs';
-// Import backends
-import '@tensorflow/tfjs-backend-webgl';
-import '@tensorflow/tfjs-backend-cpu';
+import { modelManager } from '@/utils/modelManager';
 import { 
   generateImageId, 
   validateImageReady, 
@@ -42,6 +40,9 @@ interface PersonDetectorProps {
 
 /**
  * Hook version for easier use in components
+ * 
+ * Now uses ModelManager for efficient model caching.
+ * The model is loaded once per session and reused across all component instances.
  */
 export const usePersonDetection = (
   imageUrl: string,
@@ -54,48 +55,49 @@ export const usePersonDetection = (
   const [error, setError] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Load model
+  // Load model using ModelManager (cached after first load)
   useEffect(() => {
+    let isMounted = true;
+
     const loadModel = async () => {
       try {
         setIsLoading(true);
         setError(null);
         
-        // Initialize TensorFlow.js backend
-        // Try WebGL first (faster), fallback to CPU
-        const backends = ['webgl', 'cpu'];
-        let backendInitialized = false;
-        
-        for (const backend of backends) {
-          try {
-            await tf.setBackend(backend);
-            await tf.ready();
-            console.log(`TensorFlow.js backend initialized: ${backend}`);
-            backendInitialized = true;
-            break;
-          } catch (backendErr) {
-            console.warn(`Failed to initialize ${backend} backend:`, backendErr);
-            continue;
+        // Check if model is already loaded in cache
+        const cachedModel = modelManager.getModel('coco-ssd');
+        if (cachedModel) {
+          console.log('[PersonDetector] Using cached COCO-SSD model');
+          if (isMounted) {
+            setModel(cachedModel);
+            setIsLoading(false);
           }
+          return;
         }
+
+        // Load model through ModelManager (will cache for future use)
+        console.log('[PersonDetector] Loading COCO-SSD model via ModelManager...');
+        const loadedModel = await modelManager.loadCocoSsdModel();
         
-        if (!backendInitialized) {
-          throw new Error('No TensorFlow.js backend available');
+        if (isMounted) {
+          setModel(loadedModel);
+          setIsLoading(false);
+          console.log('[PersonDetector] Model loaded successfully');
         }
-        
-        // Load the COCO-SSD model
-        const loadedModel = await cocoSsd.load({
-          base: 'lite_mobilenet_v2',
-        });
-        setModel(loadedModel);
-        setIsLoading(false);
       } catch (err) {
-        console.error('Error loading model:', err);
-        setError('Failed to load AI model. Please refresh the page.');
-        setIsLoading(false);
+        console.error('[PersonDetector] Error loading model:', err);
+        if (isMounted) {
+          setError('Failed to load AI model. Please refresh the page.');
+          setIsLoading(false);
+        }
       }
     };
+
     loadModel();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Run detection
