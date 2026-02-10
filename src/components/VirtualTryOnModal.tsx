@@ -2322,25 +2322,38 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Handle regenerate with new photo when step is complete (not viewing history)
   const handleRegenerateWithNewPhoto = useCallback(() => {
-    // Set step to idle first to prevent reset useEffect from interfering
+    // CRITICAL: Ensure we're not viewing a past try-on
+    setViewingPastTryOn(false);
+    setViewingHistoryItem(null);
+    setSelectedHistoryItemId(null);
+    
+    // Reset generation state
     setStep('idle');
     setProgress(0);
     setError(null);
     setGeneratedImage(null);
     setGeneratedImageError(false);
     
-    // Then reset photo but keep clothing selection
+    // Reset photo selection (but keep clothing)
     setUploadedImage(null);
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
     
+    // Reset person selection (for /widget-test path)
+    if (isWidgetTestPath()) {
+      setSelectedPersonBbox(null);
+      setSelectedPersonIndex(null);
+    }
+    
     // Show change photo options to display upload/selection UI
     setShowChangePhotoOptions(true);
     
-    // Clear uploaded image from storage but keep clothing
+    // Clear storage
     storage.saveUploadedImage(null);
     storage.saveGeneratedImage(null);
+    
+    console.log('[VirtualTryOnModal] Regenerate with new photo - reset complete, ready for photo selection');
   }, []);
 
   // Handle add to cart
@@ -4873,7 +4886,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       {/* Regenerate with new photo subsection */}
                       <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm">
                         <button
-                          onClick={viewingPastTryOn ? handleRegeneratePastTryOn : handleRegenerateWithNewPhoto}
+                          onClick={() => {
+                            // Explicitly check state and call appropriate handler
+                            if (viewingPastTryOn && viewingHistoryItem) {
+                              console.log('[VirtualTryOnModal] Regenerating past try-on');
+                              void handleRegeneratePastTryOn();
+                            } else {
+                              console.log('[VirtualTryOnModal] Starting fresh try-on with new photo');
+                              handleRegenerateWithNewPhoto();
+                            }
+                          }}
                           disabled={step === 'generating'}
                           className="w-full flex items-center gap-2 sm:gap-3 text-left hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                           type="button"
