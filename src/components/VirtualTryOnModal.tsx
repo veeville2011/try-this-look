@@ -12,7 +12,6 @@ import { storage } from '@/utils/storage';
 import { detectStoreOrigin, extractProductImages, getStoreOriginFromPostMessage, requestStoreInfoFromParent, extractShopifyProductInfo, type StoreInfo } from '@/utils/shopifyIntegration';
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
 import type { ProductImage } from '@/types/tryon';
-import { GlowingBubblesReveal } from '@/components/ui/glowing-bubbles-reveal';
 import { usePersonDetection } from '@/components/PersonDetector';
 import { isWidgetTestRoute, isWidgetTestPath, isLocalhost } from '@/config/testProductData';
 import { cn } from '@/lib/utils';
@@ -2611,19 +2610,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [currentProductData]);
   
   const variantInfo = useMemo(() => getVariantInfo(), [getVariantInfo]);
-
-  // Generate stable particle positions for celebration animation
-  const celebrationParticles = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      width: Math.random() * 25 + 12,
-      height: Math.random() * 25 + 12,
-      left: Math.random() * 100,
-      top: 60 + Math.random() * 30, // Start from middle-bottom area
-      animationDelay: Math.random() * 1.5, // Stagger bubbles over 1.5s
-      animationDuration: Math.random() * 2 + 3, // 3-5 seconds duration
-    }));
-  }, []);
 
   // Ensure step is 'complete' when viewing history and generatedImage is set
   // CRITICAL FIX: This ensures that whenever generatedImage changes while viewing history,
@@ -5421,51 +5407,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Improved background with better contrast for white border visibility */}
                         <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-br from-yellow-100/80 via-orange-50/60 to-yellow-50/70 rounded-lg" />
                         
-                        {/* Celebration Bubbles - Real transparent bubbles with borders and highlights (only show for new generations, not past try-ons) */}
-                        {!viewingPastTryOn && (
-                          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                            {celebrationParticles.map((particle) => (
-                              <div
-                                key={particle.id}
-                                className="absolute rounded-full"
-                                style={{
-                                  width: `${particle.width}px`,
-                                  height: `${particle.height}px`,
-                                  left: `${particle.left}%`,
-                                  top: `${particle.top}%`,
-                                  animation: `bubbleFloatUp ${particle.animationDuration}s ease-out ${particle.animationDelay + 0.5}s forwards`,
-                                  opacity: 0,
-                                  // Real bubble effect: transparent background with border
-                                  background: `radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 20%, hsl(var(--primary) / 0.1) 40%, transparent 70%)`,
-                                  border: `2px solid rgba(255, 255, 255, 0.6)`,
-                                  boxShadow: `
-                                    inset -10px -10px 20px rgba(255, 255, 255, 0.5),
-                                    inset 10px 10px 20px hsl(var(--primary) / 0.1),
-                                    0 0 15px rgba(255, 255, 255, 0.3),
-                                    0 0 30px hsl(var(--primary) / 0.2)
-                                  `,
-                                  backdropFilter: 'blur(1px)',
-                                  filter: 'blur(0.5px)',
-                                }}
-                              >
-                                {/* Bubble highlight/reflection */}
-                                <div
-                                  className="absolute rounded-full"
-                                  style={{
-                                    width: '35%',
-                                    height: '35%',
-                                    top: '15%',
-                                    left: '15%',
-                                    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%)',
-                                    borderRadius: '50%',
-                                    animation: `bubbleShimmer ${particle.animationDuration * 0.8}s ease-in-out ${particle.animationDelay + 0.5}s infinite`,
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
                         {/* Content wrapper for better spacing and alignment */}
                         <div className="relative z-10 flex flex-col items-center justify-center w-full h-full gap-3">
                           {/* Result Image - Optimized spacing and centering */}
@@ -5473,32 +5414,27 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             ref={generatedImageRef}
                             className="flex-shrink-0 flex items-center justify-center w-full h-full"
                           >
-                            <GlowingBubblesReveal
-                              show={!viewingPastTryOn}
-                              className="flex items-center justify-center w-full h-full"
-                            >
-                              {/* Image - Fixed height, auto width with object-contain to prevent cut/stretch */}
-                              {/* CRITICAL: Fixed height (400px), auto width, object-contain prevents cut/stretch and maintains aspect ratio */}
-                              <img
-                                src={generatedImage}
-                                className="h-[400px] w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
-                                alt="Try-on result"
-                                loading="eager"
-                                onError={(e) => {
-                                  const imgElement = e.target as HTMLImageElement;
-                                  console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
-                                  setGeneratedImageError(true);
-                                  setGeneratedImage(null);
-                                  setStep('idle');
-                                  toast.error('Failed to load try-on result');
-                                }}
-                                onLoad={() => {
-                                  console.log('[VirtualTryOnModal] Generated image loaded successfully');
-                                  // Reset error state when image loads successfully
-                                  setGeneratedImageError(false);
-                                }}
-                              />
-                            </GlowingBubblesReveal>
+                            {/* Image - Fixed height, auto width with object-contain to prevent cut/stretch */}
+                            {/* CRITICAL: Fixed height (400px), auto width, object-contain prevents cut/stretch and maintains aspect ratio */}
+                            <img
+                              src={generatedImage}
+                              className="h-[400px] w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                              alt="Try-on result"
+                              loading="eager"
+                              onError={(e) => {
+                                const imgElement = e.target as HTMLImageElement;
+                                console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
+                                setGeneratedImageError(true);
+                                setGeneratedImage(null);
+                                setStep('idle');
+                                toast.error('Failed to load try-on result');
+                              }}
+                              onLoad={() => {
+                                console.log('[VirtualTryOnModal] Generated image loaded successfully');
+                                // Reset error state when image loads successfully
+                                setGeneratedImageError(false);
+                              }}
+                            />
                           </div>
                         </div>
                       </div>
