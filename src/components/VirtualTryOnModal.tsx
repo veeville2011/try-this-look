@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Bell, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
+import { Button } from '@/components/ui/button';
+import { RadialProgress } from '@/components/ui/radial-progress';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
 import { generateTryOn, dataURLToBlob, fetchUploadedImages, fetchCustomerImageHistory, type ImageGenerationHistoryItem, type PersonBbox } from '@/services/tryonApi';
@@ -111,6 +113,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  
+  // Auth gate states
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1); // 1: upload, 2: select, 3: generating, 4: result
   
   // Image states
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -467,6 +473,111 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Check if we're inside an iframe
   const isInIframe = typeof window !== 'undefined' && window.parent !== window;
+
+  // Tutorial demo animation - only when not authenticated
+  useEffect(() => {
+    if (!customerInfo?.id) {
+      const interval = setInterval(() => {
+        setTutorialStep((prev) => {
+          if (prev === 1) return 2; // Upload → Select clothing
+          if (prev === 2) return 3; // Select → Generating
+          if (prev === 3) return 4; // Generating → Result
+          return 1; // Result → Loop back to Upload
+        });
+      }, 3000); // Change step every 3 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [customerInfo?.id]);
+
+  // Get login URL - same logic as TryOnWidget
+  const getLoginUrl = useCallback((): string => {
+    try {
+      // First, try to get the universal login URL from Liquid-injected JSON script tag
+      try {
+        const loginUrlScript = document.getElementById('nusense-login-url-info');
+        if (loginUrlScript && loginUrlScript.textContent) {
+          const loginUrlData = JSON.parse(loginUrlScript.textContent);
+          if (loginUrlData?.storefrontLoginUrl) {
+            return loginUrlData.storefrontLoginUrl;
+          }
+          if (loginUrlData?.accountLoginUrl) {
+            return loginUrlData.accountLoginUrl;
+          }
+        }
+      } catch (parseError) {
+        console.warn('[VirtualTryOnModal] Error parsing login URL from Liquid:', parseError);
+      }
+      
+      // Fallback: Construct login URL manually
+      const storeOriginInfo = detectStoreOrigin();
+      const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl;
+      
+      let returnPagePath = window.location.pathname;
+      
+      if (window.parent !== window) {
+        try {
+          const referrer = document.referrer;
+          if (referrer) {
+            try {
+              const referrerUrl = new URL(referrer);
+              returnPagePath = referrerUrl.pathname + referrerUrl.search;
+            } catch {
+              // Invalid referrer URL, use current path
+            }
+          }
+        } catch {
+          // Cannot access parent, use current path
+        }
+      }
+      
+      const returnTo = returnPagePath.startsWith('/') ? returnPagePath : `/${returnPagePath}`;
+      
+      if (storeOrigin) {
+        const loginUrl = new URL("/customer_authentication/login", storeOrigin);
+        loginUrl.searchParams.set("return_to", returnTo);
+        return loginUrl.toString();
+      }
+      
+      if (window.parent !== window) {
+        try {
+          const referrer = document.referrer;
+          if (referrer) {
+            const referrerUrl = new URL(referrer);
+            const loginUrl = new URL("/customer_authentication/login", referrerUrl.origin);
+            loginUrl.searchParams.set("return_to", returnTo);
+            return loginUrl.toString();
+          }
+        } catch {
+          // Cannot access parent
+        }
+      }
+      
+      const loginUrl = new URL("/customer_authentication/login", window.location.origin);
+      loginUrl.searchParams.set("return_to", returnTo);
+      return loginUrl.toString();
+    } catch (error) {
+      console.error("[VirtualTryOnModal] Error constructing login URL:", error);
+      return "/customer_authentication/login";
+    }
+  }, []);
+
+  const handleLoginClick = useCallback(() => {
+    setIsRedirecting(true);
+    const loginUrl = getLoginUrl();
+    // If in iframe, redirect parent window to login
+    if (isInIframe && window.parent !== window) {
+      try {
+        window.parent.location.href = loginUrl;
+      } catch (error) {
+        // Cross-origin issue, open in new tab
+        window.open(loginUrl, "_blank");
+      }
+    } else {
+      // Redirect current window
+      window.location.href = loginUrl;
+    }
+  }, [getLoginUrl, isInIframe]);
 
   // Helper function to get proxied image URL to avoid CORS issues
   const getProxiedImageUrl = useCallback((imageUrl: string): string => {
@@ -3972,6 +4083,175 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
+        {/* Authentication Gate - Show if not authenticated */}
+        {!customerInfo?.id && (
+          <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
+            <div className="w-full max-w-[980px] h-full max-h-full sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden px-4">
+              {/* Animated Tutorial Demo Panel - Left Side (Desktop only) */}
+              <section
+                aria-label={t("virtualTryOnModal.authGate.demoAriaLabel") || "Virtual try-on tutorial demonstration"}
+                className="hidden md:flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3"
+              >
+                <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-gray-200 min-h-0 flex-1 relative overflow-hidden">
+                  <div className="w-full flex-1 flex flex-col gap-4 relative" style={{ minHeight: "450px" }}>
+                    {/* Step Indicator */}
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      {[1, 2, 3, 4].map((stp) => (
+                        <div
+                          key={stp}
+                          className={cn(
+                            "h-2 rounded-full transition-all duration-500",
+                            tutorialStep === stp
+                              ? "w-8 bg-[#564646]"
+                              : tutorialStep > stp
+                              ? "w-2 bg-[#564646]/40"
+                              : "w-2 bg-slate-200"
+                          )}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+
+                    {/* Step Text */}
+                    <div className="text-center mb-6 min-h-[72px] flex flex-col items-center justify-center gap-2">
+                      <p className="text-xs sm:text-sm font-medium text-[#564646]/70 uppercase tracking-wider transition-opacity duration-500 opacity-100" key={`step-number-${tutorialStep}`}>
+                        {tutorialStep === 1 && (t("virtualTryOnModal.authGate.step1Number") || "Step 1")}
+                        {tutorialStep === 2 && (t("virtualTryOnModal.authGate.step2Number") || "Step 2")}
+                        {tutorialStep === 3 && (t("virtualTryOnModal.authGate.step3Number") || "Step 3")}
+                        {tutorialStep === 4 && (t("virtualTryOnModal.authGate.step4Number") || "Step 4")}
+                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-[#564646] leading-tight transition-opacity duration-500 opacity-100" key={`step-text-${tutorialStep}`}>
+                        {tutorialStep === 1 && (t("virtualTryOnModal.authGate.step1Text") || "Upload Your Photo")}
+                        {tutorialStep === 2 && (t("virtualTryOnModal.authGate.step2Text") || "Select Your Clothing")}
+                        {tutorialStep === 3 && (t("virtualTryOnModal.authGate.step3Text") || "Generating Try-On Result")}
+                        {tutorialStep === 4 && (t("virtualTryOnModal.authGate.step4Text") || "View Your Result")}
+                      </p>
+                    </div>
+
+                    {/* Image Display */}
+                    <div className="w-full rounded-lg bg-white border border-gray-200 overflow-hidden flex items-center justify-center transition-all duration-700 ease-in-out relative" style={{ aspectRatio: "1 / 1", minHeight: "300px" }}>
+                      {tutorialStep === 1 && (
+                        <div className="w-full h-full relative">
+                          <img src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg" alt={t("virtualTryOnModal.authGate.personImageAlt") || "Example person photo"} className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                        </div>
+                      )}
+                      {tutorialStep === 2 && (
+                        <div className="w-full h-full relative">
+                          <img src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg" alt={t("virtualTryOnModal.authGate.clothingImageAlt") || "Example clothing item"} className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                        </div>
+                      )}
+                      {tutorialStep === 3 && (
+                        <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 border border-gray-200 rounded-lg">
+                          <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
+                          <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)", width: "100%", height: "100%", animation: "shimmer 2s infinite" }} />
+                          <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <RadialProgress value={progress} size="md" color="muted" showLabel={true} />
+                          </div>
+                        </div>
+                      )}
+                      {tutorialStep === 4 && (
+                        <div className="w-full h-full relative">
+                          <img src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg" alt={t("virtualTryOnModal.authGate.generatedImageAlt") || "Example of generated virtual try-on result"} className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Vertical Divider */}
+              <div className="hidden md:block w-px self-stretch flex-none bg-slate-200 mt-3" aria-hidden="true" />
+
+              {/* Login Panel */}
+              <section aria-labelledby="auth-heading" className="flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3">
+                <div className="flex flex-col items-start bg-white w-full py-6 px-5 md:px-8 rounded-xl border border-gray-200 min-h-0 flex-1 md:justify-between">
+                  <div className="w-full space-y-6 flex-shrink-0">
+                    <div className="space-y-4 text-left">
+                      <h2 id="auth-heading" className="text-2xl sm:text-3xl md:text-3xl font-bold text-[#564646] leading-tight tracking-tight">
+                        {t("virtualTryOnModal.authGate.title") || "Continue to Virtual Try-On"}
+                      </h2>
+                      <p className="text-sm sm:text-base text-[#564646]/75 leading-relaxed max-w-md">
+                        {t("virtualTryOnModal.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
+                      </p>
+                      
+                      {/* Benefits */}
+                      <div className="space-y-2.5 pt-3">
+                        {[1, 2, 3, 4, 5].map((num) => (
+                          <div key={num} className="flex items-center justify-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
+                            <span className="text-xs text-[#564646]/60">
+                              {t(`virtualTryOnModal.authGate.benefit${num}`) || ["See how it looks", "Before you buy", "Save time", "Try multiple styles", "AI-powered"][num - 1]}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="w-full space-y-3 flex-shrink-0 mt-6 md:mt-auto">
+                    <Button onClick={handleLoginClick} disabled={isRedirecting} className="w-full h-12 sm:h-13 bg-[#564646] hover:bg-[#453939] text-white text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed" aria-label={t("virtualTryOnModal.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}>
+                      {isRedirecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" aria-hidden="true" />
+                          {t("virtualTryOnModal.authGate.loginButtonLoading") || "Redirecting..."}
+                        </>
+                      ) : (
+                        <>
+                          <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
+                          {t("virtualTryOnModal.authGate.loginButton") || "Sign In"}
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-left text-[#564646]/55 leading-relaxed">
+                      {t("virtualTryOnModal.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
+                    </p>
+                    <div className="text-left text-xs sm:text-sm text-[#564646]/75 space-y-1.5">
+                      <p className="leading-relaxed">{t("virtualTryOnModal.authGate.accountLink") || "Don't have an account?"}</p>
+                      <a href="#" onClick={(e) => {
+                        e.preventDefault();
+                        try {
+                          const loginUrlScript = document.getElementById('nusense-login-url-info');
+                          if (loginUrlScript?.textContent) {
+                            const loginUrlData = JSON.parse(loginUrlScript.textContent);
+                            if (loginUrlData?.accountRegisterUrl) {
+                              const signUpUrl = loginUrlData.accountRegisterUrl;
+                              if (isInIframe && window.parent !== window) {
+                                try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
+                              } else {
+                                window.location.href = signUpUrl;
+                              }
+                              return;
+                            }
+                          }
+                        } catch (error) {
+                          console.warn('[VirtualTryOnModal] Error getting register URL:', error);
+                        }
+                        const storeOriginInfo = detectStoreOrigin();
+                        const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
+                        const signUpUrl = `${storeOrigin}/account/register`;
+                        if (isInIframe && window.parent !== window) {
+                          try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
+                        } else {
+                          window.location.href = signUpUrl;
+                        }
+                      }} className="inline-block text-[#564646] hover:text-[#453939] font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#564646] focus-visible:ring-offset-2 rounded-sm transition-colors" aria-label={t("virtualTryOnModal.authGate.signUpLinkAriaLabel") || "Create a new account"}>
+                        {t("virtualTryOnModal.authGate.signUpLink") || "Create one"}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content - Only show if authenticated */}
+        {customerInfo?.id && (
+          <>
         {/* Preload Loader - Show until everything is ready */}
         {!isModalPreloaded && (
           <div className="absolute inset-0 bg-white flex items-center justify-center z-[60]">
@@ -5136,10 +5416,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                     {/* Show generated image when: step is complete OR (viewing history AND we have generated image) */}
                     {((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError && (
-                      <div className={`relative w-full h-[214px] sm:h-[218px] flex flex-col items-center justify-center p-4 sm:p-5 overflow-hidden min-h-0 max-h-full ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-300 rounded-lg' : 'border-2 border-dashed border-yellow-200 rounded-lg'}`}>
-                        {/* Light yellow/orange gradient background matching reference design - height matches Photo used + Regenerate sections */}
+                      <div className={`relative w-full min-h-[400px] flex flex-col items-center justify-center p-4 sm:p-5 overflow-hidden ${viewingPastTryOn ? 'border-2 border-dashed border-yellow-300 rounded-lg' : 'border-2 border-dashed border-yellow-200 rounded-lg'}`}>
+                        {/* Light yellow/orange gradient background matching reference design */}
                         {/* Improved background with better contrast for white border visibility */}
-                        <div className="absolute top-0 left-0 right-0 h-[214px] sm:h-[218px] bg-gradient-to-br from-yellow-100/80 via-orange-50/60 to-yellow-50/70 rounded-lg" />
+                        <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-br from-yellow-100/80 via-orange-50/60 to-yellow-50/70 rounded-lg" />
                         
                         {/* Celebration Bubbles - Real transparent bubbles with borders and highlights (only show for new generations, not past try-ons) */}
                         {!viewingPastTryOn && (
@@ -5191,17 +5471,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           {/* Result Image - Optimized spacing and centering */}
                           <div 
                             ref={generatedImageRef}
-                            className="flex-shrink-0 flex items-center justify-center w-full"
+                            className="flex-shrink-0 flex items-center justify-center w-full h-full"
                           >
                             <GlowingBubblesReveal
                               show={!viewingPastTryOn}
-                              className="flex items-center justify-center"
+                              className="flex items-center justify-center w-full h-full"
                             >
-                              {/* Image - Compact size matching reference */}
-                              {/* CRITICAL: Height constrained, width auto, object-contain prevents cut/stretch */}
+                              {/* Image - Fixed height, auto width with object-contain to prevent cut/stretch */}
+                              {/* CRITICAL: Fixed height (400px), auto width, object-contain prevents cut/stretch and maintains aspect ratio */}
                               <img
                                 src={generatedImage}
-                                className="h-[160px] sm:h-[170px] md:h-[180px] w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
+                                className="h-[400px] w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
                                 alt="Try-on result"
                                 loading="eager"
                                 onError={(e) => {
@@ -5563,6 +5843,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
