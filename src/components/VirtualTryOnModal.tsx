@@ -2304,20 +2304,33 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
   // Handle change photo button click - clear current photo and show upload options
   const handleChangePhoto = useCallback(() => {
+    // Reset to step 1 (idle) to show file picker and photo selection UI
+    setStep('idle');
+    setProgress(0);
+    setError(null);
+    setGeneratedImage(null);
+    setGeneratedImageError(false);
+    
     // Clear uploaded image and related state
     setUploadedImage(null);
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
     
-    // Clear uploaded image from storage
-    storage.saveUploadedImage(null);
+    // Reset person selection (for /widget-test path)
+    if (isWidgetTestPath()) {
+      setSelectedPersonBbox(null);
+      setSelectedPersonIndex(null);
+    }
     
-    // Show change photo options
+    // Clear storage
+    storage.saveUploadedImage(null);
+    storage.saveGeneratedImage(null);
+    
+    // Show change photo options to display upload/selection UI
     setShowChangePhotoOptions(true);
     
-    // Clear any errors
-    setError(null);
+    console.log('[VirtualTryOnModal] Change photo - reset to step 1, ready for photo selection');
   }, []);
 
   // Handle regenerate with new photo when step is complete (not viewing history)
