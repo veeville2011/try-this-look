@@ -509,7 +509,52 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [customerInfo?.id, tutorialStep]);
 
-  // Get login URL - same logic as TryOnWidget
+  // Helper function to get the return URL (product page URL)
+  // Priority: 1. Parent window URL (if same-origin), 2. document.referrer, 3. Current pathname
+  // This ensures users return to the product page after authentication, not the home page
+  const getReturnToUrl = useCallback((): string => {
+    // If in iframe, try to get parent window URL first (most reliable)
+    if (window.parent !== window) {
+      try {
+        // Try direct access to parent window location (works if same-origin)
+        const parentUrl = window.parent.location.href;
+        const parentUrlObj = new URL(parentUrl);
+        // Only use parent URL if it's a product page (not the widget URL)
+        if (!parentUrlObj.pathname.includes('/widget') && !parentUrlObj.pathname.includes('/demo')) {
+          const returnPath = parentUrlObj.pathname + parentUrlObj.search;
+          return returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+        }
+      } catch (e) {
+        // Cross-origin access failed, try referrer instead
+      }
+      
+      // Fallback: Use document.referrer (should be the product page)
+      try {
+        const referrer = document.referrer;
+        if (referrer) {
+          const referrerUrl = new URL(referrer);
+          // Only use referrer if it's a product page (not the widget URL)
+          if (!referrerUrl.pathname.includes('/widget') && !referrerUrl.pathname.includes('/demo')) {
+            const returnPath = referrerUrl.pathname + referrerUrl.search;
+            return returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+          }
+        }
+      } catch (e) {
+        // Invalid referrer URL
+      }
+    }
+    
+    // Final fallback: Use current pathname (but exclude widget/demo paths)
+    const currentPath = window.location.pathname;
+    if (!currentPath.includes('/widget') && !currentPath.includes('/demo')) {
+      return currentPath.startsWith('/') ? currentPath : `/${currentPath}`;
+    }
+    
+    // If all else fails, return empty string (Shopify will redirect to home)
+    return '';
+  }, []);
+
+  // Get login URL - improved to return to product page after authentication
   const getLoginUrl = useCallback((): string => {
     try {
       // First, try to get the universal login URL from Liquid-injected JSON script tag
@@ -518,10 +563,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         if (loginUrlScript && loginUrlScript.textContent) {
           const loginUrlData = JSON.parse(loginUrlScript.textContent);
           if (loginUrlData?.storefrontLoginUrl) {
-            return loginUrlData.storefrontLoginUrl;
+            // If storefrontLoginUrl is provided, it should handle return_to automatically
+            // But we can still append return_to to ensure we return to product page
+            const storefrontUrl = new URL(loginUrlData.storefrontLoginUrl);
+            const returnTo = getReturnToUrl();
+            if (returnTo) {
+              storefrontUrl.searchParams.set("return_to", returnTo);
+            }
+            return storefrontUrl.toString();
           }
           if (loginUrlData?.accountLoginUrl) {
-            return loginUrlData.accountLoginUrl;
+            const accountUrl = new URL(loginUrlData.accountLoginUrl);
+            const returnTo = getReturnToUrl();
+            if (returnTo) {
+              accountUrl.searchParams.set("return_to", returnTo);
+            }
+            return accountUrl.toString();
           }
         }
       } catch (parseError) {
@@ -531,40 +588,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Fallback: Construct login URL manually
       const storeOriginInfo = detectStoreOrigin();
       const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl;
-      
-      let returnPagePath = window.location.pathname;
-      
-      if (window.parent !== window) {
-        try {
-          const referrer = document.referrer;
-          if (referrer) {
-            try {
-              const referrerUrl = new URL(referrer);
-              returnPagePath = referrerUrl.pathname + referrerUrl.search;
-            } catch {
-              // Invalid referrer URL, use current path
-            }
-          }
-        } catch {
-          // Cannot access parent, use current path
-        }
-      }
-      
-      const returnTo = returnPagePath.startsWith('/') ? returnPagePath : `/${returnPagePath}`;
+      const returnTo = getReturnToUrl();
       
       if (storeOrigin) {
         const loginUrl = new URL("/customer_authentication/login", storeOrigin);
-        loginUrl.searchParams.set("return_to", returnTo);
+        if (returnTo) {
+          loginUrl.searchParams.set("return_to", returnTo);
+        }
         return loginUrl.toString();
       }
       
+      // Fallback: try to detect from parent window or referrer
       if (window.parent !== window) {
         try {
           const referrer = document.referrer;
           if (referrer) {
             const referrerUrl = new URL(referrer);
             const loginUrl = new URL("/customer_authentication/login", referrerUrl.origin);
-            loginUrl.searchParams.set("return_to", returnTo);
+            if (returnTo) {
+              loginUrl.searchParams.set("return_to", returnTo);
+            }
             return loginUrl.toString();
           }
         } catch {
@@ -572,14 +615,17 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
+      // Final fallback: relative path (will work if on same domain)
       const loginUrl = new URL("/customer_authentication/login", window.location.origin);
-      loginUrl.searchParams.set("return_to", returnTo);
+      if (returnTo) {
+        loginUrl.searchParams.set("return_to", returnTo);
+      }
       return loginUrl.toString();
     } catch (error) {
       console.error("[VirtualTryOnModal] Error constructing login URL:", error);
       return "/customer_authentication/login";
     }
-  }, []);
+  }, [getReturnToUrl]);
 
   const handleLoginClick = useCallback(() => {
     setIsRedirecting(true);
@@ -4083,10 +4129,34 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
+        {/* Shared Header with logo and close button */}
+        <div className="absolute top-0 left-0 right-0 z-[60] flex justify-between items-center px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-gray-100 bg-white flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img
+              src="/assets/NUSENSE_LOGO.svg"
+              alt="NUSENSE"
+              className="h-4 sm:h-5 w-auto flex-shrink-0"
+              aria-label="NUSENSE Logo"
+            />
+            <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">{t('virtualTryOnModal.title')}</span>
+          </div>
+
+          <button
+            onClick={handleClose}
+            className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
+            aria-label={t('virtualTryOnModal.closeModal')}
+            type="button"
+          >
+            <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={20} />
+          </button>
+        </div>
+
         {/* Authentication Gate - Show if not authenticated */}
         {!customerInfo?.id && (
-          <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
-            <div className="w-full max-w-[980px] h-full max-h-full sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden px-4">
+          <div className="w-full flex-1 flex flex-col min-h-0 overflow-hidden pt-[60px] sm:pt-[64px]">
+            {/* Auth Gate Content */}
+            <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
+              <div className="w-full max-w-[980px] h-full max-h-full sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden px-4 py-4">
               {/* Animated Tutorial Demo Panel - Left Side (Desktop only) */}
               <section
                 aria-label={t("virtualTryOnModal.authGate.demoAriaLabel") || "Virtual try-on tutorial demonstration"}
@@ -4245,6 +4315,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
                 </div>
               </section>
+              </div>
             </div>
           </div>
         )}
@@ -4297,7 +4368,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         )}
         
         <div className={cn(
-          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg",
+          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[60px] sm:pt-[64px]",
           !isModalPreloaded && "opacity-0 pointer-events-none"
         )} role="dialog" aria-modal="true" aria-labelledby="modal-title" style={{
           transition: 'opacity 0.3s ease-in-out'
@@ -4316,27 +4387,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </button>
             </div>
           )}
-
-          <div className="flex justify-between items-center px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-gray-100">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <img
-                src="/assets/NUSENSE_LOGO.svg"
-                alt="NUSENSE"
-                className="h-4 sm:h-5 w-auto flex-shrink-0"
-                aria-label="NUSENSE Logo"
-              />
-              <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">{t('virtualTryOnModal.title')}</span>
-            </div>
-
-            <button
-              onClick={handleClose}
-              className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
-              aria-label={t('virtualTryOnModal.closeModal')}
-              type="button"
-            >
-              <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={20} />
-            </button>
-          </div>
 
           {/* Viewing Past Try-On Banner */}
           {viewingPastTryOn && viewingHistoryItem && (
