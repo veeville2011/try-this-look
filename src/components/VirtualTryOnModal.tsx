@@ -4143,11 +4143,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
           <button
             onClick={handleClose}
-            className="group flex items-center justify-center w-8 h-8 min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
+            className="group flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 min-w-10 sm:min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
             aria-label={t('virtualTryOnModal.closeModal')}
             type="button"
           >
-            <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90" size={20} />
+            <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90 w-5 h-5 sm:w-5 sm:h-5" />
           </button>
         </div>
 
