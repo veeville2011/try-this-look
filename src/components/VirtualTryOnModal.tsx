@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
 import { Button } from '@/components/ui/button';
-import { RadialProgress } from '@/components/ui/radial-progress';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
 import { generateTryOn, dataURLToBlob, fetchUploadedImages, fetchCustomerImageHistory, type ImageGenerationHistoryItem, type PersonBbox } from '@/services/tryonApi';
@@ -117,7 +116,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Auth gate states
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1); // 1: upload, 2: select, 3: generating, 4: result
-  const [tutorialProgress, setTutorialProgress] = useState(0); // Simulated progress for tutorial step 3
   
   // Image states
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -490,24 +488,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [customerInfo?.id]);
 
-  // Simulate progress animation for tutorial step 3
-  useEffect(() => {
-    if (!customerInfo?.id && tutorialStep === 3) {
-      setTutorialProgress(0);
-      const progressInterval = setInterval(() => {
-        setTutorialProgress((prev) => {
-          if (prev >= 100) {
-            return 0; // Reset when reaching 100%
-          }
-          return prev + 10; // Increment by 10% every 300ms
-        });
-      }, 300); // Update every 300ms for smooth animation
-
-      return () => clearInterval(progressInterval);
-    } else if (tutorialStep !== 3) {
-      setTutorialProgress(0); // Reset when leaving step 3
-    }
-  }, [customerInfo?.id, tutorialStep]);
 
   // Helper function to get the return URL (product page URL)
   // Priority: 1. Parent window URL (if same-origin), 2. document.referrer, 3. Current pathname
@@ -4165,7 +4145,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               {/* Animated Tutorial Demo Panel - Left Side (Desktop only) */}
               <section
                 aria-label={t("virtualTryOnModal.authGate.demoAriaLabel") || "Virtual try-on tutorial demonstration"}
-                className="hidden md:flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm"
+                className="hidden md:flex flex-col flex-1 w-full min-h-0"
               >
                 <div className="flex flex-col items-start bg-gradient-to-br from-white via-white to-primary/5 w-full py-5 px-5 rounded-xl border border-border/60 min-h-0 flex-1 relative overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 group">
                   {/* Subtle animated background gradient */}
@@ -4318,9 +4298,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             <div className="absolute -inset-0.5 bg-primary/30 rounded-xl blur-sm animate-pulse" />
                           )}
                           <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <div className="text-center space-y-2.5">
-                              <RadialProgress value={tutorialStep === 3 ? tutorialProgress : 0} size="md" color="primary" showLabel={true} />
-                              <p className="text-xs font-bold text-primary/80 uppercase tracking-wider animate-pulse">Generating</p>
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-primary/80 uppercase tracking-wider animate-pulse">{t("virtualTryOnModal.generating") || "Generating"}</p>
                             </div>
                           </div>
                         </div>
@@ -4355,7 +4334,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
               </section>
 
               {/* Login Panel */}
-              <section aria-labelledby="auth-heading" className="flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm animate-in slide-in-from-right-4 duration-700 delay-200">
+              <section aria-labelledby="auth-heading" className="flex flex-col flex-1 w-full min-h-0 animate-in slide-in-from-right-4 duration-700 delay-200">
                 <div className="flex flex-col items-start bg-gradient-to-br from-white via-white to-primary/5 w-full py-4 px-4 sm:py-5 sm:px-5 md:px-6 rounded-xl border border-border/60 min-h-0 flex-1 shadow-md hover:shadow-lg transition-all duration-300 group/panel">
                   {/* Subtle animated background */}
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover/panel:opacity-100 transition-opacity duration-500 rounded-xl pointer-events-none" />
