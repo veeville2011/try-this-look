@@ -1481,7 +1481,40 @@
     "errorAddingToCart": "Failed to add to cart",
     "errorBuyingNow": "Failed to proceed to checkout",
     "errorNotifying": "Failed to register notification",
-    "pleaseTryAgain": "Please try again."
+    "pleaseTryAgain": "Please try again.",
+    "authGate": {
+      "title": "Continue to Virtual Try-On",
+      "subtitle": "Sign in to save your try-on results and access them anytime",
+      "videoOverlayText1": "See how it looks on you",
+      "videoOverlayText2": "Try different outfits instantly",
+      "trustBadge": "Secure login • Privacy protected",
+      "benefit1": "See how it looks",
+      "benefit2": "Try before you buy",
+      "benefit3": "Save time",
+      "benefit4": "Try multiple styles",
+      "benefit5": "AI-powered",
+      "loginButton": "Sign In",
+      "loginButtonLoading": "Redirecting...",
+      "loginButtonAriaLabel": "Sign in to continue using virtual try-on",
+      "accountLink": "Don't have an account?",
+      "signUpLink": "Create one",
+      "signUpLinkAriaLabel": "Create a new account",
+      "redirectNotice": "We'll redirect you to secure sign-in",
+      "demoAriaLabel": "Virtual try-on tutorial demonstration",
+      "step1Number": "Step 1",
+      "step1Text": "Upload Your Photo",
+      "step2Number": "Step 2",
+      "step2Text": "Select Your Clothing",
+      "step3Number": "Step 3",
+      "step3Text": "Generating Try-On Result",
+      "step4Number": "Step 4",
+      "step4Text": "View Your Result",
+      "step5Text": "Complete Try-On Process",
+      "generatingText": "Generating your try-on...",
+      "generatedImageAlt": "Example of generated virtual try-on result",
+      "personImageAlt": "Example person photo",
+      "clothingImageAlt": "Example clothing item"
+    }
   }
 }
 

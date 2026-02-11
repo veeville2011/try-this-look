@@ -1482,7 +1482,40 @@
     "errorAddingToCart": "Échec de l'ajout au panier",
     "errorBuyingNow": "Échec de la procédure de paiement",
     "errorNotifying": "Échec de l'enregistrement de la notification",
-    "pleaseTryAgain": "Veuillez réessayer."
+    "pleaseTryAgain": "Veuillez réessayer.",
+    "authGate": {
+      "title": "Continuer avec l'Essayage Virtuel",
+      "subtitle": "Connectez-vous pour enregistrer vos résultats et y accéder à tout moment",
+      "videoOverlayText1": "Découvrez comment ça vous va",
+      "videoOverlayText2": "Essayez différentes tenues instantanément",
+      "trustBadge": "Connexion sécurisée • Vie privée protégée",
+      "benefit1": "Voir le rendu",
+      "benefit2": "Essayez avant d'acheter",
+      "benefit3": "Gagnez du temps",
+      "benefit4": "Essayez plusieurs styles",
+      "benefit5": "Alimenté par IA",
+      "loginButton": "Se connecter",
+      "loginButtonLoading": "Redirection...",
+      "loginButtonAriaLabel": "Se connecter pour continuer à utiliser l'essayage virtuel",
+      "accountLink": "Vous n'avez pas de compte ?",
+      "signUpLink": "Créer un compte",
+      "signUpLinkAriaLabel": "Créer un nouveau compte",
+      "redirectNotice": "Nous vous redirigerons vers une connexion sécurisée",
+      "demoAriaLabel": "Démonstration tutoriel d'essayage virtuel",
+      "step1Number": "Étape 1",
+      "step1Text": "Téléchargez Votre Photo",
+      "step2Number": "Étape 2",
+      "step2Text": "Sélectionnez Votre Vêtement",
+      "step3Number": "Étape 3",
+      "step3Text": "Génération En Cours",
+      "step4Number": "Étape 4",
+      "step4Text": "Visualisez Votre Résultat",
+      "step5Text": "Processus d'Essayage Complet",
+      "generatingText": "Génération de votre essayage...",
+      "generatedImageAlt": "Exemple de résultat d'essayage virtuel généré",
+      "personImageAlt": "Exemple de photo de personne",
+      "clothingImageAlt": "Exemple d'article vestimentaire"
+    }
   }
 }
 

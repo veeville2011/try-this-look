@@ -117,6 +117,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Auth gate states
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1); // 1: upload, 2: select, 3: generating, 4: result
+  const [tutorialProgress, setTutorialProgress] = useState(0); // Simulated progress for tutorial step 3
   
   // Image states
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -488,6 +489,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return () => clearInterval(interval);
     }
   }, [customerInfo?.id]);
+
+  // Simulate progress animation for tutorial step 3
+  useEffect(() => {
+    if (!customerInfo?.id && tutorialStep === 3) {
+      setTutorialProgress(0);
+      const progressInterval = setInterval(() => {
+        setTutorialProgress((prev) => {
+          if (prev >= 100) {
+            return 0; // Reset when reaching 100%
+          }
+          return prev + 10; // Increment by 10% every 300ms
+        });
+      }, 300); // Update every 300ms for smooth animation
+
+      return () => clearInterval(progressInterval);
+    } else if (tutorialStep !== 3) {
+      setTutorialProgress(0); // Reset when leaving step 3
+    }
+  }, [customerInfo?.id, tutorialStep]);
 
   // Get login URL - same logic as TryOnWidget
   const getLoginUrl = useCallback((): string => {
@@ -4064,8 +4084,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
         {/* Authentication Gate - Show if not authenticated */}
-        {/* TEMPORARILY DISABLED AUTH GATE */}
-        {false && !customerInfo?.id && (
+        {!customerInfo?.id && (
           <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
             <div className="w-full max-w-[980px] h-full max-h-full sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden px-4">
               {/* Animated Tutorial Demo Panel - Left Side (Desktop only) */}
@@ -4128,7 +4147,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
                           <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)", width: "100%", height: "100%", animation: "shimmer 2s infinite" }} />
                           <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <RadialProgress value={progress} size="md" color="muted" showLabel={true} />
+                            <RadialProgress value={tutorialProgress} size="md" color="muted" showLabel={true} />
                           </div>
                         </div>
                       )}
@@ -4164,7 +4183,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           <div key={num} className="flex items-center justify-start gap-2">
                             <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
                             <span className="text-xs text-[#564646]/60">
-                              {t(`virtualTryOnModal.authGate.benefit${num}`) || ["See how it looks", "Before you buy", "Save time", "Try multiple styles", "AI-powered"][num - 1]}
+                              {t(`virtualTryOnModal.authGate.benefit${num}`) || ["See how it looks", "Try before you buy", "Save time", "Try multiple styles", "AI-powered"][num - 1]}
                             </span>
                           </div>
                         ))}
@@ -4231,8 +4250,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         )}
 
         {/* Main Content - Only show if authenticated */}
-        {/* TEMPORARILY DISABLED AUTH CHECK - ALWAYS SHOW MAIN CONTENT */}
-        {(true || customerInfo?.id) && (
+        {customerInfo?.id && (
           <>
         {/* Preload Loader - Show until everything is ready */}
         {!isModalPreloaded && (
