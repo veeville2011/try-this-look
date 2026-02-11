@@ -1513,7 +1513,8 @@
       "generatingText": "Generating your try-on...",
       "generatedImageAlt": "Example of generated virtual try-on result",
       "personImageAlt": "Example person photo",
-      "clothingImageAlt": "Example clothing item"
+      "clothingImageAlt": "Example clothing item",
+      "allRightsReserved": "All rights reserved."
     }
   }
 }

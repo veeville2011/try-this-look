@@ -1514,7 +1514,8 @@
       "generatingText": "Génération de votre essayage...",
       "generatedImageAlt": "Exemple de résultat d'essayage virtuel généré",
       "personImageAlt": "Exemple de photo de personne",
-      "clothingImageAlt": "Exemple d'article vestimentaire"
+      "clothingImageAlt": "Exemple d'article vestimentaire",
+      "allRightsReserved": "Tous droits réservés."
     }
   }
 }

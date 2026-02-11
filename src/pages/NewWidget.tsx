@@ -20,6 +20,13 @@ export default function NewWidget() {
     const customerEmail = urlParams.get("customerEmail");
     const customerFirstName = urlParams.get("customerFirstName");
     const customerLastName = urlParams.get("customerLastName");
+    const forceAuthGate = urlParams.get("forceAuthGate") === "true";
+
+    // If forceAuthGate is true, don't set customerInfo (shows auth gate)
+    if (forceAuthGate) {
+      setCustomerInfo(null);
+      return;
+    }
 
     if (customerId || customerEmail) {
       setCustomerInfo({
@@ -28,15 +35,21 @@ export default function NewWidget() {
         firstName: customerFirstName ? decodeURIComponent(customerFirstName) : null,
         lastName: customerLastName ? decodeURIComponent(customerLastName) : null,
       });
-    } else if (isTestRoute) {
+    } else if (isTestRoute && !forceAuthGate) {
       // For /widget-test route, provide default test customer info so history works
       // This allows testing the complete flow including history without URL params
-      setCustomerInfo({
-        id: 'test-customer-123',
-        email: 'avisihks@gmail.com',
-        firstName: 'Test',
-        lastName: 'Customer',
-      });
+      // To test auth gate, add ?forceAuthGate=true to the URL (or omit customerId)
+      // By default, auth gate shows unless customerId is provided
+      const testCustomerId = urlParams.get("testCustomerId");
+      if (testCustomerId) {
+        setCustomerInfo({
+          id: testCustomerId,
+          email: 'avisihks@gmail.com',
+          firstName: 'Test',
+          lastName: 'Customer',
+        });
+      }
+      // If no testCustomerId, customerInfo stays null and auth gate shows
     }
   }, [isTestRoute]);
 

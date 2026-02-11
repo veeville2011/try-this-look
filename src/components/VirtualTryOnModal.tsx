@@ -4129,130 +4129,267 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
       {/* Modal container */}
       <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
-        {/* Shared Header with logo and close button */}
-        <div className="absolute top-0 left-0 right-0 z-[60] flex justify-between items-center px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 border-b border-gray-100 bg-white flex-shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <img
-              src="/assets/NUSENSE_LOGO.svg"
-              alt="NUSENSE"
-              className="h-4 sm:h-5 w-auto flex-shrink-0"
-              aria-label="NUSENSE Logo"
-            />
-            <span className="font-normal text-gray-700 text-xs sm:text-sm flex items-center" id="modal-title">{t('virtualTryOnModal.title')}</span>
+        {/* Shared Header with logo and close button - Enhanced with magic */}
+        <div className="absolute top-0 left-0 right-0 z-[60] flex justify-between items-center px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 border-b border-border/40 bg-gradient-to-r from-white via-white to-primary/3 backdrop-blur-sm flex-shrink-0 shadow-sm animate-in slide-in-from-top duration-500">
+          <div className="flex items-center gap-2 sm:gap-3 group/logo">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/10 rounded-lg blur-sm opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300" />
+              <img
+                src="/assets/NUSENSE_LOGO.svg"
+                alt="NUSENSE"
+                className="h-4 sm:h-5 w-auto flex-shrink-0 relative z-10 transition-transform duration-300 group-hover/logo:scale-110"
+                aria-label="NUSENSE Logo"
+              />
+            </div>
+            <span className="font-medium text-muted-foreground text-xs sm:text-sm flex items-center tracking-normal" id="modal-title">{t('virtualTryOnModal.title')}</span>
           </div>
 
           <button
             onClick={handleClose}
-            className="group flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 min-w-10 sm:min-w-8 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
+            className="group/close flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 min-w-9 sm:min-w-8 hover:bg-primary/10 rounded-lg transition-all duration-200 ease-in-out flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 relative"
             aria-label={t('virtualTryOnModal.closeModal')}
             type="button"
           >
-            <X className="text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-90 w-5 h-5 sm:w-5 sm:h-5" />
+            <div className="absolute inset-0 bg-primary/5 rounded-lg scale-0 group-hover/close:scale-100 transition-transform duration-200" />
+            <X className="text-muted-foreground group-hover/close:text-primary transition-all duration-200 w-4 h-4 sm:w-4 sm:h-4 relative z-10 group-hover/close:rotate-90" />
           </button>
         </div>
 
         {/* Authentication Gate - Show if not authenticated */}
         {!customerInfo?.id && (
-          <div className="w-full flex-1 flex flex-col min-h-0 overflow-hidden pt-[60px] sm:pt-[64px]">
-            {/* Auth Gate Content */}
-            <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden">
-              <div className="w-full max-w-[980px] h-full max-h-full sm:max-h-[620px] flex flex-col md:flex-row items-stretch gap-6 bg-transparent rounded overflow-hidden px-4 py-4">
+          <div className="w-full flex-1 flex flex-col min-h-0 overflow-hidden relative animate-in fade-in duration-500">
+            {/* Auth Gate Content - Scrollable area between header and footer */}
+            <div className="w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-smooth" style={{ paddingTop: '52px', paddingBottom: '48px' }}>
+              <div className="w-full flex items-start justify-center px-3 sm:px-4 md:px-6 pt-4 sm:pt-5 md:pt-6 pb-3 sm:pb-4">
+                <div className="w-full max-w-[980px] flex flex-col md:flex-row items-stretch gap-3 sm:gap-4 md:gap-5 bg-transparent rounded overflow-hidden animate-in slide-in-from-bottom-4 duration-700 delay-100">
               {/* Animated Tutorial Demo Panel - Left Side (Desktop only) */}
               <section
                 aria-label={t("virtualTryOnModal.authGate.demoAriaLabel") || "Virtual try-on tutorial demonstration"}
-                className="hidden md:flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3"
+                className="hidden md:flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm"
               >
-                <div className="flex flex-col items-start bg-white w-full py-4 px-4 rounded-xl border border-gray-200 min-h-0 flex-1 relative overflow-hidden">
-                  <div className="w-full flex-1 flex flex-col gap-4 relative" style={{ minHeight: "450px" }}>
-                    {/* Step Indicator */}
-                    <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex flex-col items-start bg-gradient-to-br from-white via-white to-primary/5 w-full py-5 px-5 rounded-xl border border-border/60 min-h-0 flex-1 relative overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                  {/* Subtle animated background gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl pointer-events-none" />
+                  
+                  <div className="w-full flex-1 flex flex-col gap-4 relative min-h-[320px] max-h-full z-10">
+                    {/* Step Indicator - Enhanced with pulse effect and smooth transitions */}
+                    <div className="flex items-center justify-center gap-2.5 mb-2">
                       {[1, 2, 3, 4].map((stp) => (
                         <div
                           key={stp}
                           className={cn(
-                            "h-2 rounded-full transition-all duration-500",
+                            "h-2.5 rounded-full transition-all duration-700 ease-out relative group/indicator",
                             tutorialStep === stp
-                              ? "w-8 bg-[#564646]"
+                              ? "w-10 bg-primary shadow-lg shadow-primary/30"
                               : tutorialStep > stp
-                              ? "w-2 bg-[#564646]/40"
-                              : "w-2 bg-slate-200"
+                              ? "w-2.5 bg-primary/50 shadow-sm"
+                              : "w-2.5 bg-muted/60"
                           )}
                           aria-hidden="true"
-                        />
+                        >
+                          {tutorialStep === stp && (
+                            <>
+                              <div className="absolute inset-0 bg-primary rounded-full animate-ping opacity-20" />
+                              <div className="absolute inset-0 bg-primary/40 rounded-full blur-sm" />
+                            </>
+                          )}
+                        </div>
                       ))}
                     </div>
 
-                    {/* Step Text */}
-                    <div className="text-center mb-6 min-h-[72px] flex flex-col items-center justify-center gap-2">
-                      <p className="text-xs sm:text-sm font-medium text-[#564646]/70 uppercase tracking-wider transition-opacity duration-500 opacity-100" key={`step-number-${tutorialStep}`}>
-                        {tutorialStep === 1 && (t("virtualTryOnModal.authGate.step1Number") || "Step 1")}
-                        {tutorialStep === 2 && (t("virtualTryOnModal.authGate.step2Number") || "Step 2")}
-                        {tutorialStep === 3 && (t("virtualTryOnModal.authGate.step3Number") || "Step 3")}
-                        {tutorialStep === 4 && (t("virtualTryOnModal.authGate.step4Number") || "Step 4")}
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-[#564646] leading-tight transition-opacity duration-500 opacity-100" key={`step-text-${tutorialStep}`}>
-                        {tutorialStep === 1 && (t("virtualTryOnModal.authGate.step1Text") || "Upload Your Photo")}
-                        {tutorialStep === 2 && (t("virtualTryOnModal.authGate.step2Text") || "Select Your Clothing")}
-                        {tutorialStep === 3 && (t("virtualTryOnModal.authGate.step3Text") || "Generating Try-On Result")}
-                        {tutorialStep === 4 && (t("virtualTryOnModal.authGate.step4Text") || "View Your Result")}
-                      </p>
+                    {/* Step Text - Enhanced with scale animation */}
+                    <div className="text-center mb-4 min-h-[60px] flex flex-col items-center justify-center gap-1.5 relative overflow-hidden">
+                      {/* Step Numbers - All rendered, positioned absolutely, slide horizontally */}
+                      <div className="relative w-full h-5 flex items-center justify-center">
+                        {[1, 2, 3, 4].map((step) => (
+                          <p
+                            key={`step-number-${step}`}
+                            className="absolute inset-0 text-xs font-bold text-primary/80 uppercase tracking-[0.15em] transition-all duration-500 ease-in-out flex items-center justify-center"
+                            style={{
+                              transform: `translateX(${(step - tutorialStep) * 100}%) scale(${step === tutorialStep ? 1 : 0.8})`,
+                              opacity: step === tutorialStep ? 1 : 0,
+                              pointerEvents: step === tutorialStep ? 'auto' : 'none'
+                            }}
+                          >
+                            {step === 1 && (t("virtualTryOnModal.authGate.step1Number") || "Step 1")}
+                            {step === 2 && (t("virtualTryOnModal.authGate.step2Number") || "Step 2")}
+                            {step === 3 && (t("virtualTryOnModal.authGate.step3Number") || "Step 3")}
+                            {step === 4 && (t("virtualTryOnModal.authGate.step4Number") || "Step 4")}
+                          </p>
+                        ))}
+                      </div>
+                      {/* Step Text - All rendered, positioned absolutely, slide horizontally */}
+                      <div className="relative w-full h-7 flex items-center justify-center">
+                        {[1, 2, 3, 4].map((step) => (
+                          <p
+                            key={`step-text-${step}`}
+                            className="absolute inset-0 text-base font-bold text-foreground leading-tight transition-all duration-500 ease-in-out flex items-center justify-center"
+                            style={{
+                              transform: `translateX(${(step - tutorialStep) * 100}%) scale(${step === tutorialStep ? 1 : 0.9})`,
+                              opacity: step === tutorialStep ? 1 : 0,
+                              pointerEvents: step === tutorialStep ? 'auto' : 'none'
+                            }}
+                          >
+                            {step === 1 && (t("virtualTryOnModal.authGate.step1Text") || "Upload Your Photo")}
+                            {step === 2 && (t("virtualTryOnModal.authGate.step2Text") || "Select Your Clothing")}
+                            {step === 3 && (t("virtualTryOnModal.authGate.step3Text") || "Generating Try-On Result")}
+                            {step === 4 && (t("virtualTryOnModal.authGate.step4Text") || "View Your Result")}
+                          </p>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Image Display */}
-                    <div className="w-full rounded-lg bg-white border border-gray-200 overflow-hidden flex items-center justify-center transition-all duration-700 ease-in-out relative" style={{ aspectRatio: "1 / 1", minHeight: "300px" }}>
-                      {tutorialStep === 1 && (
-                        <div className="w-full h-full relative">
-                          <img src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg" alt={t("virtualTryOnModal.authGate.personImageAlt") || "Example person photo"} className="w-full h-full object-contain" />
-                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                    {/* Image Display - Enhanced with glow effect */}
+                    <div className="w-full rounded-xl bg-gradient-to-br from-white to-muted/20 border-2 border-border/60 overflow-hidden relative flex-1 min-h-[200px] max-h-[300px] shadow-inner group/image-container">
+                      {/* Glow effect on active step - animated */}
+                      <div 
+                        className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 rounded-xl blur-sm transition-all duration-700 z-0"
+                        style={{ 
+                          opacity: tutorialStep === 1 || tutorialStep === 2 || tutorialStep === 4 ? 0.6 : 0,
+                          transform: tutorialStep === 1 || tutorialStep === 2 || tutorialStep === 4 ? 'scale(1)' : 'scale(0.95)'
+                        }}
+                      />
+                      {/* Secondary glow ring */}
+                      <div 
+                        className="absolute -inset-1 bg-primary/10 rounded-xl blur-md transition-opacity duration-700 z-0"
+                        style={{ opacity: tutorialStep === 1 || tutorialStep === 2 || tutorialStep === 4 ? 0.4 : 0 }}
+                      />
+                      
+                      {/* Container for all images - slides horizontally */}
+                      <div 
+                        className="absolute inset-0 flex transition-transform duration-700 ease-in-out z-10"
+                        style={{
+                          width: '400%',
+                          transform: `translateX(-${(tutorialStep - 1) * 25}%)`
+                        }}
+                      >
+                        {/* Step 1 - Person Photo */}
+                        <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative p-3">
+                          <img 
+                            src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg" 
+                            alt={t("virtualTryOnModal.authGate.personImageAlt") || "Example person photo"} 
+                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg transition-transform duration-500"
+                            style={{ transform: tutorialStep === 1 ? 'scale(1)' : 'scale(0.95)' }}
+                            loading="eager"
+                          />
+                          <div 
+                            className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border-2 border-primary/40 rounded-xl transition-all duration-500 pointer-events-none"
+                            style={{ 
+                              opacity: tutorialStep === 1 ? 1 : 0,
+                              boxShadow: tutorialStep === 1 ? '0 0 20px rgba(255, 79, 0, 0.2)' : 'none'
+                            }}
+                          />
                         </div>
-                      )}
-                      {tutorialStep === 2 && (
-                        <div className="w-full h-full relative">
-                          <img src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg" alt={t("virtualTryOnModal.authGate.clothingImageAlt") || "Example clothing item"} className="w-full h-full object-contain" />
-                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                        
+                        {/* Step 2 - Clothing Item */}
+                        <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative p-3">
+                          <img 
+                            src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg" 
+                            alt={t("virtualTryOnModal.authGate.clothingImageAlt") || "Example clothing item"} 
+                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg transition-transform duration-500"
+                            style={{ transform: tutorialStep === 2 ? 'scale(1)' : 'scale(0.95)' }}
+                            loading="eager"
+                          />
+                          <div 
+                            className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border-2 border-primary/40 rounded-xl transition-all duration-500 pointer-events-none"
+                            style={{ 
+                              opacity: tutorialStep === 2 ? 1 : 0,
+                              boxShadow: tutorialStep === 2 ? '0 0 20px rgba(255, 79, 0, 0.2)' : 'none'
+                            }}
+                          />
                         </div>
-                      )}
-                      {tutorialStep === 3 && (
-                        <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-muted/40 via-muted/60 to-muted/40 border border-gray-200 rounded-lg">
-                          <Skeleton className="absolute inset-0 rounded-lg bg-gradient-to-br from-muted/45 via-muted/70 to-muted/45" />
-                          <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%)", width: "100%", height: "100%", animation: "shimmer 2s infinite" }} />
+                        
+                        {/* Step 3 - Generating */}
+                        <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-primary/5 via-muted/50 to-primary/5 border-2 border-primary/20 rounded-xl p-2">
+                          <Skeleton className="absolute inset-0 rounded-xl bg-gradient-to-br from-muted/30 via-muted/60 to-muted/30" />
+                          {/* Animated shimmer effect */}
+                          <div 
+                            className="absolute inset-0 pointer-events-none transition-opacity duration-500"
+                            style={{ 
+                              background: "linear-gradient(90deg, transparent 30%, rgba(255, 79, 0, 0.15) 50%, transparent 70%)", 
+                              width: "100%", 
+                              height: "100%", 
+                              animation: tutorialStep === 3 ? "shimmer 2s infinite" : "none",
+                              opacity: tutorialStep === 3 ? 1 : 0
+                            }} 
+                          />
+                          {/* Pulsing border glow */}
+                          {tutorialStep === 3 && (
+                            <div className="absolute -inset-0.5 bg-primary/30 rounded-xl blur-sm animate-pulse" />
+                          )}
                           <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <RadialProgress value={tutorialProgress} size="md" color="muted" showLabel={true} />
+                            <div className="text-center space-y-2.5">
+                              <RadialProgress value={tutorialStep === 3 ? tutorialProgress : 0} size="md" color="primary" showLabel={true} />
+                              <p className="text-xs font-bold text-primary/80 uppercase tracking-wider animate-pulse">Generating</p>
+                            </div>
                           </div>
                         </div>
-                      )}
-                      {tutorialStep === 4 && (
-                        <div className="w-full h-full relative">
-                          <img src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg" alt={t("virtualTryOnModal.authGate.generatedImageAlt") || "Example of generated virtual try-on result"} className="w-full h-full object-contain" />
-                          <div className="absolute inset-0 bg-[#564646]/10 border-2 border-[#564646] rounded-lg animate-pulse" />
+                        
+                        {/* Step 4 - Generated Result */}
+                        <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative p-3">
+                          <img 
+                            src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg" 
+                            alt={t("virtualTryOnModal.authGate.generatedImageAlt") || "Example of generated virtual try-on result"} 
+                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg transition-transform duration-500"
+                            style={{ transform: tutorialStep === 4 ? 'scale(1)' : 'scale(0.95)' }}
+                            loading="eager"
+                          />
+                          <div 
+                            className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border-2 border-primary/40 rounded-xl transition-all duration-500 pointer-events-none"
+                            style={{ 
+                              opacity: tutorialStep === 4 ? 1 : 0,
+                              boxShadow: tutorialStep === 4 ? '0 0 20px rgba(255, 79, 0, 0.2)' : 'none'
+                            }}
+                          />
+                          {/* Success checkmark overlay - Enhanced */}
+                          {tutorialStep === 4 && (
+                            <div className="absolute top-2 right-2 bg-gradient-to-br from-primary to-primary-dark backdrop-blur-sm text-primary-foreground rounded-full p-1.5 shadow-xl animate-in zoom-in duration-300 ring-2 ring-primary/50 z-20">
+                              <CheckCircle className="w-3.5 h-3.5 animate-in zoom-in duration-300 delay-150" />
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </section>
 
-              {/* Vertical Divider */}
-              <div className="hidden md:block w-px self-stretch flex-none bg-slate-200 mt-3" aria-hidden="true" />
-
               {/* Login Panel */}
-              <section aria-labelledby="auth-heading" className="flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm pt-3">
-                <div className="flex flex-col items-start bg-white w-full py-6 px-5 md:px-8 rounded-xl border border-gray-200 min-h-0 flex-1 md:justify-between">
-                  <div className="w-full space-y-6 flex-shrink-0">
-                    <div className="space-y-4 text-left">
-                      <h2 id="auth-heading" className="text-2xl sm:text-3xl md:text-3xl font-bold text-[#564646] leading-tight tracking-tight">
-                        {t("virtualTryOnModal.authGate.title") || "Continue to Virtual Try-On"}
-                      </h2>
-                      <p className="text-sm sm:text-base text-[#564646]/75 leading-relaxed max-w-md">
+              <section aria-labelledby="auth-heading" className="flex flex-col flex-1 w-full min-h-0 max-w-full md:max-w-sm animate-in slide-in-from-right-4 duration-700 delay-200">
+                <div className="flex flex-col items-start bg-gradient-to-br from-white via-white to-primary/5 w-full py-4 px-4 sm:py-5 sm:px-5 md:px-6 rounded-xl border border-border/60 min-h-0 flex-1 shadow-md hover:shadow-lg transition-all duration-300 group/panel">
+                  {/* Subtle animated background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover/panel:opacity-100 transition-opacity duration-500 rounded-xl pointer-events-none" />
+                  
+                  <div className="w-full space-y-3 sm:space-y-4 flex-shrink-0 relative z-10">
+                    <div className="space-y-2.5 sm:space-y-3 text-left">
+                      {/* Title - Enhanced with gradient accent and animation */}
+                      <div className="space-y-1.5 sm:space-y-2 animate-in fade-in slide-in-from-left-4 duration-500 delay-300">
+                        <h2 id="auth-heading" className="text-lg sm:text-xl md:text-2xl font-bold text-foreground leading-tight tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+                          {t("virtualTryOnModal.authGate.title") || "Continue to Virtual Try-On"}
+                        </h2>
+                        <div className="h-0.5 w-10 sm:w-12 bg-gradient-to-r from-primary to-primary-light rounded-full animate-in slide-in-from-left-2 duration-500 delay-400" />
+                      </div>
+                      
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-medium animate-in fade-in slide-in-from-left-4 duration-500 delay-400">
                         {t("virtualTryOnModal.authGate.subtitle") || "Sign in to save your try-on results and access them anytime"}
                       </p>
                       
-                      {/* Benefits */}
-                      <div className="space-y-2.5 pt-3">
-                        {[1, 2, 3, 4, 5].map((num) => (
-                          <div key={num} className="flex items-center justify-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-[#564646] flex-shrink-0" aria-hidden="true" />
-                            <span className="text-xs text-[#564646]/60">
+                      {/* Benefits - Enhanced with staggered fade-in and hover effects */}
+                      <div className="space-y-2 pt-2">
+                        {[1, 2, 3, 4, 5].map((num, index) => (
+                          <div 
+                            key={num} 
+                            className="group/benefit flex items-center justify-start gap-2.5 p-1.5 rounded-lg hover:bg-primary/5 transition-all duration-200 cursor-default"
+                            style={{ 
+                              animation: `fadeInSlideLeft 0.5s ease-out ${300 + index * 80}ms forwards`,
+                              opacity: 0
+                            }}
+                          >
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-primary/20 rounded-full blur-sm opacity-0 group-hover/benefit:opacity-100 transition-opacity duration-200" />
+                              <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 relative z-10 group-hover/benefit:scale-110 group-hover/benefit:rotate-12 transition-all duration-200" aria-hidden="true" strokeWidth={2.5} />
+                            </div>
+                            <span className="text-xs text-muted-foreground leading-relaxed group-hover/benefit:text-foreground transition-colors duration-200 font-medium">
                               {t(`virtualTryOnModal.authGate.benefit${num}`) || ["See how it looks", "Try before you buy", "Save time", "Try multiple styles", "AI-powered"][num - 1]}
                             </span>
                           </div>
@@ -4261,60 +4398,95 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="w-full space-y-3 flex-shrink-0 mt-6 md:mt-auto">
-                    <Button onClick={handleLoginClick} disabled={isRedirecting} className="w-full h-12 sm:h-13 bg-[#564646] hover:bg-[#453939] text-white text-sm sm:text-base font-semibold shadow-sm hover:shadow-md transition-all duration-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed" aria-label={t("virtualTryOnModal.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}>
-                      {isRedirecting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" aria-hidden="true" />
-                          {t("virtualTryOnModal.authGate.loginButtonLoading") || "Redirecting..."}
-                        </>
-                      ) : (
-                        <>
-                          <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
-                          {t("virtualTryOnModal.authGate.loginButton") || "Sign In"}
-                        </>
-                      )}
+                  {/* Actions - Enhanced with magic */}
+                  <div className="w-full space-y-2.5 sm:space-y-3 flex-shrink-0 mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-border/60 relative z-10">
+                    <Button 
+                      onClick={handleLoginClick} 
+                      disabled={isRedirecting} 
+                      className="group/btn w-full min-h-[44px] h-11 sm:h-12 bg-gradient-to-r from-primary via-primary to-primary-dark hover:from-primary-dark hover:via-primary-dark hover:to-primary text-primary-foreground text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation" 
+                      aria-label={t("virtualTryOnModal.authGate.loginButtonAriaLabel") || "Sign in to continue using virtual try-on"}
+                    >
+                      {/* Shimmer effect */}
+                      <span className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                      
+                      <span className="relative z-10 flex items-center justify-center gap-2">
+                        {isRedirecting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                            {t("virtualTryOnModal.authGate.loginButtonLoading") || "Redirecting..."}
+                          </>
+                        ) : (
+                          <>
+                            <LogIn className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform duration-300" aria-hidden="true" />
+                            {t("virtualTryOnModal.authGate.loginButton") || "Sign In"}
+                          </>
+                        )}
+                      </span>
                     </Button>
-                    <p className="text-xs text-left text-[#564646]/55 leading-relaxed">
-                      {t("virtualTryOnModal.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
+                    
+                    <p className="text-[10px] sm:text-xs text-center text-muted-foreground leading-tight px-1 flex items-start justify-center gap-1 sm:gap-1.5 max-w-[240px] min-[375px]:max-w-[260px] sm:max-w-[280px] mx-auto">
+                      <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary/60 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span className="text-left inline-block" style={{ wordBreak: 'normal', lineHeight: '1.4' }}>
+                        {t("virtualTryOnModal.authGate.redirectNotice") || "We'll redirect you to secure sign-in"}
+                      </span>
                     </p>
-                    <div className="text-left text-xs sm:text-sm text-[#564646]/75 space-y-1.5">
-                      <p className="leading-relaxed">{t("virtualTryOnModal.authGate.accountLink") || "Don't have an account?"}</p>
-                      <a href="#" onClick={(e) => {
-                        e.preventDefault();
-                        try {
-                          const loginUrlScript = document.getElementById('nusense-login-url-info');
-                          if (loginUrlScript?.textContent) {
-                            const loginUrlData = JSON.parse(loginUrlScript.textContent);
-                            if (loginUrlData?.accountRegisterUrl) {
-                              const signUpUrl = loginUrlData.accountRegisterUrl;
-                              if (isInIframe && window.parent !== window) {
-                                try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
-                              } else {
-                                window.location.href = signUpUrl;
+                    
+                    <div className="text-center text-xs text-muted-foreground">
+                      <span>{t("virtualTryOnModal.authGate.accountLink") || "Don't have an account?"} </span>
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          try {
+                            const loginUrlScript = document.getElementById('nusense-login-url-info');
+                            if (loginUrlScript?.textContent) {
+                              const loginUrlData = JSON.parse(loginUrlScript.textContent);
+                              if (loginUrlData?.accountRegisterUrl) {
+                                const signUpUrl = loginUrlData.accountRegisterUrl;
+                                if (isInIframe && window.parent !== window) {
+                                  try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
+                                } else {
+                                  window.location.href = signUpUrl;
+                                }
+                                return;
                               }
-                              return;
                             }
+                          } catch (error) {
+                            console.warn('[VirtualTryOnModal] Error getting register URL:', error);
                           }
-                        } catch (error) {
-                          console.warn('[VirtualTryOnModal] Error getting register URL:', error);
-                        }
-                        const storeOriginInfo = detectStoreOrigin();
-                        const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
-                        const signUpUrl = `${storeOrigin}/account/register`;
-                        if (isInIframe && window.parent !== window) {
-                          try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
-                        } else {
-                          window.location.href = signUpUrl;
-                        }
-                      }} className="inline-block text-[#564646] hover:text-[#453939] font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#564646] focus-visible:ring-offset-2 rounded-sm transition-colors" aria-label={t("virtualTryOnModal.authGate.signUpLinkAriaLabel") || "Create a new account"}>
-                        {t("virtualTryOnModal.authGate.signUpLink") || "Create one"}
+                          const storeOriginInfo = detectStoreOrigin();
+                          const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
+                          const signUpUrl = `${storeOrigin}/account/register`;
+                          if (isInIframe && window.parent !== window) {
+                            try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
+                          } else {
+                            window.location.href = signUpUrl;
+                          }
+                        }} 
+                        className="group/link inline-flex items-center gap-1 text-primary hover:text-primary-dark font-bold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 rounded-sm transition-all duration-200 hover:gap-1.5" 
+                        aria-label={t("virtualTryOnModal.authGate.signUpLinkAriaLabel") || "Create a new account"}
+                      >
+                        <span>{t("virtualTryOnModal.authGate.signUpLink") || "Create one"}</span>
+                        <svg className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
                       </a>
                     </div>
                   </div>
                 </div>
               </section>
+              </div>
+              </div>
+            </div>
+
+            {/* Footer - Fixed at bottom - Enhanced with magic */}
+            <div className="absolute bottom-0 left-0 right-0 border-t border-border/40 bg-gradient-to-r from-white via-white to-primary/3 backdrop-blur-sm px-4 sm:px-6 py-2.5 sm:py-3 flex-shrink-0 z-10 shadow-sm animate-in slide-in-from-bottom duration-500">
+              <div className="max-w-[980px] mx-auto">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center font-medium tracking-normal">
+                  © {new Date().getFullYear()} <span className="font-bold"><span style={{ color: '#ce0003' }}>NU</span><span style={{ color: '#564646' }}>SENSE</span></span>. {t("virtualTryOnModal.authGate.allRightsReserved") || "All rights reserved."}
+                </p>
               </div>
             </div>
           </div>
@@ -4327,9 +4499,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         {!isModalPreloaded && (
           <div className="absolute inset-0 bg-white flex items-center justify-center z-[60]">
             <div className="flex flex-col items-center gap-4">
-              {/* Circular loader */}
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+              {/* Continuous Circular Rotation Loader */}
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28">
                 <svg className="w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '1.4s' }}>
+                  {/* Background circle - light gray */}
                   <circle 
                     cx="50" 
                     cy="50" 
@@ -4338,21 +4511,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     stroke="#e5e7eb" 
                     strokeWidth="8" 
                   />
+                  {/* Animated arc - orange with gradient effect */}
                   <circle
                     cx="50"
                     cy="50"
                     r="45"
                     fill="none"
-                    stroke="url(#spinner-gradient)"
+                    stroke="url(#preload-spinner-gradient)"
                     strokeWidth="8"
+                    strokeDasharray="70 282"
+                    strokeDashoffset="0"
                     strokeLinecap="round"
-                    strokeDasharray="283"
-                    strokeDashoffset="70"
+                    className="origin-center"
                   />
+                  {/* Gradient definition for spinner */}
                   <defs>
-                    <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id="preload-spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="#FF4F00" stopOpacity="1" />
-                      <stop offset="100%" stopColor="#FF6B35" stopOpacity="0.8" />
+                      <stop offset="100%" stopColor="#FF7F33" stopOpacity="0.3" />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -4368,7 +4544,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         )}
         
         <div className={cn(
-          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[60px] sm:pt-[64px]",
+          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[56px] sm:pt-[60px]",
           !isModalPreloaded && "opacity-0 pointer-events-none"
         )} role="dialog" aria-modal="true" aria-labelledby="modal-title" style={{
           transition: 'opacity 0.3s ease-in-out'
@@ -5826,5 +6002,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 };
 
 export default VirtualTryOnModal;
+
 
 
