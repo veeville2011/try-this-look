@@ -4065,7 +4065,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [showPersonSelection, detectionResult, detectionImageRef, handlePersonSelect, uploadedImage]);
 
   return (
-    <div className="w-full h-screen bg-white font-sans relative overflow-hidden">
+    <div className="w-full h-[100dvh] bg-white font-sans relative overflow-hidden">
       {/* Skip to main content link for keyboard navigation */}
       <a
         href="#main-content"
@@ -4108,9 +4108,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       )}
 
       {/* Modal container */}
-      <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center">
+      <div className="fixed inset-0 z-50 bg-white flex items-stretch justify-center p-2 md:p-0">
         {/* Shared Header with logo and close button - Enhanced with magic */}
-        <div className="absolute top-0 left-0 right-0 z-[60] flex justify-between items-center px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 border-b border-border/40 bg-gradient-to-r from-white via-white to-primary/3 backdrop-blur-sm flex-shrink-0 shadow-sm animate-in slide-in-from-top duration-500">
+        <div className="absolute top-2 left-2 right-2 md:top-0 md:left-0 md:right-0 z-[60] flex justify-between items-center px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 border-b border-border/40 bg-gradient-to-r from-white via-white to-primary/3 backdrop-blur-sm flex-shrink-0 shadow-sm animate-in slide-in-from-top duration-500 rounded-t-lg md:rounded-t-none">
           <div className="flex items-center gap-2 sm:gap-3 group/logo">
             <div className="relative">
               <div className="absolute inset-0 bg-primary/10 rounded-lg blur-sm opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300" />
@@ -4461,7 +4461,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             </div>
 
             {/* Footer - Fixed at bottom - Enhanced with magic */}
-            <div className="absolute bottom-0 left-0 right-0 border-t border-border/40 bg-gradient-to-r from-white via-white to-primary/3 backdrop-blur-sm px-4 sm:px-6 py-2.5 sm:py-3 flex-shrink-0 z-10 shadow-sm animate-in slide-in-from-bottom duration-500">
+            <div className="absolute bottom-2 left-2 right-2 md:bottom-0 md:left-0 md:right-0 border-t border-border/40 bg-gradient-to-r from-white via-white to-primary/3 backdrop-blur-sm px-4 sm:px-6 py-2.5 sm:py-3 flex-shrink-0 z-10 shadow-sm animate-in slide-in-from-bottom duration-500 rounded-b-lg md:rounded-b-none">
               <div className="max-w-[980px] mx-auto">
                 <p className="text-xs sm:text-sm text-muted-foreground text-center font-medium tracking-normal">
                   © {new Date().getFullYear()} <span className="font-bold"><span style={{ color: '#ce0003' }}>NU</span><span style={{ color: '#564646' }}>SENSE</span></span>. {t("virtualTryOnModal.authGate.allRightsReserved") || "All rights reserved."}
@@ -4523,7 +4523,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         )}
         
         <div className={cn(
-          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[56px] sm:pt-[60px]",
+          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full max-h-[calc(100dvh-1rem)] md:max-h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[56px] sm:pt-[60px]",
           !isModalPreloaded && "opacity-0 pointer-events-none"
         )} role="dialog" aria-modal="true" aria-labelledby="modal-title" style={{
           transition: 'opacity 0.3s ease-in-out'
