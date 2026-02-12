@@ -569,11 +569,74 @@
     }
   }
 
+  // Auto-open widget after login if open_tryon parameter is present
+  function autoOpenWidgetAfterLogin() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shouldOpenTryOn = urlParams.get('open_tryon') === 'true';
+      
+      if (shouldOpenTryOn) {
+        // Remove the parameter from URL to clean it up
+        urlParams.delete('open_tryon');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+        
+        // Wait a bit for page to fully load and buttons to be initialized
+        setTimeout(function() {
+          // Find the first try-on button on the page
+          const buttons = document.querySelectorAll('[data-nusense-tryon]');
+          if (buttons.length > 0) {
+            // Trigger click on the first button to open widget
+            const firstButton = buttons[0];
+            if (typeof firstButton.click === 'function') {
+              firstButton.click();
+            } else {
+              // Fallback: dispatch click event
+              const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+              });
+              firstButton.dispatchEvent(clickEvent);
+            }
+          } else {
+            // If buttons not found yet, wait a bit more and try again
+            setTimeout(function() {
+              const retryButtons = document.querySelectorAll('[data-nusense-tryon]');
+              if (retryButtons.length > 0) {
+                const firstButton = retryButtons[0];
+                if (typeof firstButton.click === 'function') {
+                  firstButton.click();
+                } else {
+                  const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  });
+                  firstButton.dispatchEvent(clickEvent);
+                }
+              }
+            }, 500);
+          }
+        }, 300); // Small delay to ensure buttons are initialized
+      }
+    } catch (error) {
+      // Silently fail - don't break the page if auto-open fails
+      if (config.debug) {
+        console.warn('NUSENSE: Auto-open widget after login failed:', error);
+      }
+    }
+  }
+
   // Auto-initialize when DOM is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWidget);
+    document.addEventListener('DOMContentLoaded', function() {
+      initWidget();
+      autoOpenWidgetAfterLogin();
+    });
   } else {
     initWidget();
+    autoOpenWidgetAfterLogin();
   }
 
   // Re-initialize on dynamic content changes (for AJAX themes)

@@ -1311,15 +1311,76 @@
     });
   };
 
+  // Auto-open widget after login if open_tryon parameter is present
+  const autoOpenWidgetAfterLogin = () => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shouldOpenTryOn = urlParams.get('open_tryon') === 'true';
+      
+      if (shouldOpenTryOn) {
+        // Remove the parameter from URL to clean it up
+        urlParams.delete('open_tryon');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+        
+        // Wait a bit for page to fully load and buttons to be initialized
+        setTimeout(() => {
+          // Find the first try-on button on the page
+          const buttons = document.querySelectorAll(`[id^="${BUTTON_ID_PREFIX}"]`);
+          if (buttons.length > 0) {
+            const firstButton = buttons[0];
+            // Trigger click on the button to open widget
+            if (typeof firstButton.click === 'function') {
+              firstButton.click();
+            } else {
+              // Fallback: dispatch click event
+              const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+              });
+              firstButton.dispatchEvent(clickEvent);
+            }
+          } else {
+            // If buttons not found yet, wait a bit more and try again
+            setTimeout(() => {
+              const retryButtons = document.querySelectorAll(`[id^="${BUTTON_ID_PREFIX}"]`);
+              if (retryButtons.length > 0) {
+                const firstButton = retryButtons[0];
+                if (typeof firstButton.click === 'function') {
+                  firstButton.click();
+                } else {
+                  const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  });
+                  firstButton.dispatchEvent(clickEvent);
+                }
+              }
+            }, 500);
+          }
+        }, 300); // Small delay to ensure buttons are initialized
+      }
+    } catch (error) {
+      // Silently fail - don't break the page if auto-open fails
+      console.warn('NUSENSE: Auto-open widget after login failed:', error);
+    }
+  };
+
   // Initial scan.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       scanButtons();
       setupDOMObserver();
+      // Check for auto-open parameter after login
+      autoOpenWidgetAfterLogin();
     }, { once: true });
   } else {
     scanButtons();
     setupDOMObserver();
+    // Check for auto-open parameter after login
+    autoOpenWidgetAfterLogin();
   }
 
   // Handle Shopify theme editor section events

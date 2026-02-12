@@ -493,6 +493,25 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Priority: 1. Parent window URL (if same-origin), 2. document.referrer, 3. Current pathname
   // This ensures users return to the product page after authentication, not the home page
   const getReturnToUrl = useCallback((): string => {
+    // CRITICAL: return_to must be a relative URL (starts with /) per Shopify docs
+    // It should include pathname and search params, but NOT hash or absolute URLs
+    
+    // Helper function to append open_tryon parameter to URL
+    const appendOpenTryOnParam = (path: string): string => {
+      try {
+        // Parse the path to handle existing query parameters
+        const url = new URL(path, window.location.origin);
+        // Add open_tryon=true parameter to auto-open widget after login
+        url.searchParams.set('open_tryon', 'true');
+        // Return only the pathname + search (relative URL)
+        return url.pathname + url.search;
+      } catch (e) {
+        // If URL parsing fails, append parameter manually
+        const separator = path.includes('?') ? '&' : '?';
+        return `${path}${separator}open_tryon=true`;
+      }
+    };
+    
     // If in iframe, try to get parent window URL first (most reliable)
     if (window.parent !== window) {
       try {
@@ -501,8 +520,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         const parentUrlObj = new URL(parentUrl);
         // Only use parent URL if it's a product page (not the widget URL)
         if (!parentUrlObj.pathname.includes('/widget') && !parentUrlObj.pathname.includes('/demo')) {
+          // Build relative path: pathname + search (query params)
+          // Exclude hash as it's not needed for return_to
           const returnPath = parentUrlObj.pathname + parentUrlObj.search;
-          return returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+          // Ensure it starts with / (relative URL requirement)
+          const relativePath = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+          // Append open_tryon parameter to auto-open widget after login
+          return appendOpenTryOnParam(relativePath);
         }
       } catch (e) {
         // Cross-origin access failed, try referrer instead
@@ -515,8 +539,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           const referrerUrl = new URL(referrer);
           // Only use referrer if it's a product page (not the widget URL)
           if (!referrerUrl.pathname.includes('/widget') && !referrerUrl.pathname.includes('/demo')) {
+            // Build relative path: pathname + search (query params)
             const returnPath = referrerUrl.pathname + referrerUrl.search;
-            return returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+            // Ensure it starts with / (relative URL requirement)
+            const relativePath = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+            // Append open_tryon parameter to auto-open widget after login
+            return appendOpenTryOnParam(relativePath);
           }
         }
       } catch (e) {
@@ -527,36 +555,63 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     // Final fallback: Use current pathname (but exclude widget/demo paths)
     const currentPath = window.location.pathname;
     if (!currentPath.includes('/widget') && !currentPath.includes('/demo')) {
-      return currentPath.startsWith('/') ? currentPath : `/${currentPath}`;
+      // Include search params if present
+      const returnPath = currentPath + window.location.search;
+      const relativePath = returnPath.startsWith('/') ? returnPath : `/${returnPath}`;
+      // Append open_tryon parameter to auto-open widget after login
+      return appendOpenTryOnParam(relativePath);
     }
     
     // If all else fails, return empty string (Shopify will redirect to home)
+    // Empty string is safer than invalid URL to prevent broken redirects
     return '';
   }, []);
 
   // Get login URL - improved to return to product page after authentication
+  // CRITICAL: According to Shopify docs, routes.storefront_login_url automatically handles return_to
+  // Adding return_to to storefrontLoginUrl can cause conflicts and broken redirects
   const getLoginUrl = useCallback((): string => {
     try {
+      // Helper function to validate and encode return_to parameter
+      // Shopify requires return_to to be a relative URL (starts with /)
+      const getValidReturnTo = (): string | null => {
+        const returnTo = getReturnToUrl();
+        if (!returnTo || returnTo.trim() === '') {
+          return null;
+        }
+        // Ensure it's a relative URL (starts with /)
+        const relativePath = returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+        // Validate it's not an absolute URL (no protocol)
+        if (relativePath.includes('://') || relativePath.includes('//')) {
+          console.warn('[VirtualTryOnModal] Invalid return_to URL (must be relative):', returnTo);
+          return null;
+        }
+        return relativePath;
+      };
+
       // First, try to get the universal login URL from Liquid-injected JSON script tag
       try {
         const loginUrlScript = document.getElementById('nusense-login-url-info');
         if (loginUrlScript && loginUrlScript.textContent) {
           const loginUrlData = JSON.parse(loginUrlScript.textContent);
+          
+          // CRITICAL FIX: storefrontLoginUrl automatically handles return_to
+          // According to Shopify docs: "Once signed in, the customer will be taken back to the page where the sign-in originated"
+          // DO NOT add return_to parameter to storefrontLoginUrl as it causes conflicts
           if (loginUrlData?.storefrontLoginUrl) {
-            // If storefrontLoginUrl is provided, it should handle return_to automatically
-            // But we can still append return_to to ensure we return to product page
-            const storefrontUrl = new URL(loginUrlData.storefrontLoginUrl);
-            const returnTo = getReturnToUrl();
-            if (returnTo) {
-              storefrontUrl.searchParams.set("return_to", returnTo);
-            }
-            return storefrontUrl.toString();
+            // Use storefrontLoginUrl as-is - it automatically returns to originating page
+            return loginUrlData.storefrontLoginUrl;
           }
+          
+          // For accountLoginUrl, we can add return_to if needed (for legacy customer accounts)
           if (loginUrlData?.accountLoginUrl) {
             const accountUrl = new URL(loginUrlData.accountLoginUrl);
-            const returnTo = getReturnToUrl();
+            const returnTo = getValidReturnTo();
             if (returnTo) {
-              accountUrl.searchParams.set("return_to", returnTo);
+              // Only add return_to if it doesn't already exist
+              if (!accountUrl.searchParams.has('return_to')) {
+                accountUrl.searchParams.set("return_to", returnTo);
+              }
             }
             return accountUrl.toString();
           }
@@ -565,17 +620,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         console.warn('[VirtualTryOnModal] Error parsing login URL from Liquid:', parseError);
       }
       
-      // Fallback: Construct login URL manually
+      // Fallback: Construct login URL manually using /customer_authentication/login
+      // This works for both legacy and new Customer Account API stores
       const storeOriginInfo = detectStoreOrigin();
-      const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl;
-      const returnTo = getReturnToUrl();
+      const storeOrigin = storeOriginInfo?.origin || storeOriginInfo?.fullUrl;
+      const returnTo = getValidReturnTo();
       
       if (storeOrigin) {
-        const loginUrl = new URL("/customer_authentication/login", storeOrigin);
-        if (returnTo) {
-          loginUrl.searchParams.set("return_to", returnTo);
+        try {
+          const loginUrl = new URL("/customer_authentication/login", storeOrigin);
+          if (returnTo) {
+            loginUrl.searchParams.set("return_to", returnTo);
+          }
+          return loginUrl.toString();
+        } catch (urlError) {
+          console.error('[VirtualTryOnModal] Error constructing login URL with storeOrigin:', urlError);
         }
-        return loginUrl.toString();
       }
       
       // Fallback: try to detect from parent window or referrer
@@ -590,8 +650,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             }
             return loginUrl.toString();
           }
-        } catch {
-          // Cannot access parent
+        } catch (referrerError) {
+          console.warn('[VirtualTryOnModal] Error using referrer for login URL:', referrerError);
         }
       }
       
@@ -603,24 +663,64 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return loginUrl.toString();
     } catch (error) {
       console.error("[VirtualTryOnModal] Error constructing login URL:", error);
+      // Return safe fallback - no return_to to avoid redirect loops
       return "/customer_authentication/login";
     }
   }, [getReturnToUrl]);
 
   const handleLoginClick = useCallback(() => {
     setIsRedirecting(true);
-    const loginUrl = getLoginUrl();
-    // If in iframe, redirect parent window to login
-    if (isInIframe && window.parent !== window) {
-      try {
-        window.parent.location.href = loginUrl;
-      } catch (error) {
-        // Cross-origin issue, open in new tab
-        window.open(loginUrl, "_blank");
+    
+    try {
+      const loginUrl = getLoginUrl();
+      
+      // Validate URL before redirecting to prevent broken redirects
+      if (!loginUrl || loginUrl.trim() === '') {
+        console.error('[VirtualTryOnModal] Invalid login URL:', loginUrl);
+        setIsRedirecting(false);
+        toast.error('Unable to redirect to login page. Please try again.');
+        return;
       }
-    } else {
-      // Redirect current window
-      window.location.href = loginUrl;
+      
+      // Validate URL format
+      try {
+        new URL(loginUrl);
+      } catch (urlError) {
+        // If it's a relative URL, that's fine (Shopify accepts relative URLs)
+        if (!loginUrl.startsWith('/')) {
+          console.error('[VirtualTryOnModal] Invalid login URL format:', loginUrl);
+          setIsRedirecting(false);
+          toast.error('Invalid login URL format. Please try again.');
+          return;
+        }
+      }
+      
+      // Set a timeout to detect if redirect is taking too long
+      const redirectTimeout = setTimeout(() => {
+        console.warn('[VirtualTryOnModal] Redirect taking longer than expected');
+        // Don't reset isRedirecting here - let it continue
+      }, 5000); // 5 second warning
+      
+      // If in iframe, redirect parent window to login
+      if (isInIframe && window.parent !== window) {
+        try {
+          window.parent.location.href = loginUrl;
+          clearTimeout(redirectTimeout);
+        } catch (error) {
+          clearTimeout(redirectTimeout);
+          // Cross-origin issue, open in new tab
+          console.warn('[VirtualTryOnModal] Cross-origin redirect failed, opening in new tab:', error);
+          window.open(loginUrl, "_blank");
+        }
+      } else {
+        // Redirect current window
+        window.location.href = loginUrl;
+        clearTimeout(redirectTimeout);
+      }
+    } catch (error) {
+      console.error('[VirtualTryOnModal] Error during login redirect:', error);
+      setIsRedirecting(false);
+      toast.error('An error occurred while redirecting. Please try again.');
     }
   }, [getLoginUrl, isInIframe]);
 
@@ -4419,29 +4519,63 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         onClick={(e) => {
                           e.preventDefault();
                           try {
+                            // First, try to get register URL from Liquid-injected JSON script tag
                             const loginUrlScript = document.getElementById('nusense-login-url-info');
                             if (loginUrlScript?.textContent) {
                               const loginUrlData = JSON.parse(loginUrlScript.textContent);
                               if (loginUrlData?.accountRegisterUrl) {
                                 const signUpUrl = loginUrlData.accountRegisterUrl;
-                                if (isInIframe && window.parent !== window) {
-                                  try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
-                                } else {
-                                  window.location.href = signUpUrl;
+                                // Validate URL before redirecting
+                                try {
+                                  new URL(signUpUrl);
+                                  if (isInIframe && window.parent !== window) {
+                                    try { 
+                                      window.parent.location.href = signUpUrl; 
+                                    } catch (crossOriginError) { 
+                                      window.open(signUpUrl, "_blank"); 
+                                    }
+                                  } else {
+                                    window.location.href = signUpUrl;
+                                  }
+                                  return;
+                                } catch (urlError) {
+                                  console.error('[VirtualTryOnModal] Invalid register URL from Liquid:', signUpUrl, urlError);
+                                  // Fall through to fallback
                                 }
-                                return;
                               }
                             }
                           } catch (error) {
                             console.warn('[VirtualTryOnModal] Error getting register URL:', error);
                           }
+                          
+                          // Fallback: Construct register URL manually
                           const storeOriginInfo = detectStoreOrigin();
-                          const storeOrigin = storeOriginInfo.origin || storeOriginInfo.fullUrl || window.location.origin;
-                          const signUpUrl = `${storeOrigin}/account/register`;
-                          if (isInIframe && window.parent !== window) {
-                            try { window.parent.location.href = signUpUrl; } catch { window.open(signUpUrl, "_blank"); }
-                          } else {
-                            window.location.href = signUpUrl;
+                          const storeOrigin = storeOriginInfo?.origin || storeOriginInfo?.fullUrl || window.location.origin;
+                          
+                          try {
+                            const signUpUrl = new URL("/account/register", storeOrigin).toString();
+                            if (isInIframe && window.parent !== window) {
+                              try { 
+                                window.parent.location.href = signUpUrl; 
+                              } catch (crossOriginError) { 
+                                window.open(signUpUrl, "_blank"); 
+                              }
+                            } else {
+                              window.location.href = signUpUrl;
+                            }
+                          } catch (urlError) {
+                            console.error('[VirtualTryOnModal] Error constructing register URL:', urlError);
+                            // Final fallback: relative path
+                            const fallbackUrl = "/account/register";
+                            if (isInIframe && window.parent !== window) {
+                              try { 
+                                window.parent.location.href = fallbackUrl; 
+                              } catch { 
+                                window.open(fallbackUrl, "_blank"); 
+                              }
+                            } else {
+                              window.location.href = fallbackUrl;
+                            }
                           }
                         }} 
                         className="group/link inline-flex items-center gap-1 text-primary hover:text-primary-dark font-bold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 rounded-sm transition-all duration-200 hover:gap-1.5" 
