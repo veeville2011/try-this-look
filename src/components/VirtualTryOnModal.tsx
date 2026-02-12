@@ -116,6 +116,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   // Auth gate states
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<1 | 2 | 3 | 4>(1); // 1: upload, 2: select, 3: generating, 4: result
+  const [popupLoginInProgress, setPopupLoginInProgress] = useState(false);
+  const prevCustomerInfoRef = useRef<typeof customerInfo | null>(null);
   
   // Image states
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -307,6 +309,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const progressTimerRef = useRef<number | null>(null);
   const elapsedTimerRef = useRef<number | null>(null);
   const currentProgressRef = useRef<number>(0);
+  
+  // Store popup monitoring references to prevent memory leaks
+  const popupCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const popupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const popupWindowRef = useRef<Window | null>(null);
   
   // Touch handling for horizontal scroll sections
   const touchStartXRef = useRef<number | null>(null);
@@ -668,8 +675,58 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [getReturnToUrl]);
 
+  // Detect customerInfo changes after popup login (edge case handling)
+  useEffect(() => {
+    // Track previous customerInfo to detect changes
+    const prevCustomerId = prevCustomerInfoRef.current?.id || null;
+    const currentCustomerId = customerInfo?.id || null;
+    
+    // If customerInfo changed from null/undefined to having an ID, login likely succeeded
+    if (popupLoginInProgress && !prevCustomerId && currentCustomerId) {
+      console.log('[VirtualTryOnModal] Customer info updated after popup login');
+      setPopupLoginInProgress(false);
+      setIsRedirecting(false);
+      toast.success('Login successful!');
+    }
+    
+    // Update ref for next comparison
+    prevCustomerInfoRef.current = customerInfo;
+  }, [customerInfo, popupLoginInProgress]);
+
+  // Cleanup popup monitoring on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup intervals and timeouts
+      if (popupCheckIntervalRef.current) {
+        clearInterval(popupCheckIntervalRef.current);
+        popupCheckIntervalRef.current = null;
+      }
+      if (popupTimeoutRef.current) {
+        clearTimeout(popupTimeoutRef.current);
+        popupTimeoutRef.current = null;
+      }
+      // Close popup if still open
+      if (popupWindowRef.current && !popupWindowRef.current.closed) {
+        try {
+          popupWindowRef.current.close();
+        } catch (e) {
+          // Popup might be cross-origin, ignore
+        }
+        popupWindowRef.current = null;
+      }
+      setPopupLoginInProgress(false);
+    };
+  }, []);
+
   const handleLoginClick = useCallback(() => {
+    // Prevent multiple simultaneous login attempts
+    if (popupCheckIntervalRef.current || popupWindowRef.current) {
+      console.warn('[VirtualTryOnModal] Login already in progress');
+      return;
+    }
+
     setIsRedirecting(true);
+    setPopupLoginInProgress(true);
     
     try {
       const loginUrl = getLoginUrl();
@@ -695,6 +752,189 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         }
       }
       
+      // OPTION 1: Popup window authentication (better UX - keeps widget open)
+      // This opens login in a popup window, widget stays open, user completes login in popup
+      // After successful login, popup closes and we refresh customer info
+      const usePopupAuth = true; // Set to false to use redirect method
+      
+      if (usePopupAuth) {
+        try {
+          // Cleanup any existing popup monitoring
+          if (popupCheckIntervalRef.current) {
+            clearInterval(popupCheckIntervalRef.current);
+            popupCheckIntervalRef.current = null;
+          }
+          if (popupTimeoutRef.current) {
+            clearTimeout(popupTimeoutRef.current);
+            popupTimeoutRef.current = null;
+          }
+          if (popupWindowRef.current && !popupWindowRef.current.closed) {
+            try {
+              popupWindowRef.current.close();
+            } catch (e) {
+              // Ignore
+            }
+            popupWindowRef.current = null;
+          }
+
+          // Open login in popup window
+          const popupWidth = 500;
+          const popupHeight = 700;
+          const left = (window.screen.width - popupWidth) / 2;
+          const top = (window.screen.height - popupHeight) / 2;
+          
+          const popup = window.open(
+            loginUrl,
+            'shopify-login',
+            `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
+          );
+          
+          if (!popup) {
+            // Popup blocked - fallback to redirect
+            console.warn('[VirtualTryOnModal] Popup blocked, falling back to redirect');
+            setIsRedirecting(false);
+            if (isInIframe && window.parent !== window) {
+              try {
+                window.parent.location.href = loginUrl;
+              } catch (error) {
+                window.open(loginUrl, "_blank");
+              }
+            } else {
+              window.location.href = loginUrl;
+            }
+            return;
+          }
+
+          // Store popup reference
+          popupWindowRef.current = popup;
+          
+          // Helper function to cleanup popup monitoring
+          const cleanupPopupMonitoring = () => {
+            if (popupCheckIntervalRef.current) {
+              clearInterval(popupCheckIntervalRef.current);
+              popupCheckIntervalRef.current = null;
+            }
+            if (popupTimeoutRef.current) {
+              clearTimeout(popupTimeoutRef.current);
+              popupTimeoutRef.current = null;
+            }
+            popupWindowRef.current = null;
+            setIsRedirecting(false);
+            // Don't set popupLoginInProgress to false here - let useEffect handle it when customerInfo updates
+          };
+          
+          // Monitor popup for completion
+          popupCheckIntervalRef.current = setInterval(() => {
+            try {
+              // Check if popup was closed manually
+              if (popup.closed) {
+                cleanupPopupMonitoring();
+                
+                // Check if login was successful by checking customer info
+                // This will be updated by parent window or via postMessage
+                // We'll detect customerInfo prop changes via useEffect
+                setTimeout(() => {
+                  // Request customer info refresh from parent
+                  if (isInIframe && window.parent !== window) {
+                    try {
+                      window.parent.postMessage({ type: 'NUSENSE_REFRESH_CUSTOMER_INFO' }, '*');
+                    } catch (e) {
+                      // Cross-origin issue - this is okay, customerInfo prop will update naturally
+                    }
+                  }
+                  
+                  // If customerInfo doesn't update within 3 seconds, reset popupLoginInProgress
+                  // This handles edge case where popup closes but login didn't complete
+                  setTimeout(() => {
+                    if (popupLoginInProgress && !customerInfo?.id) {
+                      console.warn('[VirtualTryOnModal] Popup closed but customerInfo not updated - login may have been cancelled');
+                      setPopupLoginInProgress(false);
+                    }
+                  }, 3000);
+                }, 1000);
+                return;
+              }
+              
+              // Check if popup redirected to success page (contains return_to or is back on product page)
+              try {
+                const popupUrl = popup.location.href;
+                // If popup URL is back on storefront (not login page), login likely succeeded
+                // Also check for common success indicators: product pages, account pages, or home page
+                const isLoginPage = popupUrl.includes('/customer_authentication/login') || 
+                                   popupUrl.includes('/account/login') ||
+                                   popupUrl.includes('/account/register') ||
+                                   popupUrl.includes('/authentication/');
+                
+                if (popupUrl && !isLoginPage) {
+                  // Login likely successful - close popup and refresh
+                  popup.close();
+                  cleanupPopupMonitoring();
+                  
+                  // Request customer info refresh
+                  if (isInIframe && window.parent !== window) {
+                    try {
+                      window.parent.postMessage({ type: 'NUSENSE_REFRESH_CUSTOMER_INFO' }, '*');
+                    } catch (e) {
+                      // Cross-origin issue - customerInfo prop will update naturally
+                    }
+                  }
+                  
+                  // Note: toast will be shown by useEffect when customerInfo updates
+                  // Don't show toast here to avoid duplicate messages
+                }
+              } catch (e) {
+                // Cross-origin - can't access popup URL, continue monitoring
+                // This is normal during login flow - we'll detect success when popup closes
+                // or when customerInfo prop updates
+              }
+            } catch (error) {
+              // Error checking popup - might be closed or cross-origin
+              cleanupPopupMonitoring();
+            }
+          }, 500); // Check every 500ms
+          
+          // Timeout after 5 minutes
+          popupTimeoutRef.current = setTimeout(() => {
+            cleanupPopupMonitoring();
+            if (!popup.closed) {
+              try {
+                popup.close();
+              } catch (e) {
+                // Ignore
+              }
+            }
+            toast.error('Login timeout. Please try again.');
+          }, 300000); // 5 minutes
+          
+        } catch (error) {
+          console.error('[VirtualTryOnModal] Error opening popup:', error);
+          // Cleanup on error
+          if (popupCheckIntervalRef.current) {
+            clearInterval(popupCheckIntervalRef.current);
+            popupCheckIntervalRef.current = null;
+          }
+          if (popupTimeoutRef.current) {
+            clearTimeout(popupTimeoutRef.current);
+            popupTimeoutRef.current = null;
+          }
+          popupWindowRef.current = null;
+          
+          // Fallback to redirect
+          setIsRedirecting(false);
+          if (isInIframe && window.parent !== window) {
+            try {
+              window.parent.location.href = loginUrl;
+            } catch (e) {
+              window.open(loginUrl, "_blank");
+            }
+          } else {
+            window.location.href = loginUrl;
+          }
+        }
+        return;
+      }
+      
+      // OPTION 2: Traditional redirect (fallback or if popup disabled)
       // Set a timeout to detect if redirect is taking too long
       const redirectTimeout = setTimeout(() => {
         console.warn('[VirtualTryOnModal] Redirect taking longer than expected');
@@ -962,6 +1202,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           }
           return prev;
         });
+      }
+
+      // Handle customer info refresh after popup login
+      if (event.data && event.data.type === 'NUSENSE_CUSTOMER_INFO_UPDATED') {
+        console.log('[VirtualTryOnModal] Customer info updated after login:', event.data.customerInfo);
+        // Customer info is passed as prop, so parent should update it
+        // We can trigger a page refresh or request parent to reload widget with new customer info
+        // For now, we'll rely on parent window to update customerInfo prop
+        toast.success('Login successful!');
       }
 
       // Handle product data messages from parent window
