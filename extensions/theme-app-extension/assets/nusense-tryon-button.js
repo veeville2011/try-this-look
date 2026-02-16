@@ -661,8 +661,12 @@
         // Credits can be in total_balance or balance field (for backward compatibility)
         const credits = data.total_balance ?? data.balance ?? 0;
         
-        // Also check if in overage mode (usage records available)
-        const hasOverageCapacity = data.isOverage && data.overage && data.overage.remaining > 0;
+        // Check if overage capacity is available (usage records)
+        // Check overage.remaining regardless of isOverage flag, as overage capacity
+        // can be available even when balance > 0 (pre-overage state)
+        // Ensure remaining is a valid number > 0
+        const overageRemaining = data.overage?.remaining;
+        const hasOverageCapacity = overageRemaining != null && Number(overageRemaining) > 0;
         
         const hasCredits = credits > 0 || hasOverageCapacity;
         
