@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import ProductDemo from "./pages/ProductDemo";
 import Widget from "./pages/Widget";
 import NewWidget from "./pages/NewWidget";
+import NewWidgetV1 from "./testComponents/pages/NewWidgetV1";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Nucopy from "./pages/Nucopy";
@@ -85,6 +86,7 @@ const App = () => {
               <Route path="/demo" element={<ProductDemo />} />
               <Route path="/widget" element={<Widget />} />
               <Route path="/widget-test" element={<NewWidget />} />
+              <Route path="/widget-test-v1" element={<NewWidgetV1 />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/nucopy" element={<Nucopy />} />
               <Route path="/nulight" element={<Nulight />} />

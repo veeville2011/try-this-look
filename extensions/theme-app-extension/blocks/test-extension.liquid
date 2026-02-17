@@ -1,7 +1,7 @@
 {% comment %}
   Test Extension Block
   Visible only for specific store: vto-demo.myshopify.com
-  Exact copy of tryon button but points to NewTryon.tsx component
+  Points to /widget-test-v1 route which uses NewWidgetV1 component and V1 test components
 {% endcomment %}
 
 {% assign allowed_store = 'vto-demo.myshopify.com' %}
@@ -171,7 +171,7 @@
   "settings": [
     {
       "type": "paragraph",
-      "content": "This extension is only visible for vto-demo.myshopify.com store. Points to NewTryon.tsx component for testing."
+      "content": "This extension is only visible for vto-demo.myshopify.com store. Points to /widget-test-v1 route which uses NewWidgetV1 component and V1 test components for testing."
     },
     {
       "type": "text",
