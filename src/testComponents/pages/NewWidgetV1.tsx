@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import VirtualTryOnModalV1 from "@/testComponents/components/VirtualTryOnModalV1";
 import { initializeTestProductData, isWidgetTestRoute, isLocalhost } from "@/testComponents/config/testProductDataV1";
+import { 
+  getSessionId, 
+  startSession, 
+  identifySession, 
+  setVendorApiKey,
+  initializeSessionId 
+} from "@/testComponents/services/tryonApiV1";
 
 interface CustomerInfo {
   id?: string | null;
@@ -12,6 +19,44 @@ interface CustomerInfo {
 export default function NewWidgetV1() {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const isTestRoute = isWidgetTestRoute();
+
+  // Initialize session management on mount
+  useEffect(() => {
+    const initializeSession = async () => {
+      try {
+        // Initialize session ID from storage if available
+        initializeSessionId();
+
+        // Get or generate session ID
+        const sessionId = await getSessionId();
+
+        // Set vendor API key (should be configured from server-side or environment)
+        // For now, try to get from window config or use a default
+        const vendorKey = 
+          (typeof window !== 'undefined' && (window as any).NUSENSE_CONFIG?.vendorApiKey) ||
+          import.meta.env.VITE_VENDOR_API_KEY ||
+          null;
+        
+        if (vendorKey) {
+          setVendorApiKey(vendorKey);
+        }
+
+        // Start session with referrer and landing page info
+        await startSession({
+          session_id: sessionId,
+          referrer: document.referrer || undefined,
+          landing_page: window.location.href,
+        });
+
+        console.log('[NewWidgetV1] Session initialized:', sessionId);
+      } catch (error) {
+        console.error('[NewWidgetV1] Failed to initialize session:', error);
+        // Continue even if session initialization fails (graceful degradation)
+      }
+    };
+
+    initializeSession();
+  }, []);
 
   useEffect(() => {
     // Extract customer information from URL parameters
@@ -28,29 +73,71 @@ export default function NewWidgetV1() {
       return;
     }
 
-    if (customerId || customerEmail) {
-      setCustomerInfo({
-        id: customerId || null,
-        email: customerEmail ? decodeURIComponent(customerEmail) : null,
-        firstName: customerFirstName ? decodeURIComponent(customerFirstName) : null,
-        lastName: customerLastName ? decodeURIComponent(customerLastName) : null,
-      });
-    } else if (isTestRoute && !forceAuthGate) {
-      // For /widget-test-v1 route, provide default test customer info so history works
-      // This allows testing the complete flow including history without URL params
-      // To test auth gate, add ?forceAuthGate=true to the URL (or omit customerId)
-      // By default, auth gate shows unless customerId is provided
-      const testCustomerId = urlParams.get("testCustomerId");
-      if (testCustomerId) {
-        setCustomerInfo({
-          id: testCustomerId,
-          email: 'avisihks@gmail.com',
-          firstName: 'Test',
-          lastName: 'Customer',
-        });
+    const handleCustomerInfo = async () => {
+      if (customerId || customerEmail) {
+        const info = {
+          id: customerId || null,
+          email: customerEmail ? decodeURIComponent(customerEmail) : null,
+          firstName: customerFirstName ? decodeURIComponent(customerFirstName) : null,
+          lastName: customerLastName ? decodeURIComponent(customerLastName) : null,
+        };
+        
+        setCustomerInfo(info);
+
+        // Link session to authenticated customer if email is available
+        if (info.email) {
+          try {
+            const sessionId = await getSessionId();
+            await identifySession({
+              session_id: sessionId,
+              email: info.email,
+              auth_provider: 'shopify_email', // Default to shopify_email, can be customized
+              first_name: info.firstName || undefined,
+              last_name: info.lastName || undefined,
+            });
+            console.log('[NewWidgetV1] Session identified for customer:', info.email);
+          } catch (error) {
+            console.error('[NewWidgetV1] Failed to identify session:', error);
+            // Continue even if identification fails
+          }
+        }
+      } else if (isTestRoute && !forceAuthGate) {
+        // For /widget-test-v1 route, provide default test customer info so history works
+        // This allows testing the complete flow including history without URL params
+        // To test auth gate, add ?forceAuthGate=true to the URL (or omit customerId)
+        // By default, auth gate shows unless customerId is provided
+        const testCustomerId = urlParams.get("testCustomerId");
+        if (testCustomerId) {
+          const testInfo = {
+            id: testCustomerId,
+            email: 'avisihks@gmail.com',
+            firstName: 'Test',
+            lastName: 'Customer',
+          };
+          
+          setCustomerInfo(testInfo);
+
+          // Link session to test customer
+          try {
+            const sessionId = await getSessionId();
+            await identifySession({
+              session_id: sessionId,
+              email: testInfo.email,
+              auth_provider: 'shopify_email',
+              first_name: testInfo.firstName,
+              last_name: testInfo.lastName,
+            });
+            console.log('[NewWidgetV1] Session identified for test customer');
+          } catch (error) {
+            console.error('[NewWidgetV1] Failed to identify test session:', error);
+            // Continue even if identification fails
+          }
+        }
+        // If no testCustomerId, customerInfo stays null and auth gate shows
       }
-      // If no testCustomerId, customerInfo stays null and auth gate shows
-    }
+    };
+
+    handleCustomerInfo();
   }, [isTestRoute]);
 
   // Note: International Orange (#FF4F00) is now the default primary color in the design system

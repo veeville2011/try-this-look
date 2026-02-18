@@ -6,7 +6,16 @@ import i18n from '@/i18n/config';
 import { Button } from '@/components/ui/button';
 import TestPhotoUploadV1 from '@/testComponents/components/TestPhotoUploadV1';
 import TestClothingSelectionV1 from '@/testComponents/components/TestClothingSelectionV1';
-import { generateTryOn, dataURLToBlob, fetchUploadedImages, fetchCustomerImageHistory, type ImageGenerationHistoryItem, type PersonBbox } from '@/services/tryonApi';
+import { 
+  submitTryOn, 
+  pollTryOnStatus, 
+  dataURLToBlob, 
+  getCustomerPhotos, 
+  getTryOnHistory,
+  trackActivity,
+  trackPixel,
+  type PersonBbox 
+} from '@/testComponents/services/tryonApiV1';
 import { storage } from '@/utils/storage';
 import { detectStoreOrigin, extractProductImages, getStoreOriginFromPostMessage, requestStoreInfoFromParent, extractShopifyProductInfo, type StoreInfo } from '@/utils/shopifyIntegration';
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
@@ -842,6 +851,15 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
         origin: testStoreInfo.origin || window.location.origin,
         method: 'unknown' as const // Use 'unknown' for test data
       });
+      
+      // Track widget opened
+      trackPixel({
+        event_name: 'pixel.tryon_widget_opened',
+        event_data: {},
+      }).catch((error) => {
+        console.warn('[VirtualTryOnModalV1] Failed to track widget opened:', error);
+      });
+      
       return; // Don't proceed with normal detection for test route
     }
     
@@ -855,10 +873,41 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
       if (!detectedStore || detectedStore.method === 'unknown' || detectedStore.method === 'postmessage') {
         requestStoreInfoFromParent((storeInfo) => {
           setStoreInfo(storeInfo);
+          
+          // Track widget opened after store info is received
+          trackPixel({
+            event_name: 'pixel.tryon_widget_opened',
+            event_data: {},
+          }).catch((error) => {
+            console.warn('[VirtualTryOnModalV1] Failed to track widget opened:', error);
+          });
         }).catch(() => {
           // Failed to get store info from parent
+          // Still track widget opened
+          trackPixel({
+            event_name: 'pixel.tryon_widget_opened',
+            event_data: {},
+          }).catch((error) => {
+            console.warn('[VirtualTryOnModalV1] Failed to track widget opened:', error);
+          });
+        });
+      } else {
+        // Track widget opened if store info already available
+        trackPixel({
+          event_name: 'pixel.tryon_widget_opened',
+          event_data: {},
+        }).catch((error) => {
+          console.warn('[VirtualTryOnModalV1] Failed to track widget opened:', error);
         });
       }
+    } else {
+      // Track widget opened for non-iframe case
+      trackPixel({
+        event_name: 'pixel.tryon_widget_opened',
+        event_data: {},
+      }).catch((error) => {
+        console.warn('[VirtualTryOnModalV1] Failed to track widget opened:', error);
+      });
     }
   }, []);
 
@@ -1177,39 +1226,18 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
       
       setIsLoadingRecentPhotos(true);
       try {
-        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-        const response = await fetchCustomerImageHistory(
-          customerInfo.email,
-          1,
-          20, // Fetch more to ensure we get 5 unique person images
-          shopDomain || undefined
-        );
+        // Use new V1 API: getCustomerPhotos for saved photos
+        const response = await getCustomerPhotos();
 
-        if (response.success && Array.isArray(response.data)) {
-          if (response.data.length > 0) {
-            // Extract unique person images from history (same way as history is accessed)
-            // Use a Set to track seen image URLs for efficient deduplication
-            const seenUrls = new Set<string>();
-            const photos = response.data
-              .map((item) => {
-                if (!item || !item.id || !item.personImageUrl) {
-                  return null;
-                }
-                return {
-                  id: item.id,
-                  src: item.personImageUrl, // Use person image instead of generated image
-                };
-              })
-              .filter((item): item is { id: string; src: string } => {
-                if (!item) return false;
-                // Check if we've already seen this image URL
-                if (seenUrls.has(item.src)) {
-                  return false; // Skip duplicate
-                }
-                seenUrls.add(item.src); // Mark as seen
-                return true;
-              })
-              .slice(0, 5); // Limit to 5 unique recent photos
+        if (response.photos && Array.isArray(response.photos)) {
+          if (response.photos.length > 0) {
+            // Map customer photos to UI structure
+            const photos = response.photos
+              .slice(0, 5) // Limit to 5 recent photos
+              .map((photo) => ({
+                id: photo.photo_id,
+                src: photo.url,
+              }));
             
             if (isMounted) {
               setRecentPhotos(photos);
@@ -1227,7 +1255,7 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
           }
         }
       } catch (error) {
-        console.error('[VirtualTryOnModal] Failed to fetch recent photos:', error);
+        console.error('[VirtualTryOnModalV1] Failed to fetch recent photos:', error);
         if (isMounted) {
           setRecentPhotos([]);
         }
@@ -1264,45 +1292,34 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
       
       setIsLoadingHistory(true);
       try {
-        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-        console.log('[VirtualTryOnModal] Fetching history:', {
-          email: customerInfo.email,
-          shopDomain,
-          hasStoreInfo: !!storeInfo,
-        });
+        console.log('[VirtualTryOnModalV1] Fetching history');
         
-        const response = await fetchCustomerImageHistory(
-          customerInfo.email!,
-          1,
-          10,
-          shopDomain || undefined
-        );
+        // Use new V1 API: getTryOnHistory
+        const response = await getTryOnHistory();
 
         if (!isMounted) return;
 
-        console.log('[VirtualTryOnModal] History response:', {
-          success: response.success,
-          dataLength: response.data?.length || 0,
-          pagination: response.pagination,
-          firstItem: response.data?.[0],
+        console.log('[VirtualTryOnModalV1] History response:', {
+          itemsLength: response.items?.length || 0,
+          firstItem: response.items?.[0],
         });
 
-        if (response.success && Array.isArray(response.data)) {
-          if (response.data.length > 0) {
+        if (response.items && Array.isArray(response.items)) {
+          if (response.items.length > 0) {
             // Map API data to match UI structure and sort by createdAt (newest first)
-            const history = response.data
+            const history = response.items
               .map((item) => {
-                if (!item || !item.id || !item.generatedImageUrl) {
-                  console.warn('[VirtualTryOnModal] Invalid history item:', item);
+                if (!item || !item.tryon_id || !item.result_url) {
+                  console.warn('[VirtualTryOnModalV1] Invalid history item:', item);
                   return null;
                 }
 
                 return {
-                  id: item.id,
-                  image: item.generatedImageUrl, // Use generated image for history display
-                  personImageUrl: item.personImageUrl, // Preserve person image URL
-                  clothingImageUrl: item.clothingImageUrl, // Preserve clothing image URL
-                  createdAt: item.createdAt || item.updatedAt || '',
+                  id: item.tryon_id,
+                  image: item.result_url, // Use result_url for history display
+                  personImageUrl: undefined, // V1 API doesn't return person/clothing URLs in history
+                  clothingImageUrl: undefined,
+                  createdAt: item.created_at || '',
                 };
               })
               .filter((item) => item !== null)
@@ -1319,32 +1336,31 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
                 personImageUrl, 
                 clothingImageUrl,
                 createdAt
-              })); // Preserve all image URLs and timestamps
+              }));
             
-            console.log('[VirtualTryOnModal] Setting history items:', history.length);
+            console.log('[VirtualTryOnModalV1] Setting history items:', history.length);
             if (isMounted) {
               setHistoryItems(history);
               // Initialize loading state for all history items
               setLoadingHistoryItemIds(new Set(history.map(h => h.id)));
             }
           } else {
-            console.log('[VirtualTryOnModal] History data is empty array');
+            console.log('[VirtualTryOnModalV1] History data is empty array');
             if (isMounted) {
               setHistoryItems([]);
             }
           }
         } else {
-          console.warn('[VirtualTryOnModal] Invalid response structure:', {
-            success: response.success,
-            hasData: !!response.data,
-            isArray: Array.isArray(response.data),
+          console.warn('[VirtualTryOnModalV1] Invalid response structure:', {
+            hasItems: !!response.items,
+            isArray: Array.isArray(response.items),
           });
           if (isMounted) {
             setHistoryItems([]);
           }
         }
       } catch (error) {
-        console.error('[VirtualTryOnModal] Failed to fetch history:', error);
+        console.error('[VirtualTryOnModalV1] Failed to fetch history:', error);
         if (isMounted) {
           setHistoryItems([]);
         }
@@ -1958,36 +1974,116 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
       
       // Log bbox for debugging
       if (personBbox) {
-        console.log('[VirtualTryOnModal] Sending personBbox to API:', personBbox);
+        console.log('[VirtualTryOnModalV1] Sending personBbox to API:', personBbox);
         if (selectedPersonBbox && (
           selectedPersonBbox.x !== personBbox.x ||
           selectedPersonBbox.y !== personBbox.y ||
           selectedPersonBbox.width !== personBbox.width ||
           selectedPersonBbox.height !== personBbox.height
         )) {
-          console.warn('[VirtualTryOnModal] PersonBbox was clamped:', {
+          console.warn('[VirtualTryOnModalV1] PersonBbox was clamped:', {
             original: selectedPersonBbox,
             clamped: personBbox
           });
         }
       }
 
-      const result = await generateTryOn(
-        personBlob,
-        clothingBlob,
-        shopDomain,
-        clothingKey,
-        personKey,
-        1, // version
-        customerInfo,
-        productInfo,
-        (statusDescription) => {
-          if (statusDescription && statusDescription.trim()) {
-            setStatusMessage(statusDescription);
+      // Track try-on started event
+      try {
+        await trackActivity({
+          activity_type: 'tryon.started',
+          activity_data: {
+            product_id: productInfo?.productId,
+            product_title: productInfo?.productTitle,
+            has_person_bbox: !!personBbox,
+          },
+        });
+        await trackPixel({
+          event_name: 'pixel.tryon_started',
+          event_data: {
+            product_id: productInfo?.productId,
+            product_title: productInfo?.productTitle,
+          },
+        });
+      } catch (error) {
+        console.warn('[VirtualTryOnModalV1] Failed to track try-on started:', error);
+      }
+
+      // Use new V1 API: submitTryOn + pollTryOnStatus
+      const submitResponse = await submitTryOn({
+        person_image: personBlob,
+        garment_image: clothingBlob,
+        product_id: productInfo?.productId ? String(productInfo.productId) : undefined,
+        product_title: productInfo?.productTitle || undefined,
+        product_variant_id: productInfo?.variantId ? String(productInfo.variantId) : undefined,
+        product_url: productInfo?.productUrl || undefined,
+        person_bbox: personBbox || undefined,
+      });
+
+      console.log('[VirtualTryOnModalV1] Try-on submitted:', submitResponse);
+
+      // Poll for completion
+      const statusResponse = await pollTryOnStatus(
+        submitResponse.image_id,
+        200, // maxAttempts (10 minutes max)
+        3000, // pollInterval (3 seconds)
+        (status) => {
+          // Update status message based on status
+          if (status === 'processing') {
+            setStatusMessage(t('virtualTryOnModal.processingTryOn') || 'Processing...');
+          } else if (status === 'pending') {
+            setStatusMessage(t('virtualTryOnModal.preparingTryOn') || 'Preparing...');
           }
-        },
-        personBbox // Pass selected person bounding box
+        }
       );
+
+      // Map status response to result format
+      let result: { status: 'success' | 'error'; image?: string; error_message?: { code: string; message: string } };
+      
+      if (statusResponse.status === 'completed' && statusResponse.result_url) {
+        result = {
+          status: 'success',
+          image: statusResponse.result_url,
+        };
+
+        // Track try-on completed event
+        try {
+          await trackActivity({
+            activity_type: 'tryon.completed',
+            activity_data: {
+              tryon_id: statusResponse.tryon_id,
+              image_id: statusResponse.image_id,
+              product_id: productInfo?.productId,
+              product_title: productInfo?.productTitle,
+            },
+          });
+          await trackPixel({
+            event_name: 'pixel.tryon_completed',
+            event_data: {
+              tryon_id: statusResponse.tryon_id,
+              product_id: productInfo?.productId,
+            },
+          });
+        } catch (error) {
+          console.warn('[VirtualTryOnModalV1] Failed to track try-on completed:', error);
+        }
+      } else if (statusResponse.status === 'failed') {
+        result = {
+          status: 'error',
+          error_message: {
+            code: statusResponse.error?.code || 'PROCESSING_FAILURE',
+            message: statusResponse.error?.message || 'Try-on processing failed',
+          },
+        };
+      } else {
+        result = {
+          status: 'error',
+          error_message: {
+            code: 'UNKNOWN_STATUS',
+            message: `Unknown status: ${statusResponse.status}`,
+          },
+        };
+      }
 
       // Clear timers
       if (progressTimerRef.current) {
@@ -2076,94 +2172,120 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
         setTimeout(() => {
           setStep('complete');
           setStatusMessage('');
+          
+          // Track result viewed event
+          trackPixel({
+            event_name: 'pixel.tryon_result_viewed',
+            event_data: {
+              tryon_id: statusResponse.tryon_id,
+              product_id: productInfo?.productId,
+            },
+          }).catch((error) => {
+            console.warn('[VirtualTryOnModalV1] Failed to track result viewed:', error);
+          });
         }, 600);
         
         // Refetch history to show the latest image first
-        if (customerInfo?.email) {
-          const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-          fetchCustomerImageHistory(
-            customerInfo.email,
-            1,
-            10,
-            shopDomain || undefined
-          )
-            .then((response) => {
-              if (response.success && Array.isArray(response.data)) {
-                if (response.data.length > 0) {
-                  const history = response.data
-                    .map((item) => {
-                      if (!item || !item.id || !item.generatedImageUrl) {
-                        console.warn('[VirtualTryOnModal] Invalid history item after generation:', item);
-                        return null;
-                      }
-                      return {
-                        id: item.id,
-                        image: item.generatedImageUrl,
-                        personImageUrl: item.personImageUrl, // Preserve person image URL
-                        clothingImageUrl: item.clothingImageUrl, // Preserve clothing image URL
-                        createdAt: item.createdAt || item.updatedAt || '',
-                      };
-                    })
-                    .filter((item) => item !== null)
-                    .sort((a, b) => {
-                      if (!a.createdAt && !b.createdAt) return 0;
-                      if (!a.createdAt) return 1;
-                      if (!b.createdAt) return -1;
-                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-                    })
-                    .map(({ id, image, personImageUrl, clothingImageUrl, createdAt }) => ({ 
-                      id, 
-                      image, 
-                      personImageUrl, 
-                      clothingImageUrl,
-                      createdAt
-                    }));
-                  console.log('[VirtualTryOnModal] Refetched history after generation:', history.length, history);
-                  setHistoryItems(history);
-                  
-                  // Preload images and clear loading state once they're loaded
-                  // This prevents skeleton loading from showing for cached/quick-loading images
-                  const imageIds = history.map(h => h.id);
-                  const immediatelyLoadedIds = new Set<string>();
-                  
-                  // Preload all images and track which ones load immediately (from cache)
-                  history.forEach((item) => {
-                    const img = new Image();
-                    const proxiedUrl = getProxiedImageUrl(item.image);
-                    
-                    const handleLoad = () => {
-                      setLoadingHistoryItemIds((prev) => {
-                        const next = new Set(prev);
-                        next.delete(item.id);
-                        return next;
-                      });
-                    };
-                    
-                    img.onload = handleLoad;
-                    img.onerror = handleLoad; // Clear loading state even on error
-                    
-                    img.src = proxiedUrl;
-                    
-                    // Check if image loaded synchronously (from cache)
-                    if (img.complete && img.naturalWidth > 0) {
-                      immediatelyLoadedIds.add(item.id);
+        getTryOnHistory()
+          .then((response) => {
+            if (response.items && Array.isArray(response.items)) {
+              if (response.items.length > 0) {
+                const history = response.items
+                  .map((item) => {
+                    if (!item || !item.tryon_id || !item.result_url) {
+                      console.warn('[VirtualTryOnModalV1] Invalid history item after generation:', item);
+                      return null;
                     }
-                  });
+                    return {
+                      id: item.tryon_id,
+                      image: item.result_url,
+                      personImageUrl: undefined, // V1 API doesn't return person/clothing URLs in history
+                      clothingImageUrl: undefined,
+                      createdAt: item.created_at || '',
+                    };
+                  })
+                  .filter((item) => item !== null)
+                  .sort((a, b) => {
+                    if (!a.createdAt && !b.createdAt) return 0;
+                    if (!a.createdAt) return 1;
+                    if (!b.createdAt) return -1;
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                  })
+                  .map(({ id, image, personImageUrl, clothingImageUrl, createdAt }) => ({ 
+                    id, 
+                    image, 
+                    personImageUrl, 
+                    clothingImageUrl,
+                    createdAt
+                  }));
+                console.log('[VirtualTryOnModalV1] Refetched history after generation:', history.length, history);
+                setHistoryItems(history);
                   
-                  // Set loading state only for images that didn't load immediately
-                  // Images that loaded immediately will have their onload fire before this,
-                  // but we check anyway to avoid showing skeleton for cached images
-                  const loadingIds = imageIds.filter(id => !immediatelyLoadedIds.has(id));
-                  setLoadingHistoryItemIds(new Set(loadingIds));
-                }
+                // Preload images and clear loading state once they're loaded
+                // This prevents skeleton loading from showing for cached/quick-loading images
+                const imageIds = history.map(h => h.id);
+                const immediatelyLoadedIds = new Set<string>();
+                
+                // Preload all images and track which ones load immediately (from cache)
+                history.forEach((item) => {
+                  const img = new Image();
+                  const proxiedUrl = getProxiedImageUrl(item.image);
+                  
+                  const handleLoad = () => {
+                    setLoadingHistoryItemIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(item.id);
+                      return next;
+                    });
+                  };
+                  
+                  img.onload = handleLoad;
+                  img.onerror = handleLoad; // Clear loading state even on error
+                  
+                  img.src = proxiedUrl;
+                  
+                  // Check if image loaded synchronously (from cache)
+                  if (img.complete && img.naturalWidth > 0) {
+                    immediatelyLoadedIds.add(item.id);
+                  }
+                });
+                
+                // Set loading state only for images that didn't load immediately
+                // Images that loaded immediately will have their onload fire before this,
+                // but we check anyway to avoid showing skeleton for cached images
+                const loadingIds = imageIds.filter(id => !immediatelyLoadedIds.has(id));
+                setLoadingHistoryItemIds(new Set(loadingIds));
               }
-            })
-            .catch((error) => {
-              console.error('[VirtualTryOnModal] Failed to refetch history after generation:', error);
-            });
+            }
+          })
+          .catch((error) => {
+            console.error('[VirtualTryOnModalV1] Failed to refetch history after generation:', error);
+          });
+      } else if (result.status === 'error') {
+        // Handle error case
+        const errorMessage = result.error_message?.message || 'Generation failed';
+        setGeneratedImageError(true);
+        setGeneratedImage(null);
+        setError(errorMessage);
+        setStep('idle');
+        setProgress(0);
+        toast.error(t('virtualTryOnModal.generationFailed'), {
+          description: errorMessage,
+        });
+        
+        // Track try-on failed event
+        try {
+          await trackActivity({
+            activity_type: 'tryon.failed',
+            activity_data: {
+              error_code: result.error_message?.code,
+              error_message: errorMessage,
+              product_id: productInfo?.productId,
+            },
+          });
+        } catch (error) {
+          console.warn('[VirtualTryOnModalV1] Failed to track try-on failed:', error);
         }
-      } else {
-        throw new Error(result.error_message?.message || 'Generation failed');
       }
     } catch (err) {
       // Clear timers on error
