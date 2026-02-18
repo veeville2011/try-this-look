@@ -9,7 +9,7 @@
  */
 
 // API Base URL from documentation
-const API_BASE_URL = 'https://dev.karthikramesh.com/api';
+const API_BASE_URL = 'https://dev.karthikramesh.com';
 
 // Session management
 let sessionId: string | null = null;
