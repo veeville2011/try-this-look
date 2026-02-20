@@ -318,7 +318,7 @@
   {% if button_padding != blank %}data-padding="{{ button_padding | escape }}"{% endif %}
   {% if button_border_radius != blank %}data-border-radius="{{ button_border_radius | escape }}"{% endif %}
   {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
-  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' | escape }}"
+  data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look-jet.vercel.app' | escape }}"
   data-shop-domain="{{ shop.permanent_domain | escape }}"
 >
   <button 
@@ -345,7 +345,7 @@
     data-margin-right="{{ margin_right }}"
     data-button-icon="{{ button_icon | escape }}"
     {% if custom_css != blank %}data-custom-css="{{ custom_css | strip_newlines | escape }}"{% endif %}
-    data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look.vercel.app' | escape }}"
+    data-widget-url="{{ shop.metafields.nusense.widget_url | default: 'https://try-this-look-jet.vercel.app' | escape }}"
     data-loading="true"
     style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;{% if button_width_full %} width: 100%;{% else %}{% if button_width_percent != blank and button_width_percent != 100 %} width: {{ button_width_percent }}%;{% endif %}{% endif %}"
   >

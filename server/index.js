@@ -1356,8 +1356,8 @@ app.use((req, res, next) => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
       "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
       "img-src 'self' data: https:;",
-      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
-      "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
+      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look-jet.vercel.app https://*.vercel.app;",
+      "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://try-this-look-jet.vercel.app https://*.vercel.app;",
     ].join(" ")
   );
 
@@ -5721,7 +5721,7 @@ app.post("/api/stores/sync", async (req, res) => {
 
     // Send to remote backend (blocking - wait for response)
     const remoteBackendUrl = process.env.VITE_API_ENDPOINT;
-    // const remoteBackendUrl = "https://try-this-look.vercel.app";
+    // const remoteBackendUrl = "https://try-this-look-jet.vercel.app";
     if (!remoteBackendUrl) {
       logger.warn(
         "[STORES] VITE_API_ENDPOINT not configured, skipping store info sync",
@@ -7434,7 +7434,7 @@ app.get("/widget", (req, res) => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
       "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
       "img-src 'self' data: https:;",
-      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
+      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look-jet.vercel.app https://*.vercel.app;",
       "frame-ancestors *;", // Allow embedding from any origin (Shopify storefronts)
     ].join(" ");
     
@@ -7519,7 +7519,7 @@ app.get("/widget-test", (req, res) => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.shopify.com;",
       "font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;",
       "img-src 'self' data: https:;",
-      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look.vercel.app https://*.vercel.app;",
+      "frame-src https://*.shopify.com https://*.myshopify.com https://try-this-look-jet.vercel.app https://*.vercel.app;",
       "frame-ancestors *;", // Allow embedding from any origin (Shopify storefronts)
     ].join(" ");
     

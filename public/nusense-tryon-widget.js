@@ -14,7 +14,7 @@
 
   // Configuration from window.NUSENSE_CONFIG
   const config = window.NUSENSE_CONFIG || {
-    widgetUrl: 'https://try-this-look.vercel.app',
+    widgetUrl: 'https://try-this-look-jet.vercel.app',
     debug: false,
     autoDetect: true
   };

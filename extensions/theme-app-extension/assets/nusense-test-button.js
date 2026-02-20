@@ -70,7 +70,7 @@
   const getWidgetUrl = (buttonEl) => {
     const fromDataset = buttonEl?.dataset?.widgetUrl;
     const fromGlobal = window?.NUSENSE_CONFIG?.widgetUrl;
-    const fallback = 'https://try-this-look.vercel.app';
+    const fallback = 'https://try-this-look-jet.vercel.app';
 
     return normalizeUrl(fromDataset || fromGlobal || fallback);
   };
