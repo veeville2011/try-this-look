@@ -875,8 +875,6 @@
     const container = document.createElement('div');
     container.className = 'nusense-widget-container';
     container.setAttribute('role', 'document');
-    // Use max-height instead of fixed height to allow dynamic resizing
-    // Height will be updated via postMessage from iframe content
     container.style.cssText = [
       'position: relative',
       // Maintain the original desktop modal width while staying responsive on mobile.
@@ -884,12 +882,10 @@
       // - Desktop: max-width keeps the modal at consistent size for UI/UX
       'width: 95vw',
       `max-width: ${CONSTANTS.DEFAULT_MODAL_WIDTH}px`,
-      'height: auto',
-      'max-height: 98vh',
+      'height: 98vh',
       'background: #fff',
       'border-radius: 0.5rem',
       'overflow: hidden',
-      'transition: height 0.3s ease-out',
     ].join(';');
 
     const iframe = document.createElement('iframe');
@@ -1036,20 +1032,6 @@
 
       if (event.data.type === 'NUSENSE_CLOSE_WIDGET') {
         handleCleanup();
-        return;
-      }
-
-      // Handle dynamic height updates from iframe content
-      if (event.data.type === 'NUSENSE_WIDGET_HEIGHT') {
-        const height = event.data.height;
-        const maxHeight = event.data.maxHeight || window.innerHeight * 0.98;
-        if (typeof height === 'number' && height > 0) {
-          // Set container height to content height, but cap at maxHeight
-          const finalHeight = Math.min(height, maxHeight);
-          container.style.height = `${finalHeight}px`;
-          // Ensure iframe fills the container
-          iframe.style.height = '100%';
-        }
         return;
       }
 

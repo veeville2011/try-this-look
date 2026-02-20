@@ -286,14 +286,12 @@
     container.style.cssText = `
       width: ${containerWidth};
       max-width: ${containerMaxWidth};
-      height: auto;
-      max-height: 98vh;
+      height: 98vh;
       position: relative;
       background: white;
       border-radius: 0.75rem;
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      transition: height 0.3s ease-out;
     `;
 
     // Create iframe
@@ -420,7 +418,7 @@
     // Use a namespaced handler to avoid conflicts with other apps
     closeMessageHandler = function(e) {
       // Only handle NUSENSE messages to avoid interfering with stock alerts and other apps
-      if (!e || !e.data || !e.data.type || typeof e.data.type !== 'string' || !e.data.type.startsWith('NUSENSE_')) {
+      if (!e || !e.data || e.data.type !== 'NUSENSE_CLOSE_WIDGET') {
         return;
       }
 
@@ -441,20 +439,6 @@
         }
       } catch (error) {
         // If widgetUrl isn't a valid URL, skip origin enforcement (but still require source match).
-      }
-
-      // Handle dynamic height updates from iframe content
-      if (e.data.type === 'NUSENSE_WIDGET_HEIGHT') {
-        const height = e.data.height;
-        const maxHeight = e.data.maxHeight || window.innerHeight * 0.98;
-        if (typeof height === 'number' && height > 0) {
-          // Set container height to content height, but cap at maxHeight
-          const finalHeight = Math.min(height, maxHeight);
-          container.style.height = finalHeight + 'px';
-          // Ensure iframe fills the container
-          iframe.style.height = '100%';
-        }
-        return;
       }
 
       if (e.data && e.data.type === 'NUSENSE_CLOSE_WIDGET') {

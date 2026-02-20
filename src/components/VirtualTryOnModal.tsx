@@ -332,7 +332,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const sizeSelectionRef = useRef<HTMLDivElement>(null);
   const addToCartButtonRef = useRef<HTMLButtonElement>(null);
   const photoUploadRef = useRef<HTMLDivElement>(null);
-  const rootContainerRef = useRef<HTMLDivElement>(null); // Ref for root container to track height
 
   // Detect mobile device (defined early to avoid initialization errors)
   const isMobileDevice = useCallback(() => {
@@ -2664,98 +2663,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     };
   }, []);
 
-  // Dynamic iframe height tracking - send height updates to parent window
-  useEffect(() => {
-    const isInIframe = typeof window !== 'undefined' && window.parent !== window;
-    if (!isInIframe) return;
-
-    let resizeTimeout: number | null = null;
-    let resizeObserver: ResizeObserver | null = null;
-    let retryTimeout: number | null = null;
-    let windowResizeHandler: (() => void) | null = null;
-    
-    const sendHeightToParent = () => {
-      if (!rootContainerRef.current) return;
-      
-      // Use scrollHeight to get the total content height (including overflow)
-      // This ensures the iframe fits all content without blank space at the bottom
-      const height = rootContainerRef.current.scrollHeight;
-      const maxHeight = window.innerHeight * 0.98; // 98vh max
-      const finalHeight = Math.min(height, maxHeight);
-      
-      // Only send if height is valid and greater than 0
-      if (finalHeight > 0) {
-        try {
-          window.parent.postMessage({
-            type: 'NUSENSE_WIDGET_HEIGHT',
-            height: finalHeight,
-            maxHeight: maxHeight
-          }, '*');
-        } catch (error) {
-          console.error('[VirtualTryOnModal] Failed to send height to parent:', error);
-        }
-      }
-    };
-
-    const setupObserver = () => {
-      if (!rootContainerRef.current) {
-        // Retry after a short delay if ref is not ready
-        retryTimeout = window.setTimeout(setupObserver, 50);
-        return;
-      }
-
-      // Send initial height after a brief delay to ensure content is rendered
-      setTimeout(() => {
-        sendHeightToParent();
-      }, 100);
-
-      // Use ResizeObserver to track content height changes
-      resizeObserver = new ResizeObserver(() => {
-        // Debounce height updates to avoid excessive messages
-        if (resizeTimeout) {
-          clearTimeout(resizeTimeout);
-        }
-        resizeTimeout = window.setTimeout(() => {
-          sendHeightToParent();
-        }, 100);
-      });
-
-      // Observe the root container
-      resizeObserver.observe(rootContainerRef.current);
-
-      // Also listen for window resize events
-      windowResizeHandler = () => {
-        if (resizeTimeout) {
-          clearTimeout(resizeTimeout);
-        }
-        resizeTimeout = window.setTimeout(() => {
-          sendHeightToParent();
-        }, 100);
-      };
-
-      window.addEventListener('resize', windowResizeHandler);
-    };
-
-    // Start setup
-    setupObserver();
-
-    // Cleanup on unmount
-    return () => {
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      if (windowResizeHandler) {
-        window.removeEventListener('resize', windowResizeHandler);
-      }
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-    };
-  }, []);
-
   // Lock body scroll when modal is open
   useEffect(() => {
     // Save current overflow style
@@ -4258,7 +4165,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [showPersonSelection, detectionResult, detectionImageRef, handlePersonSelect, uploadedImage]);
 
   return (
-    <div ref={rootContainerRef} className="w-full min-h-[100dvh] bg-white font-sans relative overflow-hidden">
+    <div className="w-full h-[100dvh] bg-white font-sans relative overflow-hidden">
       {/* Skip to main content link for keyboard navigation */}
       <a
         href="#main-content"
