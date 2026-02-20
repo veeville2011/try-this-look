@@ -6667,7 +6667,11 @@ app.post("/api/tryon/generate", async (req, res) => {
       productId,
       productTitle,
       productUrl,
-      variantId
+      variantId,
+      demoPersonId,
+      clothingImageUrl,
+      personBbox,
+      language
     } = req.body;
 
     // Get shop from query parameter first, then fall back to storeName in body
@@ -6690,6 +6694,8 @@ app.post("/api/tryon/generate", async (req, res) => {
       tryonId,
       hasPersonImage: !!personImage,
       hasClothingImage: !!clothingImage,
+      hasClothingImageUrl: !!clothingImageUrl,
+      demoPersonId: demoPersonId || null,
       hasClothingKey: !!clothingKey,
       hasPersonKey: !!personKey,
       hasCustomerInfo: !!customerInfo,
@@ -6698,14 +6704,71 @@ app.post("/api/tryon/generate", async (req, res) => {
       hasProductTitle: !!productTitle,
       hasProductUrl: !!productUrl,
       hasVariantId: !!variantId,
+      hasPersonBbox: !!personBbox,
+      language: language || null,
     });
 
-    if (!personImage || !clothingImage) {
-      logger.warn("[API] Try-on generation request missing required images", {
+    // Validate required fields according to API spec
+    // Either personImage OR demoPersonId must be provided
+    if (!personImage && !demoPersonId) {
+      logger.warn("[API] Try-on generation request missing required person image", {
         hasPersonImage: !!personImage,
-        hasClothingImage: !!clothingImage,
+        demoPersonId: demoPersonId || null,
       });
-      return res.status(400).json({ error: "Missing required images" });
+      return res.status(400).json({ 
+        error: "VALIDATION_ERROR",
+        message: "Either personImage or demoPersonId must be provided"
+      });
+    }
+
+    // Cannot provide both personImage and demoPersonId
+    if (personImage && demoPersonId) {
+      logger.warn("[API] Try-on generation request has both personImage and demoPersonId", {
+        hasPersonImage: !!personImage,
+        demoPersonId: demoPersonId || null,
+      });
+      return res.status(400).json({ 
+        error: "VALIDATION_ERROR",
+        message: "Cannot provide both personImage and demoPersonId. Provide only one."
+      });
+    }
+
+    // Either clothingImage OR clothingImageUrl must be provided
+    if (!clothingImage && !clothingImageUrl) {
+      logger.warn("[API] Try-on generation request missing required clothing image", {
+        hasClothingImage: !!clothingImage,
+        hasClothingImageUrl: !!clothingImageUrl,
+      });
+      return res.status(400).json({ 
+        error: "VALIDATION_ERROR",
+        message: "Either clothingImage or clothingImageUrl must be provided"
+      });
+    }
+
+    // Validate demoPersonId format if provided
+    if (demoPersonId) {
+      // Must match pattern demo_XX where XX is 01-16
+      const demoIdMatch = demoPersonId.match(/^demo_(\d{2})$/);
+      if (!demoIdMatch) {
+        logger.warn("[API] Invalid demoPersonId format", {
+          demoPersonId,
+        });
+        return res.status(400).json({ 
+          error: "VALIDATION_ERROR",
+          message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`
+        });
+      }
+      const demoNumber = parseInt(demoIdMatch[1], 10);
+      if (demoNumber < 1 || demoNumber > 16) {
+        logger.warn("[API] Invalid demoPersonId range", {
+          demoPersonId,
+          demoNumber,
+        });
+        return res.status(400).json({ 
+          error: "VALIDATION_ERROR",
+          message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`
+        });
+      }
     }
 
     // Check subscription and credits if shop is provided
@@ -6828,29 +6891,33 @@ app.post("/api/tryon/generate", async (req, res) => {
       }
     }
 
-    // Convert base64 to Blob for FormData
-    const personBlob = await fetch(personImage).then((r) => r.blob());
-    const clothingBlob = await fetch(clothingImage).then((r) => r.blob());
-
     // Create FormData for multipart/form-data request
     const formData = new FormData();
-    formData.append("personImage", personBlob, "person.jpg");
-    formData.append("clothingImage", clothingBlob, "clothing.jpg");
+
+    // Add person image OR demo person ID (required - one of them)
+    if (personImage) {
+      const personBlob = await fetch(personImage).then((r) => r.blob());
+      formData.append("personImage", personBlob, "person.jpg");
+    } else if (demoPersonId) {
+      formData.append("demoPersonId", demoPersonId);
+    }
+
+    // Add clothing image OR clothing image URL (required - one of them)
+    if (clothingImageUrl) {
+      // If both are provided, clothingImageUrl takes priority per spec
+      formData.append("clothingImageUrl", clothingImageUrl);
+    } else if (clothingImage) {
+      const clothingBlob = await fetch(clothingImage).then((r) => r.blob());
+      formData.append("clothingImage", clothingBlob, "clothing.jpg");
+    }
 
     // Add storeName if provided
     if (storeName) {
       formData.append("storeName", storeName);
     }
 
-    // Add clothingKey if provided
-    if (clothingKey) {
-      formData.append("clothingKey", clothingKey);
-    }
-
-    // Add personKey if provided
-    if (personKey) {
-      formData.append("personKey", personKey);
-    }
+    // Note: personKey and clothingKey are NOT sent - they are auto-generated by the API per spec
+    // These parameters are kept for backward compatibility but are not forwarded to the API
 
     // Add customer information if available (non-mandatory, for tracking/analytics)
     if (customerInfo) {
@@ -6880,6 +6947,18 @@ app.post("/api/tryon/generate", async (req, res) => {
     }
     if (variantId) {
       formData.append("variantId", String(variantId));
+    }
+
+    // Add person bounding box if provided
+    if (personBbox) {
+      // Ensure it's a JSON string
+      const bboxString = typeof personBbox === 'string' ? personBbox : JSON.stringify(personBbox);
+      formData.append("personBbox", bboxString);
+    }
+
+    // Add language override if provided
+    if (language) {
+      formData.append("language", language);
     }
 
     const startTime = Date.now();
