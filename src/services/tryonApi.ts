@@ -52,6 +52,7 @@ export async function generateTryOn(
   personBbox?: PersonBbox | null, // Optional: bounding box of selected person [x, y, width, height]
   demoPersonId?: string | null, // Optional: demo person ID (demo_01 through demo_16)
   clothingImageUrl?: string | null, // Optional: clothing image URL instead of file
+  personImageUrl?: string | null, // Optional: person image URL instead of file
   language?: string | null // Optional: language override (en, fr)
 ): Promise<TryOnResponse> {
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -59,13 +60,13 @@ export async function generateTryOn(
   
   try {
     // Validate required fields according to API spec
-    // Either personImage OR demoPersonId must be provided
-    if (!personImage && !demoPersonId) {
+    // Either personImage OR personImageUrl OR demoPersonId must be provided
+    if (!personImage && !personImageUrl && !demoPersonId) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Either personImage or demoPersonId must be provided",
+          message: "Either personImage, personImageUrl, or demoPersonId must be provided",
         },
       };
     }
@@ -81,6 +82,17 @@ export async function generateTryOn(
       };
     }
 
+    // Cannot provide both personImage and personImageUrl
+    if (personImage && personImageUrl) {
+      return {
+        status: "error",
+        error_message: {
+          code: "VALIDATION_ERROR",
+          message: "Cannot provide both personImage and personImageUrl. Provide only one.",
+        },
+      };
+    }
+
     // Cannot provide both personImage and demoPersonId
     if (personImage && demoPersonId) {
       return {
@@ -88,6 +100,17 @@ export async function generateTryOn(
         error_message: {
           code: "VALIDATION_ERROR",
           message: "Cannot provide both personImage and demoPersonId. Provide only one.",
+        },
+      };
+    }
+
+    // Cannot provide both personImageUrl and demoPersonId
+    if (personImageUrl && demoPersonId) {
+      return {
+        status: "error",
+        error_message: {
+          code: "VALIDATION_ERROR",
+          message: "Cannot provide both personImageUrl and demoPersonId. Provide only one.",
         },
       };
     }
@@ -120,6 +143,7 @@ export async function generateTryOn(
     console.log("[FRONTEND] [TRYON] Starting generation", {
       requestId,
       hasPersonImage: !!personImage,
+      hasPersonImageUrl: !!personImageUrl,
       hasClothingImage: !!clothingImage,
       hasClothingImageUrl: !!clothingImageUrl,
       demoPersonId: demoPersonId || "not provided",
@@ -139,8 +163,11 @@ export async function generateTryOn(
     try {
       formData = new FormData();
 
-      // Add person image OR demo person ID (required - one of them)
-      if (personImage) {
+      // Add person image OR person image URL OR demo person ID (required - one of them)
+      if (personImageUrl) {
+        // If personImageUrl is provided, it takes priority per spec
+        formData.append("personImageUrl", personImageUrl);
+      } else if (personImage) {
         formData.append("personImage", personImage);
       } else if (demoPersonId) {
         formData.append("demoPersonId", demoPersonId);
@@ -216,6 +243,7 @@ export async function generateTryOn(
       try {
         // Note: FormData.entries() is not available in all environments, so we log what we know
         if (personImage) formDataEntries.personImage = "[File/Blob]";
+        if (personImageUrl) formDataEntries.personImageUrl = personImageUrl;
         if (demoPersonId) formDataEntries.demoPersonId = demoPersonId;
         if (clothingImage) formDataEntries.clothingImage = "[File/Blob]";
         if (clothingImageUrl) formDataEntries.clothingImageUrl = clothingImageUrl;
@@ -238,6 +266,7 @@ export async function generateTryOn(
         requestId,
         hasStoreName: !!storeName,
         hasPersonImage: !!personImage,
+        hasPersonImageUrl: !!personImageUrl,
         hasDemoPersonId: !!demoPersonId,
         hasClothingImage: !!clothingImage,
         hasClothingImageUrl: !!clothingImageUrl,
@@ -667,6 +696,39 @@ export function blobToDataURL(blob: Blob): Promise<string> {
   });
 }
 
+/**
+ * Get proxied image URL to avoid CORS issues
+ */
+function getProxiedImageUrl(imageUrl: string): string {
+  // If URL is already from our domain or relative, return as-is
+  try {
+    // Check if it's already a proxy URL
+    if (imageUrl.includes('/api/proxy-image?')) {
+      return imageUrl;
+    }
+    
+    // For browser environment, check hostname
+    if (typeof window !== 'undefined') {
+      const url = new URL(imageUrl, window.location.href);
+      // If it's from S3 or external domain, use proxy
+      if (url.hostname.includes('s3') || url.hostname !== window.location.hostname) {
+        return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+      }
+    } else {
+      // For server-side, check if it's an external URL
+      const url = new URL(imageUrl);
+      // If it's from S3 or not localhost, use proxy (assuming server is on same domain)
+      if (url.hostname.includes('s3') || (url.hostname !== 'localhost' && !url.hostname.startsWith('127.0.0.1'))) {
+        return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+      }
+    }
+  } catch {
+    // If URL parsing fails, assume it's external and use proxy
+    return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+  }
+  return imageUrl;
+}
+
 export async function dataURLToBlob(dataURL: string): Promise<Blob> {
   // If it's a data URL, fetch directly
   if (dataURL.startsWith('data:')) {
@@ -674,8 +736,19 @@ export async function dataURLToBlob(dataURL: string): Promise<Blob> {
     return response.blob();
   }
   
-  // If it's a regular URL (like S3), use CORS handling
-  return await fetchImageWithCorsHandling(dataURL);
+  // If it's a regular URL (like S3), use proxy to avoid CORS errors
+  const proxiedUrl = getProxiedImageUrl(dataURL);
+  try {
+    const response = await fetch(proxiedUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.blob();
+  } catch (error) {
+    // Fallback to CORS handling if proxy fails
+    console.warn('[tryonApi] Proxy fetch failed, falling back to CORS handling:', error);
+    return await fetchImageWithCorsHandling(dataURL);
+  }
 }
 
 /**

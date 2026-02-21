@@ -100,6 +100,34 @@ export const usePersonDetection = (
     };
   }, []);
 
+  // Helper function to get proxied image URL to avoid CORS issues
+  const getProxiedImageUrl = (url: string): string => {
+    // If it's a data URL, return as-is
+    if (url.startsWith('data:image/')) {
+      return url;
+    }
+    
+    // If it's already a proxy URL, return as-is
+    if (url.includes('/api/proxy-image?')) {
+      return url;
+    }
+    
+    // If URL is from our domain or relative, return as-is
+    try {
+      if (typeof window !== 'undefined') {
+        const urlObj = new URL(url, window.location.href);
+        // If it's from S3 or external domain, use proxy
+        if (urlObj.hostname.includes('s3') || urlObj.hostname !== window.location.hostname) {
+          return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+        }
+      }
+    } catch {
+      // If URL parsing fails, assume it's external and use proxy
+      return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   // Run detection
   useEffect(() => {
     // CRITICAL: Clear detection result when imageUrl changes to prevent using stale results
@@ -118,23 +146,35 @@ export const usePersonDetection = (
       return;
     }
 
-    // Generate image ID for tracking
+    // Generate image ID for tracking (use original URL, not proxied)
     const imageId = generateImageId(imageUrl);
+
+    // CRITICAL: Use proxied URL for external images to avoid CORS/tainted canvas errors
+    // This is essential for S3 URLs and other external sources
+    const proxiedUrl = getProxiedImageUrl(imageUrl);
 
     // CRITICAL: Ensure image src is set correctly
     // This is especially important on refresh when image might be cached
     // Check if src needs to be updated (handle both data URLs and regular URLs)
-    const needsSrcUpdate = imageUrl.startsWith('data:') 
-      ? img.src !== imageUrl 
-      : imageUrl && (!img.src.includes(imageUrl.split('?')[0]) && !imageUrl.includes(img.src.split('?')[0]));
+    const needsSrcUpdate = proxiedUrl.startsWith('data:') 
+      ? img.src !== proxiedUrl 
+      : proxiedUrl && (!img.src.includes(proxiedUrl.split('?')[0]) && !proxiedUrl.includes(img.src.split('?')[0]));
     
-    if (needsSrcUpdate && imageUrl) {
+    if (needsSrcUpdate && proxiedUrl) {
       // Clear cached dimensions for old image before updating src
       const oldImageId = generateImageId(img.src);
       clearCachedDimensions(oldImageId);
       
-      img.src = imageUrl;
-      console.log('[PersonDetector] Set image src:', imageUrl.substring(0, 50) + '...');
+      // Set crossOrigin to anonymous to allow canvas operations
+      if (!proxiedUrl.startsWith('data:') && !proxiedUrl.includes('/api/proxy-image?')) {
+        img.crossOrigin = 'anonymous';
+      } else {
+        // For proxied URLs and data URLs, crossOrigin is not needed
+        img.crossOrigin = null;
+      }
+      
+      img.src = proxiedUrl;
+      console.log('[PersonDetector] Set image src (proxied if needed):', proxiedUrl.substring(0, 50) + '...');
       // When src changes, browser automatically resets complete to false
       // This ensures we wait for the new image to load
     }

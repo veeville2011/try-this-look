@@ -1925,13 +1925,46 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }, 1000);
 
     try {
-      const personBlob = await dataURLToBlob(uploadedImage);
-      const clothingResponse = await fetch(selectedClothing);
-      const clothingBlob = await clothingResponse.blob();
-
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
       const clothingKey = selectedClothingKey ? String(selectedClothingKey) : undefined;
       const personKey = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined : undefined;
+
+      // CRITICAL: Check if uploadedImage is a URL (not data URL) to avoid CORS errors
+      // If it's a URL, pass it as personImageUrl instead of converting to blob
+      const isPersonImageUrl = uploadedImage && !uploadedImage.startsWith('data:image/');
+      let personBlob: Blob | null = null;
+      let personImageUrl: string | null = null;
+      
+      if (isPersonImageUrl) {
+        // Use URL directly - API will handle fetching
+        personImageUrl = uploadedImage;
+        console.log('[VirtualTryOnModal] Using personImageUrl (avoiding CORS):', personImageUrl.substring(0, 100));
+      } else {
+        // Convert data URL to blob
+        personBlob = await dataURLToBlob(uploadedImage);
+        console.log('[VirtualTryOnModal] Converted person image to blob');
+      }
+
+      // CRITICAL: Use proxy for clothing image to avoid CORS errors
+      let clothingBlob: Blob | null = null;
+      let clothingImageUrl: string | null = null;
+      
+      if (selectedClothing && !selectedClothing.startsWith('data:image/')) {
+        // If it's a URL, use it directly (API supports clothingImageUrl)
+        clothingImageUrl = selectedClothing;
+        console.log('[VirtualTryOnModal] Using clothingImageUrl (avoiding CORS):', clothingImageUrl.substring(0, 100));
+      } else {
+        // For data URLs or if we need blob, fetch with proxy
+        const proxiedClothingUrl = selectedClothing.startsWith('data:image/') 
+          ? selectedClothing 
+          : getProxiedImageUrl(selectedClothing);
+        const clothingResponse = await fetch(proxiedClothingUrl);
+        if (!clothingResponse.ok) {
+          throw new Error(`Failed to fetch clothing image: HTTP ${clothingResponse.status}`);
+        }
+        clothingBlob = await clothingResponse.blob();
+        console.log('[VirtualTryOnModal] Fetched clothing image as blob');
+      }
 
       const currentProductData = storedProductData || getProductData();
       
@@ -1998,7 +2031,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             setStatusMessage(statusDescription);
           }
         },
-        personBbox // Pass selected person bounding box
+        personBbox, // Pass selected person bounding box
+        undefined, // demoPersonId
+        clothingImageUrl, // Pass clothing URL if available
+        personImageUrl, // Pass person URL if available (NEW)
+        undefined // language
       );
 
       // Clear timers
