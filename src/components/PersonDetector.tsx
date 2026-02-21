@@ -133,18 +133,6 @@ export const usePersonDetection = (
       const oldImageId = generateImageId(img.src);
       clearCachedDimensions(oldImageId);
       
-      // CRITICAL: Set crossOrigin for cross-origin images to prevent canvas tainting
-      // Only set for HTTP/HTTPS URLs, not for data URLs or blob URLs
-      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-        // Ensure crossOrigin is set before src to prevent CORS issues
-        if (img.crossOrigin !== 'anonymous') {
-          img.crossOrigin = 'anonymous';
-        }
-      } else if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
-        // Data URLs and blob URLs don't need crossOrigin
-        img.crossOrigin = null;
-      }
-      
       img.src = imageUrl;
       console.log('[PersonDetector] Set image src:', imageUrl.substring(0, 50) + '...');
       // When src changes, browser automatically resets complete to false
@@ -152,14 +140,6 @@ export const usePersonDetection = (
     }
 
     const detectPeople = async () => {
-      // CRITICAL: Check if image failed to load (e.g., due to CORS)
-      if (img.complete && img.naturalWidth === 0 && img.naturalHeight === 0) {
-        console.error('[PersonDetector] Image failed to load - possible CORS issue:', imageUrl);
-        setError('Image failed to load. This may be due to CORS restrictions. Please ensure the image server allows cross-origin requests.');
-        setIsProcessing(false);
-        return;
-      }
-      
       // CRITICAL: Use validation utility to ensure image is ready
       // This handles cached images, dimension validation, and prevents race conditions
       const validation = validateImageReady(img, imageId);
@@ -223,20 +203,9 @@ export const usePersonDetection = (
         });
 
         setIsProcessing(false);
-      } catch (err: any) {
+      } catch (err) {
         console.error('[PersonDetector] Error detecting people:', err);
-        
-        // Check for CORS/tainted canvas errors
-        const errorMessage = err?.message || String(err);
-        if (errorMessage.includes('Tainted canvases') || 
-            errorMessage.includes('texSubImage2D') || 
-            errorMessage.includes('SecurityError') ||
-            errorMessage.includes('cross-origin')) {
-          setError('CORS error: Image cannot be processed due to cross-origin restrictions. Please ensure the image server allows CORS requests.');
-        } else {
-          setError('Failed to detect people.');
-        }
-        
+        setError('Failed to detect people.');
         setIsProcessing(false);
       }
     };

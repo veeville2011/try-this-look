@@ -119,7 +119,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   
   // Image states
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [uploadedImageForDetection, setUploadedImageForDetection] = useState<string | null>(null); // Base64 version for detection
   const [selectedClothing, setSelectedClothing] = useState<string | null>(null);
   const [selectedClothingKey, setSelectedClothingKey] = useState<string | number | null>(null);
   const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<string | null>(null);
@@ -228,11 +227,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [visibilityChangeCounter, setVisibilityChangeCounter] = useState(0);
   
   // Person detection hook - active on /widget-test path (both localhost and production) when image is uploaded
-  // Use uploadedImageForDetection (Base64) if available, otherwise use uploadedImage (for demo photos)
-  const shouldDetectPeople = isWidgetTestPath() && (uploadedImageForDetection || uploadedImage) && !showChangePhotoOptions;
-  const imageForDetection = uploadedImageForDetection || uploadedImage;
+  const shouldDetectPeople = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions;
   const { imageRef: detectionImageRef, isLoading: isLoadingModels, isProcessing: isDetecting, detectionResult, error: detectionError } = usePersonDetection(
-    shouldDetectPeople ? imageForDetection : '',
+    shouldDetectPeople ? uploadedImage : '',
     0.5
   );
 
@@ -742,64 +739,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
     return imageUrl;
   }, []);
-
-  // Helper function to convert S3/HTTP image URL to Base64 (for person detection to avoid tainted canvas errors)
-  // Uses the same proxy approach as display to ensure it works (since display works everywhere)
-  const convertImageUrlToBase64 = useCallback(async (imageUrl: string | null | undefined): Promise<string | null> => {
-    if (!imageUrl) return null;
-    
-    // If already a data URL, return it directly
-    if (imageUrl.startsWith('data:image/')) {
-      return imageUrl;
-    }
-    
-    // For blob URLs, return as-is (they're already local)
-    if (imageUrl.startsWith('blob:')) {
-      return imageUrl;
-    }
-    
-    // For HTTP/HTTPS URLs (including S3), fetch via proxy (same as display) and convert to Base64
-    // This ensures it works the same way as displaying images everywhere else
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      try {
-        // Use proxy URL (same approach as getProxiedImageUrl used for display)
-        // This ensures consistency with how images are displayed everywhere
-        const proxiedUrl = getProxiedImageUrl(imageUrl);
-        console.log('[VirtualTryOnModal] Converting to Base64 - Original URL:', imageUrl.substring(0, 100));
-        console.log('[VirtualTryOnModal] Converting to Base64 - Proxied URL:', proxiedUrl);
-        
-        const response = await fetch(proxiedUrl);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        
-        // Convert blob to Base64 data URL
-        const reader = new FileReader();
-        const dataURL = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        
-        // Validate data URL
-        if (dataURL && typeof dataURL === 'string' && dataURL.trim().length > 0 && dataURL.startsWith('data:image/')) {
-          console.log('[VirtualTryOnModal] Successfully converted to Base64, length:', dataURL.length);
-          return dataURL;
-        }
-        console.warn('[VirtualTryOnModal] Base64 conversion failed - invalid data URL format');
-        return null;
-      } catch (error) {
-        console.error('[VirtualTryOnModal] Failed to convert image URL to Base64:', error);
-        console.error('[VirtualTryOnModal] Original URL was:', imageUrl);
-        return null;
-      }
-    }
-    
-    return null;
-  }, [getProxiedImageUrl]);
 
   // Helper function to load an image from URL and convert to data URL (to avoid tainted canvas errors)
   const loadImageAsDataURL = useCallback(async (imageUrl: string | null | undefined): Promise<string | null> => {
@@ -1442,7 +1381,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return;
     }
     setUploadedImage(dataURL);
-    setUploadedImageForDetection(dataURL); // File uploads are already Base64, use for detection
     storage.saveUploadedImage(dataURL);
     setError(null);
     setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
@@ -1500,7 +1438,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                if (isWidgetTestPath()) {
                  // Set uploaded image immediately so preview shows
                  setUploadedImage(dataURL);
-                 setUploadedImageForDetection(dataURL); // File uploads are already Base64, use for detection
                  storage.saveUploadedImage(dataURL);
                  setError(null);
                  setSelectedPhoto(null);
@@ -1558,11 +1495,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Load all images in parallel (happens in background after selection is shown)
-      // Use convertImageUrlToBase64 for person image to avoid tainted canvas errors for detection
-      // Use loadImageAsDataURL for other images (display only)
+      // Use the shared loadImageAsDataURL function to convert S3 URLs to data URLs
       const [generatedDataURL, personDataURL, clothingDataURL] = await Promise.allSettled([
         loadImageAsDataURL(item.image),
-        convertImageUrlToBase64(item.personImageUrl),
+        loadImageAsDataURL(item.personImageUrl),
         loadImageAsDataURL(item.clothingImageUrl),
       ]);
       
@@ -1593,24 +1529,23 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Update person image state
       if (personImageResult) {
         setUploadedImage(personImageResult);
-        setUploadedImageForDetection(personImageResult); // History items converted to Base64, use for detection
         storage.saveUploadedImage(personImageResult);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
         setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
+      } else if (item.personImageUrl) {
+        // If loading failed but URL exists, try using the URL directly
+        console.warn('[VirtualTryOnModal] Failed to load person image as data URL, trying direct URL:', item.personImageUrl);
+        setUploadedImage(item.personImageUrl); // Use URL directly as fallback
+        setSelectedDemoPhotoUrl(null);
+        setPhotoSelectionMethod('file');
+        setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
       } else {
-        // Base64 conversion failed - cannot use S3 URL directly as it causes CORS errors in PersonDetector
-        console.error('[VirtualTryOnModal] Failed to convert person image to Base64 for history item:', item.personImageUrl);
         setUploadedImage(null);
-        setUploadedImageForDetection(null);
         storage.saveUploadedImage(null);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod(null);
         setShowChangePhotoOptions(false); // Close expanded options
-        // Show error to user
-        if (item.personImageUrl) {
-          toast.error('Failed to load person image from history. Please try uploading a new photo.');
-        }
       }
       
       // Update clothing image state
@@ -1648,7 +1583,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Reset flag on error
       isLoadingHistoryRef.current = false;
     }
-  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl, loadImageAsDataURL, convertImageUrlToBase64]);
+  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl, loadImageAsDataURL]);
   
   // Get formatted time ago string
   const getTimeAgo = useCallback((dateString?: string): string => {
@@ -2515,7 +2450,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Clear uploaded image and related state
     setUploadedImage(null);
-    setUploadedImageForDetection(null);
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
@@ -2552,7 +2486,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Reset photo selection (but keep clothing)
     setUploadedImage(null);
-    setUploadedImageForDetection(null);
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
@@ -2686,7 +2619,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const handleReset = useCallback(() => {
     setStep('idle');
     setUploadedImage(null);
-    setUploadedImageForDetection(null);
     currentGenerationRef.current = null; // Clear current generation ref
     currentUploadedImageRef.current = null; // Clear current uploaded image ref
     currentSelectedClothingRef.current = null; // Clear current selected clothing ref
@@ -4891,7 +4823,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               src={uploadedImage}
                               alt="Detection source"
                               className="hidden"
-                              crossOrigin={uploadedImage?.startsWith('data:') ? undefined : 'anonymous'}
                               onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                             />
                             
@@ -4975,10 +4906,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                       setSelectedPhoto(photo.id);
-                                      // Use proxy URL for display (same as history images)
-                                      const proxiedUrl = getProxiedImageUrl(photo.src);
-                                      setUploadedImage(proxiedUrl);
-                                      storage.saveUploadedImage(proxiedUrl);
+                                      // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                      const dataURL = await loadImageAsDataURL(photo.src);
+                                      if (dataURL) {
+                                        setUploadedImage(dataURL);
+                                        storage.saveUploadedImage(dataURL);
+                                      } else {
+                                        // Fallback to original URL if conversion fails
+                                        setUploadedImage(photo.src);
+                                        storage.saveUploadedImage(photo.src);
+                                      }
                                       setPhotoSelectionMethod('file');
                                       setError(null);
                                       setShowChangePhotoOptions(false);
@@ -4986,54 +4923,26 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         setSelectedPersonBbox(null);
                                         setSelectedPersonIndex(null);
                                       }
-                                      
-                                      // Try Base64 conversion for detection in background (non-blocking)
-                                      if (isWidgetTestPath()) {
-                                        try {
-                                          const base64Image = await convertImageUrlToBase64(photo.src);
-                                          if (base64Image) {
-                                            setUploadedImageForDetection(base64Image);
-                                            console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
-                                          } else {
-                                            console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
-                                            setUploadedImageForDetection(null);
-                                          }
-                                        } catch (error) {
-                                          console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
-                                          setUploadedImageForDetection(null);
-                                        }
-                                      }
                                     })}
                                     onClick={async () => {
                                       if (!('ontouchstart' in window)) {
                                         setSelectedPhoto(photo.id);
-                                        // Use proxy URL for display (same as history images)
-                                        const proxiedUrl = getProxiedImageUrl(photo.src);
-                                        setUploadedImage(proxiedUrl);
-                                        storage.saveUploadedImage(proxiedUrl);
+                                        // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                        const dataURL = await loadImageAsDataURL(photo.src);
+                                        if (dataURL) {
+                                          setUploadedImage(dataURL);
+                                          storage.saveUploadedImage(dataURL);
+                                        } else {
+                                          // Fallback to original URL if conversion fails
+                                          setUploadedImage(photo.src);
+                                          storage.saveUploadedImage(photo.src);
+                                        }
                                         setPhotoSelectionMethod('file');
                                         setError(null);
                                         setShowChangePhotoOptions(false);
                                         if (isWidgetTestPath()) {
                                           setSelectedPersonBbox(null);
                                           setSelectedPersonIndex(null);
-                                        }
-                                        
-                                        // Try Base64 conversion for detection in background (non-blocking)
-                                        if (isWidgetTestPath()) {
-                                          try {
-                                            const base64Image = await convertImageUrlToBase64(photo.src);
-                                            if (base64Image) {
-                                              setUploadedImageForDetection(base64Image);
-                                              console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
-                                            } else {
-                                              console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
-                                              setUploadedImageForDetection(null);
-                                            }
-                                          } catch (error) {
-                                            console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
-                                            setUploadedImageForDetection(null);
-                                          }
                                         }
                                       }
                                     }}
@@ -5114,7 +5023,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   onTouchEnd={(e) => handleTouchEnd(e, () => {
                                     setSelectedPhoto(modelIndex);
                                     setUploadedImage(model.url);
-                                    setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                                     storage.saveUploadedImage(model.url);
                                     setPhotoSelectionMethod('demo');
                                     setSelectedDemoPhotoUrl(model.url);
@@ -5129,7 +5037,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     if (!('ontouchstart' in window)) {
                                       setSelectedPhoto(modelIndex);
                                       setUploadedImage(model.url);
-                                      setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                                       storage.saveUploadedImage(model.url);
                                       setPhotoSelectionMethod('demo');
                                       setSelectedDemoPhotoUrl(model.url);
@@ -5356,7 +5263,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             src={uploadedImage}
                             alt="Detection source"
                             className="hidden"
-                            crossOrigin={uploadedImage?.startsWith('data:') ? undefined : 'anonymous'}
                             onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                           />
                         )}
@@ -5455,10 +5361,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               onTouchMove={handleTouchMove}
                               onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                 setSelectedPhoto(photo.id);
-                                // Use proxy URL for display (same as history images)
-                                const proxiedUrl = getProxiedImageUrl(photo.src);
-                                setUploadedImage(proxiedUrl);
-                                storage.saveUploadedImage(proxiedUrl);
+                                // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                const dataURL = await loadImageAsDataURL(photo.src);
+                                if (dataURL) {
+                                  setUploadedImage(dataURL);
+                                  storage.saveUploadedImage(dataURL);
+                                } else {
+                                  // Fallback to original URL if conversion fails
+                                  setUploadedImage(photo.src);
+                                  storage.saveUploadedImage(photo.src);
+                                }
                                 setPhotoSelectionMethod('file');
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
@@ -5467,32 +5379,21 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   setSelectedPersonBbox(null);
                                   setSelectedPersonIndex(null);
                                 }
-                                
-                                // Try Base64 conversion for detection in background (non-blocking)
-                                if (isWidgetTestPath()) {
-                                  try {
-                                    const base64Image = await convertImageUrlToBase64(photo.src);
-                                    if (base64Image) {
-                                      setUploadedImageForDetection(base64Image);
-                                      console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
-                                    } else {
-                                      console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
-                                      setUploadedImageForDetection(null);
-                                    }
-                                  } catch (error) {
-                                    console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
-                                    setUploadedImageForDetection(null);
-                                  }
-                                }
                               })}
                               onClick={async () => {
                                 // Only handle click if not on touch device (touch events handle touch devices)
                                 if (!('ontouchstart' in window)) {
                                   setSelectedPhoto(photo.id);
-                                  // Use proxy URL for display (same as history images)
-                                  const proxiedUrl = getProxiedImageUrl(photo.src);
-                                  setUploadedImage(proxiedUrl);
-                                  storage.saveUploadedImage(proxiedUrl);
+                                  // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
+                                  const dataURL = await loadImageAsDataURL(photo.src);
+                                  if (dataURL) {
+                                    setUploadedImage(dataURL);
+                                    storage.saveUploadedImage(dataURL);
+                                  } else {
+                                    // Fallback to original URL if conversion fails
+                                    setUploadedImage(photo.src);
+                                    storage.saveUploadedImage(photo.src);
+                                  }
                                   setPhotoSelectionMethod('file');
                                   setError(null);
                                   setShowChangePhotoOptions(false); // Close expanded options
@@ -5500,23 +5401,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   if (isWidgetTestPath()) {
                                     setSelectedPersonBbox(null);
                                     setSelectedPersonIndex(null);
-                                  }
-                                  
-                                  // Try Base64 conversion for detection in background (non-blocking)
-                                  if (isWidgetTestPath()) {
-                                    try {
-                                      const base64Image = await convertImageUrlToBase64(photo.src);
-                                      if (base64Image) {
-                                        setUploadedImageForDetection(base64Image);
-                                        console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
-                                      } else {
-                                        console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
-                                        setUploadedImageForDetection(null);
-                                      }
-                                    } catch (error) {
-                                      console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
-                                      setUploadedImageForDetection(null);
-                                    }
                                   }
                                 }
                               }}
@@ -5602,7 +5486,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               setSelectedPhoto(modelIndex);
                               // Set URL directly - same simple approach
                               setUploadedImage(model.url);
-                              setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                               storage.saveUploadedImage(model.url);
                               setPhotoSelectionMethod('demo');
                               setSelectedDemoPhotoUrl(model.url);
@@ -5620,7 +5503,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setSelectedPhoto(modelIndex);
                                 // Set URL directly - same simple approach
                                 setUploadedImage(model.url);
-                                setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                                 storage.saveUploadedImage(model.url);
                                 setPhotoSelectionMethod('demo');
                                 setSelectedDemoPhotoUrl(model.url);
