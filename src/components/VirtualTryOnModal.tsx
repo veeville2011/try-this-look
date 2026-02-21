@@ -4891,7 +4891,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               src={uploadedImage}
                               alt="Detection source"
                               className="hidden"
-                              crossOrigin="anonymous"
+                              crossOrigin={uploadedImage?.startsWith('data:') ? undefined : 'anonymous'}
                               onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                             />
                             
@@ -5356,7 +5356,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             src={uploadedImage}
                             alt="Detection source"
                             className="hidden"
-                            crossOrigin="anonymous"
+                            crossOrigin={uploadedImage?.startsWith('data:') ? undefined : 'anonymous'}
                             onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                           />
                         )}
