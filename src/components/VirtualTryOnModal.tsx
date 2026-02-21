@@ -4918,16 +4918,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                       setSelectedPhoto(photo.id);
-                                      // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                      const dataURL = await loadImageAsDataURL(photo.src);
-                                      if (dataURL) {
-                                        setUploadedImage(dataURL);
-                                        storage.saveUploadedImage(dataURL);
-                                      } else {
-                                        // Fallback to original URL if conversion fails
-                                        setUploadedImage(photo.src);
-                                        storage.saveUploadedImage(photo.src);
-                                      }
+                                      // Use S3 URL directly - the system will handle CORS via proxy when needed
+                                      setUploadedImage(photo.src);
+                                      storage.saveUploadedImage(photo.src);
                                       setPhotoSelectionMethod('file');
                                       setError(null);
                                       setShowChangePhotoOptions(false);
@@ -4954,16 +4947,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onClick={async () => {
                                       if (!('ontouchstart' in window)) {
                                         setSelectedPhoto(photo.id);
-                                        // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                        const dataURL = await loadImageAsDataURL(photo.src);
-                                        if (dataURL) {
-                                          setUploadedImage(dataURL);
-                                          storage.saveUploadedImage(dataURL);
-                                        } else {
-                                          // Fallback to original URL if conversion fails
-                                          setUploadedImage(photo.src);
-                                          storage.saveUploadedImage(photo.src);
-                                        }
+                                        // Use S3 URL directly - the system will handle CORS via proxy when needed
+                                        setUploadedImage(photo.src);
+                                        storage.saveUploadedImage(photo.src);
                                         setPhotoSelectionMethod('file');
                                         setError(null);
                                         setShowChangePhotoOptions(false);
@@ -5403,16 +5389,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               onTouchMove={handleTouchMove}
                               onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                 setSelectedPhoto(photo.id);
-                                // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                const dataURL = await loadImageAsDataURL(photo.src);
-                                if (dataURL) {
-                                  setUploadedImage(dataURL);
-                                  storage.saveUploadedImage(dataURL);
-                                } else {
-                                  // Fallback to original URL if conversion fails
-                                  setUploadedImage(photo.src);
-                                  storage.saveUploadedImage(photo.src);
-                                }
+                                // Use S3 URL directly - the system will handle CORS via proxy when needed
+                                setUploadedImage(photo.src);
+                                storage.saveUploadedImage(photo.src);
                                 setPhotoSelectionMethod('file');
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
@@ -5440,16 +5419,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 // Only handle click if not on touch device (touch events handle touch devices)
                                 if (!('ontouchstart' in window)) {
                                   setSelectedPhoto(photo.id);
-                                  // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                  const dataURL = await loadImageAsDataURL(photo.src);
-                                  if (dataURL) {
-                                    setUploadedImage(dataURL);
-                                    storage.saveUploadedImage(dataURL);
-                                  } else {
-                                    // Fallback to original URL if conversion fails
-                                    setUploadedImage(photo.src);
-                                    storage.saveUploadedImage(photo.src);
-                                  }
+                                  // Use S3 URL directly - the system will handle CORS via proxy when needed
+                                  setUploadedImage(photo.src);
+                                  storage.saveUploadedImage(photo.src);
                                   setPhotoSelectionMethod('file');
                                   setError(null);
                                   setShowChangePhotoOptions(false); // Close expanded options

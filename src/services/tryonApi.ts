@@ -668,8 +668,14 @@ export function blobToDataURL(blob: Blob): Promise<string> {
 }
 
 export async function dataURLToBlob(dataURL: string): Promise<Blob> {
-  const response = await fetch(dataURL);
-  return response.blob();
+  // If it's a data URL, fetch directly
+  if (dataURL.startsWith('data:')) {
+    const response = await fetch(dataURL);
+    return response.blob();
+  }
+  
+  // If it's a regular URL (like S3), use CORS handling
+  return await fetchImageWithCorsHandling(dataURL);
 }
 
 /**
