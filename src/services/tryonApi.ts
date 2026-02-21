@@ -586,6 +586,14 @@ export interface ImageGenerationHistoryItem {
   personImageUrl: string;
   clothingImageUrl: string;
   generatedImageUrl: string;
+  personBbox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    imageWidth: number;
+    imageHeight: number;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

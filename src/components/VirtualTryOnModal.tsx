@@ -177,7 +177,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   }, [uploadedImage]);
   
   // Recent photos from API (using person images from history)
-  const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; src: string }>>([]);
+  const [recentPhotos, setRecentPhotos] = useState<Array<{ 
+    id: string; 
+    src: string; 
+    personBbox?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      imageWidth: number;
+      imageHeight: number;
+    } | null;
+  }>>([]);
   const [isLoadingRecentPhotos, setIsLoadingRecentPhotos] = useState(false);
   const [loadingRecentPhotoIds, setLoadingRecentPhotoIds] = useState<Set<string>>(new Set());
 
@@ -1198,9 +1209,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                 return {
                   id: item.id,
                   src: item.personImageUrl, // Use person image instead of generated image
+                  personBbox: item.personBbox || null, // Include personBbox data
                 };
               })
-              .filter((item): item is { id: string; src: string } => {
+              .filter((item) => {
                 if (!item) return false;
                 // Check if we've already seen this image URL
                 if (seenUrls.has(item.src)) {
@@ -4919,9 +4931,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       setPhotoSelectionMethod('file');
                                       setError(null);
                                       setShowChangePhotoOptions(false);
+                                      // Restore person selection from API data (for /widget-test path)
                                       if (isWidgetTestPath()) {
-                                        setSelectedPersonBbox(null);
-                                        setSelectedPersonIndex(null);
+                                        if (photo.personBbox) {
+                                          // Convert API bbox format to PersonBbox format
+                                          const restoredBbox: PersonBbox = {
+                                            x: photo.personBbox.x,
+                                            y: photo.personBbox.y,
+                                            width: photo.personBbox.width,
+                                            height: photo.personBbox.height,
+                                          };
+                                          setSelectedPersonBbox(restoredBbox);
+                                          // Note: selectedPersonIndex will be set by person detection when it runs
+                                          console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                        } else {
+                                          // Clear person selection if no bbox data available
+                                          setSelectedPersonBbox(null);
+                                          setSelectedPersonIndex(null);
+                                        }
                                       }
                                     })}
                                     onClick={async () => {
@@ -4940,9 +4967,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         setPhotoSelectionMethod('file');
                                         setError(null);
                                         setShowChangePhotoOptions(false);
+                                        // Restore person selection from API data (for /widget-test path)
                                         if (isWidgetTestPath()) {
-                                          setSelectedPersonBbox(null);
-                                          setSelectedPersonIndex(null);
+                                          if (photo.personBbox) {
+                                            // Convert API bbox format to PersonBbox format
+                                            const restoredBbox: PersonBbox = {
+                                              x: photo.personBbox.x,
+                                              y: photo.personBbox.y,
+                                              width: photo.personBbox.width,
+                                              height: photo.personBbox.height,
+                                            };
+                                            setSelectedPersonBbox(restoredBbox);
+                                            // Note: selectedPersonIndex will be set by person detection when it runs
+                                            console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                          } else {
+                                            // Clear person selection if no bbox data available
+                                            setSelectedPersonBbox(null);
+                                            setSelectedPersonIndex(null);
+                                          }
                                         }
                                       }
                                     }}
@@ -5374,10 +5416,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setPhotoSelectionMethod('file');
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
-                                // Reset person selection when new photo is selected (for /widget-test path)
+                                // Restore person selection from API data (for /widget-test path)
                                 if (isWidgetTestPath()) {
-                                  setSelectedPersonBbox(null);
-                                  setSelectedPersonIndex(null);
+                                  if (photo.personBbox) {
+                                    // Convert API bbox format to PersonBbox format
+                                    const restoredBbox: PersonBbox = {
+                                      x: photo.personBbox.x,
+                                      y: photo.personBbox.y,
+                                      width: photo.personBbox.width,
+                                      height: photo.personBbox.height,
+                                    };
+                                    setSelectedPersonBbox(restoredBbox);
+                                    // Note: selectedPersonIndex will be set by person detection when it runs
+                                    console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                  } else {
+                                    // Clear person selection if no bbox data available
+                                    setSelectedPersonBbox(null);
+                                    setSelectedPersonIndex(null);
+                                  }
                                 }
                               })}
                               onClick={async () => {
@@ -5397,10 +5453,24 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   setPhotoSelectionMethod('file');
                                   setError(null);
                                   setShowChangePhotoOptions(false); // Close expanded options
-                                  // Reset person selection when new photo is selected (for /widget-test path)
+                                  // Restore person selection from API data (for /widget-test path)
                                   if (isWidgetTestPath()) {
-                                    setSelectedPersonBbox(null);
-                                    setSelectedPersonIndex(null);
+                                    if (photo.personBbox) {
+                                      // Convert API bbox format to PersonBbox format
+                                      const restoredBbox: PersonBbox = {
+                                        x: photo.personBbox.x,
+                                        y: photo.personBbox.y,
+                                        width: photo.personBbox.width,
+                                        height: photo.personBbox.height,
+                                      };
+                                      setSelectedPersonBbox(restoredBbox);
+                                      // Note: selectedPersonIndex will be set by person detection when it runs
+                                      console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                    } else {
+                                      // Clear person selection if no bbox data available
+                                      setSelectedPersonBbox(null);
+                                      setSelectedPersonIndex(null);
+                                    }
                                   }
                                 }
                               }}
