@@ -762,6 +762,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         // Use proxy URL (same approach as getProxiedImageUrl used for display)
         // This ensures consistency with how images are displayed everywhere
         const proxiedUrl = getProxiedImageUrl(imageUrl);
+        console.log('[VirtualTryOnModal] Converting to Base64 - Original URL:', imageUrl.substring(0, 100));
+        console.log('[VirtualTryOnModal] Converting to Base64 - Proxied URL:', proxiedUrl);
+        
         const response = await fetch(proxiedUrl);
         
         if (!response.ok) {
@@ -780,11 +783,14 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         
         // Validate data URL
         if (dataURL && typeof dataURL === 'string' && dataURL.trim().length > 0 && dataURL.startsWith('data:image/')) {
+          console.log('[VirtualTryOnModal] Successfully converted to Base64, length:', dataURL.length);
           return dataURL;
         }
+        console.warn('[VirtualTryOnModal] Base64 conversion failed - invalid data URL format');
         return null;
       } catch (error) {
         console.error('[VirtualTryOnModal] Failed to convert image URL to Base64:', error);
+        console.error('[VirtualTryOnModal] Original URL was:', imageUrl);
         return null;
       }
     }
@@ -1586,19 +1592,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
         setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
-      } else if (item.personImageUrl) {
-        // If loading failed but URL exists, try using the URL directly
-        console.warn('[VirtualTryOnModal] Failed to load person image as data URL, trying direct URL:', item.personImageUrl);
-        setUploadedImage(item.personImageUrl); // Use URL directly as fallback
-        setSelectedDemoPhotoUrl(null);
-        setPhotoSelectionMethod('file');
-        setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
       } else {
+        // Base64 conversion failed - cannot use S3 URL directly as it causes CORS errors in PersonDetector
+        console.error('[VirtualTryOnModal] Failed to convert person image to Base64 for history item:', item.personImageUrl);
         setUploadedImage(null);
         storage.saveUploadedImage(null);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod(null);
         setShowChangePhotoOptions(false); // Close expanded options
+        // Show error to user
+        if (item.personImageUrl) {
+          toast.error('Failed to load person image from history. Please try uploading a new photo.');
+        }
       }
       
       // Update clothing image state
@@ -4961,42 +4966,46 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                       setSelectedPhoto(photo.id);
                                       // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                      // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
                                       const base64Image = await convertImageUrlToBase64(photo.src);
                                       if (base64Image) {
                                         setUploadedImage(base64Image);
                                         storage.saveUploadedImage(base64Image);
-                                      } else {
-                                        // If conversion fails, still try to use the URL (might work for display)
-                                        setUploadedImage(photo.src);
-                                        storage.saveUploadedImage(photo.src);
-                                      }
-                                      setPhotoSelectionMethod('file');
-                                      setError(null);
-                                      setShowChangePhotoOptions(false);
-                                      if (isWidgetTestPath()) {
-                                        setSelectedPersonBbox(null);
-                                        setSelectedPersonIndex(null);
-                                      }
-                                    })}
-                                    onClick={async () => {
-                                      if (!('ontouchstart' in window)) {
-                                        setSelectedPhoto(photo.id);
-                                        // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
-                                        const base64Image = await convertImageUrlToBase64(photo.src);
-                                        if (base64Image) {
-                                          setUploadedImage(base64Image);
-                                          storage.saveUploadedImage(base64Image);
-                                        } else {
-                                          // If conversion fails, still try to use the URL (might work for display)
-                                          setUploadedImage(photo.src);
-                                          storage.saveUploadedImage(photo.src);
-                                        }
                                         setPhotoSelectionMethod('file');
                                         setError(null);
                                         setShowChangePhotoOptions(false);
                                         if (isWidgetTestPath()) {
                                           setSelectedPersonBbox(null);
                                           setSelectedPersonIndex(null);
+                                        }
+                                      } else {
+                                        // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
+                                        console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
+                                        setError('Failed to load image. Please try again or upload a new photo.');
+                                        toast.error('Failed to load image for detection. Please try again.');
+                                      }
+                                    })}
+                                    onClick={async () => {
+                                      if (!('ontouchstart' in window)) {
+                                        setSelectedPhoto(photo.id);
+                                        // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                        // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
+                                        const base64Image = await convertImageUrlToBase64(photo.src);
+                                        if (base64Image) {
+                                          setUploadedImage(base64Image);
+                                          storage.saveUploadedImage(base64Image);
+                                          setPhotoSelectionMethod('file');
+                                          setError(null);
+                                          setShowChangePhotoOptions(false);
+                                          if (isWidgetTestPath()) {
+                                            setSelectedPersonBbox(null);
+                                            setSelectedPersonIndex(null);
+                                          }
+                                        } else {
+                                          // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
+                                          console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
+                                          setError('Failed to load image. Please try again or upload a new photo.');
+                                          toast.error('Failed to load image for detection. Please try again.');
                                         }
                                       }
                                     }}
@@ -5417,38 +5426,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                 setSelectedPhoto(photo.id);
                                 // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
                                 const base64Image = await convertImageUrlToBase64(photo.src);
                                 if (base64Image) {
                                   setUploadedImage(base64Image);
                                   storage.saveUploadedImage(base64Image);
-                                } else {
-                                  // If conversion fails, still try to use the URL (might work for display)
-                                  setUploadedImage(photo.src);
-                                  storage.saveUploadedImage(photo.src);
-                                }
-                                setPhotoSelectionMethod('file');
-                                setError(null);
-                                setShowChangePhotoOptions(false); // Close expanded options
-                                // Reset person selection when new photo is selected (for /widget-test path)
-                                if (isWidgetTestPath()) {
-                                  setSelectedPersonBbox(null);
-                                  setSelectedPersonIndex(null);
-                                }
-                              })}
-                              onClick={async () => {
-                                // Only handle click if not on touch device (touch events handle touch devices)
-                                if (!('ontouchstart' in window)) {
-                                  setSelectedPhoto(photo.id);
-                                  // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
-                                  const base64Image = await convertImageUrlToBase64(photo.src);
-                                  if (base64Image) {
-                                    setUploadedImage(base64Image);
-                                    storage.saveUploadedImage(base64Image);
-                                  } else {
-                                    // If conversion fails, still try to use the URL (might work for display)
-                                    setUploadedImage(photo.src);
-                                    storage.saveUploadedImage(photo.src);
-                                  }
                                   setPhotoSelectionMethod('file');
                                   setError(null);
                                   setShowChangePhotoOptions(false); // Close expanded options
@@ -5456,6 +5438,37 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   if (isWidgetTestPath()) {
                                     setSelectedPersonBbox(null);
                                     setSelectedPersonIndex(null);
+                                  }
+                                } else {
+                                  // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
+                                  console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
+                                  setError('Failed to load image. Please try again or upload a new photo.');
+                                  toast.error('Failed to load image for detection. Please try again.');
+                                }
+                              })}
+                              onClick={async () => {
+                                // Only handle click if not on touch device (touch events handle touch devices)
+                                if (!('ontouchstart' in window)) {
+                                  setSelectedPhoto(photo.id);
+                                  // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                  // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
+                                  const base64Image = await convertImageUrlToBase64(photo.src);
+                                  if (base64Image) {
+                                    setUploadedImage(base64Image);
+                                    storage.saveUploadedImage(base64Image);
+                                    setPhotoSelectionMethod('file');
+                                    setError(null);
+                                    setShowChangePhotoOptions(false); // Close expanded options
+                                    // Reset person selection when new photo is selected (for /widget-test path)
+                                    if (isWidgetTestPath()) {
+                                      setSelectedPersonBbox(null);
+                                      setSelectedPersonIndex(null);
+                                    }
+                                  } else {
+                                    // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
+                                    console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
+                                    setError('Failed to load image. Please try again or upload a new photo.');
+                                    toast.error('Failed to load image for detection. Please try again.');
                                   }
                                 }
                               }}
