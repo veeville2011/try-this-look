@@ -740,6 +740,58 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     return imageUrl;
   }, []);
 
+  // Helper function to convert S3/HTTP image URL to Base64 (for person detection to avoid tainted canvas errors)
+  // Uses the same proxy approach as display to ensure it works (since display works everywhere)
+  const convertImageUrlToBase64 = useCallback(async (imageUrl: string | null | undefined): Promise<string | null> => {
+    if (!imageUrl) return null;
+    
+    // If already a data URL, return it directly
+    if (imageUrl.startsWith('data:image/')) {
+      return imageUrl;
+    }
+    
+    // For blob URLs, return as-is (they're already local)
+    if (imageUrl.startsWith('blob:')) {
+      return imageUrl;
+    }
+    
+    // For HTTP/HTTPS URLs (including S3), fetch via proxy (same as display) and convert to Base64
+    // This ensures it works the same way as displaying images everywhere else
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      try {
+        // Use proxy URL (same approach as getProxiedImageUrl used for display)
+        // This ensures consistency with how images are displayed everywhere
+        const proxiedUrl = getProxiedImageUrl(imageUrl);
+        const response = await fetch(proxiedUrl);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        
+        // Convert blob to Base64 data URL
+        const reader = new FileReader();
+        const dataURL = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        
+        // Validate data URL
+        if (dataURL && typeof dataURL === 'string' && dataURL.trim().length > 0 && dataURL.startsWith('data:image/')) {
+          return dataURL;
+        }
+        return null;
+      } catch (error) {
+        console.error('[VirtualTryOnModal] Failed to convert image URL to Base64:', error);
+        return null;
+      }
+    }
+    
+    return null;
+  }, [getProxiedImageUrl]);
+
   // Helper function to load an image from URL and convert to data URL (to avoid tainted canvas errors)
   const loadImageAsDataURL = useCallback(async (imageUrl: string | null | undefined): Promise<string | null> => {
     if (!imageUrl) return null;
@@ -1495,10 +1547,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Load all images in parallel (happens in background after selection is shown)
-      // Use the shared loadImageAsDataURL function to convert S3 URLs to data URLs
+      // Use convertImageUrlToBase64 for person image to avoid tainted canvas errors for detection
+      // Use loadImageAsDataURL for other images (display only)
       const [generatedDataURL, personDataURL, clothingDataURL] = await Promise.allSettled([
         loadImageAsDataURL(item.image),
-        loadImageAsDataURL(item.personImageUrl),
+        convertImageUrlToBase64(item.personImageUrl),
         loadImageAsDataURL(item.clothingImageUrl),
       ]);
       
@@ -1583,7 +1636,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Reset flag on error
       isLoadingHistoryRef.current = false;
     }
-  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl, loadImageAsDataURL]);
+  }, [generatedImage, uploadedImage, selectedClothing, viewingPastTryOn, getProxiedImageUrl, loadImageAsDataURL, convertImageUrlToBase64]);
   
   // Get formatted time ago string
   const getTimeAgo = useCallback((dateString?: string): string => {
@@ -4823,6 +4876,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               src={uploadedImage}
                               alt="Detection source"
                               className="hidden"
+                              crossOrigin="anonymous"
                               onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                             />
                             
@@ -4906,13 +4960,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                       setSelectedPhoto(photo.id);
-                                      // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                      const dataURL = await loadImageAsDataURL(photo.src);
-                                      if (dataURL) {
-                                        setUploadedImage(dataURL);
-                                        storage.saveUploadedImage(dataURL);
+                                      // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                      const base64Image = await convertImageUrlToBase64(photo.src);
+                                      if (base64Image) {
+                                        setUploadedImage(base64Image);
+                                        storage.saveUploadedImage(base64Image);
                                       } else {
-                                        // Fallback to original URL if conversion fails
+                                        // If conversion fails, still try to use the URL (might work for display)
                                         setUploadedImage(photo.src);
                                         storage.saveUploadedImage(photo.src);
                                       }
@@ -4927,13 +4981,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onClick={async () => {
                                       if (!('ontouchstart' in window)) {
                                         setSelectedPhoto(photo.id);
-                                        // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                        const dataURL = await loadImageAsDataURL(photo.src);
-                                        if (dataURL) {
-                                          setUploadedImage(dataURL);
-                                          storage.saveUploadedImage(dataURL);
+                                        // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                        const base64Image = await convertImageUrlToBase64(photo.src);
+                                        if (base64Image) {
+                                          setUploadedImage(base64Image);
+                                          storage.saveUploadedImage(base64Image);
                                         } else {
-                                          // Fallback to original URL if conversion fails
+                                          // If conversion fails, still try to use the URL (might work for display)
                                           setUploadedImage(photo.src);
                                           storage.saveUploadedImage(photo.src);
                                         }
@@ -5263,6 +5317,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             src={uploadedImage}
                             alt="Detection source"
                             className="hidden"
+                            crossOrigin="anonymous"
                             onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                           />
                         )}
@@ -5276,7 +5331,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           />
                           
                           {/* Skeleton loading overlay while detection is processing */}
-                          {isWidgetTestPath() && shouldDetectPeople && (isLoadingModels || isDetecting) && (
+                          {/* Only show when modal is preloaded to avoid duplicate loaders with preload loader */}
+                          {/* Also hide during generation to prevent overlap with generating loader */}
+                          {isWidgetTestPath() && shouldDetectPeople && isModalPreloaded && step !== 'generating' && (isLoadingModels || isDetecting) && (
                             <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] rounded-lg border-4 border-white flex items-center justify-center animate-pulse">
                               <div className="flex flex-col items-center gap-2 bg-white/90 px-4 py-3 rounded-lg shadow-lg">
                                 <div className="flex items-center gap-2">
@@ -5359,13 +5416,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               onTouchMove={handleTouchMove}
                               onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                 setSelectedPhoto(photo.id);
-                                // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                const dataURL = await loadImageAsDataURL(photo.src);
-                                if (dataURL) {
-                                  setUploadedImage(dataURL);
-                                  storage.saveUploadedImage(dataURL);
+                                // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                const base64Image = await convertImageUrlToBase64(photo.src);
+                                if (base64Image) {
+                                  setUploadedImage(base64Image);
+                                  storage.saveUploadedImage(base64Image);
                                 } else {
-                                  // Fallback to original URL if conversion fails
+                                  // If conversion fails, still try to use the URL (might work for display)
                                   setUploadedImage(photo.src);
                                   storage.saveUploadedImage(photo.src);
                                 }
@@ -5382,13 +5439,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 // Only handle click if not on touch device (touch events handle touch devices)
                                 if (!('ontouchstart' in window)) {
                                   setSelectedPhoto(photo.id);
-                                  // Convert S3 URL to data URL to avoid tainted canvas errors (same as history view)
-                                  const dataURL = await loadImageAsDataURL(photo.src);
-                                  if (dataURL) {
-                                    setUploadedImage(dataURL);
-                                    storage.saveUploadedImage(dataURL);
+                                  // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
+                                  const base64Image = await convertImageUrlToBase64(photo.src);
+                                  if (base64Image) {
+                                    setUploadedImage(base64Image);
+                                    storage.saveUploadedImage(base64Image);
                                   } else {
-                                    // Fallback to original URL if conversion fails
+                                    // If conversion fails, still try to use the URL (might work for display)
                                     setUploadedImage(photo.src);
                                     storage.saveUploadedImage(photo.src);
                                   }
@@ -5662,7 +5719,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </div>
                     )}
 
-                    {step === 'generating' && progress < 100 && (
+                    {/* Only show generating loader when modal is preloaded to avoid duplicate loaders */}
+                    {isModalPreloaded && step === 'generating' && progress < 100 && (
                       <div className="text-center w-full px-4 sm:px-6 py-6 animate-fade-in">
                         {/* Continuous Circular Rotation Loader */}
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4">
