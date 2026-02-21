@@ -119,6 +119,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   
   // Image states
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImageForDetection, setUploadedImageForDetection] = useState<string | null>(null); // Base64 version for detection
   const [selectedClothing, setSelectedClothing] = useState<string | null>(null);
   const [selectedClothingKey, setSelectedClothingKey] = useState<string | number | null>(null);
   const [selectedDemoPhotoUrl, setSelectedDemoPhotoUrl] = useState<string | null>(null);
@@ -227,9 +228,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [visibilityChangeCounter, setVisibilityChangeCounter] = useState(0);
   
   // Person detection hook - active on /widget-test path (both localhost and production) when image is uploaded
-  const shouldDetectPeople = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions;
+  // Use uploadedImageForDetection (Base64) if available, otherwise use uploadedImage (for demo photos)
+  const shouldDetectPeople = isWidgetTestPath() && (uploadedImageForDetection || uploadedImage) && !showChangePhotoOptions;
+  const imageForDetection = uploadedImageForDetection || uploadedImage;
   const { imageRef: detectionImageRef, isLoading: isLoadingModels, isProcessing: isDetecting, detectionResult, error: detectionError } = usePersonDetection(
-    shouldDetectPeople ? uploadedImage : '',
+    shouldDetectPeople ? imageForDetection : '',
     0.5
   );
 
@@ -1439,6 +1442,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return;
     }
     setUploadedImage(dataURL);
+    setUploadedImageForDetection(dataURL); // File uploads are already Base64, use for detection
     storage.saveUploadedImage(dataURL);
     setError(null);
     setShowChangePhotoOptions(false); // Close expanded options to show "Change photo" button
@@ -1496,6 +1500,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                if (isWidgetTestPath()) {
                  // Set uploaded image immediately so preview shows
                  setUploadedImage(dataURL);
+                 setUploadedImageForDetection(dataURL); // File uploads are already Base64, use for detection
                  storage.saveUploadedImage(dataURL);
                  setError(null);
                  setSelectedPhoto(null);
@@ -1588,6 +1593,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Update person image state
       if (personImageResult) {
         setUploadedImage(personImageResult);
+        setUploadedImageForDetection(personImageResult); // History items converted to Base64, use for detection
         storage.saveUploadedImage(personImageResult);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod('file');
@@ -1596,6 +1602,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         // Base64 conversion failed - cannot use S3 URL directly as it causes CORS errors in PersonDetector
         console.error('[VirtualTryOnModal] Failed to convert person image to Base64 for history item:', item.personImageUrl);
         setUploadedImage(null);
+        setUploadedImageForDetection(null);
         storage.saveUploadedImage(null);
         setSelectedDemoPhotoUrl(null);
         setPhotoSelectionMethod(null);
@@ -2508,6 +2515,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Clear uploaded image and related state
     setUploadedImage(null);
+    setUploadedImageForDetection(null);
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
@@ -2544,6 +2552,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     
     // Reset photo selection (but keep clothing)
     setUploadedImage(null);
+    setUploadedImageForDetection(null);
     setSelectedPhoto(null);
     setSelectedDemoPhotoUrl(null);
     setPhotoSelectionMethod(null);
@@ -2677,6 +2686,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const handleReset = useCallback(() => {
     setStep('idle');
     setUploadedImage(null);
+    setUploadedImageForDetection(null);
     currentGenerationRef.current = null; // Clear current generation ref
     currentUploadedImageRef.current = null; // Clear current uploaded image ref
     currentSelectedClothingRef.current = null; // Clear current selected clothing ref
@@ -4965,12 +4975,42 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                       setSelectedPhoto(photo.id);
-                                      // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
-                                      // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
-                                      const base64Image = await convertImageUrlToBase64(photo.src);
-                                      if (base64Image) {
-                                        setUploadedImage(base64Image);
-                                        storage.saveUploadedImage(base64Image);
+                                      // Use proxy URL for display (same as history images)
+                                      const proxiedUrl = getProxiedImageUrl(photo.src);
+                                      setUploadedImage(proxiedUrl);
+                                      storage.saveUploadedImage(proxiedUrl);
+                                      setPhotoSelectionMethod('file');
+                                      setError(null);
+                                      setShowChangePhotoOptions(false);
+                                      if (isWidgetTestPath()) {
+                                        setSelectedPersonBbox(null);
+                                        setSelectedPersonIndex(null);
+                                      }
+                                      
+                                      // Try Base64 conversion for detection in background (non-blocking)
+                                      if (isWidgetTestPath()) {
+                                        try {
+                                          const base64Image = await convertImageUrlToBase64(photo.src);
+                                          if (base64Image) {
+                                            setUploadedImageForDetection(base64Image);
+                                            console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
+                                          } else {
+                                            console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
+                                            setUploadedImageForDetection(null);
+                                          }
+                                        } catch (error) {
+                                          console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
+                                          setUploadedImageForDetection(null);
+                                        }
+                                      }
+                                    })}
+                                    onClick={async () => {
+                                      if (!('ontouchstart' in window)) {
+                                        setSelectedPhoto(photo.id);
+                                        // Use proxy URL for display (same as history images)
+                                        const proxiedUrl = getProxiedImageUrl(photo.src);
+                                        setUploadedImage(proxiedUrl);
+                                        storage.saveUploadedImage(proxiedUrl);
                                         setPhotoSelectionMethod('file');
                                         setError(null);
                                         setShowChangePhotoOptions(false);
@@ -4978,34 +5018,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                           setSelectedPersonBbox(null);
                                           setSelectedPersonIndex(null);
                                         }
-                                      } else {
-                                        // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
-                                        console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
-                                        setError('Failed to load image. Please try again or upload a new photo.');
-                                        toast.error('Failed to load image for detection. Please try again.');
-                                      }
-                                    })}
-                                    onClick={async () => {
-                                      if (!('ontouchstart' in window)) {
-                                        setSelectedPhoto(photo.id);
-                                        // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
-                                        // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
-                                        const base64Image = await convertImageUrlToBase64(photo.src);
-                                        if (base64Image) {
-                                          setUploadedImage(base64Image);
-                                          storage.saveUploadedImage(base64Image);
-                                          setPhotoSelectionMethod('file');
-                                          setError(null);
-                                          setShowChangePhotoOptions(false);
-                                          if (isWidgetTestPath()) {
-                                            setSelectedPersonBbox(null);
-                                            setSelectedPersonIndex(null);
+                                        
+                                        // Try Base64 conversion for detection in background (non-blocking)
+                                        if (isWidgetTestPath()) {
+                                          try {
+                                            const base64Image = await convertImageUrlToBase64(photo.src);
+                                            if (base64Image) {
+                                              setUploadedImageForDetection(base64Image);
+                                              console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
+                                            } else {
+                                              console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
+                                              setUploadedImageForDetection(null);
+                                            }
+                                          } catch (error) {
+                                            console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
+                                            setUploadedImageForDetection(null);
                                           }
-                                        } else {
-                                          // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
-                                          console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
-                                          setError('Failed to load image. Please try again or upload a new photo.');
-                                          toast.error('Failed to load image for detection. Please try again.');
                                         }
                                       }
                                     }}
@@ -5086,6 +5114,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   onTouchEnd={(e) => handleTouchEnd(e, () => {
                                     setSelectedPhoto(modelIndex);
                                     setUploadedImage(model.url);
+                                    setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                                     storage.saveUploadedImage(model.url);
                                     setPhotoSelectionMethod('demo');
                                     setSelectedDemoPhotoUrl(model.url);
@@ -5100,6 +5129,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     if (!('ontouchstart' in window)) {
                                       setSelectedPhoto(modelIndex);
                                       setUploadedImage(model.url);
+                                      setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                                       storage.saveUploadedImage(model.url);
                                       setPhotoSelectionMethod('demo');
                                       setSelectedDemoPhotoUrl(model.url);
@@ -5425,12 +5455,44 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               onTouchMove={handleTouchMove}
                               onTouchEnd={(e) => handleTouchEnd(e, async () => {
                                 setSelectedPhoto(photo.id);
-                                // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
-                                // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
-                                const base64Image = await convertImageUrlToBase64(photo.src);
-                                if (base64Image) {
-                                  setUploadedImage(base64Image);
-                                  storage.saveUploadedImage(base64Image);
+                                // Use proxy URL for display (same as history images)
+                                const proxiedUrl = getProxiedImageUrl(photo.src);
+                                setUploadedImage(proxiedUrl);
+                                storage.saveUploadedImage(proxiedUrl);
+                                setPhotoSelectionMethod('file');
+                                setError(null);
+                                setShowChangePhotoOptions(false); // Close expanded options
+                                // Reset person selection when new photo is selected (for /widget-test path)
+                                if (isWidgetTestPath()) {
+                                  setSelectedPersonBbox(null);
+                                  setSelectedPersonIndex(null);
+                                }
+                                
+                                // Try Base64 conversion for detection in background (non-blocking)
+                                if (isWidgetTestPath()) {
+                                  try {
+                                    const base64Image = await convertImageUrlToBase64(photo.src);
+                                    if (base64Image) {
+                                      setUploadedImageForDetection(base64Image);
+                                      console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
+                                    } else {
+                                      console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
+                                      setUploadedImageForDetection(null);
+                                    }
+                                  } catch (error) {
+                                    console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
+                                    setUploadedImageForDetection(null);
+                                  }
+                                }
+                              })}
+                              onClick={async () => {
+                                // Only handle click if not on touch device (touch events handle touch devices)
+                                if (!('ontouchstart' in window)) {
+                                  setSelectedPhoto(photo.id);
+                                  // Use proxy URL for display (same as history images)
+                                  const proxiedUrl = getProxiedImageUrl(photo.src);
+                                  setUploadedImage(proxiedUrl);
+                                  storage.saveUploadedImage(proxiedUrl);
                                   setPhotoSelectionMethod('file');
                                   setError(null);
                                   setShowChangePhotoOptions(false); // Close expanded options
@@ -5439,36 +5501,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     setSelectedPersonBbox(null);
                                     setSelectedPersonIndex(null);
                                   }
-                                } else {
-                                  // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
-                                  console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
-                                  setError('Failed to load image. Please try again or upload a new photo.');
-                                  toast.error('Failed to load image for detection. Please try again.');
-                                }
-                              })}
-                              onClick={async () => {
-                                // Only handle click if not on touch device (touch events handle touch devices)
-                                if (!('ontouchstart' in window)) {
-                                  setSelectedPhoto(photo.id);
-                                  // Convert S3 URL to Base64 to avoid tainted canvas errors for person detection
-                                  // CRITICAL: Must use Base64, cannot fall back to S3 URL as it causes CORS errors in PersonDetector
-                                  const base64Image = await convertImageUrlToBase64(photo.src);
-                                  if (base64Image) {
-                                    setUploadedImage(base64Image);
-                                    storage.saveUploadedImage(base64Image);
-                                    setPhotoSelectionMethod('file');
-                                    setError(null);
-                                    setShowChangePhotoOptions(false); // Close expanded options
-                                    // Reset person selection when new photo is selected (for /widget-test path)
-                                    if (isWidgetTestPath()) {
-                                      setSelectedPersonBbox(null);
-                                      setSelectedPersonIndex(null);
+                                  
+                                  // Try Base64 conversion for detection in background (non-blocking)
+                                  if (isWidgetTestPath()) {
+                                    try {
+                                      const base64Image = await convertImageUrlToBase64(photo.src);
+                                      if (base64Image) {
+                                        setUploadedImageForDetection(base64Image);
+                                        console.log('[VirtualTryOnModal] Base64 conversion successful for detection');
+                                      } else {
+                                        console.warn('[VirtualTryOnModal] Base64 conversion failed, detection may not work');
+                                        setUploadedImageForDetection(null);
+                                      }
+                                    } catch (error) {
+                                      console.warn('[VirtualTryOnModal] Base64 conversion error:', error);
+                                      setUploadedImageForDetection(null);
                                     }
-                                  } else {
-                                    // Base64 conversion failed - show error instead of using S3 URL (which causes CORS)
-                                    console.error('[VirtualTryOnModal] Failed to convert image to Base64, cannot proceed with detection');
-                                    setError('Failed to load image. Please try again or upload a new photo.');
-                                    toast.error('Failed to load image for detection. Please try again.');
                                   }
                                 }
                               }}
@@ -5554,6 +5602,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               setSelectedPhoto(modelIndex);
                               // Set URL directly - same simple approach
                               setUploadedImage(model.url);
+                              setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                               storage.saveUploadedImage(model.url);
                               setPhotoSelectionMethod('demo');
                               setSelectedDemoPhotoUrl(model.url);
@@ -5571,6 +5620,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setSelectedPhoto(modelIndex);
                                 // Set URL directly - same simple approach
                                 setUploadedImage(model.url);
+                                setUploadedImageForDetection(null); // Demo photos are local URLs, no Base64 needed
                                 storage.saveUploadedImage(model.url);
                                 setPhotoSelectionMethod('demo');
                                 setSelectedDemoPhotoUrl(model.url);
