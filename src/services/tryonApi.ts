@@ -165,7 +165,7 @@ export async function generateTryOn(
 
       // Add person image OR person image URL OR demo person ID (required - one of them)
       if (personImageUrl) {
-        // If personImageUrl is provided, it takes priority per spec
+        // If both are provided, personImageUrl takes priority per spec
         formData.append("personImageUrl", personImageUrl);
       } else if (personImage) {
         formData.append("personImage", personImage);
@@ -696,39 +696,6 @@ export function blobToDataURL(blob: Blob): Promise<string> {
   });
 }
 
-/**
- * Get proxied image URL to avoid CORS issues
- */
-function getProxiedImageUrl(imageUrl: string): string {
-  // If URL is already from our domain or relative, return as-is
-  try {
-    // Check if it's already a proxy URL
-    if (imageUrl.includes('/api/proxy-image?')) {
-      return imageUrl;
-    }
-    
-    // For browser environment, check hostname
-    if (typeof window !== 'undefined') {
-      const url = new URL(imageUrl, window.location.href);
-      // If it's from S3 or external domain, use proxy
-      if (url.hostname.includes('s3') || url.hostname !== window.location.hostname) {
-        return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
-      }
-    } else {
-      // For server-side, check if it's an external URL
-      const url = new URL(imageUrl);
-      // If it's from S3 or not localhost, use proxy (assuming server is on same domain)
-      if (url.hostname.includes('s3') || (url.hostname !== 'localhost' && !url.hostname.startsWith('127.0.0.1'))) {
-        return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
-      }
-    }
-  } catch {
-    // If URL parsing fails, assume it's external and use proxy
-    return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
-  }
-  return imageUrl;
-}
-
 export async function dataURLToBlob(dataURL: string): Promise<Blob> {
   // If it's a data URL, fetch directly
   if (dataURL.startsWith('data:')) {
@@ -736,19 +703,8 @@ export async function dataURLToBlob(dataURL: string): Promise<Blob> {
     return response.blob();
   }
   
-  // If it's a regular URL (like S3), use proxy to avoid CORS errors
-  const proxiedUrl = getProxiedImageUrl(dataURL);
-  try {
-    const response = await fetch(proxiedUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    return response.blob();
-  } catch (error) {
-    // Fallback to CORS handling if proxy fails
-    console.warn('[tryonApi] Proxy fetch failed, falling back to CORS handling:', error);
-    return await fetchImageWithCorsHandling(dataURL);
-  }
+  // If it's a regular URL (like S3), use CORS handling
+  return await fetchImageWithCorsHandling(dataURL);
 }
 
 /**

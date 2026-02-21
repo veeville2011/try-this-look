@@ -238,7 +238,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [visibilityChangeCounter, setVisibilityChangeCounter] = useState(0);
   
   // Person detection hook - active on /widget-test path (both localhost and production) when image is uploaded
-  const shouldDetectPeople = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions;
+  // Skip detection for URLs (recent photos) to avoid CORS/tainted canvas errors
+  const isUploadedImageUrl = uploadedImage && !uploadedImage.startsWith('data:image/');
+  const shouldDetectPeople = isWidgetTestPath() && uploadedImage && !showChangePhotoOptions && !isUploadedImageUrl;
   const { imageRef: detectionImageRef, isLoading: isLoadingModels, isProcessing: isDetecting, detectionResult, error: detectionError } = usePersonDetection(
     shouldDetectPeople ? uploadedImage : '',
     0.5
@@ -1925,46 +1927,42 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }, 1000);
 
     try {
-      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-      const clothingKey = selectedClothingKey ? String(selectedClothingKey) : undefined;
-      const personKey = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined : undefined;
-
-      // CRITICAL: Check if uploadedImage is a URL (not data URL) to avoid CORS errors
-      // If it's a URL, pass it as personImageUrl instead of converting to blob
+      // Check if uploadedImage is a URL (not a data URL) - for recent photos
       const isPersonImageUrl = uploadedImage && !uploadedImage.startsWith('data:image/');
+      const isClothingImageUrl = selectedClothing && !selectedClothing.startsWith('data:image/');
+      
+      // Convert to blob only if it's a data URL, otherwise use URL directly
       let personBlob: Blob | null = null;
       let personImageUrl: string | null = null;
-      
       if (isPersonImageUrl) {
         // Use URL directly - API will handle fetching
         personImageUrl = uploadedImage;
-        console.log('[VirtualTryOnModal] Using personImageUrl (avoiding CORS):', personImageUrl.substring(0, 100));
+        console.log('[VirtualTryOnModal] Using personImageUrl (recent photo):', personImageUrl);
       } else {
         // Convert data URL to blob
         personBlob = await dataURLToBlob(uploadedImage);
-        console.log('[VirtualTryOnModal] Converted person image to blob');
       }
-
-      // CRITICAL: Use proxy for clothing image to avoid CORS errors
+      
+      // Convert clothing to blob only if it's a data URL, otherwise use URL directly
       let clothingBlob: Blob | null = null;
       let clothingImageUrl: string | null = null;
-      
-      if (selectedClothing && !selectedClothing.startsWith('data:image/')) {
-        // If it's a URL, use it directly (API supports clothingImageUrl)
+      if (isClothingImageUrl) {
+        // Use URL directly - API will handle fetching
         clothingImageUrl = selectedClothing;
-        console.log('[VirtualTryOnModal] Using clothingImageUrl (avoiding CORS):', clothingImageUrl.substring(0, 100));
+        console.log('[VirtualTryOnModal] Using clothingImageUrl:', clothingImageUrl);
       } else {
-        // For data URLs or if we need blob, fetch with proxy
-        const proxiedClothingUrl = selectedClothing.startsWith('data:image/') 
-          ? selectedClothing 
-          : getProxiedImageUrl(selectedClothing);
-        const clothingResponse = await fetch(proxiedClothingUrl);
-        if (!clothingResponse.ok) {
-          throw new Error(`Failed to fetch clothing image: HTTP ${clothingResponse.status}`);
+        // Convert data URL or fetch URL to blob
+        if (selectedClothing.startsWith('data:image/')) {
+          clothingBlob = await dataURLToBlob(selectedClothing);
+        } else {
+          const clothingResponse = await fetch(selectedClothing);
+          clothingBlob = await clothingResponse.blob();
         }
-        clothingBlob = await clothingResponse.blob();
-        console.log('[VirtualTryOnModal] Fetched clothing image as blob');
       }
+
+      const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
+      const clothingKey = selectedClothingKey ? String(selectedClothingKey) : undefined;
+      const personKey = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined : undefined;
 
       const currentProductData = storedProductData || getProductData();
       
@@ -1994,6 +1992,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // Convert bbox from [x, y, width, height] to PersonBbox format if available
       // CRITICAL: Clamp all values to ensure they are positive (server validation requirement)
+      // For recent photos, use the bbox from the photo data if available
       const personBbox: PersonBbox | null = selectedPersonBbox ? {
         x: Math.max(0, selectedPersonBbox.x),
         y: Math.max(0, selectedPersonBbox.y),
@@ -2034,8 +2033,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         personBbox, // Pass selected person bounding box
         undefined, // demoPersonId
         clothingImageUrl, // Pass clothing URL if available
-        personImageUrl, // Pass person URL if available (NEW)
-        undefined // language
+        personImageUrl // Pass person URL if available (for recent photos)
       );
 
       // Clear timers
@@ -4962,6 +4960,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       setError(null);
                                       setShowChangePhotoOptions(false);
                                       // Restore person selection from API data (for /widget-test path)
+                                      // Note: Person detection is skipped for URLs to avoid CORS errors
                                       if (isWidgetTestPath()) {
                                         if (photo.personBbox) {
                                           // Convert API bbox format to PersonBbox format
@@ -4972,8 +4971,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                             height: photo.personBbox.height,
                                           };
                                           setSelectedPersonBbox(restoredBbox);
-                                          // Note: selectedPersonIndex will be set by person detection when it runs
-                                          console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                          // Person detection is skipped for URLs, so bbox is used directly from API data
+                                          console.log('[VirtualTryOnModal] Restored personBbox from API (skipping detection for URL):', restoredBbox);
                                         } else {
                                           // Clear person selection if no bbox data available
                                           setSelectedPersonBbox(null);
@@ -4991,6 +4990,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         setError(null);
                                         setShowChangePhotoOptions(false);
                                         // Restore person selection from API data (for /widget-test path)
+                                        // Note: Person detection is skipped for URLs to avoid CORS errors
                                         if (isWidgetTestPath()) {
                                           if (photo.personBbox) {
                                             // Convert API bbox format to PersonBbox format
@@ -5001,8 +5001,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                               height: photo.personBbox.height,
                                             };
                                             setSelectedPersonBbox(restoredBbox);
-                                            // Note: selectedPersonIndex will be set by person detection when it runs
-                                            console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                            // Person detection is skipped for URLs, so bbox is used directly from API data
+                                            console.log('[VirtualTryOnModal] Restored personBbox from API (skipping detection for URL):', restoredBbox);
                                           } else {
                                             // Clear person selection if no bbox data available
                                             setSelectedPersonBbox(null);
@@ -5433,6 +5433,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 setError(null);
                                 setShowChangePhotoOptions(false); // Close expanded options
                                 // Restore person selection from API data (for /widget-test path)
+                                // Note: Person detection is skipped for URLs to avoid CORS errors
                                 if (isWidgetTestPath()) {
                                   if (photo.personBbox) {
                                     // Convert API bbox format to PersonBbox format
@@ -5443,8 +5444,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       height: photo.personBbox.height,
                                     };
                                     setSelectedPersonBbox(restoredBbox);
-                                    // Note: selectedPersonIndex will be set by person detection when it runs
-                                    console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                    // Person detection is skipped for URLs, so bbox is used directly from API data
+                                    console.log('[VirtualTryOnModal] Restored personBbox from API (skipping detection for URL):', restoredBbox);
                                   } else {
                                     // Clear person selection if no bbox data available
                                     setSelectedPersonBbox(null);
@@ -5463,6 +5464,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   setError(null);
                                   setShowChangePhotoOptions(false); // Close expanded options
                                   // Restore person selection from API data (for /widget-test path)
+                                  // Note: Person detection is skipped for URLs to avoid CORS errors
                                   if (isWidgetTestPath()) {
                                     if (photo.personBbox) {
                                       // Convert API bbox format to PersonBbox format
@@ -5473,8 +5475,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         height: photo.personBbox.height,
                                       };
                                       setSelectedPersonBbox(restoredBbox);
-                                      // Note: selectedPersonIndex will be set by person detection when it runs
-                                      console.log('[VirtualTryOnModal] Restored personBbox from API:', restoredBbox);
+                                      // Person detection is skipped for URLs, so bbox is used directly from API data
+                                      console.log('[VirtualTryOnModal] Restored personBbox from API (skipping detection for URL):', restoredBbox);
                                     } else {
                                       // Clear person selection if no bbox data available
                                       setSelectedPersonBbox(null);
