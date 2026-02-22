@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import TestPhotoUpload from '@/components/TestPhotoUpload';
 import TestClothingSelection from '@/components/TestClothingSelection';
 import { generateTryOn, dataURLToBlob, fetchUploadedImages, fetchCustomerImageHistory, type ImageGenerationHistoryItem, type PersonBbox } from '@/services/tryonApi';
+import { useRecentPhotos } from '@/hooks/useRecentPhotos';
+import { setLoadingPhotoId } from '@/store/slices/recentPhotosSlice';
+import { useAppDispatch } from '@/store/hooks';
 import { storage } from '@/utils/storage';
 import { detectStoreOrigin, extractProductImages, getStoreOriginFromPostMessage, requestStoreInfoFromParent, extractShopifyProductInfo, type StoreInfo } from '@/utils/shopifyIntegration';
 import { DEMO_PHOTO_ID_MAP, DEMO_PHOTOS_ARRAY } from '@/constants/demoPhotos';
@@ -176,21 +179,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     prevUploadedImageRef.current = uploadedImage;
   }, [uploadedImage]);
   
-  // Recent photos from API (using person images from history)
-  const [recentPhotos, setRecentPhotos] = useState<Array<{ 
-    id: string; 
-    src: string; 
-    personBbox?: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      imageWidth: number;
-      imageHeight: number;
-    } | null;
-  }>>([]);
-  const [isLoadingRecentPhotos, setIsLoadingRecentPhotos] = useState(false);
-  const [loadingRecentPhotoIds, setLoadingRecentPhotoIds] = useState<Set<string>>(new Set());
+  // Recent photos from Redux (with caching to avoid unnecessary API calls)
+  const dispatch = useAppDispatch();
+  const { photos: recentPhotos, loading: isLoadingRecentPhotos, loadingPhotoIds } = useRecentPhotos({
+    customerEmail: customerInfo?.email || null,
+    storeInfo: storeInfo,
+  });
+  const loadingRecentPhotoIds = loadingPhotoIds;
 
   // Use the same demo photos as TryOnWidget
   const demoModels = DEMO_PHOTOS_ARRAY;
@@ -462,19 +457,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     const deltaX = Math.abs(e.touches[0].clientX - touchStartXRef.current);
     const deltaY = Math.abs(e.touches[0].clientY - touchStartYRef.current);
     
-    // If horizontal movement is greater than vertical, user is scrolling
-    if (deltaX > deltaY && deltaX > 10) {
+    // Only consider it scrolling if there's significant horizontal movement (30px threshold)
+    // This allows for small finger movements during tap without blocking the click
+    if (deltaX > 30 && deltaX > deltaY * 1.5) {
       isScrollingRef.current = true;
     }
   };
   
   const handleTouchEnd = (e: React.TouchEvent, onClick: () => void) => {
-    // Only trigger click if user wasn't scrolling
-    if (!isScrollingRef.current && touchStartXRef.current !== null) {
-      const deltaX = Math.abs((e.changedTouches[0]?.clientX || 0) - touchStartXRef.current);
-      if (deltaX < 10) {
-        onClick();
-      }
+    if (touchStartXRef.current === null || touchStartYRef.current === null) {
+      return;
+    }
+    
+    const endX = e.changedTouches[0]?.clientX || 0;
+    const endY = e.changedTouches[0]?.clientY || 0;
+    const deltaX = Math.abs(endX - touchStartXRef.current);
+    const deltaY = Math.abs(endY - touchStartYRef.current);
+    const totalDelta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    // Trigger click if:
+    // 1. User wasn't scrolling (no significant horizontal movement detected)
+    // 2. Total movement is less than 30px (allows for natural finger movement during tap)
+    if (!isScrollingRef.current && totalDelta < 30) {
+      // Prevent default to avoid double-firing with onClick
+      e.preventDefault();
+      onClick();
     }
     
     touchStartXRef.current = null;
@@ -1175,93 +1182,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, []);
 
-  // Fetch recent photos from API (using person images from history, same way as history)
-  useEffect(() => {
-    if (!customerInfo?.email) {
-      setRecentPhotos([]);
-      setIsLoadingRecentPhotos(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadRecentPhotos = async () => {
-      if (!isMounted) return;
-      
-      setIsLoadingRecentPhotos(true);
-      try {
-        const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-        const response = await fetchCustomerImageHistory(
-          customerInfo.email,
-          1,
-          20, // Fetch more to ensure we get 5 unique person images
-          shopDomain || undefined
-        );
-
-        if (response.success && Array.isArray(response.data)) {
-          if (response.data.length > 0) {
-            // Extract unique person images from history (same way as history is accessed)
-            // Use a Set to track seen image URLs for efficient deduplication
-            const seenUrls = new Set<string>();
-            const photos = response.data
-              .map((item) => {
-                if (!item || !item.id || !item.personImageUrl) {
-                  return null;
-                }
-                return {
-                  id: item.id,
-                  src: item.personImageUrl, // Use person image instead of generated image
-                  personBbox: item.personBbox || null, // Include personBbox data
-                };
-              })
-              .filter((item) => {
-                if (!item) return false;
-                // Check if we've already seen this image URL
-                if (seenUrls.has(item.src)) {
-                  return false; // Skip duplicate
-                }
-                seenUrls.add(item.src); // Mark as seen
-                return true;
-              })
-              .slice(0, 5); // Limit to 5 unique recent photos
-            
-            if (isMounted) {
-              setRecentPhotos(photos);
-              // Initialize loading state for all photos
-              setLoadingRecentPhotoIds(new Set(photos.map(p => p.id)));
-            }
-          } else {
-            if (isMounted) {
-              setRecentPhotos([]);
-            }
-          }
-        } else {
-          if (isMounted) {
-            setRecentPhotos([]);
-          }
-        }
-      } catch (error) {
-        console.error('[VirtualTryOnModal] Failed to fetch recent photos:', error);
-        if (isMounted) {
-          setRecentPhotos([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingRecentPhotos(false);
-        }
-      }
-    };
-
-    // Small delay to avoid race conditions
-    const timeoutId = setTimeout(() => {
-      loadRecentPhotos();
-    }, 100);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    };
-  }, [customerInfo?.email, storeInfo]);
+  // Recent photos are now managed by Redux via useRecentPhotos hook
+  // This eliminates unnecessary API calls through intelligent caching
 
   // Fetch try-on history from API
   useEffect(() => {
@@ -5062,18 +4984,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                           : 'group-hover:scale-105 group-hover:shadow-md'
                                       }`}
                                       onLoad={() => {
-                                        setLoadingRecentPhotoIds((prev) => {
-                                          const next = new Set(prev);
-                                          next.delete(photo.id);
-                                          return next;
-                                        });
+                                        dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
                                       }}
                                       onError={(e) => {
-                                        setLoadingRecentPhotoIds((prev) => {
-                                          const next = new Set(prev);
-                                          next.delete(photo.id);
-                                          return next;
-                                        });
+                                        dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
                                         if ((e.target as HTMLImageElement).src !== photo.src) {
                                           (e.target as HTMLImageElement).src = photo.src;
                                         }
@@ -5537,18 +5451,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     : 'group-hover:scale-105 group-hover:shadow-md'
                                 }`}
                                 onLoad={() => {
-                                  setLoadingRecentPhotoIds((prev) => {
-                                    const next = new Set(prev);
-                                    next.delete(photo.id);
-                                    return next;
-                                  });
+                                  dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
                                 }}
                                 onError={(e) => {
-                                  setLoadingRecentPhotoIds((prev) => {
-                                    const next = new Set(prev);
-                                    next.delete(photo.id);
-                                    return next;
-                                  });
+                                  dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
                                   // Fallback to direct URL if proxy fails
                                   if ((e.target as HTMLImageElement).src !== photo.src) {
                                     (e.target as HTMLImageElement).src = photo.src;
