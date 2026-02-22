@@ -228,6 +228,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [selectedPersonBbox, setSelectedPersonBbox] = useState<PersonBbox | null>(null);
   const [selectedPersonIndex, setSelectedPersonIndex] = useState<number | null>(null);
   const [showChangePhotoOptions, setShowChangePhotoOptions] = useState(false);
+  const [isClosingPhotoOptions, setIsClosingPhotoOptions] = useState(false);
+  const [isPhotoJustSelected, setIsPhotoJustSelected] = useState(false);
   
   // Modal preload state - tracks when everything is ready to show UI
   const [isModalPreloaded, setIsModalPreloaded] = useState(false);
@@ -2510,6 +2512,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [viewingHistoryItem, uploadedImage, selectedClothing, handleGenerate, getProxiedImageUrl, productImagesWithIds]);
 
+  // Helper function to handle delayed close of photo options with animation
+  const handleDelayedClosePhotoOptions = useCallback(() => {
+    // Set closing state to trigger exit animation
+    setIsClosingPhotoOptions(true);
+    
+    // Set photo selection state to trigger entry animation when image view appears
+    setIsPhotoJustSelected(true);
+    
+    // Close the options panel after animation delay (350ms for smooth transition)
+    setTimeout(() => {
+      setShowChangePhotoOptions(false);
+      setIsClosingPhotoOptions(false);
+      
+      // Trigger scale-in animation for main image view after it appears in DOM
+      // Use double requestAnimationFrame to ensure DOM update and browser paint
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Now animate from initial state to final state
+          setIsPhotoJustSelected(false);
+        });
+      });
+    }, 350);
+  }, []);
+
   // Handle change photo button click - clear current photo and show upload options
   const handleChangePhoto = useCallback(() => {
     // Reset to step 1 (idle) to show file picker and photo selection UI
@@ -2534,6 +2560,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     // Clear storage
     storage.saveUploadedImage(null);
     storage.saveGeneratedImage(null);
+    
+    // Reset closing animation state
+    setIsClosingPhotoOptions(false);
+    setIsPhotoJustSelected(false);
     
     // Show change photo options to display upload/selection UI
     setShowChangePhotoOptions(true);
@@ -4887,7 +4917,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </>
                         )}
                         {uploadedImage && !showChangePhotoOptions ? (
-                          <div className="w-full flex flex-col items-center justify-center relative">
+                          <div className={`w-full flex flex-col items-center justify-center relative transition-all duration-350 ease-out ${
+                            isPhotoJustSelected 
+                              ? 'opacity-0 translate-y-2 scale-95' 
+                              : 'opacity-100 translate-y-0 scale-100'
+                          }`}>
                             {/* Hidden image for detection - CRITICAL: Must be present for canvas drawing */}
                             <img
                               ref={detectionImageRef}
@@ -4953,7 +4987,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                       {/* Recent Photos Section - Show when change photo options are expanded */}
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
-                        <div className="mb-2">
+                        <div className={`mb-2 transition-all duration-350 ease-in-out ${
+                          isClosingPhotoOptions 
+                            ? 'opacity-0 -translate-y-2 scale-95 pointer-events-none' 
+                            : 'opacity-100 translate-y-0 scale-100'
+                        }`}>
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                             <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.yourRecentPhotos')}</label>
                             <div 
@@ -4970,25 +5008,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             ) : recentPhotos.length > 0 ? (
                               recentPhotos.map((photo) => {
                                 const isLoading = loadingRecentPhotoIds.has(photo.id);
-                                const isSelected = selectedPhoto === photo.id;
                                 return (
                                   <button
                                     key={photo.id}
-                                    onTouchStart={(e) => {
-                                      handleTouchStart(e);
-                                      // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback on mobile
-                                      // This makes the selection indicator appear instantly when user touches
-                                      setSelectedPhoto(photo.id);
-                                    }}
+                                    onTouchStart={handleTouchStart}
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
-                                      // Selection state already set in onTouchStart for instant feedback
+                                      // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
+                                      // This makes the red radio indicator appear instantly when user touches
+                                      setSelectedPhoto(photo.id);
+                                      
                                       // Use S3 URL directly - the system will handle CORS via proxy when needed
                                       setUploadedImage(photo.src);
                                       storage.saveUploadedImage(photo.src);
                                       setPhotoSelectionMethod('file');
                                       setError(null);
-                                      setShowChangePhotoOptions(false);
+                                      
                                       // Restore person selection from API data (for /widget-test path)
                                       // Note: Person detection is skipped for URLs to avoid CORS errors
                                       if (isWidgetTestPath()) {
@@ -5009,16 +5044,22 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                           setSelectedPersonIndex(null);
                                         }
                                       }
+                                      
+                                      // Delay closing options panel to show selection indicator with smooth animation
+                                      handleDelayedClosePhotoOptions();
                                     })}
                                     onClick={async () => {
                                       if (!('ontouchstart' in window)) {
+                                        // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
+                                        // This makes the red radio indicator appear instantly when user clicks
                                         setSelectedPhoto(photo.id);
+                                        
                                         // Use S3 URL directly - the system will handle CORS via proxy when needed
                                         setUploadedImage(photo.src);
                                         storage.saveUploadedImage(photo.src);
                                         setPhotoSelectionMethod('file');
                                         setError(null);
-                                        setShowChangePhotoOptions(false);
+                                        
                                         // Restore person selection from API data (for /widget-test path)
                                         // Note: Person detection is skipped for URLs to avoid CORS errors
                                         if (isWidgetTestPath()) {
@@ -5039,19 +5080,20 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                             setSelectedPersonIndex(null);
                                           }
                                         }
+                                        
+                                        // Delay closing options panel to show selection indicator with smooth animation
+                                        handleDelayedClosePhotoOptions();
                                       }
                                     }}
-                                    className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
-                                      isSelected
+                                    className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                                      selectedPhoto === photo.id
                                         ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                         : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                                     }`}
-                                    style={{ backgroundColor: '#f6f8fa' }}
                                     aria-label={t('virtualTryOnModal.selectPhoto', { id: photo.id })}
                                     type="button"
                                   >
-                                    {/* Hover overlay effect */}
-                                    {!isSelected && (
+                                    {selectedPhoto !== photo.id && (
                                       <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                                     )}
                                     {isLoading && (
@@ -5062,10 +5104,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     <img 
                                       src={getProxiedImageUrl(photo.src)} 
                                       alt={t('virtualTryOnModal.user')} 
-                                      className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
+                                      className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                         isLoading ? 'opacity-0' : 'opacity-100'
                                       } ${
-                                        isSelected 
+                                        selectedPhoto === photo.id 
                                           ? 'ring-2 ring-primary/20' 
                                           : 'group-hover:scale-105 group-hover:shadow-md'
                                       }`}
@@ -5087,8 +5129,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         }
                                       }}
                                     />
-                                    {/* Selection indicator */}
-                                    {isSelected && (
+                                    {selectedPhoto === photo.id && (
                                       <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                                     )}
                                   </button>
@@ -5104,7 +5145,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                       {/* Use a Demo Model Section - Show when change photo options are expanded */}
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
-                        <div>
+                        <div className={`mb-2 transition-all duration-350 ease-in-out ${
+                          isClosingPhotoOptions 
+                            ? 'opacity-0 -translate-y-2 scale-95 pointer-events-none' 
+                            : 'opacity-100 translate-y-0 scale-100'
+                        }`}>
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                             <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.useDemoModel')}</label>
                             <div 
@@ -5113,56 +5158,60 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             {demoModels.map((model) => {
                               const modelIndex = DEMO_PHOTOS_ARRAY.findIndex(p => p.url === model.url);
                               const isLoading = loadingDemoModelIds.has(model.id);
-                              const isSelected = selectedPhoto === modelIndex;
                               return (
                                 <button
                                   key={model.id}
-                                  onTouchStart={(e) => {
-                                    handleTouchStart(e);
-                                    // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback on mobile
-                                    // This makes the selection indicator appear instantly when user touches
-                                    setSelectedPhoto(modelIndex);
-                                  }}
+                                  onTouchStart={handleTouchStart}
                                   onTouchMove={handleTouchMove}
                                   onTouchEnd={(e) => handleTouchEnd(e, () => {
-                                    // Selection state already set in onTouchStart for instant feedback
+                                    // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
+                                    // This makes the red radio indicator appear instantly when user touches
+                                    setSelectedPhoto(modelIndex);
+                                    
                                     setUploadedImage(model.url);
                                     storage.saveUploadedImage(model.url);
                                     setPhotoSelectionMethod('demo');
                                     setSelectedDemoPhotoUrl(model.url);
                                     setError(null);
-                                    setShowChangePhotoOptions(false);
+                                    
                                     if (isWidgetTestPath()) {
                                       setSelectedPersonBbox(null);
                                       setSelectedPersonIndex(null);
                                     }
+                                    
+                                    // Delay closing options panel to show selection indicator with smooth animation
+                                    handleDelayedClosePhotoOptions();
                                   })}
                                   onClick={() => {
                                     if (!('ontouchstart' in window)) {
+                                      // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
+                                      // This makes the red radio indicator appear instantly when user clicks
                                       setSelectedPhoto(modelIndex);
+                                      
                                       setUploadedImage(model.url);
                                       storage.saveUploadedImage(model.url);
                                       setPhotoSelectionMethod('demo');
                                       setSelectedDemoPhotoUrl(model.url);
                                       setError(null);
-                                      setShowChangePhotoOptions(false);
+                                      
                                       if (isWidgetTestPath()) {
                                         setSelectedPersonBbox(null);
                                         setSelectedPersonIndex(null);
                                       }
+                                      
+                                      // Delay closing options panel to show selection indicator with smooth animation
+                                      handleDelayedClosePhotoOptions();
                                     }
                                   }}
-                                  className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
-                                    isSelected
+                                  className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                                    selectedPhoto === modelIndex
                                       ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                       : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                                   }`}
-                                  style={{ backgroundColor: '#f6f8fa' }}
                                   aria-label={t('virtualTryOnModal.selectDemoModel', { id: model.id })}
                                   type="button"
                                 >
-                                  {/* Hover overlay effect */}
-                                  {!isSelected && (
+                                  {selectedPhoto !== modelIndex && (
                                     <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                                   )}
                                   {isLoading && (
@@ -5173,10 +5222,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   <img 
                                     src={model.url} 
                                     alt={t('virtualTryOnModal.demoModel', { id: model.id })} 
-                                    className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
+                                    className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                       isLoading ? 'opacity-0' : 'opacity-100'
                                     } ${
-                                      isSelected 
+                                      selectedPhoto === modelIndex 
                                         ? 'ring-2 ring-primary/20' 
                                         : 'group-hover:scale-105 group-hover:shadow-md'
                                     }`}
@@ -5195,8 +5244,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       });
                                     }}
                                   />
-                                  {/* Selection indicator */}
-                                  {isSelected && (
+                                  {selectedPhoto === modelIndex && (
                                     <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                                   )}
                                 </button>
@@ -5362,7 +5410,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </>
                     )}
                     {uploadedImage && !showChangePhotoOptions ? (
-                      <div className="w-full flex flex-col items-center justify-center relative">
+                          <div className={`w-full flex flex-col items-center justify-center relative transition-all duration-350 ease-out ${
+                            isPhotoJustSelected 
+                              ? 'opacity-0 translate-y-2 scale-95' 
+                              : 'opacity-100 translate-y-0 scale-100'
+                          }`}>
                         {/* Hidden image for detection - ALWAYS present to maintain consistent ref */}
                         {isWidgetTestPath() && shouldDetectPeople && (
                           <img
@@ -5461,19 +5513,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       ) : recentPhotos.length > 0 ? (
                         recentPhotos.map((photo) => {
                           const isLoading = loadingRecentPhotoIds.has(photo.id);
-                          const isSelected = selectedPhoto === photo.id;
                           return (
                             <button
                               key={photo.id}
-                              onTouchStart={(e) => {
-                                handleTouchStart(e);
-                                // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback on mobile
-                                // This makes the selection indicator appear instantly when user touches
-                                setSelectedPhoto(photo.id);
-                              }}
+                              onTouchStart={handleTouchStart}
                               onTouchMove={handleTouchMove}
                               onTouchEnd={(e) => handleTouchEnd(e, async () => {
-                                // Selection state already set in onTouchStart for instant feedback
+                                setSelectedPhoto(photo.id);
                                 // Use S3 URL directly - the system will handle CORS via proxy when needed
                                 setUploadedImage(photo.src);
                                 storage.saveUploadedImage(photo.src);
@@ -5533,17 +5579,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   }
                                 }
                               }}
-                              className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
-                                isSelected
+                              className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                                selectedPhoto === photo.id
                                   ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                   : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                               }`}
-                              style={{ backgroundColor: '#f6f8fa' }}
                               aria-label={t('virtualTryOnModal.selectPhoto', { id: photo.id })}
                               type="button"
                             >
                               {/* Hover overlay effect */}
-                              {!isSelected && (
+                              {selectedPhoto !== photo.id && (
                                 <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                               )}
                               {isLoading && (
@@ -5554,10 +5599,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               <img 
                                 src={getProxiedImageUrl(photo.src)} 
                                 alt={t('virtualTryOnModal.user')} 
-                                className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
+                                className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                   isLoading ? 'opacity-0' : 'opacity-100'
                                 } ${
-                                  isSelected 
+                                  selectedPhoto === photo.id 
                                     ? 'ring-2 ring-primary/20' 
                                     : 'group-hover:scale-105 group-hover:shadow-md'
                                 }`}
@@ -5581,7 +5626,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 }}
                               />
                               {/* Selection indicator */}
-                              {isSelected && (
+                              {selectedPhoto === photo.id && (
                                 <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                               )}
                             </button>
@@ -5607,19 +5652,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         // Use a unique identifier for selection tracking
                         const modelIndex = DEMO_PHOTOS_ARRAY.findIndex(p => p.url === model.url);
                         const isLoading = loadingDemoModelIds.has(model.id);
-                        const isSelected = selectedPhoto === modelIndex;
                         return (
                           <button
                             key={model.id}
-                            onTouchStart={(e) => {
-                              handleTouchStart(e);
-                              // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback on mobile
-                              // This makes the selection indicator appear instantly when user touches
-                              setSelectedPhoto(modelIndex);
-                            }}
+                            onTouchStart={handleTouchStart}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={(e) => handleTouchEnd(e, () => {
-                              // Selection state already set in onTouchStart for instant feedback
+                              setSelectedPhoto(modelIndex);
                               // Set URL directly - same simple approach
                               setUploadedImage(model.url);
                               storage.saveUploadedImage(model.url);
@@ -5651,17 +5690,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 }
                               }
                             }}
-                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
-                              isSelected
+                            className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                              selectedPhoto === modelIndex
                                 ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-md md:shadow-lg'
                                 : 'border-transparent hover:border-primary/30 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95'
                             }`}
-                            style={{ backgroundColor: '#f6f8fa' }}
                             aria-label={t('virtualTryOnModal.selectDemoModel', { id: model.id })}
                             type="button"
                           >
                             {/* Hover overlay effect */}
-                            {!isSelected && (
+                            {selectedPhoto !== modelIndex && (
                               <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 rounded-lg z-10 border-4 border-white shadow-md md:shadow-lg"></div>
                             )}
                             {isLoading && (
@@ -5672,10 +5710,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             <img 
                               src={model.url} 
                               alt={t('virtualTryOnModal.demoModel', { id: model.id })} 
-                              className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm md:shadow-md transition-all duration-300 relative z-0 ${
+                              className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
                                 isLoading ? 'opacity-0' : 'opacity-100'
                               } ${
-                                isSelected 
+                                selectedPhoto === modelIndex 
                                   ? 'ring-2 ring-primary/20' 
                                   : 'group-hover:scale-105 group-hover:shadow-md'
                               }`}
@@ -5695,7 +5733,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               }}
                             />
                             {/* Selection indicator */}
-                            {isSelected && (
+                            {selectedPhoto === modelIndex && (
                               <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                             )}
                           </button>
