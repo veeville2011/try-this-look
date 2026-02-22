@@ -347,11 +347,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const photoUploadRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile device (defined early to avoid initialization errors)
+  // Use consistent breakpoint matching Tailwind's md: breakpoint (768px)
   const isMobileDevice = useCallback(() => {
     if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           (window.innerWidth < 768) ||
-           ('ontouchstart' in window);
+    // Use matchMedia for consistent detection aligned with Tailwind breakpoints
+    return window.matchMedia('(max-width: 768px)').matches;
   }, []);
 
   // Helper function for smooth scrolling to an element - optimized for desktop and mobile (defined early)
@@ -1890,24 +1890,38 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     // Auto-scroll to generating section - ONLY for mobile
     const isMobile = isMobileDevice();
     if (isMobile) {
-      // Use requestAnimationFrame for smooth, immediate scroll
+      // Small delay to ensure DOM is ready and avoid jank
       requestAnimationFrame(() => {
-        if (rightColumnRef.current && mainContentRef.current) {
-          const element = rightColumnRef.current;
-          const container = mainContentRef.current;
-          const scrollOffset = 10;
-          const scrollPosition = Math.max(0, element.offsetTop - container.offsetTop - scrollOffset);
-          
-          // Update last scroll position and target
-          lastScrollPositionRef.current = scrollPosition;
-          lastScrollTargetRef.current = 'generating-section';
-          
-          // Scroll immediately with smooth behavior (mobile only)
-          container.scrollTo({
-            top: scrollPosition,
-            behavior: 'smooth'
-          });
-        }
+        requestAnimationFrame(() => {
+          if (rightColumnRef.current && mainContentRef.current) {
+            const element = rightColumnRef.current;
+            const container = mainContentRef.current;
+            
+            // Check if element is already visible to avoid unnecessary scrolling
+            const elementRect = element.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const margin = 30; // Small margin for visibility check
+            const isElementVisible = 
+              elementRect.top >= containerRect.top + margin &&
+              elementRect.bottom <= containerRect.bottom - margin;
+            
+            // Only scroll if not already visible
+            if (!isElementVisible) {
+              const scrollOffset = 10;
+              const scrollPosition = Math.max(0, element.offsetTop - container.offsetTop - scrollOffset);
+              
+              // Update last scroll position and target
+              lastScrollPositionRef.current = scrollPosition;
+              lastScrollTargetRef.current = 'generating-section';
+              
+              // Scroll with smooth behavior (mobile only)
+              container.scrollTo({
+                top: scrollPosition,
+                behavior: 'smooth'
+              });
+            }
+          }
+        });
       });
     }
 
@@ -2875,7 +2889,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
       
       // Delay scroll to allow glow animation to start (mobile only)
-      const delay = 600;
+      // Reduced delay for better responsiveness
+      const delay = 400;
       
       const scrollTimeout = setTimeout(() => {
         const imageElement = generatedImageRef.current;
@@ -2886,13 +2901,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           const containerRect = container.getBoundingClientRect();
           const imageRect = imageElement.getBoundingClientRect();
           
-          // Only scroll if image is not already visible in viewport
+          // Only scroll if image is not already visible in viewport (with margin)
+          // Improved: Check with small margin to avoid unnecessary scrolling
+          const margin = 50; // Pixels of margin for "visible" check
           const isImageVisible = 
-            imageRect.top >= containerRect.top &&
-            imageRect.bottom <= containerRect.bottom;
+            imageRect.top >= containerRect.top + margin &&
+            imageRect.bottom <= containerRect.bottom - margin;
           
           if (!isImageVisible) {
-            // Mobile: Scroll to top of image
+            // Mobile: Scroll to top of image with smooth behavior
             const scrollOffset = 10;
             
             const scrollPosition = 
@@ -2903,7 +2920,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
             requestAnimationFrame(() => {
               container.scrollTo({
                 top: Math.max(0, scrollPosition),
-                behavior: 'auto'
+                behavior: 'smooth' // Changed from 'auto' to 'smooth' for better UX
               });
             });
           }
@@ -2926,9 +2943,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     if (selectedSize && step === 'complete' && addToCartButtonRef.current) {
       const isMobile = isMobileDevice();
       if (isMobile) {
-        // Use requestAnimationFrame for immediate but smooth scroll
+        // Small delay to allow size button animation to complete
         requestAnimationFrame(() => {
-          scrollToElement(addToCartButtonRef, 10, 'smooth', 'add-to-cart');
+          requestAnimationFrame(() => {
+            scrollToElement(addToCartButtonRef, 10, 'smooth', 'add-to-cart');
+          });
         });
       } else {
         // Desktop: Only focus (no scrolling)
@@ -3526,7 +3545,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       const containerRect = container.getBoundingClientRect();
       
       // Use fixed height values from CSS
-      const isMobile = window.matchMedia('(max-width: 640px)').matches;
+      // Use consistent breakpoint (768px) aligned with Tailwind md: and isMobileDevice()
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
       const maxDisplayHeight = isMobile ? 180 : 200;
       const maxDisplayWidth = containerRect.width;
       
@@ -4122,7 +4142,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       
       // CRITICAL: Use the EXACT same scale calculation as drawBoundingBoxes
       // Following CANVAS_POSITIONING_GUIDE.md: Use shared function for consistency
-      const isMobile = window.matchMedia('(max-width: 640px)').matches;
+      // Use consistent breakpoint (768px) aligned with Tailwind md: and isMobileDevice()
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
       const maxDisplayHeight = isMobile ? 180 : 200;
       const maxDisplayWidth = containerRect.width;
       
@@ -4728,7 +4749,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         )}
         
         <div className={cn(
-          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full max-h-[calc(100dvh-1rem)] md:max-h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[56px] sm:pt-[60px]",
+          "bg-white w-full max-w-[1200px] md:max-w-[1400px] h-full max-h-[100dvh] md:max-h-full flex flex-col overflow-hidden relative shadow-xl md:shadow-2xl rounded-lg pt-[56px] sm:pt-[60px]",
           !isModalPreloaded && "opacity-0 pointer-events-none"
         )} role="dialog" aria-modal="true" aria-labelledby="modal-title" style={{
           transition: 'opacity 0.3s ease-in-out'
@@ -4908,8 +4929,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 </p>
                               </div>
                             )}
-                            {/* Canvas with bounding boxes OR regular image - fixed height for consistency */}
-                            <div ref={canvasContainerRef} className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
+                            {/* Canvas with bounding boxes OR regular image - min height for consistency, allows taller images */}
+                            <div ref={canvasContainerRef} className="relative w-full min-h-[180px] sm:min-h-[200px] flex items-center justify-center">
                               {/* Canvas wrapper - ALWAYS rendered so ref exists, visibility controlled by CSS */}
                               <div 
                                 className="relative inline-flex items-center justify-center max-w-full max-h-full h-full"
@@ -5005,33 +5026,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                       }
                                     })}
                                     onClick={async () => {
-                                      if (!('ontouchstart' in window)) {
-                                        setSelectedPhoto(photo.id);
-                                        // Use S3 URL directly - the system will handle CORS via proxy when needed
-                                        setUploadedImage(photo.src);
-                                        storage.saveUploadedImage(photo.src);
-                                        setPhotoSelectionMethod('file');
-                                        setError(null);
-                                        setShowChangePhotoOptions(false);
-                                        // Restore person selection from API data (for /widget-test path)
-                                        // Note: Person detection is skipped for URLs to avoid CORS errors
-                                        if (isWidgetTestPath()) {
-                                          if (photo.personBbox) {
-                                            // Convert API bbox format to PersonBbox format
-                                            const restoredBbox: PersonBbox = {
-                                              x: photo.personBbox.x,
-                                              y: photo.personBbox.y,
-                                              width: photo.personBbox.width,
-                                              height: photo.personBbox.height,
-                                            };
-                                            setSelectedPersonBbox(restoredBbox);
-                                            // Person detection is skipped for URLs, so bbox is used directly from API data
-                                            console.log('[VirtualTryOnModal] Restored personBbox from API (skipping detection for URL):', restoredBbox);
-                                          } else {
-                                            // Clear person selection if no bbox data available
-                                            setSelectedPersonBbox(null);
-                                            setSelectedPersonIndex(null);
-                                          }
+                                      setSelectedPhoto(photo.id);
+                                      // Use S3 URL directly - the system will handle CORS via proxy when needed
+                                      setUploadedImage(photo.src);
+                                      storage.saveUploadedImage(photo.src);
+                                      setPhotoSelectionMethod('file');
+                                      setError(null);
+                                      setShowChangePhotoOptions(false);
+                                      // Restore person selection from API data (for /widget-test path)
+                                      // Note: Person detection is skipped for URLs to avoid CORS errors
+                                      if (isWidgetTestPath()) {
+                                        if (photo.personBbox) {
+                                          // Convert API bbox format to PersonBbox format
+                                          const restoredBbox: PersonBbox = {
+                                            x: photo.personBbox.x,
+                                            y: photo.personBbox.y,
+                                            width: photo.personBbox.width,
+                                            height: photo.personBbox.height,
+                                          };
+                                          setSelectedPersonBbox(restoredBbox);
+                                          // Person detection is skipped for URLs, so bbox is used directly from API data
+                                          console.log('[VirtualTryOnModal] Restored personBbox from API (skipping detection for URL):', restoredBbox);
+                                        } else {
+                                          // Clear person selection if no bbox data available
+                                          setSelectedPersonBbox(null);
+                                          setSelectedPersonIndex(null);
                                         }
                                       }
                                     }}
@@ -5123,18 +5142,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     }
                                   })}
                                   onClick={() => {
-                                    if (!('ontouchstart' in window)) {
-                                      setSelectedPhoto(modelIndex);
-                                      setUploadedImage(model.url);
-                                      storage.saveUploadedImage(model.url);
-                                      setPhotoSelectionMethod('demo');
-                                      setSelectedDemoPhotoUrl(model.url);
-                                      setError(null);
-                                      setShowChangePhotoOptions(false);
-                                      if (isWidgetTestPath()) {
-                                        setSelectedPersonBbox(null);
-                                        setSelectedPersonIndex(null);
-                                      }
+                                    setSelectedPhoto(modelIndex);
+                                    setUploadedImage(model.url);
+                                    storage.saveUploadedImage(model.url);
+                                    setPhotoSelectionMethod('demo');
+                                    setSelectedDemoPhotoUrl(model.url);
+                                    setError(null);
+                                    setShowChangePhotoOptions(false);
+                                    if (isWidgetTestPath()) {
+                                      setSelectedPersonBbox(null);
+                                      setSelectedPersonIndex(null);
                                     }
                                   }}
                                   className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
@@ -5356,8 +5373,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           />
                         )}
                         
-                        {/* Always show the image first - fixed height for consistency */}
-                        <div className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
+                        {/* Always show the image first - min height for consistency, allows taller images */}
+                        <div className="relative w-full min-h-[180px] sm:min-h-[200px] flex items-center justify-center">
                           <img
                             src={uploadedImage}
                             alt={t('virtualTryOnModal.uploadedPhoto')}
@@ -5367,7 +5384,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           {/* Skeleton loading overlay while detection is processing */}
                           {/* Only show when modal is preloaded to avoid duplicate loaders with preload loader */}
                           {/* Also hide during generation to prevent overlap with generating loader */}
-                          {isWidgetTestPath() && shouldDetectPeople && isModalPreloaded && step !== 'generating' && (isLoadingModels || isDetecting) && (
+                          {isWidgetTestPath() && shouldDetectPeople && isModalPreloaded && (step === 'idle' || step === 'complete') && (isLoadingModels || isDetecting) && (
                             <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] rounded-lg border-4 border-white flex items-center justify-center animate-pulse">
                               <div className="flex flex-col items-center gap-2 bg-white/90 px-4 py-3 rounded-lg shadow-lg">
                                 <div className="flex items-center gap-2">
@@ -5603,21 +5620,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               }
                             })}
                             onClick={() => {
-                              // Only handle click if not on touch device (touch events handle touch devices)
-                              if (!('ontouchstart' in window)) {
-                                setSelectedPhoto(modelIndex);
-                                // Set URL directly - same simple approach
-                                setUploadedImage(model.url);
-                                storage.saveUploadedImage(model.url);
-                                setPhotoSelectionMethod('demo');
-                                setSelectedDemoPhotoUrl(model.url);
-                                setError(null);
-                                setShowChangePhotoOptions(false); // Close expanded options
-                                // Reset person selection when new photo is selected (for /widget-test path)
-                                if (isWidgetTestPath()) {
-                                  setSelectedPersonBbox(null);
-                                  setSelectedPersonIndex(null);
-                                }
+                              setSelectedPhoto(modelIndex);
+                              // Set URL directly - same simple approach
+                              setUploadedImage(model.url);
+                              storage.saveUploadedImage(model.url);
+                              setPhotoSelectionMethod('demo');
+                              setSelectedDemoPhotoUrl(model.url);
+                              setError(null);
+                              setShowChangePhotoOptions(false); // Close expanded options
+                              // Reset person selection when new photo is selected (for /widget-test path)
+                              if (isWidgetTestPath()) {
+                                setSelectedPersonBbox(null);
+                                setSelectedPersonIndex(null);
                               }
                             }}
                             className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
@@ -5975,7 +5989,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               });
                             }
                           }}
-                          className={`group relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                          className={`group relative w-11 h-11 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
                               ? isAvailable
                                 ? 'bg-foreground text-background border-foreground shadow-md md:shadow-lg scale-105'
@@ -6010,7 +6024,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   ref={step === 'idle' ? generateButtonRef : step === 'complete' ? addToCartButtonRef : undefined}
                   onClick={btnState.action}
                   disabled={btnState.disabled}
-                  className={`group relative w-full h-10 sm:h-11 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
+                  className={`group relative w-full min-h-[44px] h-11 sm:h-11 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                     btnState.disabled
                       ? 'bg-gray-300 cursor-not-allowed text-white shadow-sm'
                       : btnState.color === 'orange'
@@ -6091,10 +6105,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             handleHistoryItemSelect(item);
                           })}
                           onClick={() => {
-                            // Only handle click if not on touch device (touch events handle touch devices)
-                            if (!('ontouchstart' in window)) {
-                              handleHistoryItemSelect(item);
-                            }
+                            handleHistoryItemSelect(item);
                           }}
                           className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
                             isSelected
@@ -6157,10 +6168,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         triggerPhotoUpload();
                       })}
                       onClick={() => {
-                        // Only handle click if not on touch device (touch events handle touch devices)
-                        if (!('ontouchstart' in window)) {
-                          triggerPhotoUpload();
-                        }
+                        triggerPhotoUpload();
                       }}
                       className="group relative flex-shrink-0 h-14 w-14 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-110 active:scale-95 overflow-hidden"
                       aria-label={t('virtualTryOnModal.uploadNewPhotoForTryOn')}
@@ -6187,9 +6195,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         triggerPhotoUpload();
                       })}
                       onClick={() => {
-                        if (!('ontouchstart' in window)) {
-                          triggerPhotoUpload();
-                        }
+                        triggerPhotoUpload();
                       }}
                       className="group relative flex flex-col items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border rounded-lg bg-card hover:bg-primary/5 hover:border-primary transition-all duration-300 ease-in-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg hover:scale-105 active:scale-95 overflow-hidden"
                       aria-label={t('virtualTryOnModal.uploadPhotoToStartTryOnAction')}
