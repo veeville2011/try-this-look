@@ -228,8 +228,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
   const [selectedPersonBbox, setSelectedPersonBbox] = useState<PersonBbox | null>(null);
   const [selectedPersonIndex, setSelectedPersonIndex] = useState<number | null>(null);
   const [showChangePhotoOptions, setShowChangePhotoOptions] = useState(false);
-  const [isClosingPhotoOptions, setIsClosingPhotoOptions] = useState(false);
-  const [isPhotoJustSelected, setIsPhotoJustSelected] = useState(false);
   
   // Modal preload state - tracks when everything is ready to show UI
   const [isModalPreloaded, setIsModalPreloaded] = useState(false);
@@ -2512,30 +2510,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }
   }, [viewingHistoryItem, uploadedImage, selectedClothing, handleGenerate, getProxiedImageUrl, productImagesWithIds]);
 
-  // Helper function to handle delayed close of photo options with animation
-  const handleDelayedClosePhotoOptions = useCallback(() => {
-    // Set closing state to trigger exit animation
-    setIsClosingPhotoOptions(true);
-    
-    // Set photo selection state to trigger entry animation when image view appears
-    setIsPhotoJustSelected(true);
-    
-    // Close the options panel after animation delay (350ms for smooth transition)
-    setTimeout(() => {
-      setShowChangePhotoOptions(false);
-      setIsClosingPhotoOptions(false);
-      
-      // Trigger scale-in animation for main image view after it appears in DOM
-      // Use double requestAnimationFrame to ensure DOM update and browser paint
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Now animate from initial state to final state
-          setIsPhotoJustSelected(false);
-        });
-      });
-    }, 350);
-  }, []);
-
   // Handle change photo button click - clear current photo and show upload options
   const handleChangePhoto = useCallback(() => {
     // Reset to step 1 (idle) to show file picker and photo selection UI
@@ -2560,10 +2534,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     // Clear storage
     storage.saveUploadedImage(null);
     storage.saveGeneratedImage(null);
-    
-    // Reset closing animation state
-    setIsClosingPhotoOptions(false);
-    setIsPhotoJustSelected(false);
     
     // Show change photo options to display upload/selection UI
     setShowChangePhotoOptions(true);
@@ -4917,11 +4887,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                           </>
                         )}
                         {uploadedImage && !showChangePhotoOptions ? (
-                          <div className={`w-full flex flex-col items-center justify-center relative transition-all duration-350 ease-out ${
-                            isPhotoJustSelected 
-                              ? 'opacity-0 translate-y-2 scale-95' 
-                              : 'opacity-100 translate-y-0 scale-100'
-                          }`}>
+                          <div className="w-full flex flex-col items-center justify-center relative">
                             {/* Hidden image for detection - CRITICAL: Must be present for canvas drawing */}
                             <img
                               ref={detectionImageRef}
@@ -4987,11 +4953,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                       {/* Recent Photos Section - Show when change photo options are expanded */}
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
-                        <div className={`mb-2 transition-all duration-350 ease-in-out ${
-                          isClosingPhotoOptions 
-                            ? 'opacity-0 -translate-y-2 scale-95 pointer-events-none' 
-                            : 'opacity-100 translate-y-0 scale-100'
-                        }`}>
+                        <div className="mb-2">
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                             <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.yourRecentPhotos')}</label>
                             <div 
@@ -5014,16 +4976,13 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                     onTouchStart={handleTouchStart}
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={(e) => handleTouchEnd(e, async () => {
-                                      // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
-                                      // This makes the red radio indicator appear instantly when user touches
                                       setSelectedPhoto(photo.id);
-                                      
                                       // Use S3 URL directly - the system will handle CORS via proxy when needed
                                       setUploadedImage(photo.src);
                                       storage.saveUploadedImage(photo.src);
                                       setPhotoSelectionMethod('file');
                                       setError(null);
-                                      
+                                      setShowChangePhotoOptions(false);
                                       // Restore person selection from API data (for /widget-test path)
                                       // Note: Person detection is skipped for URLs to avoid CORS errors
                                       if (isWidgetTestPath()) {
@@ -5044,22 +5003,16 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                           setSelectedPersonIndex(null);
                                         }
                                       }
-                                      
-                                      // Delay closing options panel to show selection indicator with smooth animation
-                                      handleDelayedClosePhotoOptions();
                                     })}
                                     onClick={async () => {
                                       if (!('ontouchstart' in window)) {
-                                        // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
-                                        // This makes the red radio indicator appear instantly when user clicks
                                         setSelectedPhoto(photo.id);
-                                        
                                         // Use S3 URL directly - the system will handle CORS via proxy when needed
                                         setUploadedImage(photo.src);
                                         storage.saveUploadedImage(photo.src);
                                         setPhotoSelectionMethod('file');
                                         setError(null);
-                                        
+                                        setShowChangePhotoOptions(false);
                                         // Restore person selection from API data (for /widget-test path)
                                         // Note: Person detection is skipped for URLs to avoid CORS errors
                                         if (isWidgetTestPath()) {
@@ -5080,9 +5033,6 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                             setSelectedPersonIndex(null);
                                           }
                                         }
-                                        
-                                        // Delay closing options panel to show selection indicator with smooth animation
-                                        handleDelayedClosePhotoOptions();
                                       }
                                     }}
                                     className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
@@ -5145,11 +5095,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
 
                       {/* Use a Demo Model Section - Show when change photo options are expanded */}
                       {!viewingPastTryOn && step !== 'generating' && step !== 'complete' && showChangePhotoOptions && (
-                        <div className={`mb-2 transition-all duration-350 ease-in-out ${
-                          isClosingPhotoOptions 
-                            ? 'opacity-0 -translate-y-2 scale-95 pointer-events-none' 
-                            : 'opacity-100 translate-y-0 scale-100'
-                        }`}>
+                        <div>
                           <div className="bg-white border border-gray-200 rounded-lg p-1.5 sm:p-2 shadow-sm">
                             <label className="text-xs sm:text-sm font-semibold text-gray-800 mb-1.5 sm:mb-2 block">{t('virtualTryOnModal.useDemoModel')}</label>
                             <div 
@@ -5164,43 +5110,31 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   onTouchStart={handleTouchStart}
                                   onTouchMove={handleTouchMove}
                                   onTouchEnd={(e) => handleTouchEnd(e, () => {
-                                    // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
-                                    // This makes the red radio indicator appear instantly when user touches
                                     setSelectedPhoto(modelIndex);
-                                    
                                     setUploadedImage(model.url);
                                     storage.saveUploadedImage(model.url);
                                     setPhotoSelectionMethod('demo');
                                     setSelectedDemoPhotoUrl(model.url);
                                     setError(null);
-                                    
+                                    setShowChangePhotoOptions(false);
                                     if (isWidgetTestPath()) {
                                       setSelectedPersonBbox(null);
                                       setSelectedPersonIndex(null);
                                     }
-                                    
-                                    // Delay closing options panel to show selection indicator with smooth animation
-                                    handleDelayedClosePhotoOptions();
                                   })}
                                   onClick={() => {
                                     if (!('ontouchstart' in window)) {
-                                      // CRITICAL: Set selection state IMMEDIATELY for instant visual feedback
-                                      // This makes the red radio indicator appear instantly when user clicks
                                       setSelectedPhoto(modelIndex);
-                                      
                                       setUploadedImage(model.url);
                                       storage.saveUploadedImage(model.url);
                                       setPhotoSelectionMethod('demo');
                                       setSelectedDemoPhotoUrl(model.url);
                                       setError(null);
-                                      
+                                      setShowChangePhotoOptions(false);
                                       if (isWidgetTestPath()) {
                                         setSelectedPersonBbox(null);
                                         setSelectedPersonIndex(null);
                                       }
-                                      
-                                      // Delay closing options panel to show selection indicator with smooth animation
-                                      handleDelayedClosePhotoOptions();
                                     }
                                   }}
                                   className={`group relative flex-shrink-0 h-14 rounded-lg border-2 transition-all duration-300 ease-in-out flex items-center justify-center bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 overflow-hidden ${
@@ -5410,11 +5344,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                       </>
                     )}
                     {uploadedImage && !showChangePhotoOptions ? (
-                          <div className={`w-full flex flex-col items-center justify-center relative transition-all duration-350 ease-out ${
-                            isPhotoJustSelected 
-                              ? 'opacity-0 translate-y-2 scale-95' 
-                              : 'opacity-100 translate-y-0 scale-100'
-                          }`}>
+                      <div className="w-full flex flex-col items-center justify-center relative">
                         {/* Hidden image for detection - ALWAYS present to maintain consistent ref */}
                         {isWidgetTestPath() && shouldDetectPeople && (
                           <img
