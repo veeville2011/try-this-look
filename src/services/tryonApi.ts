@@ -50,7 +50,7 @@ export async function generateTryOn(
   productInfo?: ProductInfo | null,
   onStatusUpdate?: (statusDescription: string | null) => void,
   personBbox?: PersonBbox | null, // Optional: bounding box of selected person [x, y, width, height]
-  demoPersonId?: string | null, // Optional: demo person ID (demo_01 through demo_16)
+  demoPersonId?: string | null, // Deprecated: no longer used - demo photos are now sent as personImage files
   clothingImageUrl?: string | null, // Optional: clothing image URL instead of file
   personImageUrl?: string | null, // Optional: person image URL instead of file
   language?: string | null // Optional: language override (en, fr)
@@ -60,13 +60,13 @@ export async function generateTryOn(
   
   try {
     // Validate required fields according to API spec
-    // Either personImage OR personImageUrl OR demoPersonId must be provided
-    if (!personImage && !personImageUrl && !demoPersonId) {
+    // Either personImage OR personImageUrl must be provided
+    if (!personImage && !personImageUrl) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Either personImage, personImageUrl, or demoPersonId must be provided",
+          message: "Either personImage or personImageUrl must be provided",
         },
       };
     }
@@ -93,52 +93,7 @@ export async function generateTryOn(
       };
     }
 
-    // Cannot provide both personImage and demoPersonId
-    if (personImage && demoPersonId) {
-      return {
-        status: "error",
-        error_message: {
-          code: "VALIDATION_ERROR",
-          message: "Cannot provide both personImage and demoPersonId. Provide only one.",
-        },
-      };
-    }
-
-    // Cannot provide both personImageUrl and demoPersonId
-    if (personImageUrl && demoPersonId) {
-      return {
-        status: "error",
-        error_message: {
-          code: "VALIDATION_ERROR",
-          message: "Cannot provide both personImageUrl and demoPersonId. Provide only one.",
-        },
-      };
-    }
-
-    // Validate demoPersonId format if provided
-    if (demoPersonId) {
-      // Must match pattern demo_XX where XX is 01-16
-      const demoIdMatch = demoPersonId.match(/^demo_(\d{2})$/);
-      if (!demoIdMatch) {
-        return {
-          status: "error",
-          error_message: {
-            code: "VALIDATION_ERROR",
-            message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`,
-          },
-        };
-      }
-      const demoNumber = parseInt(demoIdMatch[1], 10);
-      if (demoNumber < 1 || demoNumber > 16) {
-        return {
-          status: "error",
-          error_message: {
-            code: "VALIDATION_ERROR",
-            message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`,
-          },
-        };
-      }
-    }
+    // Note: demoPersonId is deprecated - demo photos are now sent as personImage files
 
     console.log("[FRONTEND] [TRYON] Starting generation", {
       requestId,
@@ -146,7 +101,6 @@ export async function generateTryOn(
       hasPersonImageUrl: !!personImageUrl,
       hasClothingImage: !!clothingImage,
       hasClothingImageUrl: !!clothingImageUrl,
-      demoPersonId: demoPersonId || "not provided",
       storeName: storeName || "not provided",
       hasCustomerInfo: !!customerInfo,
       customerId: customerInfo?.id || "not provided",
@@ -163,14 +117,12 @@ export async function generateTryOn(
     try {
       formData = new FormData();
 
-      // Add person image OR person image URL OR demo person ID (required - one of them)
+      // Add person image OR person image URL (required - one of them)
       if (personImageUrl) {
         // If both are provided, personImageUrl takes priority per spec
         formData.append("personImageUrl", personImageUrl);
       } else if (personImage) {
         formData.append("personImage", personImage);
-      } else if (demoPersonId) {
-        formData.append("demoPersonId", demoPersonId);
       }
 
       // Add clothing image OR clothing image URL (required - one of them)
@@ -244,7 +196,6 @@ export async function generateTryOn(
         // Note: FormData.entries() is not available in all environments, so we log what we know
         if (personImage) formDataEntries.personImage = "[File/Blob]";
         if (personImageUrl) formDataEntries.personImageUrl = personImageUrl;
-        if (demoPersonId) formDataEntries.demoPersonId = demoPersonId;
         if (clothingImage) formDataEntries.clothingImage = "[File/Blob]";
         if (clothingImageUrl) formDataEntries.clothingImageUrl = clothingImageUrl;
         if (storeName) formDataEntries.storeName = storeName;
@@ -267,7 +218,6 @@ export async function generateTryOn(
         hasStoreName: !!storeName,
         hasPersonImage: !!personImage,
         hasPersonImageUrl: !!personImageUrl,
-        hasDemoPersonId: !!demoPersonId,
         hasClothingImage: !!clothingImage,
         hasClothingImageUrl: !!clothingImageUrl,
         hasCustomerInfo: !!customerInfo,

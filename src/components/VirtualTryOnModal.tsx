@@ -1952,26 +1952,11 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       // Convert to blob only if it's a data URL, otherwise use URL directly
       let personBlob: Blob | null = null;
       let personImageUrl: string | null = null;
-      let demoPersonId: string | null = null;
       
       if (isDemoPhoto) {
-        // Demo photo: use demoPersonId instead of URL/blob
-        const demoPersonIdFromMap = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined : undefined;
-        if (demoPersonIdFromMap) {
-          const convertedId = convertDemoPersonIdToApiFormat(demoPersonIdFromMap);
-          if (convertedId) {
-            demoPersonId = convertedId;
-            console.log('[VirtualTryOnModal] Using demoPersonId:', demoPersonId, '(converted from:', demoPersonIdFromMap, ')');
-          } else {
-            // Fallback to URL if conversion fails
-            personImageUrl = uploadedImage;
-            console.warn('[VirtualTryOnModal] Failed to convert demo person ID, falling back to URL:', uploadedImage);
-          }
-        } else {
-          // Fallback to URL if ID not found in map
-          personImageUrl = uploadedImage;
-          console.warn('[VirtualTryOnModal] Demo person ID not found in map, falling back to URL:', uploadedImage);
-        }
+        // Demo photo: Convert data URL to blob and send as personImage
+        personBlob = await dataURLToBlob(uploadedImage);
+        console.log('[VirtualTryOnModal] Using personBlob (demo photo)');
       } else if (isPersonImageUrl) {
         // Recent photo: Use URL directly - API will handle fetching
         personImageUrl = uploadedImage;
@@ -2070,7 +2055,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           }
         },
         personBbox, // Pass selected person bounding box
-        demoPersonId || undefined, // Pass demoPersonId if demo photo is selected
+        undefined, // demoPersonId removed - now sending actual image file
         clothingImageUrl, // Pass clothing URL if available
         personImageUrl // Pass person URL if available (for recent photos, not demo photos)
       );
@@ -2270,7 +2255,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         description: errorMessage,
       });
     }
-  }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox, isValidImage, convertDemoPersonIdToApiFormat, t]);
+  }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox, isValidImage, t]);
 
   // Reset complete state when person image changes - works for both mobile and desktop
   useEffect(() => {
