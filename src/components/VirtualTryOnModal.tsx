@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, startTransition } from 'react';
 import { X, Upload, CheckCircle, Check, RotateCcw, ShoppingCart, Loader2, AlertCircle, Clock, Zap, Eye, RefreshCw, Pencil, Trash2, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -1802,12 +1802,18 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       return;
     }
 
+    // CRITICAL: Immediate visual feedback (urgent updates - must happen synchronously)
     setStep('generating');
     setProgress(0);
-    currentProgressRef.current = 0;
-    setElapsedTime(0);
     setError(null);
-    setStatusMessage(t('virtualTryOnModal.preparingTryOn'));
+    
+    // NON-CRITICAL: Defer these updates using startTransition for better INP
+    // These updates don't need to block the main thread
+    startTransition(() => {
+      currentProgressRef.current = 0;
+      setElapsedTime(0);
+      setStatusMessage(t('virtualTryOnModal.preparingTryOn'));
+    });
     
     // Auto-scroll to generating section - ONLY for mobile
     const isMobile = isMobileDevice();
@@ -2066,9 +2072,12 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         
         // Show finalizing state for 600ms (reduced for better UX) before transitioning to complete
         // This gives time for the checkmark animation while keeping the reveal smooth
+        // Use startTransition for non-urgent state update to improve INP
         setTimeout(() => {
-          setStep('complete');
-          setStatusMessage('');
+          startTransition(() => {
+            setStep('complete');
+            setStatusMessage('');
+          });
         }, 600);
         
         // Refetch history to show the latest image first
@@ -4714,6 +4723,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                     alt={productTitle}
                     className="h-12 sm:h-14 md:h-16 w-auto object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
                     loading="eager"
+                    fetchPriority="high"
+                    width={64}
+                    height={64}
                     onError={(e) => {
                       const imgElement = e.target as HTMLImageElement;
                       const currentSrc = selectedClothing || productImage || '';
@@ -4816,26 +4828,37 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                               src={uploadedImage}
                               alt="Detection source"
                               className="hidden"
+                              loading="eager"
+                              fetchPriority="high"
                               onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                             />
                             
-                            {/* Instructions for user */}
-                            {showPersonSelection && detectionResult?.people && detectionResult.people.length > 1 && (
-                              <div className="mb-2 sm:mb-2.5 px-2 text-center">
-                                <p className="text-xs sm:text-sm text-gray-700 font-medium">
-                                  {t('virtualTryOnModal.clickPersonToSelect')}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {t('virtualTryOnModal.peopleDetected', { count: detectionResult.people.length })}
-                                </p>
-                              </div>
-                            )}
+                            {/* Instructions for user - Reserve space to prevent layout shift (CLS optimization) */}
+                            <div className="mb-2 sm:mb-2.5 px-2 text-center min-h-[60px] flex flex-col justify-center">
+                              {showPersonSelection && detectionResult?.people && detectionResult.people.length > 1 ? (
+                                <>
+                                  <p className="text-xs sm:text-sm text-gray-700 font-medium">
+                                    {t('virtualTryOnModal.clickPersonToSelect')}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {t('virtualTryOnModal.peopleDetected', { count: detectionResult.people.length })}
+                                  </p>
+                                </>
+                              ) : (
+                                <div className="invisible h-full">
+                                  {/* Reserved space to prevent layout shift */}
+                                  <p className="text-xs sm:text-sm font-medium">Placeholder</p>
+                                  <p className="text-xs mt-0.5">Placeholder</p>
+                                </div>
+                              )}
+                            </div>
                             {/* Canvas with bounding boxes OR regular image - fixed height for consistency */}
                             <div ref={canvasContainerRef} className="relative w-full h-[180px] sm:h-[200px] flex items-center justify-center">
                               {/* Canvas wrapper - ALWAYS rendered so ref exists, visibility controlled by CSS */}
+                              {/* Use visibility instead of display to prevent layout shift (CLS optimization) */}
                               <div 
                                 className="relative inline-flex items-center justify-center max-w-full max-h-full h-full"
-                                style={{ display: boundingBoxesDrawn ? 'flex' : 'none' }}
+                                style={{ visibility: boundingBoxesDrawn ? 'visible' : 'hidden' }}
                               >
                                 <canvas
                                   ref={canvasRef}
@@ -4855,6 +4878,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   src={uploadedImage}
                                   alt={t('virtualTryOnModal.uploadedPhoto')}
                                   className="max-w-full max-h-full h-full object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
+                                  loading="eager"
+                                  fetchPriority="high"
+                                  width={200}
+                                  height={200}
                                 />
                               )}
                             </div>
@@ -4973,26 +5000,30 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                         <Skeleton className="w-full h-full rounded-lg" />
                                       </div>
                                     )}
-                                    <img 
-                                      src={getProxiedImageUrl(photo.src)} 
-                                      alt={t('virtualTryOnModal.user')} 
-                                      className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
-                                        isLoading ? 'opacity-0' : 'opacity-100'
-                                      } ${
-                                        selectedPhoto === photo.id 
-                                          ? 'ring-2 ring-primary/20' 
-                                          : 'group-hover:scale-105 group-hover:shadow-md'
-                                      }`}
-                                      onLoad={() => {
-                                        dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
-                                      }}
-                                      onError={(e) => {
-                                        dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
-                                        if ((e.target as HTMLImageElement).src !== photo.src) {
-                                          (e.target as HTMLImageElement).src = photo.src;
-                                        }
-                                      }}
-                                    />
+                              <img 
+                                src={getProxiedImageUrl(photo.src)} 
+                                alt={t('virtualTryOnModal.user')} 
+                                className={`h-full w-auto object-contain border-2 border-white rounded-lg shadow-sm transition-all duration-300 relative z-0 ${
+                                  isLoading ? 'opacity-0' : 'opacity-100'
+                                } ${
+                                  selectedPhoto === photo.id 
+                                    ? 'ring-2 ring-primary/20' 
+                                    : 'group-hover:scale-105 group-hover:shadow-md'
+                                }`}
+                                loading="lazy"
+                                fetchPriority="low"
+                                width={56}
+                                height={56}
+                                onLoad={() => {
+                                  dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
+                                }}
+                                onError={(e) => {
+                                  dispatch(setLoadingPhotoId({ id: photo.id, loading: false }));
+                                  if ((e.target as HTMLImageElement).src !== photo.src) {
+                                    (e.target as HTMLImageElement).src = photo.src;
+                                  }
+                                }}
+                              />
                                     {selectedPhoto === photo.id && (
                                       <div className="absolute top-1 right-1 w-3 h-3 bg-primary rounded-full border-2 border-white shadow-sm z-30 animate-in zoom-in duration-200"></div>
                                     )}
@@ -5266,6 +5297,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             src={uploadedImage}
                             alt="Detection source"
                             className="hidden"
+                            loading="eager"
+                            fetchPriority="high"
                             onError={(e) => console.error('[PersonSelection] Detection image failed to load:', e)}
                           />
                         )}
@@ -5276,6 +5309,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                             src={uploadedImage}
                             alt={t('virtualTryOnModal.uploadedPhoto')}
                             className="max-w-full max-h-full h-full object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg"
+                            loading="eager"
+                            fetchPriority="high"
+                            width={200}
+                            height={200}
                           />
                           
                           {/* Skeleton loading overlay while detection is processing */}
@@ -5553,6 +5590,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                   ? 'ring-2 ring-primary/20' 
                                   : 'group-hover:scale-105 group-hover:shadow-md'
                               }`}
+                              loading="lazy"
+                              fetchPriority="low"
+                              width={56}
+                              height={56}
                               onLoad={() => {
                                 setLoadingDemoModelIds((prev) => {
                                   const next = new Set(prev);
@@ -5634,7 +5675,8 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                   </div>
 
                   {/* Generation Progress Card */}
-                  <div className={`flex-1 rounded-lg relative flex flex-col items-center justify-center overflow-hidden min-h-0 max-h-full ${
+                  {/* Reserve consistent min-height to prevent layout shift (CLS optimization) */}
+                  <div className={`flex-1 rounded-lg relative flex flex-col items-center justify-center overflow-hidden min-h-[400px] max-h-full ${
                     ((step === 'complete' && generatedImage) || (viewingPastTryOn && generatedImage)) && !generatedImageError
                       ? 'bg-card'
                       : step === 'idle' && uploadedImage && !generatedImage && !error
@@ -5762,6 +5804,9 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 className="h-[400px] w-auto max-w-full object-contain border-4 border-white rounded-lg shadow-md md:shadow-lg"
                                 alt="Try-on result"
                                 loading="eager"
+                                fetchPriority="high"
+                                width={400}
+                                height={600}
                                 onError={(e) => {
                                   const imgElement = e.target as HTMLImageElement;
                                   console.error('[VirtualTryOnModal] Failed to load generated image:', imgElement.src);
@@ -6030,6 +6075,10 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                                 ? 'ring-2 ring-primary/20' 
                                 : 'group-hover:scale-105 group-hover:shadow-md'
                             }`}
+                            loading="lazy"
+                            fetchPriority="low"
+                            width={56}
+                            height={56}
                             onLoad={() => {
                               setLoadingHistoryItemIds((prev) => {
                                 const next = new Set(prev);
