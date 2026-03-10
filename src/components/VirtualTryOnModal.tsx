@@ -4348,7 +4348,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Step 1 - Person Photo */}
                         <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative p-3">
                           <img 
-                            src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg" 
+                            src="https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg" 
                             alt={t("virtualTryOnModal.authGate.personImageAlt") || "Example person photo"} 
                             className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg transition-transform duration-500"
                             style={{ transform: tutorialStep === 1 ? 'scale(1)' : 'scale(0.95)' }}
@@ -4366,7 +4366,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Step 2 - Clothing Item */}
                         <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative p-3">
                           <img 
-                            src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg" 
+                            src="https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg" 
                             alt={t("virtualTryOnModal.authGate.clothingImageAlt") || "Example clothing item"} 
                             className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg transition-transform duration-500"
                             style={{ transform: tutorialStep === 2 ? 'scale(1)' : 'scale(0.95)' }}
@@ -4409,7 +4409,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
                         {/* Step 4 - Generated Result */}
                         <div className="w-1/4 h-full flex-shrink-0 flex items-center justify-center relative p-3">
                           <img 
-                            src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg" 
+                            src="https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg" 
                             alt={t("virtualTryOnModal.authGate.generatedImageAlt") || "Example of generated virtual try-on result"} 
                             className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg border-4 border-white shadow-md md:shadow-lg transition-transform duration-500"
                             style={{ transform: tutorialStep === 4 ? 'scale(1)' : 'scale(0.95)' }}

@@ -2745,7 +2745,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         {tutorialStep === 1 && (
                           <div className="w-full h-full relative">
                             <img
-                              src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg"
+                              src="https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/person/1766486097276_7ccdb71b41929e63_blob.jpeg"
                               alt={t("tryOnWidget.authGate.personImageAlt") || "Example person photo"}
                               className="w-full h-full object-contain"
                             />
@@ -2757,7 +2757,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         {tutorialStep === 2 && (
                           <div className="w-full h-full relative">
                             <img
-                              src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg"
+                              src="https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/clothing/1766486098288_f4f3ba85d9bffba7_clothing-item.jpg.jpeg"
                               alt={t("tryOnWidget.authGate.clothingImageAlt") || "Example clothing item"}
                               className="w-full h-full object-contain"
                             />
@@ -2794,7 +2794,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
                         {tutorialStep === 4 && (
                           <div className="w-full h-full relative">
                             <img
-                              src="https://gooddeals.s3.eu-west-3.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg"
+                              src="https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/generated/1766486128492_c34538c6d298c0db_generated_iqw81yvt6.jpeg"
                               alt={t("tryOnWidget.authGate.generatedImageAlt") || "Example of generated virtual try-on result"}
                               className="w-full h-full object-contain"
                             />
