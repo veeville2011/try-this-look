@@ -259,7 +259,7 @@
     const showIcon = buttonEl.dataset.showIcon === 'true' || buttonEl.dataset.showIcon === true;
     if (iconSpan instanceof HTMLElement) {
       iconSpan.style.display = showIcon ? 'inline' : 'none';
-      const icon = buttonEl.dataset.buttonIcon || iconSpan.dataset.icon || 'https://hemanth.avisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/demo_images/star-12498_256.gif';
+      const icon = buttonEl.dataset.buttonIcon || iconSpan.dataset.icon || 'https://hemanthavisi-nusense-tryon.s3.eu-north-1.amazonaws.com/promod_demo/demo_images/star-12498_256.gif';
       
       // Check if icon is an image URL (must start with http:// or https://)
       const isImageUrl = icon && (
