@@ -120,7 +120,8 @@ const PaymentSuccess = () => {
         if (prev <= 1) {
           window.clearInterval(interval);
           redirectToAppRoot();
-          return 0;
+          // Keep showing "1" while we redirect, never show "0"
+          return 1;
         }
 
         return prev - 1;

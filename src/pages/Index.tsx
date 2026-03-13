@@ -408,7 +408,9 @@ const Index = () => {
 
     // Persist selection in state (for any other logic that relies on it)
     setSelectedPlanForConfirmation(plan);
-    setShowPlanSelection(false);
+    // Keep the plan selection UI visible while we initiate billing,
+    // so only the plans UI is shown until the redirect happens.
+    setShowPlanSelection(true);
 
     // Immediately confirm the selected plan to start billing flow,
     // passing the plan explicitly so we don't depend on async state updates.
@@ -1211,43 +1213,6 @@ const Index = () => {
 
         {/* Navigation Bar */}
         <NavigationBar />
-
-        {/* Subscription Flow Loading Banner */}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="max-w-4xl mx-auto">
-            <div
-              className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm flex items-center gap-3"
-              role="status"
-              aria-live="polite"
-              aria-label={
-                shouldShowPaymentLoading
-                  ? t("index.loading.processingPayment") || "Processing your subscription payment"
-                  : t("index.loading.loading") || "Loading your subscription"
-              }
-            >
-              <div
-                className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"
-                aria-hidden="true"
-              />
-              {shouldShowPaymentLoading ? (
-                <div className="space-y-0.5">
-                  <p className="text-sm font-semibold text-foreground">
-                    {t("index.loading.processingPayment") ||
-                      "Processing your subscription payment"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {Math.round(paymentSuccessElapsedTime / 1000)}s /{" "}
-                    {maxWaitTime / 1000}s
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {t("index.loading.loading") || "Loading your subscription..."}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* Skeleton Loading State */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 w-full">
