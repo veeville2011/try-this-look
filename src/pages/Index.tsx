@@ -50,7 +50,6 @@ import {
 import { toast } from "sonner";
 import FeatureHighlights from "@/components/FeatureHighlights";
 import PlanSelection from "@/components/PlanSelection";
-import { PlanConfirmation } from "@/components/PlanConfirmation";
 import NavigationBar from "@/components/NavigationBar";
 import CreditBalance from "@/components/CreditBalance";
 import CreditUtilizationBanner from "@/components/CreditUtilizationBanner";
@@ -70,7 +69,6 @@ const Index = () => {
   const [availablePlans, setAvailablePlans] = useState<any[] | any>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
-  const [showPlanConfirmation, setShowPlanConfirmation] = useState(false);
   const [selectedPlanForConfirmation, setSelectedPlanForConfirmation] = useState<any | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -401,7 +399,8 @@ const Index = () => {
     if (plan) {
       setSelectedPlanForConfirmation(plan);
       setShowPlanSelection(false);
-      setShowPlanConfirmation(true);
+      // Immediately confirm the selected plan to start billing flow
+      void handleConfirmPlan(null);
     } else {
       console.error("[Billing] Plan not found for handle:", planHandle);
       toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
@@ -451,9 +450,6 @@ const Index = () => {
         confirmationUrl: data.confirmationUrl,
       });
 
-      // Reset confirmation state before redirecting
-      // This prevents showing confirmation step if user returns/cancels payment
-      setShowPlanConfirmation(false);
       setSelectedPlanForConfirmation(null);
 
       // Redirect to Shopify billing confirmation in the same tab (App Bridge when embedded, else window.location)
@@ -463,8 +459,6 @@ const Index = () => {
       console.error("[Billing] Failed to create subscription", error);
       const errorMessage = error?.message || t("index.errors.subscriptionFailed") || "Failed to create subscription. Please try again.";
       toast.error(errorMessage);
-      // Reset confirmation state on error so user can try again
-      setShowPlanConfirmation(false);
       setSelectedPlanForConfirmation(null);
     } finally {
       setBillingLoading(false);
@@ -472,7 +466,6 @@ const Index = () => {
   };
 
   const handleBackToPlanSelection = () => {
-    setShowPlanConfirmation(false);
     setSelectedPlanForConfirmation(null);
     setShowPlanSelection(true);
   };
@@ -882,7 +875,7 @@ const Index = () => {
       // Always ensure the plans UI is visible when we definitively have no subscription.
       // The "billingTriggered" flag can persist across refreshes (sessionStorage), which can otherwise
       // prevent the plan selector from ever opening.
-      if (!showPlanSelection && !showPlanConfirmation) {
+      if (!showPlanSelection) {
         console.log(
           "🚨 [Redirect Debug] No active subscription - ensuring plan selection is shown",
           {
@@ -978,11 +971,6 @@ const Index = () => {
         if (showPlanSelection) {
           setShowPlanSelection(false);
         }
-        if (showPlanConfirmation) {
-          setShowPlanConfirmation(false);
-          setSelectedPlanForConfirmation(null);
-        }
-
         billingTriggeredRef.current = false;
         setBillingTriggeredState(false);
       }
@@ -1179,21 +1167,6 @@ const Index = () => {
     }
     featuresElement.scrollIntoView({ behavior: "smooth" });
   };
-
-  // Early return if showing plan confirmation - render only confirmation step
-  if (showPlanConfirmation && selectedPlanForConfirmation && shop) {
-    return (
-      <div className="min-h-screen bg-background">
-        <PlanConfirmation
-          selectedPlan={selectedPlanForConfirmation}
-          onConfirm={handleConfirmPlan}
-          onBack={handleBackToPlanSelection}
-          loading={billingLoading}
-          shop={shop}
-        />
-      </div>
-    );
-  }
 
   // Show skeleton loading when subscription is loading
   if (subscriptionLoading && !isWaitingForPaymentSuccess) {
