@@ -85,8 +85,10 @@ const PaymentSuccess = () => {
     if (!shopParam) return null;
     const storeHandle = shopParam.replace(".myshopify.com", "");
     if (!storeHandle) return null;
-    const appId = "f8de7972ae23d3484581d87137829385";
-    return `https://admin.shopify.com/store/${encodeURIComponent(storeHandle)}/apps/${appId}?payment_success=true`;
+    const appSlug = "nutryon";
+    return `https://admin.shopify.com/store/${encodeURIComponent(
+      storeHandle
+    )}/apps/${appSlug}/`;
   };
 
   const embeddedAppUrl = getEmbeddedAppUrl();
