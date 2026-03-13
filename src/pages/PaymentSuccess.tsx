@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { syncCredits } from "@/services/creditsApi";
 import { awardReferralCredits } from "@/services/referralsApi";
 
-const REDIRECT_COUNTDOWN_SECONDS = 3;
+const REDIRECT_COUNTDOWN_SECONDS = 5;
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
@@ -94,10 +94,6 @@ const PaymentSuccess = () => {
   const embeddedAppUrl = getEmbeddedAppUrl();
   const willAutoRedirect = Boolean(embeddedAppUrl);
 
-  useEffect(() => {
-    setCountdown(REDIRECT_COUNTDOWN_SECONDS);
-  }, [shop]);
-
   const handleRedirectToApp = () => {
     console.log("[PaymentSuccess] handleRedirectToApp invoked", {
       embeddedAppUrl,
@@ -117,26 +113,53 @@ const PaymentSuccess = () => {
     }
   };
 
-  // Immediately redirect on mount using the same logic as the button,
-  // so the user never has to click manually on this page.
   useEffect(() => {
+    // Reset countdown whenever the shop or redirect target changes
+    setCountdown(REDIRECT_COUNTDOWN_SECONDS);
+
     // Avoid running during SSR and ensure we have at least a shop param
     if (typeof window === "undefined") {
       console.warn(
-        "[PaymentSuccess] Window is undefined (SSR?), skipping immediate redirect"
+        "[PaymentSuccess] Window is undefined (SSR?), skipping auto redirect with countdown"
       );
       return;
     }
+
     if (!shop) {
-      console.warn("[PaymentSuccess] No shop parameter, skipping immediate redirect");
+      console.warn("[PaymentSuccess] No shop parameter, skipping auto redirect with countdown");
       return;
     }
-    console.log("[PaymentSuccess] Triggering immediate redirect on mount", {
+
+    if (!willAutoRedirect) {
+      console.log(
+        "[PaymentSuccess] No embedded app URL, skipping auto redirect with countdown (button fallback only)"
+      );
+      return;
+    }
+
+    console.log("[PaymentSuccess] Starting auto redirect countdown", {
       shop,
       embeddedAppUrl,
+      countdownSeconds: REDIRECT_COUNTDOWN_SECONDS,
     });
-    handleRedirectToApp();
-  }, [shop, embeddedAppUrl]);
+
+    const countdownInterval = window.setInterval(() => {
+      setCountdown((previousCount) => {
+        if (previousCount <= 1) {
+          window.clearInterval(countdownInterval);
+          console.log("[PaymentSuccess] Countdown finished, redirecting to app");
+          handleRedirectToApp();
+          return 0;
+        }
+
+        return previousCount - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(countdownInterval);
+    };
+  }, [shop, embeddedAppUrl, willAutoRedirect]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-4 relative overflow-hidden">
@@ -206,26 +229,29 @@ const PaymentSuccess = () => {
               </ul>
             </div>
 
-            {/* Redirect countdown or fallback button */}
+            {/* Redirect countdown and primary action */}
             <div className="flex flex-col items-center gap-4">
-              {willAutoRedirect ? (
-                <div className="flex flex-col items-center gap-2 text-center">
+              {willAutoRedirect && (
+                <div className="flex flex-col items-center gap-3 text-center">
                   <p className="text-base sm:text-lg text-muted-foreground">
                     {t("paymentSuccess.redirectMessage", { count: countdown })}
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-primary tabular-nums" aria-live="polite">
+                  <p
+                    className="text-2xl sm:text-3xl font-bold text-primary tabular-nums"
+                    aria-live="polite"
+                  >
                     {countdown}
                   </p>
                 </div>
-              ) : (
-                <Button
-                  onClick={handleRedirectToApp}
-                  size="lg"
-                  className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
-                >
-                  <span>{t("paymentSuccess.continueButton")}</span>
-                </Button>
               )}
+
+              <Button
+                onClick={handleRedirectToApp}
+                size="lg"
+                className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+              >
+                <span>{t("paymentSuccess.continueButton")}</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
