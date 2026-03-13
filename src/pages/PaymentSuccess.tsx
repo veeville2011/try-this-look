@@ -162,23 +162,22 @@ const PaymentSuccess = () => {
   }, [shop, embeddedAppUrl, willAutoRedirect]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="w-full max-w-2xl relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-3 relative overflow-hidden">
+      <div className="w-full max-w-xl relative z-10">
         {/* Success Card */}
-        <Card className="border-2 border-success/20 shadow-2xl bg-card/95 backdrop-blur-sm">
-          <CardContent className="p-8 sm:p-12">
-            {/* Animated Success Icon */}
-            <div className="flex justify-center mb-6">
+        <Card className="border border-success/30 shadow-xl bg-card/95 backdrop-blur-sm">
+          <CardContent className="p-6 sm:p-8">
+            {/* Success Icon */}
+            <div className="flex justify-center mb-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-success/20 rounded-full animate-ping" />
-                <div className="relative bg-success/10 rounded-full p-4">
-                  <CheckCircle2 className="w-16 h-16 sm:w-20 sm:h-20 text-success" />
+                <div className="relative bg-success/10 rounded-full p-3">
+                  <CheckCircle2 className="w-12 h-12 sm:w-14 sm:h-14 text-success" />
                 </div>
               </div>
             </div>
 
             {/* Success Message */}
-            <div className="text-center space-y-4 mb-8">
+            <div className="text-center space-y-3 mb-6">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <PartyPopper className="w-6 h-6 text-primary animate-bounce" />
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
@@ -187,57 +186,24 @@ const PaymentSuccess = () => {
                 <Sparkles className="w-6 h-6 text-primary animate-pulse" />
               </div>
 
-              <p className="text-xl sm:text-2xl font-semibold text-success">
+              <p className="text-lg sm:text-xl font-semibold text-success">
                 {t("paymentSuccess.successMessage")}
               </p>
 
-              <p className="text-base sm:text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
+              <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
                 {t("paymentSuccess.description")}
               </p>
-            </div>
-
-            {/* Features Highlight */}
-            <div className="bg-primary/5 rounded-lg p-6 mb-8 border border-primary/10">
-              <h2 className="text-lg font-semibold text-foreground mb-4 text-center">
-                {t("paymentSuccess.featuresTitle")}
-              </h2>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-muted-foreground">
-                    {t("paymentSuccess.feature1")}
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-muted-foreground">
-                    {t("paymentSuccess.feature2")}
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-muted-foreground">
-                    {t("paymentSuccess.feature3")}
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-muted-foreground">
-                    {t("paymentSuccess.feature4")}
-                  </span>
-                </li>
-              </ul>
             </div>
 
             {/* Redirect countdown and primary action */}
             <div className="flex flex-col items-center gap-4">
               {willAutoRedirect && (
                 <div className="flex flex-col items-center gap-3 text-center">
-                  <p className="text-base sm:text-lg text-muted-foreground">
+                  <p className="text-sm sm:text-base text-muted-foreground">
                     {t("paymentSuccess.redirectMessage", { count: countdown })}
                   </p>
                   <p
-                    className="text-2xl sm:text-3xl font-bold text-primary tabular-nums"
+                    className="text-xl sm:text-2xl font-bold text-primary tabular-nums"
                     aria-live="polite"
                   >
                     {countdown}
@@ -248,17 +214,13 @@ const PaymentSuccess = () => {
               <Button
                 onClick={handleRedirectToApp}
                 size="lg"
-                className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="w-full sm:w-auto min-w-[200px] h-11 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all"
               >
                 <span>{t("paymentSuccess.continueButton")}</span>
               </Button>
             </div>
           </CardContent>
         </Card>
-
-        {/* Decorative Elements */}
-        <div className="absolute top-10 left-10 w-20 h-20 bg-primary/5 rounded-full blur-2xl -z-10" />
-        <div className="absolute bottom-10 right-10 w-32 h-32 bg-success/5 rounded-full blur-3xl -z-10" />
       </div>
     </div>
   );
