@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Sparkles, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { syncCredits } from "@/services/creditsApi";
 import { awardReferralCredits } from "@/services/referralsApi";
 
@@ -11,7 +10,6 @@ const REDIRECT_COUNTDOWN_SECONDS = 5;
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const shop = searchParams.get("shop");
   const [countdown, setCountdown] = useState(REDIRECT_COUNTDOWN_SECONDS);
@@ -100,17 +98,18 @@ const PaymentSuccess = () => {
       shop,
     });
 
-    if (embeddedAppUrl) {
-      console.log("[PaymentSuccess] Redirecting to embedded app URL", {
-        embeddedAppUrl,
-      });
-      window.location.href = embeddedAppUrl;
-    } else {
-      console.log(
-        "[PaymentSuccess] No embedded app URL, redirecting to root with payment_success flag"
+    if (!embeddedAppUrl) {
+      console.error(
+        "[PaymentSuccess] No embedded app URL available. Skipping redirect to avoid incorrect fallback.",
+        { shop }
       );
-      navigate("/?payment_success=true");
+      return;
     }
+
+    console.log("[PaymentSuccess] Redirecting to embedded app URL", {
+      embeddedAppUrl,
+    });
+    window.location.href = embeddedAppUrl;
   };
 
   useEffect(() => {
@@ -162,22 +161,19 @@ const PaymentSuccess = () => {
   }, [shop, embeddedAppUrl, willAutoRedirect]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-3 relative overflow-hidden">
-      <div className="w-full max-w-xl relative z-10">
-        {/* Success Card */}
-        <Card className="border border-success/30 shadow-xl bg-card/95 backdrop-blur-sm">
-          <CardContent className="p-6 sm:p-8">
-            {/* Success Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="relative">
-                <div className="relative bg-success/10 rounded-full p-3">
-                  <CheckCircle2 className="w-12 h-12 sm:w-14 sm:h-14 text-success" />
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-3">
+      <div className="w-full max-w-xl relative z-10 flex flex-col items-center text-center gap-6">
+        {/* Success Icon */}
+        <div className="flex justify-center">
+          <div className="relative">
+            <div className="relative bg-success/10 rounded-full p-3">
+              <CheckCircle2 className="w-12 h-12 sm:w-14 sm:h-14 text-success" />
             </div>
+          </div>
+        </div>
 
-            {/* Success Message */}
-            <div className="text-center space-y-3 mb-6">
+        {/* Success Message */}
+        <div className="space-y-3">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <PartyPopper className="w-6 h-6 text-primary animate-bounce" />
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
@@ -193,34 +189,27 @@ const PaymentSuccess = () => {
               <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
                 {t("paymentSuccess.description")}
               </p>
-            </div>
+        </div>
 
-            {/* Redirect countdown and primary action */}
-            <div className="flex flex-col items-center gap-4">
-              {willAutoRedirect && (
-                <div className="flex flex-col items-center gap-3 text-center">
-                  <p className="text-sm sm:text-base text-muted-foreground">
-                    {t("paymentSuccess.redirectMessage", { count: countdown })}
-                  </p>
-                  <p
-                    className="text-xl sm:text-2xl font-bold text-primary tabular-nums"
-                    aria-live="polite"
-                  >
-                    {countdown}
-                  </p>
-                </div>
-              )}
+        {/* Redirect countdown and primary action */}
+        <div className="flex flex-col items-center gap-4">
+          {willAutoRedirect && (
+            <p
+              className="text-3xl sm:text-4xl font-bold text-primary tabular-nums"
+              aria-live="polite"
+            >
+              {countdown}
+            </p>
+          )}
 
-              <Button
-                onClick={handleRedirectToApp}
-                size="lg"
-                className="w-full sm:w-auto min-w-[200px] h-11 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all"
-              >
-                <span>{t("paymentSuccess.continueButton")}</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <Button
+            onClick={handleRedirectToApp}
+            size="lg"
+            className="w-full sm:w-auto min-w-[200px] h-11 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+          >
+            <span>{t("paymentSuccess.continueButton")}</span>
+          </Button>
+        </div>
       </div>
     </div>
   );
