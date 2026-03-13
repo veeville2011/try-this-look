@@ -79,12 +79,29 @@ const PaymentSuccess = () => {
     processAfterApproval();
   }, [shop]);
 
+  const getEmbeddedAppUrl = (): string | null => {
+    const shopParam = shop?.trim();
+    if (!shopParam) return null;
+    const storeHandle = shopParam.replace(".myshopify.com", "");
+    if (!storeHandle) return null;
+    const appId = "f8de7972ae23d3484581d87137829385";
+    return `https://admin.shopify.com/store/${encodeURIComponent(storeHandle)}/apps/${appId}?payment_success=true`;
+  };
+
+  // Auto-redirect to embedded app after a short delay so the flow feels seamless in the same tab
+  const AUTO_REDIRECT_DELAY_MS = 3000;
+  useEffect(() => {
+    const embeddedAppUrl = getEmbeddedAppUrl();
+    if (!embeddedAppUrl) return;
+    const timer = window.setTimeout(() => {
+      window.location.href = embeddedAppUrl;
+    }, AUTO_REDIRECT_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [shop]);
+
   const handleRedirectToApp = () => {
-    if (shop) {
-      // Redirect to embedded app URL format
-      const storeHandle = shop.replace(".myshopify.com", "");
-      const appId = "f8de7972ae23d3484581d87137829385";
-      const embeddedAppUrl = `https://admin.shopify.com/store/${storeHandle}/apps/${appId}?payment_success=true`;
+    const embeddedAppUrl = getEmbeddedAppUrl();
+    if (embeddedAppUrl) {
       window.location.href = embeddedAppUrl;
     } else {
       // Fallback to home with payment_success parameter to trigger subscription refresh

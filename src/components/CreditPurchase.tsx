@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Sparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { CouponRedemption } from "./CouponRedemption";
+import { redirectToConfirmationUrl } from "@/utils/billingRedirect";
 
 interface CreditPackage {
   id: string;
@@ -82,10 +83,10 @@ export const CreditPurchase = () => {
       }
 
       const data = await response.json();
-      
-      // Redirect to Shopify confirmation page
+
       if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
+        // Same-tab redirect via App Bridge when embedded, else window.location
+        await redirectToConfirmationUrl(data.confirmationUrl, false);
       } else {
         toast.success("Purchase initiated successfully");
       }

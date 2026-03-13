@@ -4,6 +4,7 @@ import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCredits } from "@/hooks/useCredits";
 import { getAvailablePlans, subscribeToPlan, cancelSubscription, redeemCouponCode } from "@/services/billingApi";
+import { redirectToConfirmationUrl } from "@/utils/billingRedirect";
 import { getReferralCode } from "@/services/referralsApi";
 import {
   Card,
@@ -455,26 +456,9 @@ const Index = () => {
       setShowPlanConfirmation(false);
       setSelectedPlanForConfirmation(null);
 
-      // Use App Bridge Redirect action for safe navigation from embedded app
-      // This properly handles cross-origin navigation without security errors
-      // Per Shopify docs: https://shopify.dev/docs/api/app-bridge/previous-versions/actions/navigation/redirect-navigate
-      const appBridgeInstance = (window as any).__APP_BRIDGE;
-      
-      if (!appBridgeInstance) {
-        throw new Error("App Bridge instance not available. Ensure the app is loaded in Shopify admin.");
-      }
-
-      const { Redirect } = await import("@shopify/app-bridge/actions");
-      const redirect = Redirect.create(appBridgeInstance);
-      
-      // Use REMOTE action to navigate to external URL (Shopify admin billing confirmation page)
-      // newContext: true opens in new context/window to break out of iframe
-      redirect.dispatch(Redirect.Action.REMOTE, {
-        url: data.confirmationUrl as string,
-        newContext: true,
-      });
-      
-      console.log("[Billing] App Bridge Redirect dispatched successfully");
+      // Redirect to Shopify billing confirmation in the same tab (App Bridge when embedded, else window.location)
+      await redirectToConfirmationUrl(data.confirmationUrl as string, false);
+      console.log("[Billing] Redirect to confirmation URL dispatched successfully");
     } catch (error: any) {
       console.error("[Billing] Failed to create subscription", error);
       const errorMessage = error?.message || t("index.errors.subscriptionFailed") || "Failed to create subscription. Please try again.";
