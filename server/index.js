@@ -3609,20 +3609,31 @@ app.get("/api/billing/return", async (req, res) => {
       return res.status(400).send("Invalid shop parameter");
     }
 
-    // Redirect to payment success page first to show congratulations message
-    // The success page will then redirect to the embedded app URL after showing the message
-    const appBaseUrl = appUrl || `https://${shopDomain}`;
-    const successPageUrl = `${appBaseUrl}/payment-success?shop=${encodeURIComponent(
-      shopDomain
-    )}`;
+    // Redirect directly back to the embedded app inside Shopify Admin.
+    // This skips the standalone payment success page and lets the app
+    // handle the `payment_success` flag on load.
+    const storeHandle = shopDomain.replace(".myshopify.com", "");
 
-    logger.info("[BILLING] [RETURN] Redirecting to payment success page", {
+    // Fallback: if we can't derive a store handle, redirect to the app's root
+    // on our own domain with the payment_success flag so the frontend logic
+    // can still refresh the subscription state.
+    let redirectUrl;
+    if (storeHandle && apiKey) {
+      redirectUrl = `https://admin.shopify.com/store/${encodeURIComponent(
+        storeHandle
+      )}/apps/${apiKey}?payment_success=true`;
+    } else {
+      const appBaseUrl = appUrl || `https://${shopDomain}`;
+      redirectUrl = `${appBaseUrl}/?payment_success=true`;
+    }
+
+    logger.info("[BILLING] [RETURN] Redirecting to embedded app", {
       requestId,
       shop: shopDomain,
-      successPageUrl,
+      redirectUrl,
     });
 
-    return res.redirect(302, successPageUrl);
+    return res.redirect(302, redirectUrl);
   } catch (error) {
     logger.error("[BILLING] [RETURN] Unexpected error", error, req, {
       requestId,
