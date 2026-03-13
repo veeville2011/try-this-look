@@ -396,20 +396,37 @@ const Index = () => {
   const handleSelectPlan = (planHandle: string) => {
     const plan = findPlanByHandle(planHandle);
     
-    if (plan) {
-      setSelectedPlanForConfirmation(plan);
-      setShowPlanSelection(false);
-      // Immediately confirm the selected plan to start billing flow
-      void handleConfirmPlan(null);
-    } else {
+    if (!plan) {
       console.error("[Billing] Plan not found for handle:", planHandle);
-      toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
+      toast.error(
+        t("planConfirmation.error.planNotFound") || "Selected plan not found"
+      );
+      // Ensure the plan selection UI stays visible so the merchant can retry
+      setShowPlanSelection(true);
+      return;
     }
+
+    // Persist selection in state (for any other logic that relies on it)
+    setSelectedPlanForConfirmation(plan);
+    setShowPlanSelection(false);
+
+    // Immediately confirm the selected plan to start billing flow,
+    // passing the plan explicitly so we don't depend on async state updates.
+    void handleConfirmPlan(null, plan);
   };
 
-  const handleConfirmPlan = async (referralCode: string | null) => {
-    if (!selectedPlanForConfirmation) {
-      toast.error(t("planConfirmation.error.planNotFound") || "Selected plan not found");
+  const handleConfirmPlan = async (
+    referralCode: string | null,
+    planOverride?: any
+  ) => {
+    const effectivePlan = planOverride || selectedPlanForConfirmation;
+
+    if (!effectivePlan) {
+      toast.error(
+        t("planConfirmation.error.planNotFound") || "Selected plan not found"
+      );
+      // Show plan selection so the merchant can pick again
+      setShowPlanSelection(true);
       return;
     }
 
@@ -418,6 +435,8 @@ const Index = () => {
 
     if (!shopDomain) {
       toast.error("Shop domain not found");
+      // Without a shop we can't bill; keep plan selection visible
+      setShowPlanSelection(true);
       return;
     }
 
@@ -426,14 +445,18 @@ const Index = () => {
 
       console.log("[Billing] Creating subscription request", {
         shop: shopDomain,
-        planHandle: selectedPlanForConfirmation.handle,
+        planHandle: effectivePlan.handle,
         referralCode: referralCode || "none",
       });
 
       // Note: Referral code is validated separately via /api/referrals/validate
       // The backend will handle referral code validation during subscription creation
       // We pass null as promoCode (promoCode is different from referral code)
-      const data = await subscribeToPlan(shopDomain, selectedPlanForConfirmation.handle, null);
+      const data = await subscribeToPlan(
+        shopDomain,
+        effectivePlan.handle,
+        null
+      );
 
       console.log("[Billing] Subscription response received", {
         confirmationUrl: data.confirmationUrl,
@@ -460,6 +483,8 @@ const Index = () => {
       const errorMessage = error?.message || t("index.errors.subscriptionFailed") || "Failed to create subscription. Please try again.";
       toast.error(errorMessage);
       setSelectedPlanForConfirmation(null);
+      // On error, bring the plan selection UI back so the merchant isn't stuck
+      setShowPlanSelection(true);
     } finally {
       setBillingLoading(false);
     }
