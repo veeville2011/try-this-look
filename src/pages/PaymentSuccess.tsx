@@ -98,50 +98,45 @@ const PaymentSuccess = () => {
     setCountdown(REDIRECT_COUNTDOWN_SECONDS);
   }, [shop]);
 
-  // Countdown: decrement every second
-  useEffect(() => {
-    if (!willAutoRedirect) return;
-    const interval = window.setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [willAutoRedirect]);
-
-  // Auto-redirect to embedded app after countdown so the flow feels seamless in the same tab
-  const AUTO_REDIRECT_DELAY_MS = REDIRECT_COUNTDOWN_SECONDS * 1000;
-  useEffect(() => {
-    if (!embeddedAppUrl) {
-      console.warn("[PaymentSuccess] No embedded app URL available, skipping auto-redirect");
-      return;
-    }
-
-    console.log("[PaymentSuccess] Scheduling auto-redirect to embedded app", {
+  const handleRedirectToApp = () => {
+    console.log("[PaymentSuccess] handleRedirectToApp invoked", {
       embeddedAppUrl,
-      delayMs: AUTO_REDIRECT_DELAY_MS,
       shop,
     });
 
-    const timer = window.setTimeout(() => {
-      try {
-        console.log("[PaymentSuccess] Performing auto-redirect to embedded app", {
-          embeddedAppUrl,
-        });
-        window.location.href = embeddedAppUrl;
-      } catch (error) {
-        console.error("[PaymentSuccess] Auto-redirect failed, user may need to click button", error);
-      }
-    }, AUTO_REDIRECT_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [embeddedAppUrl, shop]);
-
-  const handleRedirectToApp = () => {
     if (embeddedAppUrl) {
+      console.log("[PaymentSuccess] Redirecting to embedded app URL", {
+        embeddedAppUrl,
+      });
       window.location.href = embeddedAppUrl;
     } else {
+      console.log(
+        "[PaymentSuccess] No embedded app URL, redirecting to root with payment_success flag"
+      );
       navigate("/?payment_success=true");
     }
   };
+
+  // Immediately redirect on mount using the same logic as the button,
+  // so the user never has to click manually on this page.
+  useEffect(() => {
+    // Avoid running during SSR and ensure we have at least a shop param
+    if (typeof window === "undefined") {
+      console.warn(
+        "[PaymentSuccess] Window is undefined (SSR?), skipping immediate redirect"
+      );
+      return;
+    }
+    if (!shop) {
+      console.warn("[PaymentSuccess] No shop parameter, skipping immediate redirect");
+      return;
+    }
+    console.log("[PaymentSuccess] Triggering immediate redirect on mount", {
+      shop,
+      embeddedAppUrl,
+    });
+    handleRedirectToApp();
+  }, [shop, embeddedAppUrl]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-4 relative overflow-hidden">
