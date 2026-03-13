@@ -110,12 +110,30 @@ const PaymentSuccess = () => {
   // Auto-redirect to embedded app after countdown so the flow feels seamless in the same tab
   const AUTO_REDIRECT_DELAY_MS = REDIRECT_COUNTDOWN_SECONDS * 1000;
   useEffect(() => {
-    if (!embeddedAppUrl) return;
+    if (!embeddedAppUrl) {
+      console.warn("[PaymentSuccess] No embedded app URL available, skipping auto-redirect");
+      return;
+    }
+
+    console.log("[PaymentSuccess] Scheduling auto-redirect to embedded app", {
+      embeddedAppUrl,
+      delayMs: AUTO_REDIRECT_DELAY_MS,
+      shop,
+    });
+
     const timer = window.setTimeout(() => {
-      window.location.href = embeddedAppUrl;
+      try {
+        console.log("[PaymentSuccess] Performing auto-redirect to embedded app", {
+          embeddedAppUrl,
+        });
+        window.location.href = embeddedAppUrl;
+      } catch (error) {
+        console.error("[PaymentSuccess] Auto-redirect failed, user may need to click button", error);
+      }
     }, AUTO_REDIRECT_DELAY_MS);
+
     return () => window.clearTimeout(timer);
-  }, [shop]);
+  }, [embeddedAppUrl, shop]);
 
   const handleRedirectToApp = () => {
     if (embeddedAppUrl) {
