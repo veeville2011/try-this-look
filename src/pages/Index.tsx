@@ -879,12 +879,12 @@ const Index = () => {
       !isWaitingForPaymentSuccess &&
       !isInGracePeriod
     ) {
-      // Only trigger billing flow once per subscription state (check both ref and sessionStorage)
-      const billingAlreadyTriggered = billingTriggeredRef.current || getBillingTriggeredState();
-      
-      if (!billingAlreadyTriggered) {
+      // Always ensure the plans UI is visible when we definitively have no subscription.
+      // The "billingTriggered" flag can persist across refreshes (sessionStorage), which can otherwise
+      // prevent the plan selector from ever opening.
+      if (!showPlanSelection && !showPlanConfirmation) {
         console.log(
-          "🚨 [Redirect Debug] Triggering billing flow - subscription is null and loading complete",
+          "🚨 [Redirect Debug] No active subscription - ensuring plan selection is shown",
           {
             subscription: subscription ? "exists but null" : "does not exist",
             subscriptionLoading,
@@ -893,17 +893,16 @@ const Index = () => {
             inGracePeriod: isInGracePeriod,
           }
         );
+        setShowPlanSelection(true);
+      }
+
+      // Fetch plans if needed (but avoid repeated fetch loops)
+      const billingAlreadyTriggered =
+        billingTriggeredRef.current || getBillingTriggeredState();
+      if (!billingAlreadyTriggered) {
         billingTriggeredRef.current = true;
         setBillingTriggeredState(true);
         handleRequireBilling();
-      } else {
-        console.log(
-          "🔍 [Redirect Debug] Billing flow already triggered, skipping",
-          {
-            refValue: billingTriggeredRef.current,
-            storageValue: getBillingTriggeredState(),
-          }
-        );
       }
       lastSubscriptionRef.current = subscription;
       return;

@@ -394,7 +394,8 @@
     "feature2": "Support prioritaire pour toutes vos questions",
     "feature3": "Mises à jour régulières et nouvelles fonctionnalités",
     "feature4": "Gestion de votre abonnement depuis votre admin Shopify",
-    "continueButton": "Continuer vers l'application"
+    "continueButton": "Continuer vers l'application",
+    "redirectMessage": "Redirection vers l'application dans {{count}} seconde(s)..."
   },
   "trialNotification": {
     "approving": "Approbation...",

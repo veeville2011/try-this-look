@@ -1,17 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Sparkles, ArrowRight, PartyPopper } from "lucide-react";
+import { CheckCircle2, Sparkles, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { syncCredits } from "@/services/creditsApi";
 import { awardReferralCredits } from "@/services/referralsApi";
+
+const REDIRECT_COUNTDOWN_SECONDS = 3;
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const shop = searchParams.get("shop");
+  const [countdown, setCountdown] = useState(REDIRECT_COUNTDOWN_SECONDS);
 
   // Sync credits and award referral credits when component mounts (after subscription approval)
   useEffect(() => {
@@ -88,10 +91,25 @@ const PaymentSuccess = () => {
     return `https://admin.shopify.com/store/${encodeURIComponent(storeHandle)}/apps/${appId}?payment_success=true`;
   };
 
-  // Auto-redirect to embedded app after a short delay so the flow feels seamless in the same tab
-  const AUTO_REDIRECT_DELAY_MS = 3000;
+  const embeddedAppUrl = getEmbeddedAppUrl();
+  const willAutoRedirect = Boolean(embeddedAppUrl);
+
   useEffect(() => {
-    const embeddedAppUrl = getEmbeddedAppUrl();
+    setCountdown(REDIRECT_COUNTDOWN_SECONDS);
+  }, [shop]);
+
+  // Countdown: decrement every second
+  useEffect(() => {
+    if (!willAutoRedirect) return;
+    const interval = window.setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [willAutoRedirect]);
+
+  // Auto-redirect to embedded app after countdown so the flow feels seamless in the same tab
+  const AUTO_REDIRECT_DELAY_MS = REDIRECT_COUNTDOWN_SECONDS * 1000;
+  useEffect(() => {
     if (!embeddedAppUrl) return;
     const timer = window.setTimeout(() => {
       window.location.href = embeddedAppUrl;
@@ -100,11 +118,9 @@ const PaymentSuccess = () => {
   }, [shop]);
 
   const handleRedirectToApp = () => {
-    const embeddedAppUrl = getEmbeddedAppUrl();
     if (embeddedAppUrl) {
       window.location.href = embeddedAppUrl;
     } else {
-      // Fallback to home with payment_success parameter to trigger subscription refresh
       navigate("/?payment_success=true");
     }
   };
@@ -177,16 +193,26 @@ const PaymentSuccess = () => {
               </ul>
             </div>
 
-            {/* Action Button */}
+            {/* Redirect countdown or fallback button */}
             <div className="flex flex-col items-center gap-4">
-              <Button
-                onClick={handleRedirectToApp}
-                size="lg"
-                className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
-              >
-                <span>{t("paymentSuccess.continueButton")}</span>
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              {willAutoRedirect ? (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <p className="text-base sm:text-lg text-muted-foreground">
+                    {t("paymentSuccess.redirectMessage", { count: countdown })}
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary tabular-nums" aria-live="polite">
+                    {countdown}
+                  </p>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleRedirectToApp}
+                  size="lg"
+                  className="w-full sm:w-auto min-w-[200px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                >
+                  <span>{t("paymentSuccess.continueButton")}</span>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

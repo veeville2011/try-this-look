@@ -394,7 +394,8 @@
     "feature2": "Priority support for all your questions",
     "feature3": "Regular updates and new features",
     "feature4": "Manage your subscription from your Shopify admin",
-    "continueButton": "Continue to Application"
+    "continueButton": "Continue to Application",
+    "redirectMessage": "Redirecting to the application in {{count}} second(s)..."
   },
   "trialNotification": {
     "approving": "Approving...",
