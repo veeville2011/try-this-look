@@ -165,6 +165,7 @@
 {
   "name": "Test Extension Button",
   "target": "section",
+  "available_if": "{{ app.metafields.subscription.active }}",
   "enabled_on": {
     "templates": ["product"]
   },
