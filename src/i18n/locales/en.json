@@ -395,7 +395,9 @@
     "feature3": "Regular updates and new features",
     "feature4": "Manage your subscription from your Shopify admin",
     "continueButton": "Continue to Application",
-    "redirectMessage": "Redirecting to the application in {{count}} second(s)..."
+    "redirectMessage": "Redirecting to the application in {{count}} second(s)...",
+    "redirectLabel": "Redirecting in",
+    "redirectSecondsSuffix": "seconds..."
   },
   "trialNotification": {
     "approving": "Approving...",

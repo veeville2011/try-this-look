@@ -22,6 +22,7 @@ const PaymentSuccess = () => {
 
   const processedRef = useRef(false);
   const redirectedRef = useRef(false);
+  const hasTriggeredConfettiRef = useRef(false);
 
   const isValidShop = shop?.endsWith(".myshopify.com");
 
@@ -108,6 +109,54 @@ const PaymentSuccess = () => {
 
   /*
   --------------------------------
+  Celebration / confetti
+  --------------------------------
+  */
+
+  useEffect(() => {
+    if (hasTriggeredConfettiRef.current) return;
+    hasTriggeredConfettiRef.current = true;
+
+    const triggerConfetti = async () => {
+      try {
+        const prefersReducedMotion = window.matchMedia?.(
+          "(prefers-reduced-motion: reduce)"
+        )?.matches;
+
+        if (prefersReducedMotion) return;
+
+        const { default: confetti } = await import("canvas-confetti");
+
+        confetti({
+          particleCount: 90,
+          spread: 65,
+          origin: { y: 0.3 },
+        });
+
+        window.setTimeout(() => {
+          confetti({
+            particleCount: 60,
+            spread: 55,
+            origin: { x: 0.15, y: 0.3 },
+          });
+          confetti({
+            particleCount: 60,
+            spread: 55,
+            origin: { x: 0.85, y: 0.3 },
+          });
+        }, 400);
+      } catch (error) {
+        console.warn("Confetti animation failed (non-blocking)", error);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      triggerConfetti();
+    }
+  }, []);
+
+  /*
+  --------------------------------
   Countdown redirect
   --------------------------------
   */
@@ -138,25 +187,30 @@ const PaymentSuccess = () => {
   */
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/5 flex items-center justify-center p-3">
-      <div className="w-full max-w-xl flex flex-col items-center text-center gap-6">
+    <div className="min-h-screen bg-gradient-to-b from-background via-primary/5 to-background flex items-center justify-center px-4 py-8">
+      <section
+        className="relative w-full max-w-xl rounded-3xl bg-background/95 shadow-lg shadow-primary/10 border border-primary/10 px-8 py-10 flex flex-col items-center text-center gap-8"
+        aria-label={t("paymentSuccess.title")}
+      >
+        {/* Decorative glow */}
+        <div className="pointer-events-none absolute inset-x-16 -top-10 h-24 bg-gradient-to-b from-primary/30 to-transparent blur-3xl opacity-60" />
 
         {/* Success Icon */}
-        <div className="relative bg-success/10 rounded-full p-4">
-          <CheckCircle2 className="w-14 h-14 text-success" />
+        <div className="relative flex items-center justify-center">
+          <div className="absolute -inset-3 rounded-full bg-success/15 blur-md" />
+          <div className="relative bg-success/10 rounded-full p-5">
+            <CheckCircle2 className="w-16 h-16 text-success animate-pulse" />
+          </div>
         </div>
 
-        {/* Title */}
-        <div className="space-y-3">
-
-          <div className="flex items-center justify-center gap-2">
-            <PartyPopper className="w-6 h-6 text-primary animate-bounce" />
-
-            <h1 className="text-3xl sm:text-4xl font-bold">
+        {/* Title & description */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-2 text-primary">
+            <PartyPopper className="w-5 h-5 animate-bounce" />
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               {t("paymentSuccess.title")}
             </h1>
-
-            <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+            <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
 
           <p className="text-lg font-semibold text-success">
@@ -169,25 +223,32 @@ const PaymentSuccess = () => {
         </div>
 
         {/* Countdown */}
-        <div className="flex flex-col items-center gap-4">
-
-          <p
-            className="text-4xl font-bold text-primary tabular-nums"
-            aria-live="polite"
-          >
-            {countdown}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-muted-foreground">
+            {t("paymentSuccess.redirectLabel")}
           </p>
 
-          <Button
-            size="lg"
-            className="min-w-[200px]"
-            onClick={redirectToAppRoot}
-          >
-            {t("paymentSuccess.continueButton")}
-          </Button>
-
+          <div className="flex flex-col items-center gap-1">
+            <p
+              className="text-5xl font-extrabold text-primary tabular-nums leading-none"
+              aria-live="polite"
+            >
+              {countdown}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("paymentSuccess.redirectSecondsSuffix")}
+            </p>
+          </div>
         </div>
-      </div>
+
+        <Button
+          size="lg"
+          className="mt-4 min-w-[240px]"
+          onClick={redirectToAppRoot}
+        >
+          {t("paymentSuccess.continueButton")}
+        </Button>
+      </section>
     </div>
   );
 };
