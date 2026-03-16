@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Sparkles, PartyPopper } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { syncCredits } from "@/services/creditsApi";
 import { awardReferralCredits } from "@/services/referralsApi";
@@ -128,23 +128,12 @@ const PaymentSuccess = () => {
         const { default: confetti } = await import("canvas-confetti");
 
         confetti({
-          particleCount: 90,
-          spread: 65,
-          origin: { y: 0.3 },
+          particleCount: 180,
+          spread: 90,
+          startVelocity: 40,
+          scalar: 1,
+          origin: { x: 0.5, y: 0.2 },
         });
-
-        window.setTimeout(() => {
-          confetti({
-            particleCount: 60,
-            spread: 55,
-            origin: { x: 0.15, y: 0.3 },
-          });
-          confetti({
-            particleCount: 60,
-            spread: 55,
-            origin: { x: 0.85, y: 0.3 },
-          });
-        }, 400);
       } catch (error) {
         console.warn("Confetti animation failed (non-blocking)", error);
       }
@@ -205,13 +194,9 @@ const PaymentSuccess = () => {
 
         {/* Title & description */}
         <div className="space-y-4">
-          <div className="flex items-center justify-center gap-2 text-primary">
-            <PartyPopper className="w-5 h-5 animate-bounce" />
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              {t("paymentSuccess.title")}
-            </h1>
-            <Sparkles className="w-5 h-5 animate-pulse" />
-          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-primary">
+            {t("paymentSuccess.title")}
+          </h1>
 
           <p className="text-lg font-semibold text-success">
             {t("paymentSuccess.successMessage")}
