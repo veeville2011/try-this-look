@@ -4,13 +4,16 @@
  */
 
 import * as logger from "./logger.js";
-import * as creditManager from "./creditManager.js";
 
 /**
  * Determine if app blocks should be available
- * Blocks are available if:
- * 1. Subscription is active (ACTIVE, PENDING, or TRIAL), OR
- * 2. Total credits (trial + plan + coupon + promotion) > 0
+ * Blocks are available only if the merchant has an active subscription.
+ *
+ * IMPORTANT:
+ * - This metafield is used by theme app extension `available_if`, which controls
+ *   whether merchants can see/add/configure app blocks and app embeds in the theme editor.
+ * - To ensure merchants cannot configure theme blocks before selecting a plan,
+ *   we must NOT unlock blocks based on credits alone.
  * @param {Object} client - GraphQL client with authenticated session
  * @param {string} appInstallationId - App installation ID
  * @param {string|null} subscriptionStatus - Subscription status (ACTIVE, PENDING, TRIAL, etc.)
@@ -35,35 +38,12 @@ export const shouldBlocksBeAvailable = async (
       });
       return true;
     }
-    
-    // Check if total credits > 0 (trial + plan + coupon + promotion credits)
-    try {
-      const creditData = await creditManager.getTotalCreditsAvailable(
-        client,
-        appInstallationId
-      );
-      
-      const totalCredits = creditData?.balance ?? 0;
-      const hasCredits = totalCredits > 0;
-      
-      logger.info("[METAFIELD] Credit check for block availability", {
-        appInstallationId,
-        subscriptionStatus,
-        totalCredits,
-        hasCredits,
-        blocksAvailable: hasCredits,
-      });
-      
-      return hasCredits;
-    } catch (creditError) {
-      // If we can't check credits, log and return false (safer default)
-      logger.warn("[METAFIELD] Failed to check credits for block availability", creditError, null, {
-        appInstallationId,
-        subscriptionStatus,
-        errorMessage: creditError.message,
-      });
-      return false;
-    }
+
+    logger.info("[METAFIELD] Blocks unavailable - no active subscription", {
+      appInstallationId,
+      subscriptionStatus,
+    });
+    return false;
   } catch (error) {
     logger.error("[METAFIELD] Error determining block availability", error, null, {
       appInstallationId,

@@ -43,6 +43,7 @@
 {
   "name": "NUSENSE Try-On Button",
   "target": "body",
+  "available_if": "{{ app.metafields.subscription.active }}",
   "enabled_on": {
     "templates": ["product"]
   },

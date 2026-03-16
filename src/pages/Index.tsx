@@ -1780,7 +1780,8 @@ const Index = () => {
                           {t("index.planCard.noPlanSelected")}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {t("index.planCard.selectPlanToContinue") || "Select a plan to get started"}
+                          {t("index.planCard.selectPlanToContinue") ||
+                            "Select a plan to unlock your NUSENSE Try-On theme blocks. Until you subscribe, the product-page Try-On button and app embeds stay hidden and can’t be configured in the theme editor."}
                         </p>
                       </div>
                     </div>

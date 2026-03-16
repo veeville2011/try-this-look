@@ -166,6 +166,7 @@
 {
   "name": "NUSENSE Try-On Button",
   "target": "section",
+  "available_if": "{{ app.metafields.subscription.active }}",
   "enabled_on": {
     "templates": ["product"]
   },
