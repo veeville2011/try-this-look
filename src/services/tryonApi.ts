@@ -522,10 +522,20 @@ export interface UploadedImage {
   id: string;
   requestId: string;
   personImageUrl: string;
-  personKey: string;
-  storeName: string;
-  uploadedAt: string;
-  updatedAt: string;
+  /**
+   * Legacy fields from older `/uploaded-images` endpoint.
+   * New `/customer` endpoint may not return them.
+   */
+  personKey?: string;
+  storeName?: string;
+  uploadedAt?: string;
+  updatedAt?: string;
+  /**
+   * Fields commonly present in `/customer` responses.
+   */
+  clothingImageUrl?: string;
+  generatedImageUrl?: string;
+  createdAt?: string;
 }
 
 export interface PaginationMeta {
@@ -610,10 +620,10 @@ export async function fetchUploadedImages(
     page: (params.page || 1).toString(),
     limit: (params.limit || 10).toString(),
   });
-  if (params.store) queryParams.append("store", params.store);
+  if (params.store) queryParams.append("store", normalizeShopDomain(params.store));
   if (params.startDate) queryParams.append("startDate", params.startDate);
   if (params.endDate) queryParams.append("endDate", params.endDate);
-  const url = `${baseUrl}/api/image-generations/uploaded-images?${queryParams.toString()}`;
+  const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
   const response = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },

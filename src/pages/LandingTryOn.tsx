@@ -104,7 +104,7 @@ export default function LandingTryOn() {
       const response = await fetchUploadedImages({
         email: customerInfo.email,
         store: shopDomain,
-        limit: 25,
+        limit: 10,
         page: 1,
       });
 
@@ -236,7 +236,7 @@ export default function LandingTryOn() {
           onStatusUpdate: (s) => setStatusText(s || `Generating ${i + 1} / ${products.length}`),
         });
 
-        if (response.status !== "success" || !response.image_url) {
+        if (response.status !== "success" || !response.image) {
           // Continue carefully: record failure and move on
           continue;
         }
@@ -244,7 +244,7 @@ export default function LandingTryOn() {
         nextResults.push({
           handle: p.handle,
           variantId: p.variantGid,
-          generatedImageUrl: response.image_url,
+          generatedImageUrl: response.image,
         });
 
         setResults([...nextResults]);
@@ -290,8 +290,7 @@ export default function LandingTryOn() {
             </div>
             <Button
               type="button"
-              variant="outline"
-              className="shrink-0"
+              className="shrink-0 border border-gray-200 bg-white text-gray-900 hover:bg-gray-50"
               onClick={handleRequestContextFromParent}
             >
               Refresh
@@ -310,7 +309,11 @@ export default function LandingTryOn() {
                 className="hidden"
                 onChange={handleFileChange}
               />
-              <Button type="button" variant="secondary" onClick={handleTriggerUpload}>
+              <Button
+                type="button"
+                className="bg-gray-900 text-white hover:bg-gray-800"
+                onClick={handleTriggerUpload}
+              >
                 <Upload className="mr-2 h-4 w-4" />
                 Upload
               </Button>
