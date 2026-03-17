@@ -1,0 +1,37 @@
+{% comment %} Dedicated landing-page embed (isolated from existing blocks) {% endcomment %}
+
+{% comment %} Output customer information for logged-in gating {% endcomment %}
+{% if customer %}
+  <script type="application/json" id="nusense-customer-info">
+    {
+      "id": {{ customer.id | json }},
+      "email": {{ customer.email | json }},
+      "firstName": {% if customer.first_name %}{{ customer.first_name | json }}{% else %}null{% endif %},
+      "lastName": {% if customer.last_name %}{{ customer.last_name | json }}{% else %}null{% endif %}
+    }
+  </script>
+{% endif %}
+
+{% render 'nusense-tryon-script' %}
+
+<script src="{{ 'nusense-landing-tryon.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "NUSENSE Landing Try-On",
+  "target": "body",
+  "available_if": "{{ app.metafields.subscription.active }}",
+  "enabled_on": {
+    "templates": ["index"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "floating_button_text",
+      "label": "Floating Button Text",
+      "default": "My Try-On"
+    }
+  ]
+}
+{% endschema %}
+

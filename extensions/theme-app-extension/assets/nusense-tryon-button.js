@@ -819,7 +819,6 @@
 
     const productId = buttonEl.dataset.productId || '';
     const shopDomain = buttonEl.dataset.shopDomain || '';
-    
     // Detect and pass customer information if available
     const customerInfo = getCustomerInfo();
     

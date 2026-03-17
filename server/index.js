@@ -1238,7 +1238,8 @@ const verifySessionToken = async (req, res, next) => {
       req.path.startsWith("/demo") ||
       req.path === "/api/billing/return" ||
       req.path.startsWith("/payment-success") ||
-      req.path === "/api/proxy-image"
+      req.path === "/api/proxy-image" ||
+      req.path === "/api/personalized-images"
     ) {
       return next();
     }
@@ -1374,6 +1375,355 @@ app.use((req, res, next) => {
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+const getOfflineSessionForShop = async (shopDomain) => {
+  const sanitizedShop = shopify.utils.sanitizeShop(shopDomain);
+  if (!sanitizedShop) return null;
+  const sessions = await shopify.config.sessionStorage.findSessionsByShop(
+    sanitizedShop
+  );
+  if (!sessions || sessions.length === 0) return null;
+  return sessions.find((s) => !s.isOnline) || null;
+};
+
+const normalizeVariantGid = (variantId) => {
+  if (variantId == null) return null;
+  const s = String(variantId).trim();
+  if (!s) return null;
+  if (/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(s)) return s;
+  if (/^\d+$/.test(s)) return `gid://shopify/ProductVariant/${s}`;
+  return null;
+};
+
+const parseVariantIdsParam = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .flatMap((v) => String(v).split(","))
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+  return String(raw)
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+};
+
+const CUSTOMER_META_NAMESPACE = "nusense";
+const CUSTOMER_META_KEY = "personalized_images";
+
+const readCustomerPersonalizedImages = async ({
+  shopDomain,
+  customerId,
+  customerEmail,
+  variantIds,
+}) => {
+  const offlineSession = await getOfflineSessionForShop(shopDomain);
+  if (!offlineSession) {
+    return { ok: false, status: 404, error: "No offline session found for shop" };
+  }
+
+  const customerIdTrimmed =
+    customerId != null && String(customerId).trim() !== "" ? String(customerId).trim() : null;
+  const emailTrimmed =
+    customerEmail && String(customerEmail).trim() ? String(customerEmail).trim().toLowerCase() : null;
+
+  if (!customerIdTrimmed && !emailTrimmed) {
+    return { ok: false, status: 400, error: "customerId or email is required" };
+  }
+
+  const client = new shopify.clients.Graphql({ session: offlineSession });
+
+  let customerGid = null;
+  if (customerIdTrimmed && /^\d+$/.test(customerIdTrimmed)) {
+    customerGid = `gid://shopify/Customer/${customerIdTrimmed}`;
+  }
+
+  if (!customerGid && emailTrimmed) {
+    const searchQuery = `email:${emailTrimmed}`;
+    const searchResp = await client.request(
+      `
+        query FindCustomerByEmail($query: String!) {
+          customers(first: 1, query: $query) {
+            edges {
+              node { id email }
+            }
+          }
+        }
+      `,
+      { variables: { query: searchQuery } }
+    );
+    customerGid =
+      searchResp?.data?.customers?.edges?.[0]?.node?.id || null;
+  }
+
+  if (!customerGid) {
+    return { ok: false, status: 404, error: "Customer not found" };
+  }
+
+  const resp = await client.request(
+    `
+      query GetCustomerPersonalizedImages($id: ID!) {
+        customer(id: $id) {
+          id
+          metafield(namespace: "${CUSTOMER_META_NAMESPACE}", key: "${CUSTOMER_META_KEY}") {
+            id
+            key
+            namespace
+            type
+            value
+            updatedAt
+          }
+        }
+      }
+    `,
+    { variables: { id: customerGid } }
+  );
+
+  const mf = resp?.data?.customer?.metafield || null;
+  const parsed = (() => {
+    try {
+      if (!mf?.value) return null;
+      return JSON.parse(mf.value);
+    } catch {
+      return null;
+    }
+  })();
+
+  const itemsRaw = Array.isArray(parsed?.items) ? parsed.items : [];
+  const normalizedItems = itemsRaw
+    .map((it) => {
+      const gid = normalizeVariantGid(it?.variantId);
+      const url = it?.generatedImageUrl ? String(it.generatedImageUrl).trim() : "";
+      if (!gid || !url) return null;
+      return {
+        variantId: gid,
+        generatedImageUrl: url,
+        updatedAt: it?.updatedAt || mf?.updatedAt || null,
+      };
+    })
+    .filter(Boolean);
+
+  const filterSet =
+    variantIds && variantIds.length > 0
+      ? new Set(variantIds.map((v) => normalizeVariantGid(v)).filter(Boolean))
+      : null;
+
+  const filtered = filterSet
+    ? normalizedItems.filter((it) => filterSet.has(it.variantId))
+    : normalizedItems;
+
+  return {
+    ok: true,
+    status: 200,
+    data: filtered,
+    meta: {
+      customerId: customerGid,
+      shopDomain: normalizeShopDomain(shopDomain),
+      metafieldUpdatedAt: mf?.updatedAt || null,
+    },
+  };
+};
+
+const writeCustomerPersonalizedImages = async ({
+  shopDomain,
+  customerId,
+  customerEmail,
+  items,
+}) => {
+  const offlineSession = await getOfflineSessionForShop(shopDomain);
+  if (!offlineSession) {
+    return { ok: false, status: 404, error: "No offline session found for shop" };
+  }
+
+  const customerIdTrimmed =
+    customerId != null && String(customerId).trim() !== "" ? String(customerId).trim() : null;
+  const emailTrimmed =
+    customerEmail && String(customerEmail).trim() ? String(customerEmail).trim().toLowerCase() : null;
+
+  if (!customerIdTrimmed && !emailTrimmed) {
+    return { ok: false, status: 400, error: "customerId or email is required" };
+  }
+
+  const normalizedIncoming = Array.isArray(items)
+    ? items
+        .map((it) => {
+          const gid = normalizeVariantGid(it?.variantId);
+          const url = it?.generatedImageUrl ? String(it.generatedImageUrl).trim() : "";
+          if (!gid || !url) return null;
+          return { variantId: gid, generatedImageUrl: url, updatedAt: new Date().toISOString() };
+        })
+        .filter(Boolean)
+    : [];
+
+  if (normalizedIncoming.length === 0) {
+    return { ok: false, status: 400, error: "items must include at least one { variantId, generatedImageUrl }" };
+  }
+
+  const client = new shopify.clients.Graphql({ session: offlineSession });
+
+  let customerGid = null;
+  if (customerIdTrimmed && /^\d+$/.test(customerIdTrimmed)) {
+    customerGid = `gid://shopify/Customer/${customerIdTrimmed}`;
+  }
+  if (!customerGid && emailTrimmed) {
+    const searchQuery = `email:${emailTrimmed}`;
+    const searchResp = await client.request(
+      `
+        query FindCustomerByEmail($query: String!) {
+          customers(first: 1, query: $query) {
+            edges { node { id email } }
+          }
+        }
+      `,
+      { variables: { query: searchQuery } }
+    );
+    customerGid = searchResp?.data?.customers?.edges?.[0]?.node?.id || null;
+  }
+  if (!customerGid) {
+    return { ok: false, status: 404, error: "Customer not found" };
+  }
+
+  const existing = await readCustomerPersonalizedImages({
+    shopDomain,
+    customerId: customerIdTrimmed,
+    customerEmail: emailTrimmed,
+    variantIds: [],
+  });
+
+  const merged = new Map();
+  if (existing.ok) {
+    for (const it of existing.data || []) {
+      merged.set(it.variantId, {
+        variantId: it.variantId,
+        generatedImageUrl: it.generatedImageUrl,
+        updatedAt: it.updatedAt || null,
+      });
+    }
+  }
+  for (const it of normalizedIncoming) {
+    merged.set(it.variantId, it);
+  }
+
+  const payload = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    items: Array.from(merged.values()),
+  };
+
+  const setResp = await client.request(
+    `
+      mutation SetCustomerPersonalizedImages($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields { id namespace key type updatedAt }
+          userErrors { field message code }
+        }
+      }
+    `,
+    {
+      variables: {
+        metafields: [
+          {
+            ownerId: customerGid,
+            namespace: CUSTOMER_META_NAMESPACE,
+            key: CUSTOMER_META_KEY,
+            type: "json",
+            value: JSON.stringify(payload),
+          },
+        ],
+      },
+    }
+  );
+
+  const userErrors = setResp?.data?.metafieldsSet?.userErrors || [];
+  if (userErrors.length > 0) {
+    return { ok: false, status: 400, error: "Failed to store metafield", details: userErrors };
+  }
+
+  return {
+    ok: true,
+    status: 200,
+    data: payload.items,
+    meta: {
+      customerId: customerGid,
+      shopDomain: normalizeShopDomain(shopDomain),
+    },
+  };
+};
+
+app.get("/api/personalized-images", async (req, res) => {
+  try {
+    const shop = req.query.shop;
+    const customerId = req.query.customerId;
+    const email = req.query.email;
+    const variantIds = parseVariantIdsParam(req.query.variantIds);
+
+    const shopDomain = normalizeShopDomain(String(shop || ""));
+    if (!shopDomain) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "shop is required", details: { field: "shop" } },
+      });
+    }
+
+    const result = await readCustomerPersonalizedImages({
+      shopDomain,
+      customerId,
+      customerEmail: email,
+      variantIds,
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({
+        success: false,
+        error: { code: "ERROR", message: result.error, details: result.details || {} },
+      });
+    }
+
+    return res.json({ success: true, data: result.data || [], meta: result.meta || {} });
+  } catch (error) {
+    logger.error("[API] Failed to fetch personalized images", error, req);
+    return res.status(500).json({
+      success: false,
+      error: { code: "SERVER_ERROR", message: "Failed to fetch personalized images", details: { message: error.message } },
+    });
+  }
+});
+
+app.post("/api/personalized-images", async (req, res) => {
+  try {
+    const { shop, customerId, email, items } = req.body || {};
+    const shopDomain = normalizeShopDomain(String(shop || ""));
+    if (!shopDomain) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "shop is required", details: { field: "shop" } },
+      });
+    }
+
+    const result = await writeCustomerPersonalizedImages({
+      shopDomain,
+      customerId,
+      customerEmail: email,
+      items,
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({
+        success: false,
+        error: { code: "ERROR", message: result.error, details: result.details || {} },
+      });
+    }
+
+    return res.json({ success: true, data: result.data || [], meta: result.meta || {} });
+  } catch (error) {
+    logger.error("[API] Failed to store personalized images", error, req);
+    return res.status(500).json({
+      success: false,
+      error: { code: "SERVER_ERROR", message: "Failed to store personalized images", details: { message: error.message } },
+    });
+  }
 });
 
 // Logs endpoint - view recent logs
