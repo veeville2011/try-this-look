@@ -1882,15 +1882,15 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       let personImageUrl: string | null = null;
       
       if (isDemoPhoto) {
-        // Demo photo: Convert data URL to blob and send as personImage
-        personBlob = await dataURLToBlob(uploadedImage);
-        console.log('[VirtualTryOnModal] Using personBlob (demo photo)');
+        // Demo photo: send as demoPersonId (no blob) so API uses server-side demo asset; demoPersonIdFromUrl is set below from DEMO_PHOTO_ID_MAP
+        console.log('[VirtualTryOnModal] Using demoPersonId (demo photo)');
       } else if (isPersonImageUrl) {
-        // Recent photo: Use URL directly - API will handle fetching
+        // Recent photo: fetch URL to blob so FormData has personImage (API requires file or demoPersonId)
+        personBlob = await dataURLToBlob(uploadedImage);
         personImageUrl = uploadedImage;
-        console.log('[VirtualTryOnModal] Using personImageUrl (recent photo):', personImageUrl);
+        console.log('[VirtualTryOnModal] Using personBlob from recent photo URL');
       } else {
-        // Uploaded photo: Convert data URL to blob
+        // Uploaded photo: convert data URL to blob
         personBlob = await dataURLToBlob(uploadedImage);
         console.log('[VirtualTryOnModal] Using personBlob (uploaded photo)');
       }

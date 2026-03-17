@@ -170,7 +170,8 @@ export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnR
     if (normalizedDemoId) {
       formData.append("demoPersonId", normalizedDemoId);
     } else if (personImage) {
-      formData.append("personImage", personImage, "person.jpg");
+      const fileName = personImage instanceof File ? personImage.name : "person.jpg";
+      formData.append("personImage", personImage, fileName);
     }
 
     if (customerInfo) {
@@ -190,6 +191,7 @@ export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnR
     let jobId: string;
 
     try {
+      // Do not set Content-Type: fetch will set multipart/form-data with boundary so FormData is sent correctly (visible in DevTools as Form Data / Request payload)
       response = await authenticatedFetch(API_ENDPOINT, {
         method: "POST",
         headers: { Accept: "application/json" },
