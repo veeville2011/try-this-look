@@ -9,7 +9,7 @@ import { awardReferralCredits } from "@/services/referralsApi";
 import { createApp } from "@shopify/app-bridge";
 import { Redirect } from "@shopify/app-bridge/actions";
 
-const REDIRECT_COUNTDOWN_SECONDS = 5;
+const REDIRECT_COUNTDOWN_SECONDS = 8;
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
@@ -138,12 +138,17 @@ const PaymentSuccess = () => {
         const frame = () => {
           fire({
             particleCount: 8,
-            spread: 360,
-            startVelocity: 40,
+            angle: 90, // fall top -> bottom
+            spread: 35,
+            startVelocity: 0,
+            gravity: 0.9,
+            drift: 0,
+            ticks: 260,
+            decay: 0.92,
             scalar: 0.9,
             origin: {
               x: Math.random(),
-              y: Math.random() * 0.6, // top ~60% of viewport
+              y: 0, // start at top edge of viewport
             },
           });
 
