@@ -219,13 +219,14 @@ export default function LandingTryOn() {
     setStatusText(null);
     setResults([]);
 
+    const productsToGenerate = products.slice(0, 2);
     const nextResults: GenerationResultItem[] = [];
 
     try {
-      for (let i = 0; i < products.length; i++) {
-        const p = products[i];
+      for (let i = 0; i < productsToGenerate.length; i++) {
+        const p = productsToGenerate[i];
         setCurrentIndex(i);
-        setStatusText(`Generating ${i + 1} / ${products.length}`);
+        setStatusText(`Generating ${i + 1} / ${productsToGenerate.length}`);
 
         const response = await generateTryOn({
           variantId: p.variantGid,
@@ -233,7 +234,7 @@ export default function LandingTryOn() {
           personImage: selectedPersonMode === "file" ? selectedPersonFile : null,
           personImageUrl: selectedPersonMode === "url" ? selectedPersonImageUrl : null,
           customerInfo: customerInfo,
-          onStatusUpdate: (s) => setStatusText(s || `Generating ${i + 1} / ${products.length}`),
+          onStatusUpdate: (s) => setStatusText(s || `Generating ${i + 1} / ${productsToGenerate.length}`),
         });
 
         if (response.status !== "success" || !response.image) {
