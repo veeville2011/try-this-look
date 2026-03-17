@@ -1913,80 +1913,65 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
       }
 
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
-      const clothingKey = selectedClothingKey ? String(selectedClothingKey) : undefined;
-      const personKey = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined : undefined;
-
       const currentProductData = storedProductData || getProductData();
-      
-      // Try to get selected variant ID from multiple sources
+
       let selectedVariantId: number | string | null = null;
       try {
-        if (typeof window !== 'undefined' && window.location) {
+        if (typeof window !== "undefined" && window.location) {
           const urlParams = new URLSearchParams(window.location.search);
-          const variantParam = urlParams.get('variant');
+          const variantParam = urlParams.get("variant");
           if (variantParam) selectedVariantId = variantParam;
         }
       } catch {}
-      
       if (!selectedVariantId && currentProductData) {
-        selectedVariantId = (currentProductData as any)?.selectedVariantId ?? 
-                            (currentProductData as any)?.variantId ?? 
-                            (currentProductData as any)?.variants?.[0]?.id ?? 
-                            null;
-      }
-      
-      const productInfo = currentProductData ? {
-        productId: currentProductData.id ?? currentProductData.productId ?? null,
-        productTitle: currentProductData.title ?? currentProductData.name ?? null,
-        productUrl: currentProductData.url ?? null,
-        variantId: selectedVariantId,
-      } : null;
-      
-      // Convert bbox from [x, y, width, height] to PersonBbox format if available
-      // CRITICAL: Clamp all values to ensure they are positive (server validation requirement)
-      // For recent photos, use the bbox from the photo data if available
-      const personBbox: PersonBbox | null = selectedPersonBbox ? {
-        x: Math.max(0, selectedPersonBbox.x),
-        y: Math.max(0, selectedPersonBbox.y),
-        width: Math.max(0, selectedPersonBbox.width),
-        height: Math.max(0, selectedPersonBbox.height),
-      } : null;
-      
-      // Log bbox for debugging
-      if (personBbox) {
-        console.log('[VirtualTryOnModal] Sending personBbox to API:', personBbox);
-        if (selectedPersonBbox && (
-          selectedPersonBbox.x !== personBbox.x ||
-          selectedPersonBbox.y !== personBbox.y ||
-          selectedPersonBbox.width !== personBbox.width ||
-          selectedPersonBbox.height !== personBbox.height
-        )) {
-          console.warn('[VirtualTryOnModal] PersonBbox was clamped:', {
-            original: selectedPersonBbox,
-            clamped: personBbox
-          });
-        }
+        selectedVariantId =
+          (currentProductData as any)?.selectedVariantId ??
+          (currentProductData as any)?.variantId ??
+          (currentProductData as any)?.variants?.[0]?.id ??
+          null;
       }
 
-      const result = await generateTryOn(
-        personBlob,
-        clothingBlob,
-        shopDomain,
-        clothingKey,
-        personKey,
-        1, // version
-        customerInfo,
-        productInfo,
-        (statusDescription) => {
-          if (statusDescription && statusDescription.trim()) {
-            setStatusMessage(statusDescription);
+      if (!selectedVariantId || !shopDomain) {
+        setStatusMessage("");
+        setGeneratedImage(null);
+        toast.error(
+          selectedVariantId
+            ? "Shop domain is required for try-on."
+            : "Please select a product variant. Variant is required for try-on."
+        );
+        setStep('idle');
+        return;
+      }
+
+      const personBbox: PersonBbox | null = selectedPersonBbox
+        ? {
+            x: Math.max(0, selectedPersonBbox.x),
+            y: Math.max(0, selectedPersonBbox.y),
+            width: Math.max(0, selectedPersonBbox.width),
+            height: Math.max(0, selectedPersonBbox.height),
           }
+        : null;
+
+      const demoPersonIdFromUrl = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) ?? undefined : undefined;
+
+      if (!personBlob && !demoPersonIdFromUrl) {
+        setStep('idle');
+        toast.error("Please select or upload a person photo.");
+        return;
+      }
+
+      const result = await generateTryOn({
+        variantId: selectedVariantId,
+        shop: shopDomain,
+        personImage: personBlob ?? undefined,
+        demoPersonId: personBlob ? undefined : demoPersonIdFromUrl,
+        onStatusUpdate: (statusDescription) => {
+          if (statusDescription?.trim()) setStatusMessage(statusDescription);
         },
-        personBbox, // Pass selected person bounding box
-        undefined, // demoPersonId removed - now sending actual image file
-        clothingImageUrl, // Pass clothing URL if available
-        personImageUrl // Pass person URL if available (for recent photos, not demo photos)
-      );
+        customerInfo: customerInfo ?? undefined,
+        personBbox: personBbox ?? undefined,
+        language: i18n.language || undefined,
+      });
 
       // Clear timers
       if (progressTimerRef.current) {

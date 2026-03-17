@@ -1,12 +1,28 @@
 import { TryOnResponse, JobSubmissionResponse, JobStatusResponse } from "@/types/tryon";
 import { logError, logApiError } from "@/utils/errorHandler";
 import { authenticatedFetch } from "@/utils/authenticatedFetch";
-import { getSessionId } from "@/utils/tracking";
 
-const API_ENDPOINT = "https://ai.nusense.ddns.net/api/fashion-photo";
+const API_ENDPOINT = "https://ai.nusense.ddns.net/api/fashion-tryon";
+
+/** Shopify GID format (variant or product): gid://shopify/ProductVariant/123 or gid://shopify/Product/123 */
+const GID_REGEX = /^gid:\/\/shopify\/(ProductVariant|Product)\/\d+$/;
+
+/** API expects demo_01..demo_16; app may send demo_person_1..demo_person_16. Normalize to API format. */
+const normalizeDemoPersonId = (id: string | null | undefined): string | null => {
+  if (!id || typeof id !== "string") return null;
+  const s = id.trim();
+  const apiMatch = s.match(/^demo_(\d{2})$/);
+  if (apiMatch) return s;
+  const legacyMatch = s.match(/^demo_person_(\d+)$/);
+  if (legacyMatch) {
+    const n = parseInt(legacyMatch[1], 10);
+    if (n >= 1 && n <= 16) return `demo_${String(n).padStart(2, "0")}`;
+  }
+  return null;
+};
 
 /**
- * Normalize shop domain
+ * Normalize shop domain per fashion-tryon-api.md
  */
 const normalizeShopDomain = (shop: string): string => {
   if (!shop) return "";
@@ -18,18 +34,42 @@ const normalizeShopDomain = (shop: string): string => {
   return normalized;
 };
 
-interface CustomerInfo {
-  id?: string | null;
-  email?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-}
+/**
+ * Normalize variantId to Shopify GID format.
+ * Accepts numeric ID or full GID; returns GID string.
+ */
+export const normalizeVariantIdToGid = (variantId: string | number | null | undefined): string | null => {
+  if (variantId == null || variantId === "") return null;
+  const s = String(variantId).trim();
+  if (!s) return null;
+  if (GID_REGEX.test(s)) return s;
+  const num = /^\d+$/.test(s) ? s : null;
+  if (num) return `gid://shopify/ProductVariant/${num}`;
+  return null;
+};
 
-interface ProductInfo {
-  productId?: number | string | null;
-  productTitle?: string | null;
-  productUrl?: string | null;
-  variantId?: number | string | null;
+export interface GenerateTryOnParams {
+  /** Shopify variant (or product) GID, or numeric ID (will be normalized to GID). Required. */
+  variantId: string | number | null | undefined;
+  /** Shopify shop domain. Required. */
+  shop: string | null | undefined;
+  /** Person image file (use exactly one of personImage or demoPersonId). */
+  personImage?: File | Blob | null;
+  /** Demo person ID demo_01..demo_16 (use exactly one of personImage or demoPersonId). */
+  demoPersonId?: string | null;
+  /** Optional status updates during polling. */
+  onStatusUpdate?: (statusDescription: string | null) => void;
+  /** Optional customer info (if API supports). */
+  customerInfo?: {
+    id?: string | null;
+    email?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+  /** Optional person bounding box for group photos (if API supports). */
+  personBbox?: { x: number; y: number; width: number; height: number } | null;
+  /** Optional language override en/fr (if API supports). */
+  language?: string | null;
 }
 
 export interface PersonBbox {
@@ -39,260 +79,133 @@ export interface PersonBbox {
   height: number;
 }
 
-export async function generateTryOn(
-  personImage?: File | Blob | null,
-  clothingImage?: Blob | null,
-  storeName?: string | null,
-  clothingKey?: string | null, // Deprecated: kept for backward compatibility but not sent to API
-  personKey?: string | null, // Deprecated: kept for backward compatibility but not sent to API
-  version?: number | null, // Deprecated: not used
-  customerInfo?: CustomerInfo | null,
-  productInfo?: ProductInfo | null,
-  onStatusUpdate?: (statusDescription: string | null) => void,
-  personBbox?: PersonBbox | null, // Optional: bounding box of selected person [x, y, width, height]
-  demoPersonId?: string | null, // Deprecated: no longer used - demo photos are now sent as personImage files
-  clothingImageUrl?: string | null, // Optional: clothing image URL instead of file
-  personImageUrl?: string | null, // Optional: person image URL instead of file
-  language?: string | null // Optional: language override (en, fr)
-): Promise<TryOnResponse> {
+/**
+ * Generate try-on using Fashion Try-On API per fashion-tryon-api.md.
+ * Requires variantId + shop; person is exactly one of personImage or demoPersonId.
+ * No clothing fields — product imagery is resolved server-side from Shopify.
+ */
+export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnResponse> {
+  const {
+    variantId: rawVariantId,
+    shop,
+    personImage,
+    demoPersonId,
+    onStatusUpdate,
+    customerInfo,
+    personBbox,
+    language,
+  } = params;
+
   const requestId = `tryon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
-  
+
   try {
-    // Validate required fields according to API spec
-    // Either personImage OR personImageUrl must be provided
-    if (!personImage && !personImageUrl) {
+    const variantIdGid = normalizeVariantIdToGid(rawVariantId);
+    if (!variantIdGid) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Either personImage or personImageUrl must be provided",
+          message: "variantId is required and must be a valid Shopify GraphQL ID (GID) or numeric variant ID",
         },
       };
     }
 
-    // Either clothingImage OR clothingImageUrl must be provided
-    if (!clothingImage && !clothingImageUrl) {
+    if (!shop || !normalizeShopDomain(shop)) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Either clothingImage or clothingImageUrl must be provided",
+          message: "shop is required",
         },
       };
     }
 
-    // Cannot provide both personImage and personImageUrl
-    if (personImage && personImageUrl) {
+    if (!personImage && !demoPersonId) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Cannot provide both personImage and personImageUrl. Provide only one.",
+          message: "Either demoPersonId or personImage must be provided",
         },
       };
     }
 
-    // Note: demoPersonId is deprecated - demo photos are now sent as personImage files
+    if (personImage && demoPersonId) {
+      return {
+        status: "error",
+        error_message: {
+          code: "VALIDATION_ERROR",
+          message: "Cannot provide both demoPersonId and personImage. Provide only one.",
+        },
+      };
+    }
 
-    console.log("[FRONTEND] [TRYON] Starting generation", {
+    const normalizedDemoId = demoPersonId ? normalizeDemoPersonId(demoPersonId) : null;
+    if (demoPersonId && !normalizedDemoId) {
+      return {
+        status: "error",
+        error_message: {
+          code: "VALIDATION_ERROR",
+          message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16 (or demo_person_1 through demo_person_16).`,
+        },
+      };
+    }
+
+    const normalizedShop = normalizeShopDomain(shop);
+
+    console.log("[FRONTEND] [TRYON] Starting generation (fashion-tryon)", {
       requestId,
+      variantId: variantIdGid,
+      shop: normalizedShop,
       hasPersonImage: !!personImage,
-      hasPersonImageUrl: !!personImageUrl,
-      hasClothingImage: !!clothingImage,
-      hasClothingImageUrl: !!clothingImageUrl,
-      storeName: storeName || "not provided",
-      hasCustomerInfo: !!customerInfo,
-      customerId: customerInfo?.id || "not provided",
-      hasProductInfo: !!productInfo,
-      productInfo: productInfo || "not provided",
-      hasPersonBbox: !!personBbox,
-      personBbox: personBbox || null,
-      language: language || "not provided",
+      demoPersonId: normalizedDemoId || null,
       timestamp: new Date().toISOString(),
     });
 
-    // Prepare FormData
-    let formData: FormData;
-    try {
-      formData = new FormData();
+    const formData = new FormData();
+    formData.append("variantId", variantIdGid);
+    formData.append("shop", normalizedShop);
 
-      // Add person image OR person image URL (required - one of them)
-      if (personImageUrl) {
-        // If both are provided, personImageUrl takes priority per spec
-        formData.append("personImageUrl", personImageUrl);
-      } else if (personImage) {
-        formData.append("personImage", personImage);
-      }
-
-      // Add clothing image OR clothing image URL (required - one of them)
-      if (clothingImageUrl) {
-        // If both are provided, clothingImageUrl takes priority per spec
-        formData.append("clothingImageUrl", clothingImageUrl);
-      } else if (clothingImage) {
-        formData.append("clothingImage", clothingImage, "clothing-item.jpg");
-      }
-
-      // Note: personKey and clothingKey are NOT sent - they are auto-generated by the API per spec
-
-      if (storeName) {
-        formData.append("storeName", storeName);
-      }
-
-      // Add customer information if available (non-mandatory)
-      if (customerInfo) {
-        if (customerInfo.id) {
-          formData.append("customerId", customerInfo.id);
-        }
-        if (customerInfo.email) {
-          formData.append("customerEmail", customerInfo.email);
-        }
-        if (customerInfo.firstName) {
-          formData.append("customerFirstName", customerInfo.firstName);
-        }
-        if (customerInfo.lastName) {
-          formData.append("customerLastName", customerInfo.lastName);
-        }
-      }
-
-      // Add product information if available (non-mandatory)
-      if (productInfo) {
-        if (productInfo.productId != null && productInfo.productId !== "") {
-          formData.append("productId", String(productInfo.productId));
-          console.log("[FRONTEND] [TRYON] Added productId to FormData:", productInfo.productId);
-        }
-        if (productInfo.productTitle != null && productInfo.productTitle !== "") {
-          formData.append("productTitle", productInfo.productTitle);
-          console.log("[FRONTEND] [TRYON] Added productTitle to FormData:", productInfo.productTitle);
-        }
-        if (productInfo.productUrl != null && productInfo.productUrl !== "") {
-          formData.append("productUrl", productInfo.productUrl);
-          console.log("[FRONTEND] [TRYON] Added productUrl to FormData:", productInfo.productUrl);
-        }
-        if (productInfo.variantId != null && productInfo.variantId !== "") {
-          formData.append("variantId", String(productInfo.variantId));
-          console.log("[FRONTEND] [TRYON] Added variantId to FormData:", productInfo.variantId);
-        }
-      } else {
-        console.log("[FRONTEND] [TRYON] No productInfo provided");
-      }
-
-      // Add person bounding box if provided (for group photo selection)
-      if (personBbox) {
-        // Send as JSON string: {"x": number, "y": number, "width": number, "height": number}
-        formData.append("personBbox", JSON.stringify(personBbox));
-        console.log("[FRONTEND] [TRYON] Added personBbox to FormData:", personBbox);
-      }
-
-      // Add language override if provided
-      if (language) {
-        formData.append("language", language);
-        console.log("[FRONTEND] [TRYON] Added language to FormData:", language);
-      }
-      
-      // Log all FormData entries for debugging
-      const formDataEntries: Record<string, string> = {};
-      try {
-        // Note: FormData.entries() is not available in all environments, so we log what we know
-        if (personImage) formDataEntries.personImage = "[File/Blob]";
-        if (personImageUrl) formDataEntries.personImageUrl = personImageUrl;
-        if (clothingImage) formDataEntries.clothingImage = "[File/Blob]";
-        if (clothingImageUrl) formDataEntries.clothingImageUrl = clothingImageUrl;
-        if (storeName) formDataEntries.storeName = storeName;
-        if (customerInfo?.id) formDataEntries.customerId = String(customerInfo.id);
-        if (customerInfo?.email) formDataEntries.customerEmail = customerInfo.email;
-        if (customerInfo?.firstName) formDataEntries.customerFirstName = customerInfo.firstName;
-        if (customerInfo?.lastName) formDataEntries.customerLastName = customerInfo.lastName;
-        if (productInfo?.productId) formDataEntries.productId = String(productInfo.productId);
-        if (productInfo?.productTitle) formDataEntries.productTitle = productInfo.productTitle;
-        if (productInfo?.productUrl) formDataEntries.productUrl = productInfo.productUrl;
-        if (productInfo?.variantId) formDataEntries.variantId = String(productInfo.variantId);
-        if (personBbox) formDataEntries.personBbox = JSON.stringify(personBbox);
-        if (language) formDataEntries.language = language;
-      } catch (e) {
-        // Ignore
-      }
-
-      console.log("[FRONTEND] [TRYON] FormData prepared", {
-        requestId,
-        hasStoreName: !!storeName,
-        hasPersonImage: !!personImage,
-        hasPersonImageUrl: !!personImageUrl,
-        hasClothingImage: !!clothingImage,
-        hasClothingImageUrl: !!clothingImageUrl,
-        hasCustomerInfo: !!customerInfo,
-        hasProductInfo: !!productInfo,
-        productInfo: productInfo || null,
-        formDataEntries,
-      });
-    } catch (formError) {
-      logError("[FRONTEND] [TRYON] FormData preparation failed", formError, {
-        requestId,
-      });
-      return {
-        status: "error",
-        error_message: {
-          code: "FORM_DATA_ERROR",
-          message: "Failed to prepare form data",
-        },
-      };
+    if (normalizedDemoId) {
+      formData.append("demoPersonId", normalizedDemoId);
+    } else if (personImage) {
+      formData.append("personImage", personImage, "person.jpg");
     }
 
-    // Step 1: Submit job
+    if (customerInfo) {
+      if (customerInfo.id) formData.append("customerId", String(customerInfo.id));
+      if (customerInfo.email) formData.append("customerEmail", customerInfo.email);
+      if (customerInfo.firstName) formData.append("customerFirstName", customerInfo.firstName);
+      if (customerInfo.lastName) formData.append("customerLastName", customerInfo.lastName);
+    }
+    if (personBbox) {
+      formData.append("personBbox", JSON.stringify(personBbox));
+    }
+    if (language) {
+      formData.append("language", language);
+    }
+
     let response: Response;
     let jobId: string;
+
     try {
-      // Build URL with shop query parameter if storeName is provided
-      let url = API_ENDPOINT;
-      if (storeName) {
-        const normalizedShop = normalizeShopDomain(storeName);
-        const urlObj = new URL(API_ENDPOINT);
-        urlObj.searchParams.set("shop", normalizedShop);
-        url = urlObj.toString();
-      }
-
-      console.log("[FRONTEND] [TRYON] Submitting job", {
-        requestId,
-        endpoint: url,
+      response = await authenticatedFetch(API_ENDPOINT, {
         method: "POST",
-        hasShop: !!storeName,
-      });
-
-      // For FormData requests, do NOT set Content-Type header
-      // The browser will automatically set it with the correct boundary
-      // Also, minimize custom headers to avoid CORS preflight issues
-      // Only include headers that are safe and commonly allowed
-      const headers: HeadersInit = {
-        // Accept header is safe and commonly allowed
-        "Accept": "application/json",
-      };
-      
-      // Note: Removed custom headers (X-Session-ID, Accept-Language, Content-Language)
-      // to avoid CORS preflight issues. Session ID is still sent in FormData if needed.
-      
-      response = await authenticatedFetch(url, {
-        method: "POST",
-        headers,
+        headers: { Accept: "application/json" },
         body: formData,
-        // Ensure CORS mode is set correctly
         mode: "cors",
-        credentials: "omit", // Don't send cookies to avoid CORS issues
+        credentials: "omit",
       });
 
-      const requestDuration = Date.now() - startTime;
       console.log("[FRONTEND] [TRYON] Job submission response", {
         requestId,
         status: response.status,
-        statusText: response.statusText,
         ok: response.ok,
-        duration: `${requestDuration}ms`,
+        duration: `${Date.now() - startTime}ms`,
       });
     } catch (fetchError) {
-      const duration = Date.now() - startTime;
-      logError("[FRONTEND] [TRYON] Job submission failed", fetchError, {
-        requestId,
-        duration: `${duration}ms`,
-      });
+      logError("[FRONTEND] [TRYON] Job submission failed", fetchError, { requestId });
       return {
         status: "error",
         error_message: {
@@ -302,14 +215,8 @@ export async function generateTryOn(
       };
     }
 
-    // Handle error response for job submission
     if (!response.ok) {
-      const errorDetails = await logApiError(
-        "[FRONTEND] [TRYON]",
-        response,
-        { requestId }
-      );
-      
+      const errorDetails = await logApiError("[FRONTEND] [TRYON]", response, { requestId });
       return {
         status: "error",
         error_message: {
@@ -319,38 +226,35 @@ export async function generateTryOn(
       };
     }
 
-    // Parse job submission response (202 Accepted)
+    const responseText = await response.text();
+    if (!responseText) {
+      return {
+        status: "error",
+        error_message: { code: "PARSE_ERROR", message: "Empty response body" },
+      };
+    }
+
+    if (response.status !== 202) {
+      const data = JSON.parse(responseText);
+      if (data.status === "success" && data.image) {
+        return data;
+      }
+      return {
+        status: "error",
+        error_message: {
+          code: "PARSE_ERROR",
+          message: `Unexpected status code: ${response.status}`,
+        },
+      };
+    }
+
     let jobSubmissionData: JobSubmissionResponse;
     try {
-      const responseText = await response.text();
-      if (!responseText) {
-        throw new Error("Empty response body");
-      }
-
-      if (response.status !== 202) {
-        // Handle non-202 success responses (backward compatibility)
-        const data = JSON.parse(responseText);
-        
-        // If response already contains image, return directly (backward compatibility)
-        if (data.status === 'success' && data.image) {
-          return data;
-        }
-        
-        throw new Error(`Unexpected status code: ${response.status}`);
-      }
-
-      // Handle 202 Accepted response
       jobSubmissionData = JSON.parse(responseText);
-      
-      if (!jobSubmissionData.jobId) {
+      jobId = jobSubmissionData.jobId;
+      if (!jobId) {
         throw new Error("Job ID not found in response");
       }
-      
-      jobId = jobSubmissionData.jobId;
-      console.log("[FRONTEND] [TRYON] Job submitted successfully", {
-        requestId,
-        jobId,
-      });
     } catch (parseError) {
       logError("[FRONTEND] [TRYON] Job submission response parsing failed", parseError, {
         requestId,
@@ -365,41 +269,31 @@ export async function generateTryOn(
       };
     }
 
-    // Step 2: Poll job status until completion
     try {
       const statusResponse = await pollJobStatus(jobId, requestId, undefined, undefined, onStatusUpdate);
-      const totalDuration = Date.now() - startTime;
-      
       console.log("[FRONTEND] [TRYON] Job completed", {
         requestId,
         jobId,
         status: statusResponse.status,
         hasImage: !!statusResponse.image,
-        hasError: !!statusResponse.error_message,
-        duration: `${totalDuration}ms`,
+        duration: `${Date.now() - startTime}ms`,
       });
-      
       return statusResponse;
     } catch (pollError) {
-      logError("[FRONTEND] [TRYON] Job polling failed", pollError, {
-        requestId,
-        jobId,
-      });
+      logError("[FRONTEND] [TRYON] Job polling failed", pollError, { requestId, jobId });
       return {
         status: "error",
         error_message: {
           code: "POLLING_ERROR",
-          message: pollError instanceof Error ? pollError.message : "Une erreur s'est produite lors de la vérification du statut du job.",
+          message:
+            pollError instanceof Error
+              ? pollError.message
+              : "Une erreur s'est produite lors de la vérification du statut du job.",
         },
       };
     }
   } catch (error) {
-    const duration = Date.now() - startTime;
-    logError("[FRONTEND] [TRYON] Unexpected error", error, {
-      requestId,
-      duration: `${duration}ms`,
-    });
-    
+    logError("[FRONTEND] [TRYON] Unexpected error", error, { requestId });
     return {
       status: "error",
       error_message: {
@@ -410,14 +304,11 @@ export async function generateTryOn(
   }
 }
 
-/**
- * Poll job status until completion or failure
- */
 async function pollJobStatus(
   jobId: string,
   requestId: string,
-  maxAttempts: number = 200, // 10 minutes max (3s interval)
-  pollInterval: number = 3000, // 3 seconds
+  maxAttempts: number = 200,
+  pollInterval: number = 3000,
   onStatusUpdate?: (statusDescription: string | null) => void
 ): Promise<TryOnResponse> {
   const statusEndpoint = `${API_ENDPOINT}/status/${jobId}`;
@@ -427,42 +318,26 @@ async function pollJobStatus(
     try {
       const response = await authenticatedFetch(statusEndpoint, {
         method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
+        headers: { Accept: "application/json" },
         mode: "cors",
         credentials: "omit",
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Job not found");
-        }
+        if (response.status === 404) throw new Error("Job not found");
         const errorText = await response.text().catch(() => "Unknown error");
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const statusData: JobStatusResponse = await response.json();
-      
-      // Update UI with status description if available
+
       if (onStatusUpdate && statusData.statusDescription) {
         onStatusUpdate(statusData.statusDescription);
       } else if (onStatusUpdate && statusData.message) {
-        // Fallback to message if statusDescription is not available
         onStatusUpdate(statusData.message);
       }
-      
-      console.log("[FRONTEND] [TRYON] Job status check", {
-        requestId,
-        jobId,
-        status: statusData.status,
-        statusDescription: statusData.statusDescription || statusData.message,
-        attempt: attempts + 1,
-      });
 
-      if (statusData.status === 'completed') {
-        // Job is completed - return image URL directly
-        // The VirtualTryOnModal component will handle displaying it using getProxiedImageUrl
+      if (statusData.status === "completed") {
         if (!statusData.imageUrl) {
           return {
             status: "error",
@@ -472,13 +347,10 @@ async function pollJobStatus(
             },
           };
         }
+        return { status: "success", image: statusData.imageUrl };
+      }
 
-        // Return the image URL directly - the component will handle proxying if needed
-        return {
-          status: "success",
-          image: statusData.imageUrl,
-        };
-      } else if (statusData.status === 'failed') {
+      if (statusData.status === "failed") {
         return {
           status: "error",
           error_message: {
@@ -486,11 +358,12 @@ async function pollJobStatus(
             message: statusData.error?.message || "Job processing failed",
           },
         };
-      } else if (statusData.status === 'pending' || statusData.status === 'processing') {
-        // Continue polling
+      }
+
+      if (statusData.status === "pending" || statusData.status === "processing") {
         attempts++;
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          await new Promise((r) => setTimeout(r, pollInterval));
         } else {
           throw new Error("Job is taking longer than expected. Please check back later.");
         }
@@ -498,23 +371,13 @@ async function pollJobStatus(
         throw new Error(`Unknown job status: ${statusData.status}`);
       }
     } catch (pollError) {
-      // If status is completed or failed, we should have returned already
-      // This catch is only for network/parsing errors during status checks
-      
-      // For network errors, retry after delay
       attempts++;
       if (attempts >= maxAttempts) {
-        throw new Error(`Job status polling failed after ${maxAttempts} attempts: ${pollError instanceof Error ? pollError.message : String(pollError)}`);
+        throw new Error(
+          `Job status polling failed after ${maxAttempts} attempts: ${pollError instanceof Error ? pollError.message : String(pollError)}`
+        );
       }
-      
-      console.warn("[FRONTEND] [TRYON] Status check failed, retrying", {
-        requestId,
-        jobId,
-        attempt: attempts,
-        error: pollError instanceof Error ? pollError.message : String(pollError),
-      });
-      
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise((r) => setTimeout(r, pollInterval));
     }
   }
 
@@ -527,27 +390,16 @@ export async function fetchImageWithCorsHandling(
 ): Promise<Blob> {
   const strategies = [
     async () => {
-      const response = await fetch(url, {
-        mode: "cors",
-        signal,
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      const response = await fetch(url, { mode: "cors", signal });
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       return response.blob();
     },
     async () => {
-      const response = await fetch(url, {
-        mode: "no-cors",
-        signal,
-      });
-      if (response.type === "opaque") {
-        throw new Error("Réponse no-cors reçue");
-      }
+      const response = await fetch(url, { mode: "no-cors", signal });
+      if (response.type === "opaque") throw new Error("Réponse no-cors reçue");
       return response.blob();
     },
   ];
-
   for (let i = 0; i < strategies.length; i++) {
     try {
       return await strategies[i]();
@@ -555,7 +407,6 @@ export async function fetchImageWithCorsHandling(
       if (i === strategies.length - 1) throw error;
     }
   }
-
   throw new Error("Toutes les stratégies CORS ont échoué");
 }
 
@@ -565,14 +416,7 @@ export interface ImageGenerationHistoryItem {
   personImageUrl: string;
   clothingImageUrl: string;
   generatedImageUrl: string;
-  personBbox?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    imageWidth: number;
-    imageHeight: number;
-  } | null;
+  personBbox?: { x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -590,51 +434,31 @@ export interface ImageGenerationHistoryResponse {
   };
 }
 
-/**
- * Fetch customer image generation history
- */
 export async function fetchCustomerImageHistory(
   email: string,
   page: number = 1,
   limit: number = 10,
   store?: string | null
 ): Promise<ImageGenerationHistoryResponse> {
-  try {
-    const baseUrl = "https://ai.nusense.ddns.net";
-    const queryParams = new URLSearchParams({
-      email: email,
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-    
-    if (store) {
-      const normalizedStore = normalizeShopDomain(store);
-      if (normalizedStore) {
-        queryParams.append("store", normalizedStore);
-      }
-    }
-    
-    const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
-    
-    const response = await authenticatedFetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-      mode: "cors",
-      credentials: "omit",
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data: ImageGenerationHistoryResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error("[FRONTEND] [HISTORY] Failed to fetch customer history:", error);
-    throw error;
+  const baseUrl = "https://ai.nusense.ddns.net";
+  const queryParams = new URLSearchParams({
+    email,
+    page: page.toString(),
+    limit: limit.toString(),
+  });
+  if (store) {
+    const normalizedStore = normalizeShopDomain(store);
+    if (normalizedStore) queryParams.append("store", normalizedStore);
   }
+  const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
+  const response = await authenticatedFetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    mode: "cors",
+    credentials: "omit",
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  return response.json();
 }
 
 export function blobToDataURL(blob: Blob): Promise<string> {
@@ -647,51 +471,30 @@ export function blobToDataURL(blob: Blob): Promise<string> {
 }
 
 export async function dataURLToBlob(dataURL: string): Promise<Blob> {
-  // If it's a data URL, fetch directly
-  if (dataURL.startsWith('data:')) {
+  if (dataURL.startsWith("data:")) {
     const response = await fetch(dataURL);
     return response.blob();
   }
-  
-  // If it's a regular URL (like S3), use CORS handling
-  return await fetchImageWithCorsHandling(dataURL);
+  return fetchImageWithCorsHandling(dataURL);
 }
 
-/**
- * Check health status of the API
- */
 export async function getHealthStatus(): Promise<{ status: string; timestamp: string }> {
   try {
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const url = `${baseUrl}/health`;
-    
-    const response = await authenticatedFetch(url, {
+    const response = await authenticatedFetch(`${baseUrl}/health`, {
       method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
+      headers: { Accept: "application/json" },
       mode: "cors",
       credentials: "omit",
     });
-
-    if (!response.ok) {
-      throw new Error(`Health check failed: HTTP ${response.status}`);
-    }
-
-    return await response.json();
+    if (!response.ok) throw new Error(`Health check failed: HTTP ${response.status}`);
+    return response.json();
   } catch (error) {
     console.error("[FRONTEND] [HEALTH] Health check failed:", error);
-    // Return a default response even if health check fails
-    return {
-      status: "error",
-      timestamp: new Date().toISOString(),
-    };
+    return { status: "error", timestamp: new Date().toISOString() };
   }
 }
 
-/**
- * Customer Image Generation Record (from API 1)
- */
 export interface CustomerImageGeneration {
   id: string;
   requestId: string;
@@ -702,9 +505,6 @@ export interface CustomerImageGeneration {
   updatedAt: string;
 }
 
-/**
- * Uploaded Image Record (from API 2)
- */
 export interface UploadedImage {
   id: string;
   requestId: string;
@@ -715,9 +515,6 @@ export interface UploadedImage {
   updatedAt: string;
 }
 
-/**
- * Pagination metadata
- */
 export interface PaginationMeta {
   total: number;
   page: number;
@@ -727,164 +524,92 @@ export interface PaginationMeta {
   hasPrev: boolean;
 }
 
-/**
- * Response for customer image generations (API 1)
- */
 export interface CustomerImageGenerationsResponse {
   success: boolean;
   data: CustomerImageGeneration[];
   pagination: PaginationMeta;
-  error?: {
-    code: string;
-    message: string;
-    details?: Record<string, any>;
-  };
+  error?: { code: string; message: string; details?: Record<string, unknown> };
 }
 
-/**
- * Response for uploaded images (API 2)
- */
 export interface UploadedImagesResponse {
   success: boolean;
   data: UploadedImage[];
   pagination: PaginationMeta;
-  error?: {
-    code: string;
-    message: string;
-    details?: Record<string, any>;
-  };
+  error?: { code: string; message: string; details?: Record<string, unknown> };
 }
 
-/**
- * Parameters for fetching customer image generations
- */
 export interface FetchCustomerImageGenerationsParams {
   email: string;
   store: string;
   page?: number;
   limit?: number;
   status?: "pending" | "processing" | "completed" | "failed";
-  orderBy?: "created_at" | "createdAt" | "updated_at" | "updatedAt" | "status";
+  orderBy?: string;
   orderDirection?: "ASC" | "DESC";
-  startDate?: string; // YYYY-MM-DD
-  endDate?: string; // YYYY-MM-DD
+  startDate?: string;
+  endDate?: string;
 }
 
-/**
- * Parameters for fetching uploaded images
- */
 export interface FetchUploadedImagesParams {
   email: string;
   store?: string;
   page?: number;
   limit?: number;
-  startDate?: string; // YYYY-MM-DD
-  endDate?: string; // YYYY-MM-DD
+  startDate?: string;
+  endDate?: string;
 }
 
-/**
- * Fetch customer image generations (API 1: /api/image-generations/customer)
- */
 export async function fetchCustomerImageGenerations(
   params: FetchCustomerImageGenerationsParams
 ): Promise<CustomerImageGenerationsResponse> {
-  try {
-    const baseUrl = "https://ai.nusense.ddns.net";
-    const queryParams = new URLSearchParams({
-      email: params.email,
-      store: params.store,
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
-    });
-
-    if (params.status) {
-      queryParams.append("status", params.status);
-    }
-    if (params.orderBy) {
-      queryParams.append("orderBy", params.orderBy);
-    }
-    if (params.orderDirection) {
-      queryParams.append("orderDirection", params.orderDirection);
-    }
-    if (params.startDate) {
-      queryParams.append("startDate", params.startDate);
-    }
-    if (params.endDate) {
-      queryParams.append("endDate", params.endDate);
-    }
-
-    const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-      mode: "cors",
-      credentials: "omit",
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`
-      );
-    }
-
-    const data: CustomerImageGenerationsResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error("[FRONTEND] [CUSTOMER_IMAGES] Failed to fetch customer image generations:", error);
-    throw error;
+  const baseUrl = "https://ai.nusense.ddns.net";
+  const queryParams = new URLSearchParams({
+    email: params.email,
+    store: params.store,
+    page: (params.page || 1).toString(),
+    limit: (params.limit || 10).toString(),
+  });
+  if (params.status) queryParams.append("status", params.status);
+  if (params.orderBy) queryParams.append("orderBy", params.orderBy);
+  if (params.orderDirection) queryParams.append("orderDirection", params.orderDirection);
+  if (params.startDate) queryParams.append("startDate", params.startDate);
+  if (params.endDate) queryParams.append("endDate", params.endDate);
+  const url = `${baseUrl}/api/image-generations/customer?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    mode: "cors",
+    credentials: "omit",
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
   }
+  return response.json();
 }
 
-/**
- * Fetch uploaded images (API 2: /api/image-generations/uploaded-images)
- */
 export async function fetchUploadedImages(
   params: FetchUploadedImagesParams
 ): Promise<UploadedImagesResponse> {
-  try {
-    const baseUrl = "https://ai.nusense.ddns.net";
-    const queryParams = new URLSearchParams({
-      email: params.email,
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
-    });
-
-    if (params.store) {
-      queryParams.append("store", params.store);
-    }
-    if (params.startDate) {
-      queryParams.append("startDate", params.startDate);
-    }
-    if (params.endDate) {
-      queryParams.append("endDate", params.endDate);
-    }
-
-    const url = `${baseUrl}/api/image-generations/uploaded-images?${queryParams.toString()}`;
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-      mode: "cors",
-      credentials: "omit",
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`
-      );
-    }
-
-    const data: UploadedImagesResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error("[FRONTEND] [UPLOADED_IMAGES] Failed to fetch uploaded images:", error);
-    throw error;
+  const baseUrl = "https://ai.nusense.ddns.net";
+  const queryParams = new URLSearchParams({
+    email: params.email,
+    page: (params.page || 1).toString(),
+    limit: (params.limit || 10).toString(),
+  });
+  if (params.store) queryParams.append("store", params.store);
+  if (params.startDate) queryParams.append("startDate", params.startDate);
+  if (params.endDate) queryParams.append("endDate", params.endDate);
+  const url = `${baseUrl}/api/image-generations/uploaded-images?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    mode: "cors",
+    credentials: "omit",
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
   }
+  return response.json();
 }

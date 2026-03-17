@@ -127,13 +127,32 @@ const PaymentSuccess = () => {
 
         const { default: confetti } = await import("canvas-confetti");
 
-        confetti({
-          particleCount: 180,
-          spread: 90,
-          startVelocity: 40,
-          scalar: 1,
-          origin: { x: 0.5, y: 0.2 },
+        const fire = confetti.create(undefined, {
+          resize: true,
+          useWorker: true,
         });
+
+        const durationMs = REDIRECT_COUNTDOWN_SECONDS * 1000;
+        const endTime = Date.now() + durationMs;
+
+        const frame = () => {
+          fire({
+            particleCount: 8,
+            spread: 360,
+            startVelocity: 40,
+            scalar: 0.9,
+            origin: {
+              x: Math.random(),
+              y: Math.random() * 0.6, // top ~60% of viewport
+            },
+          });
+
+          if (Date.now() < endTime) {
+            requestAnimationFrame(frame);
+          }
+        };
+
+        frame();
       } catch (error) {
         console.warn("Confetti animation failed (non-blocking)", error);
       }

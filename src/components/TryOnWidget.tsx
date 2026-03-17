@@ -1319,15 +1319,28 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       }
       console.log("[TRYON_WIDGET] [GENERATION] ==========================================");
 
-      // Both clothingKey and personKey are sent to the API when available
-      // - clothingKey: sent when product image has an ID
-      // - personKey: sent when a demo picture is used (fixed IDs: demo_person_1, demo_person_2, etc.)
-      // - version: optional version parameter (1 or 2)
-      // - customerInfo: optional customer information if customer is logged in
-      // - productInfo: optional product information (productId, productTitle, productUrl, variantId)
-      
-      // Track try-on start (non-intrusive - fails gracefully)
-      const tryonStartTime = Date.now();
+      // Fashion Try-On API requires variantId, shop, and exactly one of personImage or demoPersonId
+      if (!selectedVariantId || !storeDomainForApi) {
+        setStatusMessage("");
+        setGeneratedImage(null);
+        setIsGenerating(false);
+        if (!storeDomainForApi) {
+          setError("Shop domain is required for try-on.");
+        } else {
+          setError("Please select a product variant. Variant is required for try-on.");
+        }
+        setCurrentStep(2);
+        return;
+      }
+      if (!personBlob && !personKey) {
+        setStatusMessage("");
+        setGeneratedImage(null);
+        setIsGenerating(false);
+        setError("Please select or upload a person photo.");
+        setCurrentStep(2);
+        return;
+      }
+
       try {
         const productData = getProductData();
         safeTrackTryonStart(
@@ -1337,23 +1350,17 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       } catch (error) {
         // Silently fail - tracking is optional
       }
-      
-      const result: TryOnResponse = await generateTryOn(
-        personBlob,
-        clothingBlob,
-        storeDomainForApi,
-        clothingKey, // Non-mandatory: sent when product image has ID
-        personKey, // Non-mandatory: sent when demo picture is used
-        selectedVersion, // Non-mandatory: sent when version is selected
-        customerInfo, // Non-mandatory: sent when customer is logged in
-        productInfo, // Non-mandatory: sent when product data is available
-        (statusDescription) => {
-          // Update status message with real-time status description from API
-          if (statusDescription && statusDescription.trim()) {
-            setStatusMessage(statusDescription);
-          }
-        }
-      );
+
+      const result: TryOnResponse = await generateTryOn({
+        variantId: selectedVariantId,
+        shop: storeDomainForApi,
+        personImage: personBlob ?? undefined,
+        demoPersonId: personBlob ? undefined : personKey,
+        onStatusUpdate: (statusDescription) => {
+          if (statusDescription?.trim()) setStatusMessage(statusDescription);
+        },
+        customerInfo: customerInfo ?? undefined,
+      });
 
       // Clear the main progress timer before starting completion animation
       if (progressTimer != null) {

@@ -6548,10 +6548,26 @@ app.get("/api/referrals/stats", async (req, res) => {
 });
 
 /**
+ * Normalize demo person ID to API format (demo_01..demo_16).
+ * Accepts demo_01..demo_16 or demo_person_1..demo_person_16.
+ */
+function normalizeDemoPersonId(id) {
+  if (!id || typeof id !== "string") return null;
+  const s = id.trim();
+  if (/^demo_(\d{2})$/.test(s)) return s;
+  const legacyMatch = s.match(/^demo_person_(\d+)$/);
+  if (legacyMatch) {
+    const n = parseInt(legacyMatch[1], 10);
+    if (n >= 1 && n <= 16) return `demo_${String(n).padStart(2, "0")}`;
+  }
+  return null;
+}
+
+/**
  * Poll job status until completion or failure
  */
 async function pollJobStatusUntilComplete(jobId, tryonId, storeName, maxAttempts = 200, pollInterval = 3000) {
-  const statusEndpoint = `https://ai.nusense.ddns.net/api/fashion-photo/status/${jobId}`;
+  const statusEndpoint = `https://ai.nusense.ddns.net/api/fashion-tryon/status/${jobId}`;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
@@ -6726,9 +6742,9 @@ app.post("/api/tryon/generate", async (req, res) => {
         hasPersonImage: !!personImage,
         demoPersonId: demoPersonId || null,
       });
-      return res.status(400).json({ 
-        error: "VALIDATION_ERROR",
-        message: "Either personImage or demoPersonId must be provided"
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Either demoPersonId or personImage must be provided", details: {} },
       });
     }
 
@@ -6738,46 +6754,56 @@ app.post("/api/tryon/generate", async (req, res) => {
         hasPersonImage: !!personImage,
         demoPersonId: demoPersonId || null,
       });
-      return res.status(400).json({ 
-        error: "VALIDATION_ERROR",
-        message: "Cannot provide both personImage and demoPersonId. Provide only one."
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Cannot provide both demoPersonId and personImage. Provide only one.", details: {} },
       });
     }
 
-    // Either clothingImage OR clothingImageUrl must be provided
-    if (!clothingImage && !clothingImageUrl) {
-      logger.warn("[API] Try-on generation request missing required clothing image", {
-        hasClothingImage: !!clothingImage,
-        hasClothingImageUrl: !!clothingImageUrl,
+    // Fashion Try-On API: variantId and shop are required (product imagery resolved server-side)
+    if (!variantId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "variantId is required", details: { field: "variantId" } },
       });
-      return res.status(400).json({ 
-        error: "VALIDATION_ERROR",
-        message: "Either clothingImage or clothingImageUrl must be provided"
+    }
+    const gidRegex = /^gid:\/\/shopify\/(ProductVariant|Product)\/\d+$/;
+    const variantIdStr = String(variantId).trim();
+    const variantIdGid = gidRegex.test(variantIdStr)
+      ? variantIdStr
+      : /^\d+$/.test(variantIdStr)
+        ? `gid://shopify/ProductVariant/${variantIdStr}`
+        : null;
+    if (!variantIdGid) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "variantId must be a valid Shopify GraphQL ID (GID) format: gid://shopify/ProductVariant/123456789",
+          details: { field: "variantId", provided: variantIdStr },
+        },
+      });
+    }
+    if (!shopDomain) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "shop is required", details: { field: "shop" } },
       });
     }
 
-    // Validate demoPersonId format if provided
+    // Normalize and validate demoPersonId if provided (accept demo_01..demo_16 or demo_person_1..demo_person_16)
+    let normalizedDemoPersonId = null;
     if (demoPersonId) {
-      // Must match pattern demo_XX where XX is 01-16
-      const demoIdMatch = demoPersonId.match(/^demo_(\d{2})$/);
-      if (!demoIdMatch) {
-        logger.warn("[API] Invalid demoPersonId format", {
-          demoPersonId,
-        });
-        return res.status(400).json({ 
-          error: "VALIDATION_ERROR",
-          message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`
-        });
-      }
-      const demoNumber = parseInt(demoIdMatch[1], 10);
-      if (demoNumber < 1 || demoNumber > 16) {
-        logger.warn("[API] Invalid demoPersonId range", {
-          demoPersonId,
-          demoNumber,
-        });
-        return res.status(400).json({ 
-          error: "VALIDATION_ERROR",
-          message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`
+      normalizedDemoPersonId = normalizeDemoPersonId(demoPersonId);
+      if (!normalizedDemoPersonId) {
+        logger.warn("[API] Invalid demoPersonId format", { demoPersonId });
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: `Invalid demoPersonId: ${demoPersonId}. Use demo_01 through demo_16.`,
+            details: { availableIds: ["demo_01", "demo_02", "demo_03", "demo_04", "demo_05", "demo_06", "demo_07", "demo_08", "demo_09", "demo_10", "demo_11", "demo_12", "demo_13", "demo_14", "demo_15", "demo_16"] },
+          },
         });
       }
     }
@@ -6902,33 +6928,18 @@ app.post("/api/tryon/generate", async (req, res) => {
       }
     }
 
-    // Create FormData for multipart/form-data request
+    // Create FormData for Fashion Try-On API (variantId + shop + person only; no clothing)
     const formData = new FormData();
+    formData.append("variantId", variantIdGid);
+    formData.append("shop", shopDomain);
 
     // Add person image OR demo person ID (required - one of them)
     if (personImage) {
       const personBlob = await fetch(personImage).then((r) => r.blob());
       formData.append("personImage", personBlob, "person.jpg");
-    } else if (demoPersonId) {
-      formData.append("demoPersonId", demoPersonId);
+    } else if (normalizedDemoPersonId) {
+      formData.append("demoPersonId", normalizedDemoPersonId);
     }
-
-    // Add clothing image OR clothing image URL (required - one of them)
-    if (clothingImageUrl) {
-      // If both are provided, clothingImageUrl takes priority per spec
-      formData.append("clothingImageUrl", clothingImageUrl);
-    } else if (clothingImage) {
-      const clothingBlob = await fetch(clothingImage).then((r) => r.blob());
-      formData.append("clothingImage", clothingBlob, "clothing.jpg");
-    }
-
-    // Add storeName if provided
-    if (storeName) {
-      formData.append("storeName", storeName);
-    }
-
-    // Note: personKey and clothingKey are NOT sent - they are auto-generated by the API per spec
-    // These parameters are kept for backward compatibility but are not forwarded to the API
 
     // Add customer information if available (non-mandatory, for tracking/analytics)
     if (customerInfo) {
@@ -6946,21 +6957,7 @@ app.post("/api/tryon/generate", async (req, res) => {
       }
     }
 
-    // Add product information if available (non-mandatory, for tracking/analytics)
-    if (productId) {
-      formData.append("productId", String(productId));
-    }
-    if (productTitle) {
-      formData.append("productTitle", productTitle);
-    }
-    if (productUrl) {
-      formData.append("productUrl", productUrl);
-    }
-    if (variantId) {
-      formData.append("variantId", String(variantId));
-    }
-
-    // Add person bounding box if provided
+    // Add person bounding box if provided (optional)
     if (personBbox) {
       // Ensure it's a JSON string
       const bboxString = typeof personBbox === 'string' ? personBbox : JSON.stringify(personBbox);
@@ -6977,10 +6974,8 @@ app.post("/api/tryon/generate", async (req, res) => {
       storeName,
     });
 
-    // Step 1: Submit job to external API
-    const apiUrl = shopDomain 
-      ? `https://ai.nusense.ddns.net/api/fashion-photo?shop=${encodeURIComponent(shopDomain)}`
-      : "https://ai.nusense.ddns.net/api/fashion-photo";
+    // Step 1: Submit job to Fashion Try-On API
+    const apiUrl = "https://ai.nusense.ddns.net/api/fashion-tryon";
 
     const response = await fetch(apiUrl, {
       method: "POST",

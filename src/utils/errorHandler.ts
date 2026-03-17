@@ -120,9 +120,22 @@ export const logApiError = async (
     errorData = { parseError: "Failed to parse error response" };
   }
   
+  // Support both flat and spec shape: { success: false, error: { code, message, details } }
+  const nested = errorData?.error && typeof errorData.error === "object" ? errorData.error : null;
+  const message =
+    (nested && typeof nested.message === "string" ? nested.message : null) ||
+    (typeof errorData.message === "string" ? errorData.message : null) ||
+    (typeof errorData.error === "string" ? errorData.error : null) ||
+    `HTTP ${response.status}: ${response.statusText}`;
+  const code =
+    (nested && typeof nested.code === "string" ? nested.code : null) ||
+    (typeof errorData.code === "string" ? errorData.code : null) ||
+    (typeof errorData.error === "string" ? errorData.error : null) ||
+    `HTTP_${response.status}`;
+
   const errorDetails: ErrorDetails = {
-    message: errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`,
-    code: errorData.code || errorData.error || `HTTP_${response.status}`,
+    message,
+    code,
     status: response.status,
     requestId: errorData.requestId,
     timestamp,
