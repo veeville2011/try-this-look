@@ -1872,27 +1872,29 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
     }, 1000);
 
     try {
-      // Determine person image source: demo photo, recent photo (URL), or uploaded photo (data URL)
+      // Person: demo/recent → personImageUrl (backend fetches, no CORS); upload → personImage (file)
       const isDemoPhoto = !!selectedDemoPhotoUrl;
-      const isPersonImageUrl = uploadedImage && !uploadedImage.startsWith('data:image/');
+      const isRecentPhotoUrl = uploadedImage && !uploadedImage.startsWith('data:image/');
       const isClothingImageUrl = selectedClothing && !selectedClothing.startsWith('data:image/');
-      
-      // Convert to blob only if it's a data URL, otherwise use URL directly
+
+      const getFullPersonUrl = (url: string): string => {
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+      };
+
+      let personImageUrlToSend: string | null = null;
       let personBlob: Blob | null = null;
-      let personImageUrl: string | null = null;
-      
+
       if (isDemoPhoto) {
-        // Demo photo: send as demoPersonId (no blob) so API uses server-side demo asset; demoPersonIdFromUrl is set below from DEMO_PHOTO_ID_MAP
-        console.log('[VirtualTryOnModal] Using demoPersonId (demo photo)');
-      } else if (isPersonImageUrl) {
-        // Recent photo: fetch URL to blob so FormData has personImage (API requires file or demoPersonId)
-        personBlob = await dataURLToBlob(uploadedImage);
-        personImageUrl = uploadedImage;
-        console.log('[VirtualTryOnModal] Using personBlob from recent photo URL');
+        personImageUrlToSend = getFullPersonUrl(selectedDemoPhotoUrl!);
+        console.log('[VirtualTryOnModal] Using personImageUrl (demo photo):', personImageUrlToSend);
+      } else if (isRecentPhotoUrl) {
+        personImageUrlToSend = uploadedImage!.startsWith('http') ? uploadedImage! : getFullPersonUrl(uploadedImage!);
+        console.log('[VirtualTryOnModal] Using personImageUrl (recent photo):', personImageUrlToSend);
       } else {
-        // Uploaded photo: convert data URL to blob
-        personBlob = await dataURLToBlob(uploadedImage);
-        console.log('[VirtualTryOnModal] Using personBlob (uploaded photo)');
+        personBlob = await dataURLToBlob(uploadedImage!);
+        console.log('[VirtualTryOnModal] Using personImage (uploaded file)');
       }
       
       // Convert clothing to blob only if it's a data URL, otherwise use URL directly
@@ -1952,9 +1954,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
           }
         : null;
 
-      const demoPersonIdFromUrl = selectedDemoPhotoUrl ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) ?? undefined : undefined;
-
-      if (!personBlob && !demoPersonIdFromUrl) {
+      if (!personBlob && !personImageUrlToSend) {
         setStep('idle');
         toast.error("Please select or upload a person photo.");
         return;
@@ -1964,7 +1964,7 @@ const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({ customerInfo }) =
         variantId: selectedVariantId,
         shop: shopDomain,
         personImage: personBlob ?? undefined,
-        demoPersonId: personBlob ? undefined : demoPersonIdFromUrl,
+        personImageUrl: personImageUrlToSend ?? undefined,
         onStatusUpdate: (statusDescription) => {
           if (statusDescription?.trim()) setStatusMessage(statusDescription);
         },

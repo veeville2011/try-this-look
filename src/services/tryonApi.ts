@@ -53,9 +53,11 @@ export interface GenerateTryOnParams {
   variantId: string | number | null | undefined;
   /** Shopify shop domain. Required. */
   shop: string | null | undefined;
-  /** Person image file (use exactly one of personImage or demoPersonId). */
+  /** Person image file (use exactly one of personImage, personImageUrl, or demoPersonId). */
   personImage?: File | Blob | null;
-  /** Demo person ID demo_01..demo_16 (use exactly one of personImage or demoPersonId). */
+  /** Person image URL for demo or recent photos; backend fetches (avoids CORS). */
+  personImageUrl?: string | null;
+  /** Demo person ID demo_01..demo_16 (use when no personImage/personImageUrl). */
   demoPersonId?: string | null;
   /** Optional status updates during polling. */
   onStatusUpdate?: (statusDescription: string | null) => void;
@@ -81,14 +83,16 @@ export interface PersonBbox {
 
 /**
  * Generate try-on using Fashion Try-On API per fashion-tryon-api.md.
- * Requires variantId + shop; person is exactly one of personImage or demoPersonId.
+ * Requires variantId + shop; person is exactly one of personImage (file), personImageUrl (URL), or demoPersonId.
  * No clothing fields — product imagery is resolved server-side from Shopify.
+ * No proxy: calls API directly. personImageUrl avoids CORS (backend fetches).
  */
 export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnResponse> {
   const {
     variantId: rawVariantId,
     shop,
     personImage,
+    personImageUrl,
     demoPersonId,
     onStatusUpdate,
     customerInfo,
@@ -121,22 +125,26 @@ export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnR
       };
     }
 
-    if (!personImage && !demoPersonId) {
+    const hasFile = !!personImage;
+    const hasUrl = personImageUrl && typeof personImageUrl === "string" && personImageUrl.trim().length > 0;
+    const hasDemo = !!demoPersonId;
+
+    const personCount = [hasFile, hasUrl, hasDemo].filter(Boolean).length;
+    if (personCount === 0) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Either demoPersonId or personImage must be provided",
+          message: "Provide exactly one of personImage (file), personImageUrl (URL), or demoPersonId.",
         },
       };
     }
-
-    if (personImage && demoPersonId) {
+    if (personCount > 1) {
       return {
         status: "error",
         error_message: {
           code: "VALIDATION_ERROR",
-          message: "Cannot provide both demoPersonId and personImage. Provide only one.",
+          message: "Provide only one of personImage, personImageUrl, or demoPersonId.",
         },
       };
     }
@@ -158,7 +166,8 @@ export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnR
       requestId,
       variantId: variantIdGid,
       shop: normalizedShop,
-      hasPersonImage: !!personImage,
+      hasPersonImage: hasFile,
+      hasPersonImageUrl: hasUrl,
       demoPersonId: normalizedDemoId || null,
       timestamp: new Date().toISOString(),
     });
@@ -169,7 +178,9 @@ export async function generateTryOn(params: GenerateTryOnParams): Promise<TryOnR
 
     if (normalizedDemoId) {
       formData.append("demoPersonId", normalizedDemoId);
-    } else if (personImage) {
+    } else if (hasUrl) {
+      formData.append("personImageUrl", personImageUrl!.trim());
+    } else if (hasFile) {
       const fileName = personImage instanceof File ? personImage.name : "person.jpg";
       formData.append("personImage", personImage, fileName);
     }

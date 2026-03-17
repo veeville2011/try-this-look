@@ -57,7 +57,14 @@ Exactly **one** of the following must be provided:
     `demo_09`, `demo_10`, `demo_11`, `demo_12`,  
     `demo_13`, `demo_14`, `demo_15`, `demo_16`
 
-- **Option B: Uploaded person image**
+- **Option B: Person image URL**
+
+  - **`personImageUrl`** (string, optional)  
+    Full URL to the person image (e.g. S3, CDN, or same-origin).  
+    Backend fetches the image server-side (avoids CORS from client).  
+    Use for demo photos or recent photos when the image is already hosted.
+
+- **Option C: Uploaded person image**
 
   - **`personImage`** (file, optional)
     - Field name: `personImage`
@@ -72,8 +79,8 @@ Exactly **one** of the following must be provided:
 
 **Rules:**
 
-- If **neither** `demoPersonId` nor `personImage` is provided → `400`.  
-- If **both** are provided → `400`.
+- If **none** of `demoPersonId`, `personImageUrl`, or `personImage` is provided → `400`.  
+- If **more than one** is provided → `400`.
 
 ##### Clothing / product images
 
@@ -91,7 +98,7 @@ Exactly **one** of the following must be provided:
 1. **Input validation**
    - `variantId` present and matches GID regex.
    - `shop` present and normalizable to a valid Shopify domain.
-   - Exactly one of `demoPersonId` / `personImage`.
+   - Exactly one of `demoPersonId` / `personImageUrl` / `personImage`.
    - If `demoPersonId` provided, must be in `demo_01..demo_16`.
 
 2. **Credit / subscription pre‑check**
@@ -117,7 +124,8 @@ Exactly **one** of the following must be provided:
    - Steps (simplified):
      - Fetch product/variant data and images from Shopify.
      - Resolve person image:
-       - Demo: from internal S3 / assets.
+       - Demo: from `demoPersonId` (internal S3 / assets).
+       - URL: fetch from `personImageUrl`.
        - Uploaded: from `personImage` file.
      - Deduplicate + upload person & product images to S3 (DB‑first + S3 check).
      - Build AI prompt from product data.
@@ -198,13 +206,13 @@ Key scenarios:
   - `message`: `"Invalid shop domain format"` or a more specific parsing error.
   - `details.shop`: `"<your value>"`
 
-- **No person option (demo or file)**
+- **No person option (demo, URL, or file)**
   - `400 Bad Request`
-  - `message`: `"Either demoPersonId or personImage must be provided"`
+  - `message`: `"Either demoPersonId, personImageUrl, or personImage must be provided"`
 
-- **Both `demoPersonId` and `personImage` present**
+- **More than one person option provided**
   - `400 Bad Request`
-  - `message`: `"Cannot provide both demoPersonId and personImage. Provide only one."`
+  - `message`: `"Provide only one of demoPersonId, personImageUrl, or personImage."`
 
 - **Invalid `demoPersonId`**
   - `400 Bad Request`

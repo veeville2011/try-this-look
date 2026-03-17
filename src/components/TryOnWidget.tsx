@@ -1168,7 +1168,27 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
     } catch {}
 
     try {
-      const personBlob = await dataURLToBlob(uploadedImage);
+      // Person: demo/recent → personImageUrl (backend fetches, no CORS); upload → personImage (file)
+      const isDemoPhoto = !!selectedDemoPhotoUrl;
+      const isRecentPhotoUrl = uploadedImage && !uploadedImage.startsWith('data:image/');
+
+      const getFullPersonUrl = (url: string): string => {
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+      };
+
+      let personImageUrlToSend: string | null = null;
+      let personBlob: Blob | null = null;
+
+      if (isDemoPhoto) {
+        personImageUrlToSend = getFullPersonUrl(selectedDemoPhotoUrl!);
+      } else if (isRecentPhotoUrl) {
+        personImageUrlToSend = uploadedImage!.startsWith('http') ? uploadedImage! : getFullPersonUrl(uploadedImage!);
+      } else {
+        personBlob = await dataURLToBlob(uploadedImage!);
+      }
+
       const clothingResponse = await fetch(selectedClothing);
       const clothingBlob = await clothingResponse.blob();
 
@@ -1180,11 +1200,6 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
       // Get clothingKey from selected clothing ID (non-mandatory field)
       const clothingKey = selectedClothingKey
         ? String(selectedClothingKey)
-        : undefined;
-
-      // Get personKey from selected demo photo ID (non-mandatory field, only for demo pictures)
-      const personKey = selectedDemoPhotoUrl
-        ? DEMO_PHOTO_ID_MAP.get(selectedDemoPhotoUrl) || undefined
         : undefined;
 
       // Get product information if available (non-mandatory)
@@ -1332,7 +1347,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         setCurrentStep(2);
         return;
       }
-      if (!personBlob && !personKey) {
+      if (!personBlob && !personImageUrlToSend) {
         setStatusMessage("");
         setGeneratedImage(null);
         setIsGenerating(false);
@@ -1355,7 +1370,7 @@ export default function TryOnWidget({ isOpen, onClose, customerInfo }: TryOnWidg
         variantId: selectedVariantId,
         shop: storeDomainForApi,
         personImage: personBlob ?? undefined,
-        demoPersonId: personBlob ? undefined : personKey,
+        personImageUrl: personImageUrlToSend ?? undefined,
         onStatusUpdate: (statusDescription) => {
           if (statusDescription?.trim()) setStatusMessage(statusDescription);
         },
