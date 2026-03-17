@@ -134,28 +134,50 @@ const PaymentSuccess = () => {
 
         const durationMs = REDIRECT_COUNTDOWN_SECONDS * 1000;
         const endTime = Date.now() + durationMs;
+        const fireIntervalMs = 70;
+        let lastFireTime = 0;
 
         const frame = () => {
-          fire({
-            particleCount: 8,
-            angle: 90, // fall top -> bottom
-            spread: 35,
-            startVelocity: 0,
-            gravity: 0.9,
-            drift: 0,
-            ticks: 260,
-            decay: 0.92,
-            scalar: 0.9,
-            origin: {
-              x: Math.random(),
-              y: 0, // start at top edge of viewport
-            },
-          });
+          const now = Date.now();
+
+          if (now - lastFireTime >= fireIntervalMs) {
+            lastFireTime = now;
+
+            fire({
+              particleCount: 6,
+              angle: 90, // fall top -> bottom
+              spread: 35,
+              startVelocity: 0,
+              gravity: 0.9,
+              drift: 0,
+              ticks: 260,
+              decay: 0.92,
+              scalar: 0.65,
+              origin: {
+                x: Math.random(),
+                y: 0, // start at top edge of viewport
+              },
+            });
+          }
 
           if (Date.now() < endTime) {
             requestAnimationFrame(frame);
           }
         };
+
+        // Accent burst first (then gentle falling confetti)
+        fire({
+          particleCount: 90,
+          angle: 90,
+          spread: 85,
+          startVelocity: 26,
+          gravity: 0.95,
+          drift: 0,
+          ticks: 220,
+          decay: 0.9,
+          scalar: 0.75,
+          origin: { x: 0.5, y: 0.08 },
+        });
 
         frame();
       } catch (error) {
