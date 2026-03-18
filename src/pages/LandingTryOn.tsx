@@ -136,6 +136,9 @@ export default function LandingTryOn() {
     return "none";
   }, [selectedPersonFile, selectedPersonImageUrl]);
 
+  /** Matches generation scope: first 2 products only. */
+  const generateProductCount = useMemo(() => Math.min(products.length, 2), [products.length]);
+
   const handleSelectUploadedPhoto = useCallback((url: string) => {
     setSelectedPersonImageUrl(url);
     setSelectedPersonFile(null);
@@ -286,7 +289,9 @@ export default function LandingTryOn() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">Your Try-On</p>
               <p className="text-xs text-gray-500">
-                {products.length > 0 ? `${products.length} products detected on this page` : "Waiting for products…"}
+                {products.length > 0
+                  ? `${products.length} on page · try-on for ${generateProductCount} product${generateProductCount === 1 ? "" : "s"}`
+                  : "Waiting for products…"}
               </p>
             </div>
             <Button
@@ -362,14 +367,25 @@ export default function LandingTryOn() {
           <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-gray-900">Generate</p>
-              <Button type="button" onClick={handleGenerate} disabled={isGenerating}>
+              <Button
+                type="button"
+                onClick={handleGenerate}
+                disabled={isGenerating || products.length === 0}
+                aria-label={
+                  products.length === 0
+                    ? "Generate try-on unavailable until products are detected on this page"
+                    : undefined
+                }
+              >
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Generating…
                   </>
+                ) : products.length === 0 ? (
+                  "Generate"
                 ) : (
-                  `Generate for ${products.length || 0} products`
+                  `Generate for ${generateProductCount} product${generateProductCount === 1 ? "" : "s"}`
                 )}
               </Button>
             </div>
