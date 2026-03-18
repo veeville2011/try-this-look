@@ -3,7 +3,9 @@ import { Loader2, Upload, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { fetchUploadedImages, generateTryOn } from "@/services/tryonApi";
+import { fetchCustomerImageHistory, fetchUploadedImages, generateTryOn } from "@/services/tryonApi";
+
+type SkipGeneratedRule = "variant_any" | "variant_and_person" | "variant_recent";
 
 type CustomerInfo = {
   id?: string | null;
@@ -57,6 +59,10 @@ export default function LandingTryOn() {
   const [results, setResults] = useState<GenerationResultItem[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [shouldSkipGenerated, setShouldSkipGenerated] = useState(true);
+  const [skipGeneratedRule, setSkipGeneratedRule] = useState<SkipGeneratedRule>("variant_any");
+  const [skipRecentDays, setSkipRecentDays] = useState(7);
 
   const handleRequestContextFromParent = useCallback(() => {
     try {
@@ -246,7 +252,101 @@ export default function LandingTryOn() {
     setStatusText(null);
     setResults([]);
 
-    const productsToGenerate = products.slice(0, 2);
+    const normalizeVariantGid = (variantId: string | null | undefined): string | null => {
+      if (!variantId) return null;
+      const s = String(variantId).trim();
+      if (!s) return null;
+      if (/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(s)) return s;
+      if (/^\d+$/.test(s)) return `gid://shopify/ProductVariant/${s}`;
+      return null;
+    };
+
+    const getAlreadyGeneratedVariantSet = async (): Promise<Set<string>> => {
+      const out = new Set<string>();
+      if (!shouldSkipGenerated) return out;
+      if (!customerInfo?.email) return out;
+      if (!shopDomain) return out;
+
+      // If rule requires a URL and the user uploaded a file, we can't compare to history reliably.
+      const selectedUrl = selectedPersonMode === "url" ? String(selectedPersonImageUrl || "").trim() : "";
+      if (skipGeneratedRule === "variant_and_person" && !selectedUrl) {
+        // Graceful fallback: treat as variant-only
+        // (No toast to avoid noise; UI selection is still respected when URL exists.)
+      }
+
+      const targetVariantIds = new Set(
+        products.map((p) => normalizeVariantGid(p.variantGid)).filter(Boolean) as string[]
+      );
+      if (targetVariantIds.size === 0) return out;
+
+      const days = Math.max(1, Math.min(365, Number.isFinite(skipRecentDays) ? skipRecentDays : 7));
+      const recentThresholdMs = Date.now() - days * 24 * 60 * 60 * 1000;
+
+      let page = 1;
+      const limit = 50;
+      let hasNext = true;
+
+      while (hasNext) {
+        const resp = await fetchCustomerImageHistory(customerInfo.email, page, limit, shopDomain);
+        if (!resp?.success || !Array.isArray(resp.data)) break;
+
+        for (const item of resp.data) {
+          const gid = normalizeVariantGid(item?.variantId);
+          if (!gid) continue;
+          if (!targetVariantIds.has(gid)) continue;
+
+          if (skipGeneratedRule === "variant_recent") {
+            const updatedAt = item?.updatedAt ? Date.parse(item.updatedAt) : NaN;
+            const createdAt = item?.createdAt ? Date.parse(item.createdAt) : NaN;
+            const t = Number.isFinite(updatedAt) ? updatedAt : Number.isFinite(createdAt) ? createdAt : NaN;
+            if (!Number.isFinite(t) || t < recentThresholdMs) continue;
+          }
+
+          if (skipGeneratedRule === "variant_and_person" && selectedUrl) {
+            const personUrl = item?.personImageUrl ? String(item.personImageUrl).trim() : "";
+            if (!personUrl || personUrl !== selectedUrl) continue;
+          }
+
+          out.add(gid);
+        }
+
+        // Early exit when we’ve seen all page variants.
+        if (out.size >= targetVariantIds.size) break;
+
+        hasNext = Boolean(resp?.pagination?.hasNext);
+        page += 1;
+        if (page > 10) break; // safety cap
+      }
+
+      return out;
+    };
+
+    let productsToGenerate = products.slice(0, 2);
+    try {
+      const alreadyGenerated = await getAlreadyGeneratedVariantSet();
+      if (alreadyGenerated.size > 0) {
+        const picked: LandingProduct[] = [];
+        for (const p of products) {
+          if (picked.length >= 2) break;
+          const gid = normalizeVariantGid(p.variantGid);
+          if (!gid) continue;
+          if (alreadyGenerated.has(gid)) continue;
+          picked.push(p);
+        }
+        productsToGenerate = picked;
+      }
+    } catch {
+      // If skip lookup fails, fall back to first 2 (do not block generation)
+      productsToGenerate = products.slice(0, 2);
+    }
+
+    if (productsToGenerate.length === 0) {
+      toast.info("All products on this page already have try-on results.");
+      setIsGenerating(false);
+      setCurrentIndex(-1);
+      setStatusText(null);
+      return;
+    }
     const nextResults: GenerationResultItem[] = [];
 
     try {
@@ -465,6 +565,109 @@ export default function LandingTryOn() {
                         `Generate for ${generateProductCount} product${generateProductCount === 1 ? "" : "s"}`
                       )}
                     </Button>
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-border/60 bg-white p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground">Skip already generated</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          When enabled, we’ll generate for the next {generateProductCount} products that don’t have a result yet.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={shouldSkipGenerated}
+                        onClick={() => setShouldSkipGenerated((v) => !v)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setShouldSkipGenerated((v) => !v);
+                          }
+                        }}
+                        className={[
+                          "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                          shouldSkipGenerated ? "bg-primary border-primary" : "bg-muted border-border",
+                        ].join(" ")}
+                        aria-label="Toggle skip already generated products"
+                      >
+                        <span
+                          className={[
+                            "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform",
+                            shouldSkipGenerated ? "translate-x-5" : "translate-x-1",
+                          ].join(" ")}
+                        />
+                      </button>
+                    </div>
+
+                    {shouldSkipGenerated ? (
+                      <div className="mt-3 grid gap-2">
+                        <label className="flex cursor-pointer items-start gap-2">
+                          <input
+                            type="radio"
+                            name="skipGeneratedRule"
+                            value="variant_any"
+                            checked={skipGeneratedRule === "variant_any"}
+                            onChange={() => setSkipGeneratedRule("variant_any")}
+                            className="mt-0.5 h-4 w-4 accent-primary"
+                          />
+                          <span className="text-xs text-foreground">
+                            <span className="font-medium">Variant only</span>{" "}
+                            <span className="text-muted-foreground">(recommended)</span>
+                          </span>
+                        </label>
+
+                        <label className="flex cursor-pointer items-start gap-2">
+                          <input
+                            type="radio"
+                            name="skipGeneratedRule"
+                            value="variant_and_person"
+                            checked={skipGeneratedRule === "variant_and_person"}
+                            onChange={() => setSkipGeneratedRule("variant_and_person")}
+                            className="mt-0.5 h-4 w-4 accent-primary"
+                            disabled={selectedPersonMode !== "url"}
+                          />
+                          <span className="text-xs text-foreground">
+                            <span className="font-medium">Variant + selected photo</span>{" "}
+                            <span className="text-muted-foreground">
+                              {selectedPersonMode === "url" ? "(more precise)" : "(select a saved photo to enable)"}
+                            </span>
+                          </span>
+                        </label>
+
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <label className="flex cursor-pointer items-start gap-2">
+                            <input
+                              type="radio"
+                              name="skipGeneratedRule"
+                              value="variant_recent"
+                              checked={skipGeneratedRule === "variant_recent"}
+                              onChange={() => setSkipGeneratedRule("variant_recent")}
+                              className="mt-0.5 h-4 w-4 accent-primary"
+                            />
+                            <span className="text-xs text-foreground">
+                              <span className="font-medium">Recent only</span>{" "}
+                              <span className="text-muted-foreground">(skip if generated recently)</span>
+                            </span>
+                          </label>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Days</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={365}
+                              value={skipRecentDays}
+                              onChange={(e) => setSkipRecentDays(Number.parseInt(e.target.value || "7", 10) || 7)}
+                              className="h-8 w-20 rounded-md border border-border bg-white px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+                              disabled={skipGeneratedRule !== "variant_recent"}
+                              aria-label="Recent window in days"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   {isGenerating ? (

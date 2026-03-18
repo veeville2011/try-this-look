@@ -429,6 +429,8 @@ export interface ImageGenerationHistoryItem {
   personImageUrl: string;
   clothingImageUrl: string;
   generatedImageUrl: string;
+  /** Present in Nusense customer history API; may be numeric or GID depending on older rows. */
+  variantId?: string | null;
   personBbox?: { x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number } | null;
   createdAt: string;
   updatedAt: string;

@@ -263,13 +263,30 @@
       const json = await res.json().catch(() => null);
       if (!json?.success || !Array.isArray(json.data)) return;
 
-      const variantToUrl = new Map();
+      const toEpochMs = (value) => {
+        if (!value) return null;
+        const t = Date.parse(String(value));
+        return Number.isFinite(t) ? t : null;
+      };
+
+      const variantToLatest = new Map();
       for (const it of json.data) {
         const gid = toVariantGid(it?.variantId ?? it?.variant_id);
         const u = it?.generatedImageUrl ? String(it.generatedImageUrl).trim() : "";
         if (!gid || !u) continue;
-        variantToUrl.set(gid, u);
+
+        const candidateTime =
+          toEpochMs(it?.updatedAt) ?? toEpochMs(it?.createdAt) ?? 0;
+
+        const prev = variantToLatest.get(gid);
+        if (!prev || candidateTime >= prev.time) {
+          variantToLatest.set(gid, { url: u, time: candidateTime });
+        }
       }
+
+      const variantToUrl = new Map(
+        Array.from(variantToLatest.entries()).map(([gid, v]) => [gid, v.url])
+      );
 
       const handleToUrl = {};
       for (const p of products || []) {
