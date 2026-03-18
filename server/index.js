@@ -1380,9 +1380,7 @@ app.get("/health", (req, res) => {
 const getOfflineSessionForShop = async (shopDomain) => {
   const sanitizedShop = shopify.utils.sanitizeShop(shopDomain);
   if (!sanitizedShop) return null;
-  const sessions = await shopify.config.sessionStorage.findSessionsByShop(
-    sanitizedShop
-  );
+  const sessions = await sessionStorage.findSessionsByShop(sanitizedShop);
   if (!sessions || sessions.length === 0) return null;
   return sessions.find((s) => !s.isOnline) || null;
 };
@@ -1740,9 +1738,7 @@ app.get("/api/debug/metafield", async (req, res) => {
       return res.status(400).json({ error: "Invalid shop domain" });
     }
 
-    const session = await shopify.config.sessionStorage.findSessionsByShop(
-      normalizedShop
-    );
+    const session = await sessionStorage.findSessionsByShop(normalizedShop);
 
     if (!session || session.length === 0) {
       return res.status(404).json({ error: "No session found for shop" });

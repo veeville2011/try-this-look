@@ -40,6 +40,23 @@
     }
   };
 
+  /** Base URL for Nusense generation/customer API (same backend as try-on generation). */
+  const getNusenseApiBase = () => {
+    const fromConfig = window?.NUSENSE_CONFIG?.nusenseApiUrl;
+    if (fromConfig && typeof fromConfig === "string" && fromConfig.trim()) {
+      return fromConfig.trim().replace(/\/+$/, "");
+    }
+    return "https://ai.nusense.ddns.net";
+  };
+
+  const normalizeStoreDomain = (shop) => {
+    if (!shop || typeof shop !== "string") return "";
+    let s = shop.trim().toLowerCase();
+    s = s.replace(/^https?:\/\//, "");
+    if (!s.includes(".myshopify.com")) s = s ? s + ".myshopify.com" : "";
+    return s;
+  };
+
   const getCustomerInfoFromScriptTag = () => {
     try {
       const el = document.getElementById("nusense-customer-info");
@@ -145,35 +162,36 @@
   };
 
   const fetchAndApplyExistingPersonalizedImages = async ({
-    widgetUrl,
     shopDomain,
     customerInfo,
     products,
   }) => {
     try {
-      const origin = getWidgetOrigin(widgetUrl);
-      if (!origin) return;
-      const variantIds = (products || []).map((p) => p?.variantGid).filter(Boolean);
-      if (variantIds.length === 0) return;
+      const email = customerInfo?.email ? String(customerInfo.email).trim() : "";
+      if (!email) return;
+      const store = normalizeStoreDomain(shopDomain);
+      if (!store) return;
+      if (!Array.isArray(products) || products.length === 0) return;
 
-      const url = new URL(`${origin}/api/personalized-images`);
-      url.searchParams.set("shop", shopDomain);
-      if (customerInfo?.id) url.searchParams.set("customerId", String(customerInfo.id));
-      if (customerInfo?.email) url.searchParams.set("email", String(customerInfo.email));
-      variantIds.forEach((v) => url.searchParams.append("variantIds", v));
+      const base = getNusenseApiBase();
+      const url = new URL(`${base}/api/image-generations/customer`);
+      url.searchParams.set("email", email);
+      url.searchParams.set("store", store);
+      url.searchParams.set("page", "1");
+      url.searchParams.set("limit", "50");
 
       const res = await fetch(url.toString(), {
         method: "GET",
         headers: { Accept: "application/json" },
+        mode: "cors",
       });
       if (!res.ok) return;
       const json = await res.json().catch(() => null);
-      const items = json?.data;
-      if (!Array.isArray(items)) return;
+      if (!json?.success || !Array.isArray(json.data)) return;
 
       const variantToUrl = new Map();
-      for (const it of items) {
-        const gid = toVariantGid(it?.variantId);
+      for (const it of json.data) {
+        const gid = toVariantGid(it?.variantId ?? it?.variant_id);
         const u = it?.generatedImageUrl ? String(it.generatedImageUrl).trim() : "";
         if (!gid || !u) continue;
         variantToUrl.set(gid, u);
@@ -486,7 +504,6 @@
     }
 
     await fetchAndApplyExistingPersonalizedImages({
-      widgetUrl,
       shopDomain,
       customerInfo,
       products,
