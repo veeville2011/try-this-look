@@ -135,25 +135,99 @@
     return null;
   };
 
+  /**
+   * Prepend generated image as the "first" image without removing existing assets.
+   * Goal: do NOT disturb store UI/UX; we avoid structural changes unless we can
+   * safely mirror an existing image node.
+   */
   const applyPersonalizedImageSwaps = (handleToImageUrl) => {
     if (!handleToImageUrl || typeof handleToImageUrl !== "object") return;
+
+    const insertGeneratedImageBefore = (imgEl, generatedUrl) => {
+      if (!(imgEl instanceof HTMLImageElement)) return;
+      if (!generatedUrl) return;
+
+      const parent = imgEl.parentElement;
+      if (!parent) return;
+
+      // Idempotency guard (per existing image)
+      if (imgEl.dataset.nusenseGeneratedPrepended === "1") return;
+
+      // If the <img> is inside a <picture>, we must not insert a second <img>
+      // inside the same <picture> (can break markup/layout). Instead, clone the
+      // whole <picture> and insert it before the original <picture>.
+      if (parent.tagName === "PICTURE") {
+        const pictureEl = parent;
+        const pictureParent = pictureEl.parentElement;
+        if (!pictureParent) return;
+
+        const pictureClone = pictureEl.cloneNode(true);
+        if (!(pictureClone instanceof HTMLElement)) return;
+
+        const cloneImg = pictureClone.querySelector("img");
+        if (!(cloneImg instanceof HTMLImageElement)) return;
+
+        cloneImg.dataset.nusenseGeneratedImage = "1";
+        cloneImg.decoding = "async";
+        cloneImg.loading = imgEl.loading || "lazy";
+        cloneImg.src = generatedUrl;
+        cloneImg.removeAttribute("srcset");
+        cloneImg.removeAttribute("sizes");
+
+        imgEl.dataset.nusenseGeneratedPrepended = "1";
+
+        try {
+          pictureParent.insertBefore(pictureClone, pictureEl);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      // Default: clone just the <img> and insert before it
+      const clone = imgEl.cloneNode(true);
+      if (!(clone instanceof HTMLImageElement)) return;
+
+      clone.dataset.nusenseGeneratedImage = "1";
+      clone.decoding = "async";
+      clone.loading = imgEl.loading || "lazy";
+      clone.src = generatedUrl;
+      clone.removeAttribute("srcset");
+      clone.removeAttribute("sizes");
+
+      // Keep original image as-is; just mark it so we don't prepend again.
+      imgEl.dataset.nusenseGeneratedPrepended = "1";
+
+      try {
+        parent.insertBefore(clone, imgEl);
+      } catch {
+        // ignore
+      }
+    };
+
     try {
       const entries = Object.entries(handleToImageUrl);
       for (const [handle, imageUrl] of entries) {
         if (!handle || !imageUrl) continue;
         const selector = `a[href*="/products/${CSS.escape(handle)}"]`;
         const links = document.querySelectorAll(selector);
+
         links.forEach((link) => {
-          const imgs = link.querySelectorAll("img");
-          imgs.forEach((img) => {
-            if (!(img instanceof HTMLImageElement)) return;
-            if (!img.dataset.nusenseOriginalSrc) {
-              img.dataset.nusenseOriginalSrc = img.currentSrc || img.src || "";
-            }
-            img.src = imageUrl;
-            img.removeAttribute("srcset");
-            img.removeAttribute("sizes");
+          // Prefer to prepend only to the FIRST visible product image in that link.
+          // This keeps layout impact minimal (mirrors existing markup/classes).
+          const imgs = Array.from(link.querySelectorAll("img")).filter((img) => {
+            if (!(img instanceof HTMLImageElement)) return false;
+            if (img.dataset.nusenseGeneratedImage === "1") return false;
+            // Skip empty/placeholder images
+            const src = img.currentSrc || img.src || "";
+            if (!src) return false;
+            return true;
           });
+
+          if (imgs.length === 0) return;
+
+          // Prepend to the primary image only (first match).
+          insertGeneratedImageBefore(imgs[0], imageUrl);
         });
       }
     } catch {
