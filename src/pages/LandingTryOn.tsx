@@ -137,7 +137,11 @@ export default function LandingTryOn() {
         })
         .filter(Boolean) as UploadedPhoto[];
 
-      setUploadedPhotos(normalized);
+      const dedupedByUrl = Array.from(
+        new Map(normalized.map((item) => [item.personImageUrl, item])).values()
+      );
+
+      setUploadedPhotos(dedupedByUrl);
     } catch (error) {
       toast.error("Failed to load your uploaded photos.");
     } finally {
@@ -351,7 +355,7 @@ export default function LandingTryOn() {
             tabIndex={-1}
           >
             <div className="flex w-full items-start justify-center px-3 pb-3 pt-4 sm:px-4 sm:pb-4 sm:pt-5 md:px-6 md:pt-6">
-              <div className="flex w-full max-w-[980px] flex-col gap-3 sm:gap-4 md:gap-5">
+                <div className="flex w-full max-w-[980px] flex-col gap-3 sm:gap-4 md:gap-5">
                 <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-white p-4 shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-5">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">Landing try-on</p>
@@ -363,9 +367,9 @@ export default function LandingTryOn() {
                   </div>
                   <Button
                     type="button"
-                    className="w-full shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground sm:w-auto"
                     onClick={handleRequestContextFromParent}
                     aria-label="Refresh page product context"
+                    className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 sm:w-auto sm:text-sm"
                   >
                     Refresh
                   </Button>
@@ -414,7 +418,11 @@ export default function LandingTryOn() {
                                 isSelected ? "border-primary" : "border-transparent hover:border-primary/40",
                               ].join(" ")}
                             >
-                              <img src={p.personImageUrl} alt="" className="h-full w-full object-cover" />
+                              <img
+                                src={p.personImageUrl}
+                                alt=""
+                                className="h-full w-full object-contain bg-black/5"
+                              />
                               {isSelected ? (
                                 <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-primary" />
                               ) : null}
@@ -477,12 +485,12 @@ export default function LandingTryOn() {
                         {results.map((r) => (
                           <div
                             key={r.variantId}
-                            className="overflow-hidden rounded-lg border border-border/60 bg-muted/20"
+                            className="overflow-hidden rounded-lg border border-border/60 bg-muted/20 flex items-center justify-center"
                           >
                             <img
                               src={r.generatedImageUrl}
                               alt={r.handle}
-                              className="h-24 w-full object-cover"
+                              className="aspect-square h-auto w-full max-h-32 object-contain bg-black/5"
                             />
                             <div className="px-2 py-1">
                               <p className="truncate text-[11px] font-medium text-foreground">{r.handle}</p>
