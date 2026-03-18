@@ -60,7 +60,7 @@ export default function LandingTryOn() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [shouldSkipGenerated, setShouldSkipGenerated] = useState(true);
+  const [shouldSkipGenerated, setShouldSkipGenerated] = useState(false);
   const [skipGeneratedRule, setSkipGeneratedRule] = useState<SkipGeneratedRule>("variant_any");
   const [skipRecentDays, setSkipRecentDays] = useState(7);
 
