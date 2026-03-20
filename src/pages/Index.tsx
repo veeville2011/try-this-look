@@ -1652,7 +1652,7 @@ const Index = () => {
                                 onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
                                 onKeyDown={handleCouponInputKeyDown}
                                 placeholder={t("index.coupon.placeholder")}
-                                className="h-8 text-xs uppercase border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
+                                className="h-8 text-xs uppercase border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none placeholder:text-[10px] placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground/80"
                                 maxLength={64}
                                 disabled={redeemingCoupon}
                                 aria-label={t("index.coupon.inputLabel")}
@@ -1699,7 +1699,7 @@ const Index = () => {
                                   <Button
                                     type="button"
                                     size="sm"
-                                    variant="ghost"
+                                    variant="breadcrumb"
                                     onClick={handleCopyReferralCode}
                                     disabled={copyingReferralCode}
                                     className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
