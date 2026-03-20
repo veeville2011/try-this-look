@@ -1645,14 +1645,14 @@ const Index = () => {
                               <Gift className="w-3 h-3" aria-hidden="true" />
                               {t("index.coupon.label")}
                             </label>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-0 rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring/40 focus-within:ring-offset-1">
                               <Input
                                 type="text"
                                 value={couponCode}
                                 onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
                                 onKeyDown={handleCouponInputKeyDown}
                                 placeholder={t("index.coupon.placeholder")}
-                                className="h-8 text-xs uppercase"
+                                className="h-8 text-xs uppercase border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
                                 maxLength={64}
                                 disabled={redeemingCoupon}
                                 aria-label={t("index.coupon.inputLabel")}
@@ -1662,7 +1662,7 @@ const Index = () => {
                                 size="sm"
                                 onClick={() => void handleRedeemCoupon()}
                                 disabled={redeemingCoupon || !couponCode.trim()}
-                                className="h-8 px-3 font-medium text-xs whitespace-nowrap"
+                                className="h-8 px-3 font-medium text-xs whitespace-nowrap rounded-l-none"
                                 aria-label={redeemingCoupon ? t("index.coupon.applying") : t("index.coupon.apply")}
                               >
                                 {redeemingCoupon ? (
@@ -1692,25 +1692,24 @@ const Index = () => {
                               </div>
                             ) : referralCode ? (
                               <div className="space-y-1.5">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="flex-1 px-3 py-2 bg-muted/50 border border-border rounded text-sm font-mono font-bold text-foreground">
+                                <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5">
+                                  <div className="inline-flex items-center rounded-full bg-background px-2.5 py-1 text-[11px] font-mono font-bold tracking-wide text-foreground">
                                     {referralCode}
                                   </div>
                                   <Button
                                     type="button"
                                     size="sm"
-                                    variant="outline"
+                                    variant="ghost"
                                     onClick={handleCopyReferralCode}
                                     disabled={copyingReferralCode}
-                                    className="h-8 px-3 font-medium text-xs whitespace-nowrap"
+                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                                     aria-label={copyingReferralCode ? t("referral.code.copying") : t("referral.code.copyAriaLabel")}
                                   >
                                     {copyingReferralCode ? (
-                                      <div className="w-3 h-3 mr-1 border-2 border-border border-t-primary rounded-full animate-spin" />
+                                      <div className="h-3 w-3 border-2 border-border border-t-primary rounded-full animate-spin" />
                                     ) : (
-                                      <Copy className="w-3 h-3 mr-1" />
+                                      <Copy className="h-3 w-3" />
                                     )}
-                                    {t("referral.code.copy")}
                                   </Button>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">
