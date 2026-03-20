@@ -1693,7 +1693,7 @@ const Index = () => {
                             ) : referralCode ? (
                               <div className="space-y-1.5">
                                 <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5">
-                                  <div className="inline-flex items-center rounded-full bg-background px-2.5 py-1 text-[11px] font-mono font-bold tracking-wide text-foreground">
+                                  <div className="inline-flex items-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-mono font-extrabold uppercase tracking-[0.18em] text-primary">
                                     {referralCode}
                                   </div>
                                   <Button
