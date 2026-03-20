@@ -9,7 +9,7 @@ import { awardReferralCredits } from "@/services/referralsApi";
 import { createApp } from "@shopify/app-bridge";
 import { Redirect } from "@shopify/app-bridge/actions";
 
-const REDIRECT_COUNTDOWN_SECONDS = 8;
+const REDIRECT_COUNTDOWN_SECONDS = 5;
 
 const PaymentSuccess = () => {
   const { t } = useTranslation();
