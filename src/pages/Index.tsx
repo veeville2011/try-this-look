@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useShop } from "@/providers/AppBridgeProvider";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -371,6 +371,13 @@ const Index = () => {
     } finally {
       setRedeemingCoupon(false);
     }
+  };
+
+  const handleCouponInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (redeemingCoupon || !couponCode.trim()) return;
+    void handleRedeemCoupon();
   };
 
   // Helper function to find plan by handle
@@ -1630,6 +1637,47 @@ const Index = () => {
                             </div>
                           ) : null}
                         </div>
+
+                        {/* Coupon Section - Available on selected plan card */}
+                        {subscription && (
+                          <div className="pt-2 border-t border-border flex-shrink-0">
+                            <label className="flex items-center gap-1.5 text-[10px] font-medium text-foreground mb-1.5">
+                              <Gift className="w-3 h-3" aria-hidden="true" />
+                              {t("index.coupon.label")}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                type="text"
+                                value={couponCode}
+                                onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                                onKeyDown={handleCouponInputKeyDown}
+                                placeholder={t("index.coupon.placeholder")}
+                                className="h-8 text-xs uppercase"
+                                maxLength={64}
+                                disabled={redeemingCoupon}
+                                aria-label={t("index.coupon.inputLabel")}
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => void handleRedeemCoupon()}
+                                disabled={redeemingCoupon || !couponCode.trim()}
+                                className="h-8 px-3 font-medium text-xs whitespace-nowrap"
+                                aria-label={redeemingCoupon ? t("index.coupon.applying") : t("index.coupon.apply")}
+                              >
+                                {redeemingCoupon ? (
+                                  <div className="w-3 h-3 mr-1 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                                ) : (
+                                  <Gift className="w-3 h-3 mr-1" aria-hidden="true" />
+                                )}
+                                {redeemingCoupon ? t("index.coupon.applying") : t("index.coupon.apply")}
+                              </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-1.5">
+                              {t("index.coupon.hint")}
+                            </p>
+                          </div>
+                        )}
 
                         {/* Referral Code Section - Available for all users (free and paid plans) */}
                         {subscription && (
