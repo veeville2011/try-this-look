@@ -77,6 +77,7 @@ const Index = () => {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [loadingReferralCode, setLoadingReferralCode] = useState(false);
   const [copyingReferralCode, setCopyingReferralCode] = useState(false);
+  const [copiedReferralCode, setCopiedReferralCode] = useState(false);
 
   // Use subscription hook to check subscription status
   const {
@@ -321,6 +322,13 @@ const Index = () => {
     try {
       setCopyingReferralCode(true);
       await navigator.clipboard.writeText(referralCode);
+      setCopiedReferralCode(true);
+      if (referralCodeCopiedTimeoutRef.current) {
+        clearTimeout(referralCodeCopiedTimeoutRef.current);
+      }
+      referralCodeCopiedTimeoutRef.current = setTimeout(() => {
+        setCopiedReferralCode(false);
+      }, 2000);
       toast.success(t("referral.toast.codeCopied"), {
         description: t("referral.toast.codeCopiedDescription"),
       });
@@ -333,6 +341,14 @@ const Index = () => {
       setCopyingReferralCode(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (referralCodeCopiedTimeoutRef.current) {
+        clearTimeout(referralCodeCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleRedeemCoupon = async () => {
     const shopDomain =
@@ -678,6 +694,7 @@ const Index = () => {
   const paymentSuccessTimeRef = useRef<number | null>(null);
   const paymentSuccessRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const referralCodeCopiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const componentMountTimeRef = useRef<number>(Date.now());
   const initialLoadGracePeriodRef = useRef<boolean>(true);
 
@@ -1692,8 +1709,18 @@ const Index = () => {
                               </div>
                             ) : referralCode ? (
                               <div className="space-y-1.5">
-                                <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2 py-1.5">
-                                  <div className="inline-flex items-center rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-mono font-extrabold uppercase tracking-[0.18em] text-primary">
+                                <div
+                                  className={`inline-flex items-center gap-3 rounded-[10px] border border-dashed px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] ${
+                                    copiedReferralCode
+                                      ? "border-[#10B981] bg-[#ECFDF5]"
+                                      : "border-[#D1D5DB] bg-[#F5F5F5]"
+                                  }`}
+                                >
+                                  <div
+                                    className={`font-mono text-base font-semibold uppercase tracking-[0.14em] select-all ${
+                                      copiedReferralCode ? "text-[#065F46]" : "text-[#111827]"
+                                    }`}
+                                  >
                                     {referralCode}
                                   </div>
                                   <Button
@@ -1702,13 +1729,13 @@ const Index = () => {
                                     variant="breadcrumb"
                                     onClick={handleCopyReferralCode}
                                     disabled={copyingReferralCode}
-                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                    className="h-7 w-7 rounded-md border-none bg-transparent p-0 text-[#374151] opacity-60 transition-all duration-200 ease-in-out hover:bg-black/5 hover:opacity-100 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
                                     aria-label={copyingReferralCode ? t("referral.code.copying") : t("referral.code.copyAriaLabel")}
                                   >
                                     {copyingReferralCode ? (
                                       <div className="h-3 w-3 border-2 border-border border-t-primary rounded-full animate-spin" />
                                     ) : (
-                                      <Copy className="h-3 w-3" />
+                                      <Copy className="h-4 w-4" />
                                     )}
                                   </Button>
                                 </div>
