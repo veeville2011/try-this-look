@@ -1,0 +1,45 @@
+{
+  "blocks": {
+    "nusense_featured_products": {
+      "settings": {
+        "title": {
+          "label": "Section title"
+        },
+        "source": {
+          "label": "Product source",
+          "options": {
+            "collection": "Collection",
+            "manual": "Manual"
+          }
+        },
+        "products": {
+          "label": "Products"
+        },
+        "collection": {
+          "label": "Collection"
+        },
+        "products_to_show": {
+          "label": "Number of products"
+        },
+        "products_per_row": {
+          "label": "Products per row"
+        },
+        "display": {
+          "header": "Display options"
+        },
+        "show_price": {
+          "label": "Show price"
+        },
+        "show_compare_price": {
+          "label": "Show compare-at price"
+        },
+        "show_rating": {
+          "label": "Show rating"
+        },
+        "show_add_to_cart": {
+          "label": "Show add to cart"
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,11 @@
   "blocks": {
     "nusense-tryon-button": {
       "name": "NUSENSE Try-On Button"
+    },
+    "nusense_featured_products": {
+      "add_to_cart": "Add to cart",
+      "no_products": "No products available for the selected source.",
+      "rating_label": "Rating:"
     }
   }
 }
