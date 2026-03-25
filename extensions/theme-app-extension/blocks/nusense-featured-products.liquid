@@ -3,11 +3,34 @@
   assign source_mode = block.settings.source | default: 'collection'
   assign products_to_show = block.settings.products_to_show | default: 4
   assign products_per_row = block.settings.products_per_row | default: '4'
+  assign products_per_row_int = products_per_row | plus: 0
+  assign card_mode = block.settings.card_mode | default: 'theme'
+  assign theme_card_snippet_raw = block.settings.theme_card_snippet | strip | default: 'card-product'
+  assign theme_card_snippet = theme_card_snippet_raw | handleize
+  if theme_card_snippet == blank
+    assign theme_card_snippet = 'card-product'
+  endif
+  assign use_theme_grid_markup = block.settings.use_theme_grid_markup
+
   assign show_price = block.settings.show_price
   assign show_compare_price = block.settings.show_compare_price
   assign show_rating = block.settings.show_rating
   assign show_add_to_cart = block.settings.show_add_to_cart
+
   assign has_products = false
+  assign featured_products = blank
+
+  if source_mode == 'manual'
+    if block.settings.products != blank and block.settings.products.count > 0
+      assign featured_products = block.settings.products
+      assign has_products = true
+    endif
+  elsif source_mode == 'collection'
+    if block.settings.collection != blank and block.settings.collection.all_products_count > 0
+      assign featured_products = block.settings.collection.products
+      assign has_products = true
+    endif
+  endif
 %}
 
 <div class="nusense-featured-products" style="--nusense-featured-products-columns: {{ products_per_row }};">
@@ -15,101 +38,96 @@
     <h2 class="nusense-featured-products__title">{{ section_title | escape }}</h2>
   {% endif %}
 
-  <div class="nusense-featured-products__grid">
-    {% if source_mode == 'manual' %}
-      {% if block.settings.products != blank %}
-        {% assign has_products = true %}
-        {% for product in block.settings.products limit: products_to_show %}
-          <article class="nusense-featured-products__card">
-            <a class="nusense-featured-products__image-link" href="{{ product.url }}" aria-label="{{ product.title | escape }}">
-              {% if product.featured_image != blank %}
-                {{ product.featured_image | image_url: width: 720 | image_tag: class: 'nusense-featured-products__image', loading: 'lazy', alt: product.title }}
-              {% endif %}
-            </a>
-
-            <div class="nusense-featured-products__content">
-              <a class="nusense-featured-products__product-link" href="{{ product.url }}">
-                <h3 class="nusense-featured-products__product-title">{{ product.title | escape }}</h3>
-              </a>
-
-              {% if show_rating and product.metafields.reviews.rating != blank %}
-                {% assign rating_value = product.metafields.reviews.rating.value.rating | default: product.metafields.reviews.rating.value %}
-                {% if rating_value != blank %}
-                  <p class="nusense-featured-products__rating">
-                    {{ 'blocks.nusense_featured_products.rating_label' | t }} {{ rating_value }}
-                  </p>
-                {% endif %}
-              {% endif %}
-
-              {% if show_price %}
-                <p class="nusense-featured-products__price-wrap">
-                  <span class="nusense-featured-products__price">{{ product.price | money }}</span>
-                  {% if show_compare_price and product.compare_at_price > product.price %}
-                    <span class="nusense-featured-products__compare-price">{{ product.compare_at_price | money }}</span>
-                  {% endif %}
-                </p>
-              {% endif %}
-
-              {% if show_add_to_cart and product.selected_or_first_available_variant != blank %}
-                {% form 'product', product, class: 'nusense-featured-products__form' %}
-                  <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
-                  <button type="submit" class="nusense-featured-products__button">
-                    {{ 'blocks.nusense_featured_products.add_to_cart' | t }}
-                  </button>
-                {% endform %}
-              {% endif %}
-            </div>
-          </article>
-        {% endfor %}
-      {% endif %}
+  {% if card_mode == 'theme' and theme_card_snippet != blank and has_products %}
+    {% liquid
+      assign skip_card_styles = false
+      assign card_lazy_load = false
+    %}
+    {% if use_theme_grid_markup %}
+      <ul
+        class="grid product-grid contains-card contains-card--product nusense-featured-products__theme-grid"
+        role="list"
+      >
     {% else %}
-      {% if block.settings.collection != blank %}
-        {% assign has_products = true %}
-        {% for product in block.settings.collection.products limit: products_to_show %}
-          <article class="nusense-featured-products__card">
-            <a class="nusense-featured-products__image-link" href="{{ product.url }}" aria-label="{{ product.title | escape }}">
-              {% if product.featured_image != blank %}
-                {{ product.featured_image | image_url: width: 720 | image_tag: class: 'nusense-featured-products__image', loading: 'lazy', alt: product.title }}
-              {% endif %}
+      <div class="nusense-featured-products__grid">
+    {% endif %}
+    {% for product in featured_products limit: products_to_show %}
+      {% if forloop.index > products_per_row_int %}
+        {% assign card_lazy_load = true %}
+      {% endif %}
+      {% if use_theme_grid_markup %}
+        <li class="grid__item">
+      {% endif %}
+      {% render theme_card_snippet,
+        card_product: product,
+        media_aspect_ratio: block.settings.media_aspect_ratio,
+        image_shape: block.settings.image_shape,
+        show_secondary_image: block.settings.show_secondary_image,
+        show_vendor: block.settings.show_vendor,
+        show_rating: block.settings.show_rating,
+        lazy_load: card_lazy_load,
+        skip_styles: skip_card_styles,
+        section_id: section.id,
+        quick_add: block.settings.theme_quick_add
+      %}
+      {% assign skip_card_styles = true %}
+      {% if use_theme_grid_markup %}
+        </li>
+      {% endif %}
+    {% endfor %}
+    {% if use_theme_grid_markup %}
+      </ul>
+    {% else %}
+      </div>
+    {% endif %}
+  {% elsif card_mode == 'app' and has_products %}
+    <div class="nusense-featured-products__grid">
+      {% for product in featured_products limit: products_to_show %}
+        <article class="nusense-featured-products__card">
+          <a class="nusense-featured-products__image-link" href="{{ product.url }}" aria-label="{{ product.title | escape }}">
+            {% if product.featured_image != blank %}
+              {{ product.featured_image | image_url: width: 720 | image_tag: class: 'nusense-featured-products__image', loading: 'lazy', alt: product.title }}
+            {% endif %}
+          </a>
+
+          <div class="nusense-featured-products__content">
+            <a class="nusense-featured-products__product-link" href="{{ product.url }}">
+              <h3 class="nusense-featured-products__product-title">{{ product.title | escape }}</h3>
             </a>
 
-            <div class="nusense-featured-products__content">
-              <a class="nusense-featured-products__product-link" href="{{ product.url }}">
-                <h3 class="nusense-featured-products__product-title">{{ product.title | escape }}</h3>
-              </a>
-
-              {% if show_rating and product.metafields.reviews.rating != blank %}
-                {% assign rating_value = product.metafields.reviews.rating.value.rating | default: product.metafields.reviews.rating.value %}
-                {% if rating_value != blank %}
-                  <p class="nusense-featured-products__rating">
-                    {{ 'blocks.nusense_featured_products.rating_label' | t }} {{ rating_value }}
-                  </p>
-                {% endif %}
-              {% endif %}
-
-              {% if show_price %}
-                <p class="nusense-featured-products__price-wrap">
-                  <span class="nusense-featured-products__price">{{ product.price | money }}</span>
-                  {% if show_compare_price and product.compare_at_price > product.price %}
-                    <span class="nusense-featured-products__compare-price">{{ product.compare_at_price | money }}</span>
-                  {% endif %}
+            {% if show_rating and product.metafields.reviews.rating != blank %}
+              {% assign rating_value = product.metafields.reviews.rating.value.rating | default: product.metafields.reviews.rating.value %}
+              {% if rating_value != blank %}
+                <p class="nusense-featured-products__rating">
+                  {{ 'blocks.nusense_featured_products.rating_label' | t }} {{ rating_value }}
                 </p>
               {% endif %}
+            {% endif %}
 
-              {% if show_add_to_cart and product.selected_or_first_available_variant != blank %}
-                {% form 'product', product, class: 'nusense-featured-products__form' %}
-                  <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
-                  <button type="submit" class="nusense-featured-products__button">
-                    {{ 'blocks.nusense_featured_products.add_to_cart' | t }}
-                  </button>
-                {% endform %}
-              {% endif %}
-            </div>
-          </article>
-        {% endfor %}
-      {% endif %}
-    {% endif %}
-  </div>
+            {% if show_price %}
+              <p class="nusense-featured-products__price-wrap">
+                <span class="nusense-featured-products__price">{{ product.price | money }}</span>
+                {% if show_compare_price and product.compare_at_price > product.price %}
+                  <span class="nusense-featured-products__compare-price">{{ product.compare_at_price | money }}</span>
+                {% endif %}
+              </p>
+            {% endif %}
+
+            {% if show_add_to_cart and product.selected_or_first_available_variant != blank %}
+              {% form 'product', product, class: 'nusense-featured-products__form' %}
+                <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+                <button type="submit" class="nusense-featured-products__button">
+                  {{ 'blocks.nusense_featured_products.add_to_cart' | t }}
+                </button>
+              {% endform %}
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="nusense-featured-products__grid nusense-featured-products__grid--empty"></div>
+  {% endif %}
 
   {% unless has_products %}
     <p class="nusense-featured-products__empty">{{ 'blocks.nusense_featured_products.no_products' | t }}</p>
@@ -129,6 +147,12 @@
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(var(--nusense-featured-products-columns), minmax(0, 1fr));
+  }
+
+  .nusense-featured-products__theme-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
   }
 
   @media screen and (max-width: 989px) {
@@ -267,31 +291,170 @@
     },
     {
       "type": "header",
-      "content": "t:blocks.nusense_featured_products.settings.display.header"
+      "content": "t:blocks.nusense_featured_products.settings.card.header"
+    },
+    {
+      "type": "select",
+      "id": "card_mode",
+      "label": "t:blocks.nusense_featured_products.settings.card_mode.label",
+      "options": [
+        {
+          "value": "theme",
+          "label": "t:blocks.nusense_featured_products.settings.card_mode.options.theme"
+        },
+        {
+          "value": "app",
+          "label": "t:blocks.nusense_featured_products.settings.card_mode.options.app"
+        }
+      ],
+      "default": "theme",
+      "info": "t:blocks.nusense_featured_products.settings.card_mode.info"
+    },
+    {
+      "type": "text",
+      "id": "theme_card_snippet",
+      "label": "t:blocks.nusense_featured_products.settings.theme_card_snippet.label",
+      "default": "card-product",
+      "info": "t:blocks.nusense_featured_products.settings.theme_card_snippet.info",
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
     },
     {
       "type": "checkbox",
-      "id": "show_price",
-      "label": "t:blocks.nusense_featured_products.settings.show_price.label",
-      "default": true
+      "id": "use_theme_grid_markup",
+      "label": "t:blocks.nusense_featured_products.settings.use_theme_grid_markup.label",
+      "default": true,
+      "info": "t:blocks.nusense_featured_products.settings.use_theme_grid_markup.info",
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
+    },
+    {
+      "type": "select",
+      "id": "media_aspect_ratio",
+      "label": "t:blocks.nusense_featured_products.settings.media_aspect_ratio.label",
+      "options": [
+        {
+          "value": "adapt",
+          "label": "t:blocks.nusense_featured_products.settings.media_aspect_ratio.options.adapt"
+        },
+        {
+          "value": "portrait",
+          "label": "t:blocks.nusense_featured_products.settings.media_aspect_ratio.options.portrait"
+        },
+        {
+          "value": "square",
+          "label": "t:blocks.nusense_featured_products.settings.media_aspect_ratio.options.square"
+        }
+      ],
+      "default": "adapt",
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
+    },
+    {
+      "type": "select",
+      "id": "image_shape",
+      "label": "t:blocks.nusense_featured_products.settings.image_shape.label",
+      "options": [
+        {
+          "value": "default",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.default"
+        },
+        {
+          "value": "arch",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.arch"
+        },
+        {
+          "value": "blob",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.blob"
+        },
+        {
+          "value": "chevronleft",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.chevronleft"
+        },
+        {
+          "value": "chevronright",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.chevronright"
+        },
+        {
+          "value": "diamond",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.diamond"
+        },
+        {
+          "value": "parallelogram",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.parallelogram"
+        },
+        {
+          "value": "round",
+          "label": "t:blocks.nusense_featured_products.settings.image_shape.options.round"
+        }
+      ],
+      "default": "default",
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
     },
     {
       "type": "checkbox",
-      "id": "show_compare_price",
-      "label": "t:blocks.nusense_featured_products.settings.show_compare_price.label",
-      "default": true
+      "id": "show_secondary_image",
+      "label": "t:blocks.nusense_featured_products.settings.show_secondary_image.label",
+      "default": false,
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "t:blocks.nusense_featured_products.settings.show_vendor.label",
+      "default": false,
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
+    },
+    {
+      "type": "select",
+      "id": "theme_quick_add",
+      "label": "t:blocks.nusense_featured_products.settings.theme_quick_add.label",
+      "options": [
+        {
+          "value": "none",
+          "label": "t:blocks.nusense_featured_products.settings.theme_quick_add.options.none"
+        },
+        {
+          "value": "standard",
+          "label": "t:blocks.nusense_featured_products.settings.theme_quick_add.options.standard"
+        },
+        {
+          "value": "bulk",
+          "label": "t:blocks.nusense_featured_products.settings.theme_quick_add.options.bulk"
+        }
+      ],
+      "default": "standard",
+      "visible_if": "{{ block.settings.card_mode == 'theme' }}"
     },
     {
       "type": "checkbox",
       "id": "show_rating",
       "label": "t:blocks.nusense_featured_products.settings.show_rating.label",
-      "default": false
+      "default": false,
+      "info": "t:blocks.nusense_featured_products.settings.show_rating.info"
+    },
+    {
+      "type": "header",
+      "content": "t:blocks.nusense_featured_products.settings.display.header",
+      "visible_if": "{{ block.settings.card_mode == 'app' }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price",
+      "label": "t:blocks.nusense_featured_products.settings.show_price.label",
+      "default": true,
+      "visible_if": "{{ block.settings.card_mode == 'app' }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_compare_price",
+      "label": "t:blocks.nusense_featured_products.settings.show_compare_price.label",
+      "default": true,
+      "visible_if": "{{ block.settings.card_mode == 'app' }}"
     },
     {
       "type": "checkbox",
       "id": "show_add_to_cart",
       "label": "t:blocks.nusense_featured_products.settings.show_add_to_cart.label",
-      "default": true
+      "default": true,
+      "visible_if": "{{ block.settings.card_mode == 'app' }}"
     }
   ]
 }

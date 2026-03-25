@@ -22,19 +22,74 @@
           "label": "Number of products"
         },
         "products_per_row": {
-          "label": "Products per row"
+          "label": "Products per row (built-in card only)"
+        },
+        "card": {
+          "header": "Product card"
+        },
+        "card_mode": {
+          "label": "Card style",
+          "info": "Use your theme product card snippet for the same look as collection pages. If the snippet name differs, change it below. Use Built-in card only if your theme has no compatible snippet.",
+          "options": {
+            "theme": "Match store theme",
+            "app": "Built-in card"
+          }
+        },
+        "theme_card_snippet": {
+          "label": "Theme card snippet",
+          "info": "Snippet filename without .liquid. Dawn and many Online Store 2.0 themes use card-product."
+        },
+        "use_theme_grid_markup": {
+          "label": "Use theme grid list markup",
+          "info": "Wraps cards in ul.grid / li.grid__item like Dawn collection grids so spacing and columns match."
+        },
+        "media_aspect_ratio": {
+          "label": "Image ratio",
+          "options": {
+            "adapt": "Adapt to image",
+            "portrait": "Portrait",
+            "square": "Square"
+          }
+        },
+        "image_shape": {
+          "label": "Image shape",
+          "options": {
+            "default": "Default",
+            "arch": "Arch",
+            "blob": "Blob",
+            "chevronleft": "Chevron left",
+            "chevronright": "Chevron right",
+            "diamond": "Diamond",
+            "parallelogram": "Parallelogram",
+            "round": "Round"
+          }
+        },
+        "show_secondary_image": {
+          "label": "Show second image on hover"
+        },
+        "show_vendor": {
+          "label": "Show vendor"
+        },
+        "show_rating": {
+          "label": "Show rating",
+          "info": "For theme cards, uses your theme rating UI when supported."
+        },
+        "theme_quick_add": {
+          "label": "Quick add",
+          "options": {
+            "none": "None",
+            "standard": "Standard",
+            "bulk": "Bulk"
+          }
         },
         "display": {
-          "header": "Display options"
+          "header": "Built-in card options"
         },
         "show_price": {
           "label": "Show price"
         },
         "show_compare_price": {
           "label": "Show compare-at price"
-        },
-        "show_rating": {
-          "label": "Show rating"
         },
         "show_add_to_cart": {
           "label": "Show add to cart"

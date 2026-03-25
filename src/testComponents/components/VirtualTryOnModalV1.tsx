@@ -1930,8 +1930,18 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
 
     try {
       const personBlob = await dataURLToBlob(uploadedImage);
-      const clothingResponse = await fetch(selectedClothing);
-      const clothingBlob = await clothingResponse.blob();
+      
+      let clothingBlob: Blob | undefined;
+      let productImageUrl: string | undefined;
+      
+      // If selectedClothing is a data URL, we need to convert it to a blob
+      if (selectedClothing.startsWith('data:')) {
+        const clothingResponse = await fetch(selectedClothing);
+        clothingBlob = await clothingResponse.blob();
+      } else {
+        // Otherwise pass it as product_image_url to save a roundtrip
+        productImageUrl = selectedClothing;
+      }
 
       const shopDomain = storeInfo?.shopDomain || storeInfo?.domain || null;
       const clothingKey = selectedClothingKey ? String(selectedClothingKey) : undefined;
@@ -2013,6 +2023,7 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
       const submitResponse = await submitTryOn({
         person_image: personBlob,
         garment_image: clothingBlob,
+        product_image_url: productImageUrl,
         product_id: productInfo?.productId ? String(productInfo.productId) : undefined,
         product_title: productInfo?.productTitle || undefined,
         product_variant_id: productInfo?.variantId ? String(productInfo.variantId) : undefined,
@@ -2033,6 +2044,8 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
             setStatusMessage(t('virtualTryOnModal.processingTryOn') || 'Processing...');
           } else if (status === 'pending') {
             setStatusMessage(t('virtualTryOnModal.preparingTryOn') || 'Preparing...');
+          } else if (status === 'generating_input_variations' || status === 'generating_output_variations') {
+            setStatusMessage('Generating variations...');
           }
         }
       );
@@ -2302,9 +2315,18 @@ const VirtualTryOnModalV1: React.FC<VirtualTryOnModalProps> = ({ customerInfo })
       setError(errorMessage);
       setStep('idle');
       setProgress(0);
-      toast.error(t('virtualTryOnModal.generationFailed'), {
-        description: errorMessage,
-      });
+      
+      // Check if this is a consent error (HTTP 451)
+      if (errorMessage.includes('CONSENT_REQUIRED')) {
+        toast.error('Consent Required', {
+          description: 'Data processing consent is required for virtual try-on. Please review your privacy settings.',
+          duration: 5000,
+        });
+      } else {
+        toast.error(t('virtualTryOnModal.generationFailed'), {
+          description: errorMessage,
+        });
+      }
     }
   }, [uploadedImage, selectedClothing, selectedClothingKey, selectedDemoPhotoUrl, storeInfo, customerInfo, storedProductData, getProductData, selectedPersonBbox, isValidImage, t]);
 

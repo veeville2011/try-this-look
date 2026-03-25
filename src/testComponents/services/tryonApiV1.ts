@@ -302,6 +302,9 @@ export const submitTryOn = async (params: TryOnSubmitParams): Promise<TryOnSubmi
   });
 
   if (!response.ok) {
+    if (response.status === 451) {
+      throw new Error('CONSENT_REQUIRED: Data processing consent required for virtual try-on');
+    }
     const error = await response.json().catch(() => ({ detail: 'Failed to submit try-on' }));
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
@@ -310,7 +313,7 @@ export const submitTryOn = async (params: TryOnSubmitParams): Promise<TryOnSubmi
 };
 
 export interface TryOnStatusResponse {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'generating_input_variations' | 'generating_output_variations' | 'completed' | 'failed';
   image_id: string;
   tryon_id?: string;
   result_url?: string;
@@ -358,7 +361,12 @@ export const pollTryOnStatus = async (
       return status;
     } else if (status.status === 'failed') {
       return status;
-    } else if (status.status === 'pending' || status.status === 'processing') {
+    } else if (
+      status.status === 'pending' || 
+      status.status === 'processing' ||
+      status.status === 'generating_input_variations' ||
+      status.status === 'generating_output_variations'
+    ) {
       attempts++;
       if (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
